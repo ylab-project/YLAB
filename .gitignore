@@ -1,0 +1,42 @@
+# List of untracked files to ignore
+compiler/*
+work/*
+build/*
+!build/YLabInstaller.exe
+
+# Memo files
+memo/claud_prompt.md
+memo/*_temp.md
+memo/comleted/
+
+# Test results
+test/results/
+
+# Output files
+out/
+
+# Temporary workspace
+tmp/*
+!tmp/.gitkeep
+
+# MATLAB temporary files
+*.asv
+*.m~
+*.bak
+
+
+# Debug test files
+test/test_*_detail.m
+test/test_*_debug.m
+test/debug_*.m
+test/*.tmp.*
+
+# Data folders for testing
+data/KG03A/
+
+# Agent configuration files
+AGENTS.md
+.claude/
+
+# Project metadata exports
+resources/

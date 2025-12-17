@@ -1,0 +1,62 @@
+function [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, vix, viy, ...
+  idnode_cgsr, idm2n, idmc2m, medir, mtype, Fm)
+% 計算の準備
+ncgsr = length(idnode_cgsr);
+cgsr.ratio = zeros(ncgsr,4);
+cgsr.sgx = zeros(ncgsr,2);
+cgsr.sgy = zeros(ncgsr,2);
+cgsr.scx = zeros(ncgsr,4);
+cgsr.scy = zeros(ncgsr,4);
+
+% 耐力比の計算
+for icg = 1:ncgsr
+  in = idnode_cgsr(icg);
+  isconnected1 = (idm2n(:,1)==in);
+  isconnected2 = (idm2n(:,2)==in);
+
+  % 左右の梁
+  isgx1 = isconnected2&mtype==PRM.GIRDER&medir==PRM.X;
+  isgy1 = isconnected2&mtype==PRM.GIRDER&medir==PRM.Y;
+  isgx2 = isconnected1&mtype==PRM.GIRDER&medir==PRM.X;
+  isgy2 = isconnected1&mtype==PRM.GIRDER&medir==PRM.Y;
+  sgxl = sum(Zpy(isgx1).*Fm(isgx1)*1.1);
+  sgxr = sum(Zpy(isgx2).*Fm(isgx2)*1.1);
+  sgyl = sum(Zpy(isgy1).*Fm(isgy1)*1.1);
+  sgyr = sum(Zpy(isgy2).*Fm(isgy2)*1.1);
+
+  % 上下の柱
+  % TODO 柱の耐力の方向成分を考える必要があるが保留
+  isc1  = isconnected2&mtype==PRM.COLUMN;
+  isc2  = isconnected1&mtype==PRM.COLUMN;
+  scx1p = sum(vix(isc1(idmc2m),1).*Zpy(isc1).*Fm(isc1)*1.1);
+  scx1n = sum(vix(isc1(idmc2m),2).*Zpy(isc1).*Fm(isc1)*1.1);
+  scx2p = sum(vix(isc2(idmc2m),1).*Zpy(isc2).*Fm(isc2)*1.1);
+  scx2n = sum(vix(isc2(idmc2m),2).*Zpy(isc2).*Fm(isc2)*1.1);
+  scy1p = sum(viy(isc1(idmc2m),1).*Zpy(isc1).*Fm(isc1)*1.1);
+  scy1n = sum(viy(isc1(idmc2m),2).*Zpy(isc1).*Fm(isc1)*1.1);
+  scy2p = sum(viy(isc2(idmc2m),1).*Zpy(isc2).*Fm(isc2)*1.1);
+  scy2n = sum(viy(isc2(idmc2m),2).*Zpy(isc2).*Fm(isc2)*1.1);
+
+  % 梁の合算
+  sgx = sgxl+sgxr;
+  sgy = sgyl+sgyr;
+
+  %柱の合算
+  scxp = scx1p+scx2p;
+  scxn = scx1n+scx2n;
+  scyp = scy1p+scy2p;
+  scyn = scy1n+scy2n;
+
+  % 結果の保存
+  cgsr.ratio(icg,:) = [scxp/sgx scxn/sgx scyp/sgy scyn/sgy];
+  cgsr.sgx(icg,:) = [sgxl sgxr];
+  cgsr.sgy(icg,:) = [sgyl sgyr];
+  cgsr.scx(icg,:) = [scx1p scx2p scx1n scx2n];
+  cgsr.scy(icg,:) = [scy1p scy2p scy1n scy2n];
+end
+concgsr = 1.5./cgsr.ratio-1;
+concgsr = reshape(concgsr,[],1);
+return
+end
+
+
