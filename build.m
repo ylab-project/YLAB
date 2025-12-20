@@ -30,10 +30,25 @@ if ~exist(buildDir, 'dir')
 end
 
 % ビルド実行
-fprintf('Building Standalone Application (from YLAB.p)');
+fprintf('Building Standalone Application (from YLAB.p)\n');
 
 % Pコードからは依存関係が自動抽出されないため、src フォルダを明示的に追加
 srcDir = fullfile(pwd, 'src');
+
+% Report Generator Toolboxの有無を確認
+hasReportGen = ~isempty(ver('rptgen')) || ~isempty(ver('rptgencore'));
+
+if hasReportGen
+  % Toolboxあり: src全体を含める（PDF機能有効）
+  fprintf('Report Generator detected: PDF feature enabled\n');
+  additionalFiles = {srcDir};
+else
+  % Toolboxなし: report関連を除外（PDF機能無効）
+  fprintf('Report Generator not found: PDF feature disabled\n');
+  additionalFiles = collectSourceFilesWithoutReport(srcDir);
+  fprintf('  Excluding %d report-related files\n', ...
+    numel(dir(fullfile(srcDir, '**', 'report*.m'))));
+end
 
 % Pファイル解析警告を一時的に抑制（srcDir で依存関係を手動追加済み）
 warnId = 'Compiler:build:shared:cannotAnalyzePFiles';
@@ -43,7 +58,7 @@ restoreWarn = onCleanup(@() warning(warnState));
 results = compiler.build.standaloneApplication(...
   "YLAB.p", ...
   "OutputDir", "build", ...
-  "AdditionalFiles", {srcDir}, ...
+  "AdditionalFiles", additionalFiles, ...
   "Verbose", "on", ...
   "ExecutableVersion", version ...
   );
@@ -81,4 +96,20 @@ compiler.package.installer(results, ...
 
 fprintf('Build successful.\n');
 
+end
+
+%--------------------------------------------------------------------------
+function files = collectSourceFilesWithoutReport(srcDir)
+%collectSourceFilesWithoutReport Report Generator依存ファイルを除外
+%   report_*.m, reportManager.m, makeDOMCompilable.m を除外したリストを返す
+
+allFiles = dir(fullfile(srcDir, '**', '*.m'));
+excludePattern = '^(report_|reportManager|makeDOMCompilable)';
+keep = cellfun(@(x) isempty(regexp(x, excludePattern, 'once')), {allFiles.name});
+filteredFiles = allFiles(keep);
+
+files = cell(1, numel(filteredFiles));
+for i = 1:numel(filteredFiles)
+  files{i} = fullfile(filteredFiles(i).folder, filteredFiles(i).name);
+end
 end
