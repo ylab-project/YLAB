@@ -31,8 +31,8 @@ y_pos = (screen_size(4) - dlg_height) / 2;
 
 fig = uifigure('Name', 'YLAB Settings', ...
   'Position', [x_pos, y_pos, dlg_width, dlg_height], ...
-          'WindowStyle', 'normal', ...
-          'Resize', 'off');
+  'WindowStyle', 'normal', ...
+  'Resize', 'off');
 
 %% レイアウト構築
 main_gl = uigridlayout(fig, [2, 1]);
@@ -49,25 +49,29 @@ h_lim = build_limits_tab(tg, options);
 %% ボタンエリア
 pnl_btns = uipanel(main_gl, 'BorderType', 'none');
 pnl_btns.Layout.Row = 2;
-bg_btns = uigridlayout(pnl_btns, [1, 5]);
-bg_btns.ColumnWidth = {'1x', 100, 100, 100, 80};
+bg_btns = uigridlayout(pnl_btns, [1, 6]);
+bg_btns.ColumnWidth = {'1x', 100, 100, 100, 100, 80};
 
 uilabel(bg_btns, 'Text', '');
 
 uibutton(bg_btns, 'Text', '実行', ...
-    'ButtonPushedFcn', @on_run_current, ...
-    'Tooltip', '現在のMATLABセッションで実行します');
+  'ButtonPushedFcn', @on_run_current, ...
+  'Tooltip', '現在のMATLABセッションで実行します');
 
 uibutton(bg_btns, 'Text', 'batファイル生成', ...
-    'ButtonPushedFcn', @on_create_batch, ...
-    'Tooltip', '実行用バッチファイルを作成します');
+  'ButtonPushedFcn', @on_create_batch, ...
+  'Tooltip', '実行用バッチファイルを作成します');
 
 uibutton(bg_btns, 'Text', 'm-script生成', ...
-    'ButtonPushedFcn', @on_create_mscript, ...
-    'Tooltip', '実行用MATLABスクリプトを作成します');
+  'ButtonPushedFcn', @on_create_mscript, ...
+  'Tooltip', '実行用MATLABスクリプトを作成します');
+
+uibutton(bg_btns, 'Text', 'フォルダを開く', ...
+  'ButtonPushedFcn', @on_open_folder, ...
+  'Tooltip', 'Input Fileのフォルダを開きます');
 
 uibutton(bg_btns, 'Text', '終了', ...
-    'ButtonPushedFcn', @on_cancel);
+  'ButtonPushedFcn', @on_cancel);
 
 %% コールバック登録
 h_gen.edt_input.ValueChangedFcn = @on_input_changed;
@@ -152,18 +156,18 @@ target_output = target_output_file;
     if info.isValid
       h_hist.lbl_info.FontColor = [0 0.6 0];
 
-      t_items = {};
-      for i=1:info.n_trial, t_items{end+1} = sprintf('Trial %d', i); end
+      t_items = cell(1, info.n_trial);
+      for i=1:info.n_trial, t_items{i} = sprintf('Trial %d', i); end
       h_hist.dd_res_trial.Items = t_items;
       h_hist.dd_res_trial.Value = t_items{end};
 
-      p_items = {};
-      for i=1:info.n_phase, p_items{end+1} = sprintf('Phase %d', i); end
+      p_items = cell(1, info.n_phase);
+      for i=1:info.n_phase, p_items{i} = sprintf('Phase %d', i); end
       h_hist.dd_res_phase.Items = p_items;
       h_hist.dd_res_phase.Value = p_items{end};
-      
+
       if isfield(info, 'last_iter')
-          h_hist.sef_res_iter.Value = info.last_iter;
+        h_hist.sef_res_iter.Value = info.last_iter;
       end
 
       h_hist.dd_res_trial.Enable = 'on';
@@ -193,9 +197,9 @@ target_output = target_output_file;
 
     plot_history(mat_file, id_t, id_p, @update_iter_from_plot);
   end
-  
+
   function update_iter_from_plot(new_iter)
-      h_hist.sef_res_iter.Value = new_iter;
+    h_hist.sef_res_iter.Value = new_iter;
   end
 
   function on_run_current(~, ~)
@@ -213,8 +217,8 @@ target_output = target_output_file;
     update_options();
 
     try
-      [p, n, ~] = fileparts(mod_options.inputfile);
-      if isempty(n), n = 'ylab_run'; end
+      [p, ~, ~] = fileparts(mod_options.inputfile);
+
       if isempty(p), p = pwd; end
 
       current_path = '';
@@ -246,7 +250,11 @@ target_output = target_output_file;
 
       script_path = create_mscript(mod_options, approot, p, original_output_file, h_gen.cb_autocopy.Value);
 
-      uiconfirm(fig, ['M-Script created: ' script_path], 'Success', 'Icon', 'success', 'Options', {'OK'});
+      selection = uiconfirm(fig, ['M-Script created: ' script_path], 'Success', ...
+        'Icon', 'success', 'Options', {'フォルダを開く', 'OK'});
+      if strcmp(selection, 'フォルダを開く')
+        system(['explorer "' strrep(p, '/', '\') '"']);
+      end
     catch ME
       uialert(fig, ['Failed to create M-Script: ' ME.message], 'Error');
     end
@@ -264,6 +272,19 @@ target_output = target_output_file;
     end
   end
 
+  function on_open_folder(~, ~)
+    input_path = h_gen.edt_input.Value;
+    if isempty(input_path)
+      uialert(fig, 'Input Fileが指定されていません', 'Error');
+      return;
+    end
+    folder_path = fileparts(input_path);
+    if isempty(folder_path) || ~exist(folder_path, 'dir')
+      uialert(fig, 'フォルダが見つかりません', 'Error');
+      return;
+    end
+    system(['explorer "' strrep(folder_path, '/', '\') '"']);
+  end
   function on_cancel(~, ~)
     action = 'exit';
     delete(fig);
