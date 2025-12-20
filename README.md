@@ -38,23 +38,46 @@ install
 
 `YLAB` 関数を使用して最適化やチェックを実行します。
 
-### 基本的な実行例
-
+### 構文
 ```matlab
-% サンプルモデル（S4）の断面検定のみを実行（CHECKモード）
-[exitflag, com, result] = YLAB('exemode','CHECK', ...
-  'inputfile','data/S4.csv', ...
-  'outputfile','out/S4_output.csv');
+exitflag = YLAB('param1', value1, 'param2', value2, ...)
 ```
 
-### 実行モード
+### 主要な引数
 
-| モード | 説明 |
-|--------|------|
-| `'CHECK'` | 構造計算と制約チェックのみ行います（最適化なし）。 |
-| `'OPT'` | 断面最適化を実行します（デフォルト）。 |
-| `'GA'` | 遺伝的アルゴリズムによる最適化を実行します。 |
-| `'CONVERT'` | SS7データの変換を行います。 |
+| 引数名 | 設定値 | 説明 |
+| :--- | :--- | :--- |
+| `inputfile` | 文字列 (必須) | 入力データのCSVファイルパス。 |
+| `outputfile` | 文字列 (必須) | 結果を出力するCSVファイルパス。 |
+| `exemode` | `'OPT'`, `'CHECK'` | 実行モード。`'OPT'` (最適化)、`'CHECK'` (断面検定のみ)。デフォルトは `'OPT'`。 |
+| `uimode` | `'CUI'`, `'GUI'` | UIモード。`'CUI'` (コマンドライン)、`'GUI'` (設定ダイアログ表示)。デフォルトは `'CUI'`。 |
+| `solutionfile`| 文字列 (任意) | 初期解として使用する断面リストのCSVまたはMATファイルパス。 |
+| `optionfile` | 文字列 (任意) | 最適化オプションを記述したCSVファイルパス。 |
+
+### オプションフラグ
+- `-pdf`: 実行完了後に詳細レポート（PDF形式）を作成します。
+- `-nopdf`: PDFレポートの作成をスキップします（デフォルト）。
+- `-version`: バージョン情報を表示して終了します。
+
+### 具体的な実行例
+
+#### 1. 断面検定のみを実行（CHECKモード）
+既存のモデルに対して、現在の断面が制約を満たしているか確認します。
+```matlab
+YLAB('exemode', 'CHECK', 'inputfile', 'data/S4.csv', 'outputfile', 'out/S4_check.csv');
+```
+
+#### 2. 断面最適化を実行
+初期値から断面の最適化を行い、結果をPDFレポートと共に出力します。
+```matlab
+YLAB('inputfile', 'data/T1R.csv', 'outputfile', 'out/T1R_opt.csv', '-pdf');
+```
+
+#### 3. 設定ダイアログを表示して実行（GUIモード）
+入力ファイルなどの条件を画面上で選択したい場合に使用します。
+```matlab
+YLAB('uimode', 'GUI');
+```
 
 ## ビルド（配布者・管理者向け）
 
@@ -67,7 +90,6 @@ install
 ### 手順
 ```matlab
 cd YLAB
-install  % パス設定
 build    % ビルド実行（インストーラー生成）
 ```
 
