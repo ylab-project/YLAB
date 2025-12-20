@@ -10,10 +10,13 @@ arguments
 end
 
 % ルートディレクトリの取得（install.m のある場所）
-root_dir = fileparts(mfilename('fullpath'));
+rootDir = fileparts(mfilename('fullpath'));
+
+% パスをデフォルトにリセット（クリーンな状態にする）
+restoredefaultpath;
 
 % 基本パスの追加
-addpath(root_dir);
+addpath(rootDir);
 list = {...
   'src', ...
   'src/analysis', ...
@@ -36,9 +39,9 @@ end
 % パスの追加
 n = length(list);
 for i=1:n
-  target_path = fullfile(root_dir, list{i});
-  if (exist(target_path,'dir'))
-    addpath(target_path);
+  targetPath = fullfile(rootDir, list{i});
+  if exist(targetPath, 'dir')
+    addpath(targetPath);
   end
 end
 
