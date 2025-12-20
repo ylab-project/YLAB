@@ -2,7 +2,9 @@
 compiler/*
 work/*
 build/*
-!build/YLabInstaller.exe
+
+# exeは企業が自社ライセンスで作成（アカデミックライセンス制約）
+*.exe
 
 # Memo files
 memo/claud_prompt.md
