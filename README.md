@@ -84,8 +84,15 @@ YLAB('uimode', 'GUI');
 スタンドアロンアプリケーションおよびインストーラーを作成するには、`build.m` を使用します。
 
 ### 要件
-- MATLAB Compiler
-- MATLAB Compiler SDK
+
+| ツールボックス | 用途 | 備考 |
+|----------------|------|------|
+| MATLAB Compiler | EXE作成 | 必須 |
+| Optimization Toolbox | 最適化計算 | 必須 |
+| Global Optimization Toolbox | GAモード | オプション |
+| MATLAB Report Generator | PDF出力 | オプション |
+
+**注意**: オプションのToolboxがない環境でもビルド可能です。該当機能（GAモード、PDF出力）は無効になります。
 
 ### 手順
 ```matlab

@@ -35,19 +35,32 @@ fprintf('Building Standalone Application (from YLAB.p)\n');
 % Pコードからは依存関係が自動抽出されないため、src フォルダを明示的に追加
 srcDir = fullfile(pwd, 'src');
 
-% Report Generator Toolboxの有無を確認
+% Toolboxの有無を確認
 hasReportGen = ~isempty(ver('rptgen')) || ~isempty(ver('rptgencore'));
+hasGlobalOpt = ~isempty(ver('globaloptim'));
 
+% 除外パターンの構築
+excludePatterns = {};
 if hasReportGen
-  % Toolboxあり: src全体を含める（PDF機能有効）
   fprintf('Report Generator detected: PDF feature enabled\n');
+else
+  fprintf('Report Generator not found: PDF feature disabled\n');
+  excludePatterns{end+1} = '^(report_|reportManager|makeDOMCompilable)';
+end
+
+if hasGlobalOpt
+  fprintf('Global Optimization Toolbox detected: GA mode enabled\n');
+else
+  fprintf('Global Optimization Toolbox not found: GA mode disabled\n');
+  excludePatterns{end+1} = '^call_ga\.m$';
+end
+
+% ソースファイルの収集
+if isempty(excludePatterns)
   additionalFiles = {srcDir};
 else
-  % Toolboxなし: report関連を除外（PDF機能無効）
-  fprintf('Report Generator not found: PDF feature disabled\n');
-  additionalFiles = collectSourceFilesWithoutReport(srcDir);
-  fprintf('  Excluding %d report-related files\n', ...
-    numel(dir(fullfile(srcDir, '**', 'report*.m'))));
+  additionalFiles = collectSourceFiles(srcDir, excludePatterns);
+  fprintf('  Excluded files based on available toolboxes\n');
 end
 
 % Pファイル解析警告を一時的に抑制（srcDir で依存関係を手動追加済み）
@@ -99,13 +112,22 @@ fprintf('Build successful.\n');
 end
 
 %--------------------------------------------------------------------------
-function files = collectSourceFilesWithoutReport(srcDir)
-%collectSourceFilesWithoutReport Report Generator依存ファイルを除外
-%   report_*.m, reportManager.m, makeDOMCompilable.m を除外したリストを返す
+function files = collectSourceFiles(srcDir, excludePatterns)
+%collectSourceFiles 指定パターンに一致するファイルを除外してソースを収集
+%   excludePatterns: 除外する正規表現パターンのセル配列
 
 allFiles = dir(fullfile(srcDir, '**', '*.m'));
-excludePattern = '^(report_|reportManager|makeDOMCompilable)';
-keep = cellfun(@(x) isempty(regexp(x, excludePattern, 'once')), {allFiles.name});
+
+% 各ファイルがいずれかの除外パターンに一致するかチェック
+keep = true(1, numel(allFiles));
+for i = 1:numel(allFiles)
+  for j = 1:numel(excludePatterns)
+    if ~isempty(regexp(allFiles(i).name, excludePatterns{j}, 'once'))
+      keep(i) = false;
+      break;
+    end
+  end
+end
 filteredFiles = allFiles(keep);
 
 files = cell(1, numel(filteredFiles));
