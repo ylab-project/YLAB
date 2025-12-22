@@ -25,7 +25,9 @@ function write_csv_from_cell_(fid, tab)
 %
 % RFC 4180準拠のエスケープ処理を行う:
 %   - カンマ、ダブルクォート、改行を含む値はダブルクォートで囲む
+%   - 空白を含む値もダブルクォートで囲む
 %   - 値内のダブルクォートは "" にエスケープ
+%   - 入力(SS7→YLAB)・出力(YLAB→SS7)とも本ルールを適用する
 
 [n,m] = size(tab);
 
@@ -55,8 +57,8 @@ for i=1:n
       fprintf(fid, ['%g' delimeter], tab{i,j});
     else
       val = tab{i,j};
-      % カンマ、ダブルクォート、改行を含む場合はクォートで囲む (RFC 4180)
-      if contains(val, {',', '"', newline, char(13)})
+      % カンマ、ダブルクォート、改行、空白を含む場合はクォートで囲む
+      if contains(val, {',', '"', newline, char(13), ' '})
         val = ['"' strrep(val, '"', '""') '"'];
       end
       fprintf(fid, ['%s' delimeter], val);
