@@ -1026,20 +1026,21 @@ classdef SectionManager < handle
       isvalid = secmgr.constraintValidator.extractValidSectionFlags(idslist, idphase);
     end
     
-    function limit_jbs_section(secmgr, isjbs, options)
+    function limit_jbs_section(secmgr, isjbs, member, options)
     %limit_jbs_section 保有耐力接合(JBS)制限チェック
-    %   limit_jbs_section(secmgr, isjbs, options) は、
+    %   limit_jbs_section(secmgr, isjbs, member, options) は、
     %   保有耐力接合の制限チェックを実行します。
     %
     %   入力引数:
-    %     isjbs   - JBS判定対象フラグ配列 [nwfs×nframe]
+    %     isjbs   - JBS判定対象フラグ配列 [nwfs_girder×2] (部材ベース)
+    %     member  - 部材情報構造体
     %     options - オプション構造体
     %
     %   参考:
     %     SectionConstraintValidator.limitJbsSection
-      
+
       % constraintValidatorへ委譲
-      secmgr.constraintValidator.limitJbsSection(isjbs, options, secmgr);
+      secmgr.constraintValidator.limitJbsSection(isjbs, member, options, secmgr);
     end
     
     function limit_slr_section(secmgr, member, options)

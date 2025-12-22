@@ -15,6 +15,7 @@ is_joint_bearing_strength = (wfsjoint==PRM.FIX);
 
 % 柱に接合しない接合部は除外
 nwfs = sum(gtype==PRM.WFS);
+
 for iwfs=1:nwfs
   for ij=1:2
     if ~is_joint_bearing_strength(iwfs,ij)
