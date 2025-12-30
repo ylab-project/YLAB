@@ -138,10 +138,10 @@ for id_ = 1:nrepwfs
     
     if any(HB_match)
       % 幅厚比距離を計算（実寸値を使用）
-      rtw_target = H_nom_selected / tw_target;
-      rtf_target = B_nom_selected / tf_target;
-      % rtw_target = H_actual_selected / tw_target;
-      % rtf_target = B_actual_selected / tf_target;
+      % rtw_target = H_nom_selected / tw_target;
+      % rtf_target = B_nom_selected / tf_target;
+      rtw_target = H_actual_selected / tw_target;
+      rtf_target = B_actual_selected / tf_target;
       rt_distances = (rtw_values - rtw_target).^2 + ...
                      (rtf_values - rtf_target).^2;
       rt_distances(~HB_match) = inf;
