@@ -1,5 +1,5 @@
 function [stn, stcn] = calc_nominal_stress(...
-  dfn, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyf, Zyc, mtype, idnm2m)
+  dfn, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, mtype, idnm2m)
 % 応力から応力度を計算する
 
 % 計算の準備
@@ -17,7 +17,7 @@ Asy = Asy(idnm2m);
 Asz = Asz(idnm2m);
 Zy = Zy(idnm2m);
 Zz = Zz(idnm2m);
-Zyf = Zyf(idnm2m);
+Zyij = Zyij(idnm2m);
 Zyc = Zyc(idnm2m);
 mtype = mtype(idnm2m);
 
@@ -36,8 +36,8 @@ for ilc = 1:nlc
   for inm = 1:nmn
     switch mtype(inm)
       case PRM.GIRDER
-        stn(inm,5,ilc) = dfn(inm,5,ilc)/Zyf(inm);
-        stn(inm,11,ilc) = dfn(inm,11,ilc)/Zyf(inm);
+        stn(inm,5,ilc) = dfn(inm,5,ilc)/Zyij(inm);
+        stn(inm,11,ilc) = dfn(inm,11,ilc)/Zyij(inm);
         stcn(inm,ilc) = Mc(inm,ilc)/Zyc(inm);
       case PRM.COLUMN
         stn(inm,5,ilc) = dfn(inm,5,ilc)/Zy(inm);

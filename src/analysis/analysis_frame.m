@@ -168,6 +168,7 @@ Iz(mtype==PRM.COLUMN) = Iz(mtype==PRM.COLUMN).*cphiI(:,2);
 Zy = msprop.Zy;
 Zz = msprop.Zz;
 Zyf = msprop.Zyf;
+Zys = msprop.Zys;
 JJ = msprop.JJ;
 
 % 柱脚剛性の計算
@@ -362,14 +363,14 @@ else
   Zyc = Zyf;
 end
 if options.consider_web_at_girder_end
-  Zy_ = Zy;
+  Zyij = Zys;  % スカラップ考慮版を使用
 else
-  Zy_ = Zyf;
+  Zyij = Zyf;
 end
 % An = Aw+Af;
-% [st, stc] = stress(rs, Mc, A, Asy, Asz, Aw, Zy, Zz, Zy_, Zyc, mtype);
+% [st, stc] = stress(rs, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, mtype);
 [stn, stcn] = calc_nominal_stress(...
-  dfn, Mc, A, Asy, Asz, Aw, Zy, Zz, Zy_, Zyc, mtype, idnm2m);
+  dfn, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, mtype, idnm2m);
 % -------------------------------------------------------------------------
   function dnode = trans_dvec2dnode(ilcset, dnode, dvec)
     % 剛床を考慮した節点変位への変換

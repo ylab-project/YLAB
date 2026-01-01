@@ -8,14 +8,14 @@ end
 
 % 計算の準備
 n = size(secdim,1);
-section_property = zeros(n,14);
+section_property = zeros(n,15);
 if isscalar(stype)
   stype = stype*ones(1,n);
 end
 
 % H形鋼
-section_property(stype==PRM.WFS,1:13) = ...
-calc_prop_wfs(secdim(stype==PRM.WFS,:), scallop);
+section_property(stype==PRM.WFS,1:14) = ...
+  calc_prop_wfs(secdim(stype==PRM.WFS,:), scallop);
 
 % 角形鋼管
 section_property(stype==PRM.HSS,1:12) = ...
@@ -30,7 +30,7 @@ if any(stype==PRM.BRB)
   table = secmgr.getListRecord(secdim(stype==PRM.BRB,end-1:end));
   section_property(stype==PRM.BRB,1) = table.A*100;
   section_property(stype==PRM.BRB,12) = table.A*100;
-  section_property(stype==PRM.BRB,14) = table.Lkmax;
+  section_property(stype==PRM.BRB,15) = table.Lkmax;
 end
 
 % 円形鋼管（HSR）
@@ -50,6 +50,6 @@ section_property = array2table(section_property, ...
   'VariableNames', {...
   'A', 'Asy', 'Asz', 'Iy', 'Iz', ...
   'Zy', 'Zz', 'Zyf', 'Zpy', 'Zpz', ...
-  'JJ', 'Aw', 'Af', 'Lkmax'});
+  'JJ', 'Aw', 'Af', 'Zys', 'Lkmax'});
 end
 

@@ -31,7 +31,7 @@ else
   Zc = result.msprop.Zyf;
 end
 if options.consider_web_at_girder_end
-  Zij = result.msprop.Zy;
+  Zij = result.msprop.Zys;  % スカラップ考慮版を使用
 else
   Zij = result.msprop.Zyf;
 end
