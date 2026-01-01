@@ -35,8 +35,12 @@ end
 w = A.*rho*PRM.GRAVITY*1.d-6;
 efc = options.self_weight_extra_factor_column;
 efg = options.self_weight_extra_factor_girder;
-w(mtype==PRM.COLUMN) = w(mtype==PRM.COLUMN)*efc;
-w(mtype==PRM.GIRDER) = w(mtype==PRM.GIRDER)*efg;
+% S柱のみに割増率適用
+w(mtype==PRM.COLUMN & stype==PRM.HSS) = ...
+  w(mtype==PRM.COLUMN & stype==PRM.HSS) * efc;
+% S梁のみに割増率適用
+w(mtype==PRM.GIRDER & stype==PRM.WFS) = ...
+  w(mtype==PRM.GIRDER & stype==PRM.WFS) * efg;
 
 % 仕上荷重の計算
 wf = zeros(nme,1);
