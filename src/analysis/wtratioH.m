@@ -85,6 +85,9 @@ function [btf, dtw, conwt] = wtratioH(H, B, tw, tf, F, rank, isSNH)
   conwt2 = [btf.^2./kf.^2.*(F/98)+dtw.^2./kw.^2.*(F/98)-1 ...
     dtw-kc./sqrt(F/98)];
   conwt2 = max(conwt2,[],2);
-  conwt2(~isSNH) = conwt(~isSNH);
-  conwt = min([conwt conwt2],[],2);
+
+  % SN材は常に相関関係を考慮した幅厚比制限値を採用
+  % conwt2(~isSNH) = conwt(~isSNH);
+  % conwt = min([conwt conwt2],[],2);
+  conwt(isSNH) = conwt2(isSNH);
 end
