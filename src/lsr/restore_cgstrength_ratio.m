@@ -1,6 +1,6 @@
 function xlist = restore_cgstrength_ratio(xlist0, secdim0, vix, viy, ...
   cgsr, idm2n, idmc2m, idm2var, idmc2sc, idmg2sg, ...
-  mdir, mtype, matF, secmgr, options)
+  mdir, mtype, matF, cxl, secmgr, options)
 
 % 計算の準備
 [nlist0, nx] = size(xlist0);
@@ -15,12 +15,12 @@ end
 if do_parallel
   parfor id=1:nlist0
     xcell{id} = restore_individual(xlist0(id,:), secdim0(:,:,id), vix, viy, ...
-      cgsr, idm2n, idmc2m, mdir, mtype, matF, secmgr, options);
+      cgsr, idm2n, idmc2m, mdir, mtype, matF, cxl, secmgr, options);
   end
 else
   for id=1:nlist0
     xcell{id} = restore_individual(xlist0(id,:), secdim0(:,:,id), vix, viy, ...
-      cgsr, idm2n, idmc2m, mdir, mtype, matF, secmgr, options);
+      cgsr, idm2n, idmc2m, mdir, mtype, matF, cxl, secmgr, options);
   end
 end
 
@@ -39,7 +39,7 @@ end
 
 %-------------------------------------------------------------------------
 function  xlist = restore_individual(xvar, secdim, vix, viy, ...
-  cgsr, idm2n, idmc2m, mdir, mtype, matF, secmgr, options)
+  cgsr, idm2n, idmc2m, mdir, mtype, matF, cxl, secmgr, options)
 
 % 計算の準備
 tol = options.tolRestoreCgr;
@@ -58,7 +58,7 @@ Fm = secmgr.extractMemberMaterialF(secdim, matF);
 
 % 柱梁耐力比の算定
 concgsr = calc_cgstrength_ratio(Zpym, vix, viy, ...
-  idn_cgsr, idm2n, idmc2m, mdir, mtype, Fm);
+  idn_cgsr, idm2n, idmc2m, mdir, mtype, Fm, cxl);
 concgsr = reshape(concgsr,[],4);
 concgsr = [max(concgsr(:,1:2),[],2) max(concgsr(:,3:4),[],2)];
 is_target = concgsr>tol;

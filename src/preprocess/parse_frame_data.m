@@ -25,6 +25,17 @@ function com = parse_frame_data(com, options)
 %   repginv -> member_girder.idsecg;
 %   repcinv -> member_column.idsecc;
 
+%% 節点同一化: 部材の節点番号を代表節点に置換
+[idnode1, idnode2] = countup_node_with_representative(com);
+com.member.property.idnode1 = idnode1;
+com.member.property.idnode2 = idnode2;
+com.member.girder.idnode1 = idnode1(com.member.girder.idme);
+com.member.girder.idnode2 = idnode2(com.member.girder.idme);
+com.member.column.idnode1 = idnode1(com.member.column.idme);
+com.member.column.idnode2 = idnode2(com.member.column.idme);
+com.member.brace.idnode1 = idnode1(com.member.brace.idme);
+com.member.brace.idnode2 = idnode2(com.member.brace.idme);
+
 %% 共通配列
 design = com.design;
 % member = com.member;

@@ -25,6 +25,7 @@ matF = com.material.F;
 lm = com.member.property.lm;
 mdir = com.member.property.idir;
 mtype = com.member.property.type;
+cxl = com.member.property.cxl;
 secmgr = com.secmgr;
 section = com.section;
 member = com.member;
@@ -230,7 +231,7 @@ for iter = start_iter+1:max_iter
 
     xlist_cgsr = restore_cgstrength_ratio(xlist_slr, sdlist, vix, viy, ...
       cgsr, idm2n, idmc2m, idm2var, idmc2sc, idmg2sg, ...
-      mdir, mtype, matF, secmgr, options);
+      mdir, mtype, matF, cxl, secmgr, options);
 
     % % --- 確認用 ---
     % fval_ = objfun(xlist_cgsr);

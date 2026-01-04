@@ -211,8 +211,9 @@ end
 
 %% 柱梁耐力比制約
 if coptions.consider_joint_strength_ratio
+  cxl = com.member.property.cxl;
   [concgsr, cgsr] = calc_cgstrength_ratio(...
-    Zpy, vix, viy, idncgsr, idm2n, idmc2m, mdir, mtype, Fm);
+    Zpy, vix, viy, idncgsr, idm2n, idmc2m, mdir, mtype, Fm, cxl);
   concgsr = concgsr+coptions.alfa_joint_strength_ratio;
 else
   concgsr = [];
