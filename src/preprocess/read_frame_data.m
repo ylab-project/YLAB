@@ -3374,6 +3374,7 @@ for i=1:n
   f(i,:) = cell2mat(data(i,5:10));
   idof = node.dof(idnode(i),:);
   fnode(idof,lcase(i)) = fnode(idof,lcase(i))+f(i,:)';
+  % 節点荷重は重心に作用するとみなし、偏心モーメントは計算しない
 end
 
 return
@@ -3394,6 +3395,7 @@ for i=1:n
 end
 
 node = com.node; nnode = com.nnode;
+story = com.story;
 loadcase = com.loadcase; nlc = com.nlc; iddlc = 1:nlc;
 f = zeros(n,6);
 fnode = zeros(ndf,nlc);
@@ -3412,6 +3414,8 @@ for i=1:n
   f(i,:) = cell2mat(data(i,5:10));
   idof = node.dof(idnode(i),:);
   fnode(idof,lcase(i)) = fnode(idof,lcase(i))+f(i,:)';
+  fnode = add_rigid_eccentric_moment(fnode, idnode(i), f(i,1), f(i,2), ...
+    lcase(i), node, story);
 end
 
 return
@@ -3434,6 +3438,7 @@ js = com.member.girder.idnode1;
 je = com.member.girder.idnode2;
 loadcase = com.loadcase;
 node = com.node;
+story = com.story;
 cxl = member_girder.cxl;
 cyl = member_girder.cyl;
 idmg2m = member_girder.idme;
@@ -3491,15 +3496,36 @@ for i = 1:n
   M0(idm,ilc) = M0(idm,ilc)+data{i,18};
   tt = [cxl(idmg,:)' cyl(idmg,:)' czl(idmg,:)'];
   nn = node.dof(js(idmg),:);
-  felement(nn,ilc) = felement(nn,ilc) ...
-    +[tt*arunit(1:3)'; tt*arunit(4:6)'];
+  fi = tt*arunit(1:3)';  % i端の荷重（全体座標系）
+  felement(nn,ilc) = felement(nn,ilc) + [fi; tt*arunit(4:6)'];
+  felement = add_rigid_eccentric_moment(felement, js(idmg), fi(1), fi(2), ...
+    ilc, node, story);
   nn = node.dof(je(idmg),:);
-  felement(nn,ilc) = felement(nn,ilc) ...
-    +[tt*arunit(7:9)'; tt*arunit(10:12)'];
+  fj = tt*arunit(7:9)';  % j端の荷重（全体座標系）
+  felement(nn,ilc) = felement(nn,ilc) + [fj; tt*arunit(10:12)'];
+  felement = add_rigid_eccentric_moment(felement, je(idmg), fj(1), fj(2), ...
+    ilc, node, story);
 end
 
 % 水平荷重は要素荷重として扱わない
 % xydof = unique(reshape(node.dof(:,1:2),1,[]));
 % felement(xydof,1) = 0;
+return
+end
+
+%--------------------------------------------------------------------------
+function fvec = add_rigid_eccentric_moment(fvec, idnode, fx, fy, ilc, ...
+  node, story)
+% 剛床の偏心モーメント計算
+% 剛床内の節点に水平力(fx, fy)がかかった場合、重心まわりのモーメントを計算
+is_ = node.idstory(idnode);
+if story.isrigid(is_)
+  xr_ = node.xr(idnode);
+  yr_ = node.yr(idnode);
+  Mz_add = fx*(-yr_) + fy*xr_;
+  idof_rz = node.dof(idnode, 6);  % 代表節点のθZ自由度
+  fvec(idof_rz, ilc) = fvec(idof_rz, ilc) + Mz_add;
+end
+
 return
 end
