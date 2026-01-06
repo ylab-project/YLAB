@@ -38,8 +38,9 @@ for icg = 1:ncgsr
   % 対象変数の特定
   in = idnode(icg);
   isconnected = any(idm2n==in,2);
-  idmofgx = immm(isconnected&medir==PRM.X&mtype==PRM.GIRDER);
-  idmofgy = immm(isconnected&medir==PRM.Y&mtype==PRM.GIRDER);
+  % 45度梁（PRM.XY）は両方向に含める
+  idmofgx = immm(isconnected&(medir==PRM.X|medir==PRM.XY)&mtype==PRM.GIRDER);
+  idmofgy = immm(isconnected&(medir==PRM.Y|medir==PRM.XY)&mtype==PRM.GIRDER);
   idmofc = immm(isconnected&mtype==PRM.COLUMN);
   
   % S材とRC材が混在する節点は除外

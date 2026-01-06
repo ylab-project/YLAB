@@ -427,10 +427,11 @@ return
     addnode.dz = dz_mid(idu2o);
 
     % 通り線情報の設定とダミー通りの作成
+    % 45度梁（PRM.XY）はX方向ダミー通りで代表させる
     for iu=1:length(idu2o)
       tid = iab(idu2o(iu));
-      if girder_idir_unique(iu) == PRM.X
-        % X方向梁：X方向にダミー通り追加（中間X座標）、Y通りは元のまま
+      if girder_idir_unique(iu) == PRM.X || girder_idir_unique(iu) == PRM.XY
+        % X方向梁・45度梁：X方向にダミー通り追加、Y通りは元のまま
         baseline.x = [baseline.x; baseline.x(idx(tid,1),:)];
         nx = size(baseline.x,1);
         baseline.x.id(nx) = nx;
@@ -443,7 +444,7 @@ return
         addnode.idy(iu) = idy(tid,1);
         addnode.yname(iu) = baseline.y.name(idy(tid,1));
       else
-        % Y方向梁：X通りは元のまま、Y方向にダミー通り追加（中間Y座標）
+        % Y方向梁：X通りは元のまま、Y方向にダミー通り追加
         addnode.idx(iu) = idx(tid,1);
         addnode.xname(iu) = baseline.x.name(idx(tid,1));
 
@@ -470,8 +471,8 @@ return
 
     % 新規梁（KBRACE2、右側）の通り情報を中間節点に合わせる
     for iu=1:length(idu2o)
-      if girder_idir_unique(iu) == PRM.X
-        % X方向梁：始点X通りを中間節点のダミー通りに更新
+      if girder_idir_unique(iu) == PRM.X || girder_idir_unique(iu) == PRM.XY
+        % X方向梁・45度梁：始点X通りを中間節点のダミー通りに更新
         addgirder.idx(iu,1) = addnode.idx(iu);
         addgirder.coord_name{iu,1} = addnode.xname{iu};
       else
@@ -487,8 +488,8 @@ return
     % 元の梁（KBRACE1、左側）の通り情報を中間節点に合わせる
     for iu=1:length(idu2o)
       ig = idg_unique(iu);
-      if girder_idir_unique(iu) == PRM.X
-        % X方向梁：終点X通りを中間節点のダミー通りに更新
+      if girder_idir_unique(iu) == PRM.X || girder_idir_unique(iu) == PRM.XY
+        % X方向梁・45度梁：終点X通りを中間節点のダミー通りに更新
         member_girder.idx(ig,2) = addnode.idx(iu);
         member_girder.coord_name{ig,2} = addnode.xname{iu};
       else

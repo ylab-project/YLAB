@@ -16,6 +16,7 @@ classdef PRM
     X = 1;                % X方向
     Y = 2;                % Y方向  
     Z = 3;                % Z方向
+    XY = 12;              % XY方向(45度方向)
 
     %% 節点種別
     SUPPORT = 100         % 支点節点

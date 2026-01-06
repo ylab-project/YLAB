@@ -96,10 +96,11 @@ for inc = 1:nnc
   isself = false(nme,1); isself(idme) = true;
 
   % 接続部材番号
-  mgax = immm((js==jei | je==jei) & dir_girder==PRM.X);
-  mgay = immm((js==jei | je==jei) & dir_girder==PRM.Y);
-  mgbx = immm((js==jsi | je==jsi) & dir_girder==PRM.X);
-  mgby = immm((js==jsi | je==jsi) & dir_girder==PRM.Y);
+  % 45度梁（PRM.XY）は両方向に含める
+  mgax = immm((js==jei | je==jei) & (dir_girder==PRM.X|dir_girder==PRM.XY));
+  mgay = immm((js==jei | je==jei) & (dir_girder==PRM.Y|dir_girder==PRM.XY));
+  mgbx = immm((js==jsi | je==jsi) & (dir_girder==PRM.X|dir_girder==PRM.XY));
+  mgby = immm((js==jsi | je==jsi) & (dir_girder==PRM.Y|dir_girder==PRM.XY));
   mca  = immm((js==jei | je==jei) & mtype==PRM.COLUMN & ~isself);
   mcb  = immm((js==jsi | je==jsi) & mtype==PRM.COLUMN & ~isself);
 

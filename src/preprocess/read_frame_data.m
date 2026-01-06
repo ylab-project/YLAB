@@ -2628,6 +2628,12 @@ member_girder = table(story_name, frame_name, coord_name, ...
   idstory, idir, idx, idy, idz, idzn, idsecg, idnode1, idnode2, ...
   cxl, cyl, idvar);
 
+% 45度梁の判定と idir 設定
+% 4方向（+45度、-45度、+135度、-135度）全て対象
+% いずれも |cxl(:,1)| ≈ 0.707 で判定可能
+is_45deg = abs(abs(cxl(:,1)) - sqrt(2)/2) < 0.01;
+member_girder.idir(is_45deg) = PRM.XY;
+
 % WFS部材番号の設定
 nmeg = size(member_girder,1);
 idmewfs = zeros(nmeg,1);

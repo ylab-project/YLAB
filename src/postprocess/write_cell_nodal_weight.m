@@ -33,6 +33,10 @@ for iy = 1:nbly
       if isempty(in)
         continue
       end
+      % 同一化された節点はスキップ（代表節点に統合済み）
+      if node.idrep(in) > 0
+        continue
+      end
       irow = irow+1;
       nwbody{irow*2-1,1} = node.xname{in};
       nwbody{irow*2-1,2} = node.yname{in};

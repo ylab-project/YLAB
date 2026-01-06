@@ -38,11 +38,12 @@ iggg = 1:ng;
 irow = 0;
 for i = 1:nstory
   ist = nstory-i+1;
-  idir = 1;
+  % X方向梁と45度梁を処理
   for iy = 1:nbly
     for ix = 1:nblx
       ig = iggg(girder.idstory==ist & girder.idx(:,1)==ix & ...
-        girder.idy(:,1)==iy & girder.idir==idir);
+        girder.idy(:,1)==iy & ...
+        (girder.idir==PRM.X | girder.idir==PRM.XY));
       if isempty(ig) || gstype(ig) ~=PRM.WFS
         continue
       end
@@ -53,11 +54,11 @@ for i = 1:nstory
       print_row
     end
   end
-  idir = 2;
+  % Y方向梁を処理（45度梁は既に上で処理済み）
   for ix = 1:nblx
     for iy = 1:nbly
       ig = iggg(girder.idstory==ist & girder.idx(:,1)==ix & ...
-        girder.idy(:,1)==iy & girder.idir==idir);
+        girder.idy(:,1)==iy & girder.idir==PRM.Y);
       if isempty(ig) || gstype(ig) ~=PRM.WFS
         continue
       end

@@ -30,6 +30,10 @@ for i = 1:nstory
       if isempty(in)
         continue
       end
+      % 同一化された節点はスキップ（代表節点に統合済み）
+      if node.idrep(in) > 0
+        continue
+      end
       irow = irow+1;
       body{irow,1} = node.zname{in};
       body{irow,2} = node.xname{in};

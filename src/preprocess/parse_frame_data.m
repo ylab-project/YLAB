@@ -538,10 +538,11 @@ iggg = 1:nmeg;
 % 関係する変数の数え上げ
 for ic = 1:nmec
   for ilr = 1:2
-    for idir = 1:2
+    for idir = [PRM.X PRM.Y]
       % 対象変数の特定
+      % idir==PRM.XY（45度梁）は両方向に含める
       idmeg = iggg(any(idmeg2n==idmec2n(ic,ilr)...
-        &idmeg2dir==idir,2));
+        &(idmeg2dir==idir | idmeg2dir==PRM.XY),2));
 
       % 節点の格納
       n = length(idmeg);

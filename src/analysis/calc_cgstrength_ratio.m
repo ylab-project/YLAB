@@ -58,10 +58,11 @@ for icg = 1:ncgsr
   isconnected2 = (idm2n(:,2)==in);
 
   % 左右の梁（cosθ補正適用）
-  isgx1 = isconnected2&mtype==PRM.GIRDER&medir==PRM.X;
-  isgy1 = isconnected2&mtype==PRM.GIRDER&medir==PRM.Y;
-  isgx2 = isconnected1&mtype==PRM.GIRDER&medir==PRM.X;
-  isgy2 = isconnected1&mtype==PRM.GIRDER&medir==PRM.Y;
+  % 45度梁（PRM.XY）は両方向に含める
+  isgx1 = isconnected2&mtype==PRM.GIRDER&(medir==PRM.X|medir==PRM.XY);
+  isgy1 = isconnected2&mtype==PRM.GIRDER&(medir==PRM.Y|medir==PRM.XY);
+  isgx2 = isconnected1&mtype==PRM.GIRDER&(medir==PRM.X|medir==PRM.XY);
+  isgy2 = isconnected1&mtype==PRM.GIRDER&(medir==PRM.Y|medir==PRM.XY);
   sgxl = sum(Zpy(isgx1).*Fm(isgx1).*cos_x(isgx1)*1.1);
   sgxr = sum(Zpy(isgx2).*Fm(isgx2).*cos_x(isgx2)*1.1);
   sgyl = sum(Zpy(isgy1).*Fm(isgy1).*cos_y(isgy1)*1.1);

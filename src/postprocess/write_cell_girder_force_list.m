@@ -66,12 +66,12 @@ processed = false(ng,1);
 %% 層ごとに梁を処理（上階から下階へ）
 for i = 1:nstory
   ist = nstory-i+1;
-  % X方向梁（idir=1）を処理
-  idir = 1;
+  % X方向梁（idir=1）と45度梁（idir=PRM.XY）を処理
   for iy = 1:nbly
     for ix = 1:nblx
       ig_list = iggg(girder.idstory==ist & girder.idx(:,1)==ix & ...
-        girder.idy(:,1)==iy & girder.idir==idir);
+        girder.idy(:,1)==iy & ...
+        (girder.idir==PRM.X | girder.idir==PRM.XY));
       if isempty(ig_list)
         continue;
       end
@@ -80,12 +80,11 @@ for i = 1:nstory
       end
     end
   end
-  % Y方向梁（idir=2）を処理
-  idir = 2;
+  % Y方向梁（idir=2）を処理（45度梁は既に上で処理済み）
   for ix = 1:nblx
     for iy = 1:nbly
       ig_list = iggg(girder.idstory==ist & girder.idx(:,1)==ix & ...
-        girder.idy(:,1)==iy & girder.idir==idir);
+        girder.idy(:,1)==iy & girder.idir==PRM.Y);
       if isempty(ig_list)
         continue;
       end

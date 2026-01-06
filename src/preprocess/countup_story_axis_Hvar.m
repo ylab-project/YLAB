@@ -30,9 +30,12 @@ for ig=1:nmeg
   idx = idmeg2x(ig,:);
   idy = idmeg2y(ig,:);
   ids = idmeg2story(ig,:);
-  if (idmeg2dir(ig)==PRM.X)
+  idir_ = idmeg2dir(ig);
+  % idir==PRM.XY（45度梁）は両方向に登録
+  if (idir_==PRM.X || idir_==PRM.XY)
     idvarHgx(idx(1):idx(2)-1,idy(1),ids) = idmeg2var(ig,1);
-  else
+  end
+  if (idir_==PRM.Y || idir_==PRM.XY)
     idvarHgy(idx(1),idy(1):idy(2)-1,ids) = idmeg2var(ig,1);
   end
 end
