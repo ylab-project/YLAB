@@ -14,14 +14,14 @@ dy = zeros(nmc, nlc);
 drift_angle = zeros(nfl-nph, nlc);
 idcolumn = zeros(nfl, nlc);
 
-% 各柱位置での層間変形角
+% 各柱位置での層間変形角（符号保存）
 for ic=1:nmc
   dx1 = dispnode(idc2n(ic,1),1,:);
   dx2 = dispnode(idc2n(ic,2),1,:);
   dy1 = dispnode(idc2n(ic,1),2,:);
   dy2 = dispnode(idc2n(ic,2),2,:);
-  dx(ic,:) = abs(reshape(dx2-dx1,1,[]))/floor_height(ic,1);
-  dy(ic,:) = abs(reshape(dy2-dy1,1,[]))/floor_height(ic,2);
+  dx(ic,:) = reshape(dx2-dx1,1,[])/floor_height(ic,1);
+  dy(ic,:) = reshape(dy2-dy1,1,[])/floor_height(ic,2);
 end
 
 % 荷重ケースごとの最大層間変形角
@@ -46,14 +46,14 @@ for ifl = 1:nfl-nph
       otherwise
         continue
     end
-    [dddmax, idmax] = max(ddd);
-    drift_angle(ifl,ilc) = dddmax;
+    [~, idmax] = max(abs(ddd));  % 絶対値で比較
+    drift_angle(ifl,ilc) = ddd(idmax);  % 符号付きの値を保存
     idcolumn(ifl,ilc) = iccc(idmax);
   end
 end
 
-% 制約関数値に変換
-condrift = reshape(drift_angle(:,lcdir>1),[],1)*dmax-1;
+% 制約関数値に変換（絶対値で評価）
+condrift = reshape(abs(drift_angle(:,lcdir>1)),[],1)*dmax-1;
 return
 end
 

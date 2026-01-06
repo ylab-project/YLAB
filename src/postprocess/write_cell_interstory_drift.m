@@ -45,7 +45,7 @@ for j=1:nfl-nph
   body{j,6} = dx(ic,icase)*fh;
   body{j,7} = dy(ic,icase)*fh;
   body{j,8} = angle(jfl,icase)*fh;
-  body{j,9} = sprintf('1/ %.0f', 1/angle(jfl,icase));
+  body{j,9} = sprintf('1/ %.0f', 1/abs(angle(jfl,icase)));
 end
 return
 end
