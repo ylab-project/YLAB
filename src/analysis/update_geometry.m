@@ -159,6 +159,16 @@ if options.consider_rigid_zone
     secdim, stdh, member_girder.level, mgstype, ...
     idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, idmc2st, idm2s, ...
     mcstype, idmc2s);
+  % 柱剛域（直接入力値で上書き）
+  if isfield(member, 'column_rigid_zone_direct')
+    rzd = member.column_rigid_zone_direct;
+    % X方向
+    mask_x = ~isnan(rzd.x);
+    lr.columnx(mask_x) = rzd.x(mask_x);
+    % Y方向
+    mask_y = ~isnan(rzd.y);
+    lr.columny(mask_y) = rzd.y(mask_y);
+  end
   % 梁剛域
   lr.girder = calc_rigid_zone_girder(...
     mgstype, idmg2sfl, idmg2sfr, idscb2s, cbs.Df, sdimgm, ...
