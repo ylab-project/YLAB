@@ -98,14 +98,24 @@ for isc = 1:nsc
           inm = idnmc2nm(inc);
 
           % --- 最大ケースの判定 ---
-          [~, ilx] = max(cri(inc,[1 2 3]));
-          [~, ily] = max(cri(inc,[1 4 5]));
-          [~, jlx] = max(crj(inc,[1 2 3]));
-          [~, jly] = max(crj(inc,[1 4 5]));
-          [~, isx] = max(csi(inc,[1 2 3]));
-          [~, isy] = max(csi(inc,[1 4 5]));
-          [~, jsx] = max(csj(inc,[1 2 3]));
-          [~, jsy] = max(csj(inc,[1 4 5]));
+          % L+Ex vs L-Ex, L+Ey vs L-Ey で正の地震荷重を優先するため微小値を加算
+          % L(G+P)にも同じ値を加算し、G+P vs L+Ex の優先順位は変えない
+          cri_x = cri(inc,[1 2 3]) + [eps eps 0];
+          cri_y = cri(inc,[1 4 5]) + [eps eps 0];
+          crj_x = crj(inc,[1 2 3]) + [eps eps 0];
+          crj_y = crj(inc,[1 4 5]) + [eps eps 0];
+          csi_x = csi(inc,[1 2 3]) + [eps eps 0];
+          csi_y = csi(inc,[1 4 5]) + [eps eps 0];
+          csj_x = csj(inc,[1 2 3]) + [eps eps 0];
+          csj_y = csj(inc,[1 4 5]) + [eps eps 0];
+          [~, ilx] = max(cri_x);
+          [~, ily] = max(cri_y);
+          [~, jlx] = max(crj_x);
+          [~, jly] = max(crj_y);
+          [~, isx] = max(csi_x);
+          [~, isy] = max(csi_y);
+          [~, jsx] = max(csj_x);
+          [~, jsy] = max(csj_y);
           if ily>1
             ily = ily+2;
           end
