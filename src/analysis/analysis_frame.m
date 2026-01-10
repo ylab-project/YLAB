@@ -362,10 +362,13 @@ if options.consider_web_at_girder_center
 else
   Zyc = Zyf;
 end
+% 材端部の断面係数（WFSのみにZys/Zyfを適用）
+mstype = stype(idm2s);
+Zyij = Zy;  % デフォルトはZy（非ゼロ）
 if options.consider_web_at_girder_end
-  Zyij = Zys;  % スカラップ考慮版を使用
+  Zyij(mstype==PRM.WFS) = Zys(mstype==PRM.WFS);
 else
-  Zyij = Zyf;
+  Zyij(mstype==PRM.WFS) = Zyf(mstype==PRM.WFS);
 end
 % An = Aw+Af;
 % [st, stc] = stress(rs, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, mtype);
