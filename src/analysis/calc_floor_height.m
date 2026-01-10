@@ -8,13 +8,13 @@ function [floor_height, story_delta_height] = calc_floor_height(...
 % 定数
 nfl = size(floor,1);
 nstory = nfl+1;
-% ng = length(idsg2s);
 nsec = size(secdim,1);
-Hs = zeros(nsec,1);
 
 % 共通配列
-% idfl2s = floor.idstory;
 floor_standard_height = floor.standard_height;
+
+% 自動計算
+Hs = zeros(nsec,1);
 Hs(stype==PRM.WFS) = secdim(stype==PRM.WFS,1);
 Hs(stype==PRM.RCRS) = secdim(stype==PRM.RCRS,2);
 Hm = Hs(idm2s);
@@ -26,12 +26,14 @@ for ist = 1:nstory
   istarget = idmg2st==ist;
   if any(istarget)
     ggg = girder_level(istarget);
-    % ggg(ggg==0) = story.girder_level(ist);
     dz = mean(Hg(istarget)/2-ggg);
-    % dz = mean(Hg(istarget)/2-girder_level(istarget));
     story_delta_height(ist) = story_delta_height(ist)-dz;
   end
 end
+
+% 直接入力値で上書き（NaN以外の層のみ）
+is_direct = ~isnan(story.diff_height_direct);
+story_delta_height(is_direct) = story.diff_height_direct(is_direct);
 
 % 構造階高の計算
 % ddd = story_delta_height+story.girder_level;
