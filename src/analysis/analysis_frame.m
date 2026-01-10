@@ -225,10 +225,19 @@ lbnm(mtype==PRM.COLUMN,1:3) = lbnc;
 felement = update_felement(felement, ar, cxl, cyl, idn2df, idm2n);
 fvec = fnode+faddnode-felement;
 
+% 柱梁端部の結合条件
+% mejoint: 1:X柱脚, 2:X柱頭, 3:Y柱脚, 4:Y柱頭
+gjoint = member_girder.joint;
+cjoint = member_column.joint;
+mejoint = PRM.FIX*ones(nme,4);
+mejoint(idmg2m,:) = gjoint;
+mejoint(idmc2m,:) = cjoint;
+
 % 自重の計算
 % if options.consider_self_weight || options.consider_finishing_material
 if options.consider_self_weight && options.consider_finishing_material
-  sw = comp_self_weight(A, lm, member_property, msdim, slab, idn2df, options);
+  sw = comp_self_weight(...
+    A, lm, member_property, msdim, slab, idn2df, mejoint, options);
   fvec(:,1) = fvec(:,1)-sw.f;
   ar(:,:,1) = ar(:,:,1)+sw.ar;
   M0(:,1)= M0(:,1)+sw.M0;
@@ -243,14 +252,6 @@ end
 % 計算条件
 flag = struct("consider_shear_deformation", ...
   options.consider_shear_deformation);
-
-% 柱梁端部の結合条件
-% mejoint: 1:X柱脚, 2:X柱頭, 3:Y柱脚, 4:Y柱頭
-gjoint = member_girder.joint;
-cjoint = member_column.joint;
-mejoint = PRM.FIX*ones(nme,4);
-mejoint(idmg2m,:) = gjoint;
-mejoint(idmc2m,:) = cjoint;
 
 % ピン節点の外力解除
 [fvec, ar] = modify_force_for_pinjoint(fvec, ar, mejoint);

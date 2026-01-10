@@ -1,5 +1,5 @@
 function sw = comp_self_weight(...
-  A, lm, member_property, msdim, slab, idn2df, options)
+  A, lm, member_property, msdim, slab, idn2df, mejoint, options)
 
 % 共通配列
 cxl = member_property.cxl;
@@ -82,8 +82,34 @@ for im = 1:nme
   % --- 要素座標系 ---
   wv = t*[0; 0; wi];
   fv = [wv(1)*li/2; 0; wv(3)*li/2];
-  cv = [0; wv(3)*li^2/12; 0];
-  ari = [fv; -cv]; arj = [fv;  cv];
+
+  % 接合条件に応じたCMQ計算
+  % mejoint: 1:i端(強軸), 2:j端(強軸), 3:i端(弱軸), 4:j端(弱軸)
+  joint = mejoint(im,:);
+  if mtype(im) == PRM.GIRDER
+    if joint(1)==PRM.PIN && joint(2)==PRM.PIN
+      % 両端ピン
+      cvi = [0; 0; 0];
+      cvj = [0; 0; 0];
+    elseif joint(1)==PRM.PIN
+      % i端ピン
+      cvi = [0; 0; 0];
+      cvj = [0; wv(3)*li^2/8; 0];
+    elseif joint(2)==PRM.PIN
+      % j端ピン
+      cvi = [0; wv(3)*li^2/8; 0];
+      cvj = [0; 0; 0];
+    else
+      % 両端固定
+      cvi = [0; wv(3)*li^2/12; 0];
+      cvj = [0; wv(3)*li^2/12; 0];
+    end
+  else
+    % 柱は常に両端固定
+    cvi = [0; wv(3)*li^2/12; 0];
+    cvj = [0; wv(3)*li^2/12; 0];
+  end
+  ari = [fv; -cvi]; arj = [fv; cvj];
   ar(im,:) = [ari; arj];
 
   % --- 全体座標系 ---
