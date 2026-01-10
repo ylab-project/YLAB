@@ -30,7 +30,8 @@ for i = 1:nstory
   for iy = 1:nbly
     for ix = 1:nblx
       in = innn(node.idx==ix & node.idy==iy & node.idstory== ist ...
-        & node.type==PRM.NODE_STANDARD);
+        & (node.type==PRM.NODE_STANDARD ...
+        | node.type==PRM.NODE_FLEX_DIAPHRAGM));
       if isempty(in)
         continue
       end
