@@ -1,4 +1,4 @@
-function lm_girder_weight = calc_girder_weight_length(...
+function [lm_girder_weight, face_deduct] = calc_girder_weight_length(...
   member_girder, node, stype_sec, idsecg2sec, secdim)
 %calc_girder_weight_length - 梁荷重計算用の部材長を算出
 %
@@ -25,6 +25,7 @@ function lm_girder_weight = calc_girder_weight_length(...
 %
 % Outputs:
 %   lm_girder_weight - 梁荷重計算用の部材長配列 [nmeg x 1]
+%   face_deduct      - 柱面減算量 [nmeg x 2]（列1: i端, 列2: j端）
 
 % 梁数
 nmeg = length(member_girder.idme);
@@ -58,6 +59,9 @@ z2 = node.z(idnode2) + node.dz(idnode2);
 dz = z2 - z1;
 lm_girder_weight = sqrt(dx.^2 + dy.^2 + dz.^2);
 
+% 柱面減算量の初期化
+face_deduct = zeros(nmeg, 2);
+
 for ig = 1:nmeg
   % --- i端側の柱 ---
   % 通し梁の中間節点（i端が通し接合）の場合は柱面減算しない
@@ -69,6 +73,7 @@ for ig = 1:nmeg
       % 同種別（S-S または RC-RC）なら柱面まで減算
       if is_steel_g(ig) == is_steel_c1
         Dc1 = Dc(ids_l(k));
+        face_deduct(ig, 1) = Dc1/2;
         lm_girder_weight(ig) = lm_girder_weight(ig) - Dc1/2;
         break;  % 1つの柱面で減算したら終了
       end
@@ -85,6 +90,7 @@ for ig = 1:nmeg
       % 同種別（S-S または RC-RC）なら柱面まで減算
       if is_steel_g(ig) == is_steel_c2
         Dc2 = Dc(ids_r(k));
+        face_deduct(ig, 2) = Dc2/2;
         lm_girder_weight(ig) = lm_girder_weight(ig) - Dc2/2;
         break;  % 1つの柱面で減算したら終了
       end

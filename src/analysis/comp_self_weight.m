@@ -1,8 +1,12 @@
 function sw = comp_self_weight(...
-  A, lm_weight, lm, member_property, msdim, slab, idn2df, mejoint, options)
+  A, lm_weight, lm, member_property, msdim, slab, idn2df, mejoint, ...
+  face_deduct, options)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
 % 柱・梁の自重および仕上重量から等価節点荷重とCMQを計算する。
+%
+% 梁の等価節点荷重は、柱面間に荷重が分布することを考慮し、
+% 荷重重心位置に基づく偏心配分を行う（SS7方式）。
 %
 % Inputs:
 %   A               - 断面積配列
@@ -13,6 +17,7 @@ function sw = comp_self_weight(...
 %   slab            - スラブ情報構造体
 %   idn2df          - 節点→自由度変換配列
 %   mejoint         - 結合条件配列
+%   face_deduct     - 梁の柱面減算量 [nmeg x 2]（列1: i端, 列2: j端）
 %   options         - オプション構造体
 %
 % Outputs:
@@ -29,13 +34,16 @@ cyl = member_property.cyl;
 mtype = member_property.type;
 idme2j1 = member_property.idnode1;
 idme2j2 = member_property.idnode2;
-% l = sqrt(lx.^2+ly.^2+lz.^2);
 stype = member_property.section_type;
 gstype = stype(mtype==PRM.GIRDER);
 
 % 共通定数
 nme = length(mtype);
 ndf = max(idn2df,[],'all');
+
+% 部材ID→梁インデックスの変換マップ（偏心配分用）
+idme2ig = zeros(nme, 1);
+idme2ig(mtype==PRM.GIRDER) = 1:sum(mtype==PRM.GIRDER);
 
 % 重複スラブの考慮
 slab_thickness = max(slab.thickness,[],2);
@@ -105,35 +113,84 @@ for im = 1:nme
 
   % --- 要素座標系 ---
   wv = t*[0; 0; wi];
-  fv = [wv(1)*li_w/2; 0; wv(3)*li_w/2];  % 等価節点荷重は荷重計算用部材長
 
-  % 接合条件に応じたCMQ計算（実際の部材長を使用）
+  % 等価節点荷重の計算
+  if mtype(im) == PRM.GIRDER
+    % 梁: 柱面間に荷重が分布することを考慮した偏心配分
+    ig = idme2ig(im);
+    d1 = face_deduct(ig, 1);  % i端の柱面減算量
+    % d2 = face_deduct(ig, 2) は li_w = li_m - d1 - d2 に既に反映済み
+    W = wi * li_w;            % 総荷重
+    x_cg = d1 + li_w / 2;     % 荷重重心のi端節点からの距離
+    % 偏心配分（モーメントのつり合いから）
+    fv_i3 = W * (li_m - x_cg) / li_m;  % i端の鉛直荷重
+    fv_j3 = W * x_cg / li_m;           % j端の鉛直荷重
+    % 軸方向荷重は均等配分
+    fv_i1 = wv(1) * li_w / 2;
+    fv_j1 = wv(1) * li_w / 2;
+    fvi = [fv_i1; 0; fv_i3 * sign(wv(3))];
+    fvj = [fv_j1; 0; fv_j3 * sign(wv(3))];
+  else
+    % 柱: 均等配分
+    fvi = [wv(1)*li_w/2; 0; wv(3)*li_w/2];
+    fvj = fvi;
+  end
+
+  % 接合条件に応じたCMQ計算
   % mejoint: 1:i端(強軸), 2:j端(強軸), 3:i端(弱軸), 4:j端(弱軸)
   joint = mejoint(im,:);
   if mtype(im) == PRM.GIRDER
+    % 梁: 柱面間に荷重が分布することを考慮した固定端モーメント
+    ig = idme2ig(im);
+    a = face_deduct(ig, 1);  % i端の柱面減算量
+    b_ = face_deduct(ig, 2); % j端の柱面減算量（bは組み込み関数と重複を避ける）
+    L = li_m;                % 通り心間距離
+    Lb = L - b_;             % = a + L' (荷重右端位置)
+    w3 = wv(3);              % 要素座標系での鉛直荷重成分
     if joint(1)==PRM.PIN && joint(2)==PRM.PIN
-      % 両端ピン
+      % 両端ピン: 固定端モーメントなし
       cvi = [0; 0; 0];
       cvj = [0; 0; 0];
     elseif joint(1)==PRM.PIN
-      % i端ピン
+      % i端ピン: j端のみ固定端モーメント
+      % 片持ち梁としてj端まわりのモーメント
+      % M_B = ∫[a to Lb] w*(Lb-x) dx = w*[(Lb-a)^2/2] = w*L'^2/2
+      % ただしピン支持による反力調整後: M_B = w*L'^2/8 相当（近似）
       cvi = [0; 0; 0];
-      cvj = [0; wv(3)*li_m^2/8; 0];
+      cvj = [0; w3*li_w^2/8; 0];
     elseif joint(2)==PRM.PIN
-      % j端ピン
-      cvi = [0; wv(3)*li_m^2/8; 0];
+      % j端ピン: i端のみ固定端モーメント
+      cvi = [0; w3*li_w^2/8; 0];
       cvj = [0; 0; 0];
     else
-      % 両端固定
-      cvi = [0; wv(3)*li_m^2/12; 0];
-      cvj = [0; wv(3)*li_m^2/12; 0];
+      % 両端固定: 柱面間分布荷重の固定端モーメント公式
+      % 単位集中荷重Pが位置xに作用するときの固定端モーメント:
+      %   MA(x) = P*x*(L-x)²/L²
+      %   MB(x) = P*x²*(L-x)/L²
+      % これを区間[a, L-b]で積分:
+      %   CA = ∫[a,Lb] w*x*(L-x)²/L² dx
+      %   CB = ∫[a,Lb] w*x²*(L-x)/L² dx
+      % 積分結果:
+      %   ∫x(L-x)²dx = L²x²/2 - 2Lx³/3 + x⁴/4
+      %   ∫x²(L-x)dx = Lx³/3 - x⁴/4
+      L2 = L^2;
+      % CA の積分: F(x) = L²x²/2 - 2Lx³/3 + x⁴/4
+      FA_Lb = L2*Lb^2/2 - 2*L*Lb^3/3 + Lb^4/4;
+      FA_a  = L2*a^2/2  - 2*L*a^3/3  + a^4/4;
+      CA = w3/L2 * (FA_Lb - FA_a);
+      % CB の積分: G(x) = Lx³/3 - x⁴/4
+      GB_Lb = L*Lb^3/3 - Lb^4/4;
+      GB_a  = L*a^3/3  - a^4/4;
+      CB = w3/L2 * (GB_Lb - GB_a);
+      cvi = [0; CA; 0];
+      cvj = [0; CB; 0];
     end
   else
-    % 柱は常に両端固定
+    % 柱は常に両端固定（従来通り）
     cvi = [0; wv(3)*li_m^2/12; 0];
     cvj = [0; wv(3)*li_m^2/12; 0];
   end
-  ari = [fv; -cvi]; arj = [fv; cvj];
+  ari = [fvi; -cvi]; arj = [fvj; cvj];
   ar(im,:) = [ari; arj];
 
   % --- 全体座標系 ---
