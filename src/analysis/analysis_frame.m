@@ -1,7 +1,7 @@
 function [msprop, secdim, dvec, dnode, felement,...
   stn, stcn, Mc, C, vix, viy, ...
   rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, isuplifted, sw, ...
-  lf, lr, lm, lnm, lbnm, ...
+  lf, lr, lm, lm_weight, lnm, lbnm, ...
   Iy0, Iz0, gphiI, cphiI, cbs, baseline, node, story, floor] = ...
   analysis_frame(xvar, com, options)
 
@@ -112,7 +112,7 @@ A = msprop.A;
 Asy = msprop.Asy;
 Asz = msprop.Asz;
 Aw = msprop.Aw;
-Af = msprop.Af;
+% Af = msprop.Af;
 Iy = msprop.Iy;
 Iz = msprop.Iz;
 
@@ -233,11 +233,19 @@ mejoint = PRM.FIX*ones(nme,4);
 mejoint(idmg2m,:) = gjoint;
 mejoint(idmc2m,:) = cjoint;
 
+% 荷重計算用の部材長を算出（自重計算の有無にかかわらず常に計算）
+lm_column_weight = calc_column_weight_length(com, secdim);
+lm_girder_weight = calc_girder_weight_length(com, secdim, lm);
+
+% 柱・梁を結合して全部材の荷重計算用部材長を作成
+lm_weight = lm;  % 初期値は構造階高ベースの部材長
+lm_weight(mtype==PRM.COLUMN) = lm_column_weight;
+lm_weight(mtype==PRM.GIRDER) = lm_girder_weight;
+
 % 自重の計算
-% if options.consider_self_weight || options.consider_finishing_material
 if options.consider_self_weight && options.consider_finishing_material
   sw = comp_self_weight(...
-    A, lm, member_property, msdim, slab, idn2df, mejoint, options);
+    A, lm_weight, lm, member_property, msdim, slab, idn2df, mejoint, options);
   fvec(:,1) = fvec(:,1)-sw.f;
   ar(:,:,1) = ar(:,:,1)+sw.ar;
   M0(:,1)= M0(:,1)+sw.M0;

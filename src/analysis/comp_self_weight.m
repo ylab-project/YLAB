@@ -1,5 +1,27 @@
 function sw = comp_self_weight(...
-  A, lm, member_property, msdim, slab, idn2df, mejoint, options)
+  A, lm_weight, lm, member_property, msdim, slab, idn2df, mejoint, options)
+%comp_self_weight - 自重による等価節点荷重を計算
+%
+% 柱・梁の自重および仕上重量から等価節点荷重とCMQを計算する。
+%
+% Inputs:
+%   A               - 断面積配列
+%   lm_weight       - 荷重計算用部材長配列（等価節点荷重用）
+%   lm              - 実際の部材長配列（CMQ計算用）
+%   member_property - 部材プロパティ構造体
+%   msdim           - 部材断面寸法配列
+%   slab            - スラブ情報構造体
+%   idn2df          - 節点→自由度変換配列
+%   mejoint         - 結合条件配列
+%   options         - オプション構造体
+%
+% Outputs:
+%   sw - 結果構造体
+%        .f   : 等価節点荷重ベクトル
+%        .fc  : 柱の等価節点荷重
+%        .fg  : 梁の等価節点荷重
+%        .ar  : 要素座標系の固定端反力
+%        .M0  : 単純梁モーメント
 
 % 共通配列
 cxl = member_property.cxl;
@@ -76,14 +98,16 @@ czl = cross(cxl, cyl, 2);
 
 for im = 1:nme
   % --- 共通 ---
-  li = lm(im); wi = w(im);
+  li_w = lm_weight(im);  % 等価節点荷重用（荷重計算用部材長）
+  li_m = lm(im);         % CMQ用（実際の部材長）
+  wi = w(im);
   t = [cxl(im,:); cyl(im,:); czl(im,:)];
 
   % --- 要素座標系 ---
   wv = t*[0; 0; wi];
-  fv = [wv(1)*li/2; 0; wv(3)*li/2];
+  fv = [wv(1)*li_w/2; 0; wv(3)*li_w/2];  % 等価節点荷重は荷重計算用部材長
 
-  % 接合条件に応じたCMQ計算
+  % 接合条件に応じたCMQ計算（実際の部材長を使用）
   % mejoint: 1:i端(強軸), 2:j端(強軸), 3:i端(弱軸), 4:j端(弱軸)
   joint = mejoint(im,:);
   if mtype(im) == PRM.GIRDER
@@ -94,20 +118,20 @@ for im = 1:nme
     elseif joint(1)==PRM.PIN
       % i端ピン
       cvi = [0; 0; 0];
-      cvj = [0; wv(3)*li^2/8; 0];
+      cvj = [0; wv(3)*li_m^2/8; 0];
     elseif joint(2)==PRM.PIN
       % j端ピン
-      cvi = [0; wv(3)*li^2/8; 0];
+      cvi = [0; wv(3)*li_m^2/8; 0];
       cvj = [0; 0; 0];
     else
       % 両端固定
-      cvi = [0; wv(3)*li^2/12; 0];
-      cvj = [0; wv(3)*li^2/12; 0];
+      cvi = [0; wv(3)*li_m^2/12; 0];
+      cvj = [0; wv(3)*li_m^2/12; 0];
     end
   else
     % 柱は常に両端固定
-    cvi = [0; wv(3)*li^2/12; 0];
-    cvj = [0; wv(3)*li^2/12; 0];
+    cvi = [0; wv(3)*li_m^2/12; 0];
+    cvj = [0; wv(3)*li_m^2/12; 0];
   end
   ari = [fv; -cvi]; arj = [fv; cvj];
   ar(im,:) = [ari; arj];
@@ -124,7 +148,7 @@ for im = 1:nme
     case PRM.GIRDER
       fg(ns) = fg(ns)+fi;
       fg(ne) = fg(ne)+fj;
-      m0m = wv(3)*li^2/8;
+      m0m = wv(3)*li_m^2/8;  % M0も実際の部材長を使用
       M0(im) = m0m;
   end
 end
