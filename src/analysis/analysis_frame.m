@@ -234,8 +234,12 @@ mejoint(idmg2m,:) = gjoint;
 mejoint(idmc2m,:) = cjoint;
 
 % 荷重計算用の部材長を算出（自重計算の有無にかかわらず常に計算）
-lm_column_weight = calc_column_weight_length(com, secdim);
-lm_girder_weight = calc_girder_weight_length(com, secdim, lm);
+stype_sec = com.section.property.type;
+lm_column_weight = calc_column_weight_length(...
+  member_column, member_girder, floor, com.node, ...
+  stype_sec, com.section.column.idsec, com.section.girder.idsec, secdim);
+lm_girder_weight = calc_girder_weight_length(...
+  member_girder, com.node, stype_sec, com.section.girder.idsec, secdim);
 
 % 柱・梁を結合して全部材の荷重計算用部材長を作成
 lm_weight = lm;  % 初期値は構造階高ベースの部材長
