@@ -1,11 +1,12 @@
 function lrgirder = calc_rigid_zone_girder(...
   mgstype, idmg2sfl, idmg2sfr, idscb2s, cbsDf, sdimgm, ...
-  secdim, stype, gdir)
+  secdim, stype, gdir, idmg2n, idsup2n)
 %calc_rigid_zone_girder 梁の剛域長を計算
 %   lrgirder = calc_rigid_zone_girder(mgstype, idmg2sfl, idmg2sfr, ...
-%   idscb2s, cbsDf, sdimgm, secdim, stype, gdir) は、
+%   idscb2s, cbsDf, sdimgm, secdim, stype, gdir, idmg2n, idsup2n) は、
 %   SS7仕様書3.3.1に基づいて梁の剛域長を計算します。
 %   RC梁は最小柱面/2-α×梁せい、S梁は最大柱面/2で計算します。
+%   柱脚Dfは支点のある梁端部にのみ適用します。
 %
 %   入力引数:
 %     mgstype - 梁断面タイプ [nmg×1]
@@ -18,6 +19,8 @@ function lrgirder = calc_rigid_zone_girder(...
 %     secdim - 全断面寸法 [nsec×4]
 %     stype - 全断面タイプ配列 [nsec×1]
 %     gdir - 梁方向 [nmg×1] (PRM.X or PRM.Y)
+%     idmg2n - 梁端節点ID [nmg×2]（左端、右端）
+%     idsup2n - 支点節点ID [nsup×1]
 %
 %   出力引数:
 %     lrgirder - 梁剛域長 [nmg×2]
@@ -46,6 +49,9 @@ for ig=1:nmg
     min_col_size = inf;
     max_col_size = 0;
 
+    % 梁端節点が支点かどうかを確認
+    is_support = any(idmg2n(ig,ilr) == idsup2n);
+
     % 全列を走査して柱をチェック
     for i = 1:length(ids_all)
       idsc = ids_all(i);
@@ -53,8 +59,8 @@ for ig=1:nmg
         continue
       end
 
-      % 基礎柱のチェック
-      if any(idsc==idscb2s)
+      % 基礎柱のチェック（支点のある梁端部でのみ考慮）
+      if any(idsc==idscb2s) && is_support
         Df = cbsDf(idsc==idscb2s);
         min_col_size = min(min_col_size, Df);
         max_col_size = max(max_col_size, Df);

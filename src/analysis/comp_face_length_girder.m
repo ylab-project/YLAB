@@ -1,11 +1,13 @@
 function lfgirder = comp_face_length_girder(...
-  secdim, idmg2sfl, idmg2sfr, idscb2s, cbsDf, cxl, cyl)
+  secdim, idmg2sfl, idmg2sfr, idscb2s, cbsDf, cxl, cyl, idmg2n, idsup2n)
 %comp_face_length_girder - 梁端部のフェイス位置を計算
 %
 %   lfgirder = comp_face_length_girder(secdim, idmg2sfl, idmg2sfr, ...
-%     idscb2s, cbsDf, cxl, cyl) は、梁端部の柱面位置を計算する。
+%     idscb2s, cbsDf, cxl, cyl, idmg2n, idsup2n) は、梁端部の柱面位置を
+%   計算する。
 %
 %   斜め梁の場合、梁軸方向と柱断面（矩形）の交点距離を幾何学的に計算する。
+%   柱脚Dfは支点のある梁端部にのみ適用する。
 %
 %   入力引数:
 %     secdim   - 断面寸法配列 [nsec×ncol]
@@ -15,6 +17,8 @@ function lfgirder = comp_face_length_girder(...
 %     cbsDf    - CBS断面のDf値 [ncbs×1]
 %     cxl      - 梁の方向余弦（X軸方向）[nmg×3]
 %     cyl      - 梁の方向余弦（Y軸方向）[nmg×3]
+%     idmg2n   - 梁端節点ID [nmg×2]（左端、右端）
+%     idsup2n  - 支点節点ID [nsup×1]
 %
 %   出力引数:
 %     lfgirder - 梁端部フェイス位置 [nmg×2]（左端、右端）
@@ -44,10 +48,13 @@ for ig=1:nmg
 
     Df = 0;
     if any(ids>0)
-      % 全列を走査して基礎柱をチェック
+      % 梁端節点が支点かどうかを確認
+      is_support = any(idmg2n(ig,ilr) == idsup2n);
+
+      % 支点のある梁端部でのみ柱脚Dfを考慮
       for i = 1:length(ids)
         idsc = ids(i);
-        if idsc > 0 && any(idsc==idscb2s)
+        if idsc > 0 && any(idsc==idscb2s) && is_support
           Df = max(Df, cbsDf(idsc==idscb2s));
         end
       end

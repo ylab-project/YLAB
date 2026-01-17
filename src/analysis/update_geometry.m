@@ -1,10 +1,10 @@
 function [mglevel, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
   update_geometry(secdim, baseline, node, story, floor, ...
-  section, member, cbs, options)
+  section, member, cbs, options, idsup2n)
 %update_geometry 構造モデルの幾何学的特性を更新
 %   [mglevel, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
 %   update_geometry(secdim, baseline, node, story, floor, ...
-%   section, member, cbs, options) は、部材レベル、座標、
+%   section, member, cbs, options, idsup2n) は、部材レベル、座標、
 %   フェイス長、剛域長などの幾何学的特性を計算・更新します。
 %
 %   入力引数:
@@ -17,6 +17,7 @@ function [mglevel, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
 %     member - 部材データ構造体
 %     cbs - 基礎柱データ構造体
 %     options - オプション設定構造体
+%     idsup2n - 支点節点ID [nsup×1]
 %
 %   出力引数:
 %     mglevel - 梁レベル [nmeg×1]
@@ -38,6 +39,11 @@ function [mglevel, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
 
 %TODO update_geometry_zと統合する。
 %---
+% デフォルト引数
+if nargin < 10
+  idsup2n = [];
+end
+
 % 定数
 nmec = size(member.column,1);
 nmeg = size(member.girder,1);
@@ -132,11 +138,13 @@ end
 lf.girder = zeros(nmeg,2);
 lf.columnx = zeros(nmec,2);
 lf.columny = zeros(nmec,2);
+idmg2n = [member_girder.idnode1 member_girder.idnode2];
 if options.consider_allowable_stress_at_face
   gcxl = cxl(mtype==PRM.GIRDER,:);
   gcyl = cyl(mtype==PRM.GIRDER,:);
   lf.girder = comp_face_length_girder(...
-    secdim, idmg2sfl, idmg2sfr, idscb2s, cbs.Df, gcxl, gcyl);
+    secdim, idmg2sfl, idmg2sfr, idscb2s, cbs.Df, gcxl, gcyl, ...
+    idmg2n, idsup2n);
   ccxl = cxl(mtype==PRM.COLUMN,:);
   ccyl = cyl(mtype==PRM.COLUMN,:);
   [lf.columnx, lf.columny] = comp_face_length_column(...
@@ -177,7 +185,7 @@ if options.consider_rigid_zone
   % 梁剛域
   lr.girder = calc_rigid_zone_girder(...
     mgstype, idmg2sfl, idmg2sfr, idscb2s, cbs.Df, sdimgm, ...
-    secdim, stype, gdir);
+    secdim, stype, gdir, idmg2n, idsup2n);
 end
 
 end

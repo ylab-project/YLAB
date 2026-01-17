@@ -180,7 +180,8 @@ cbstiff = cbs.stiff;
 % 形状の更新
 [~, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
   update_geometry(...
-  secdim, baseline, node, story, floor, section, member, cbs, options);
+  secdim, baseline, node, story, floor, section, member, cbs, options, ...
+  idsup2n);
 member_property.cxl = cxl;
 member_property.cyl = cyl;
 baseline.z.coord = zcoord;
