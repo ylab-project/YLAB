@@ -44,8 +44,12 @@ for ig=1:nmg
 
     Df = 0;
     if any(ids>0)
-      if any(ids(1)==idscb2s)
-        Df = cbsDf(ids(1)==idscb2s);
+      % 全列を走査して基礎柱をチェック
+      for i = 1:length(ids)
+        idsc = ids(i);
+        if idsc > 0 && any(idsc==idscb2s)
+          Df = max(Df, cbsDf(idsc==idscb2s));
+        end
       end
 
       % 柱断面寸法（HSS: D=B=第1列、矩形の場合は将来対応）

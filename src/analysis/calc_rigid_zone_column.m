@@ -1,11 +1,11 @@
 function [lrcolumnx, lrcolumny] = calc_rigid_zone_column(...
   secdim, stdh, mglevel, mgstype, ...
   idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, idmc2st, idm2s, ...
-  mcstype, idmc2s)
+  mcstype, idmc2s, ccxl, ~)
 %calc_rigid_zone_column 柱の剛域長を計算
-%   [lrcolumnx, lrcolumny] = calc_rigid_zone_column(secdim, stdh, 
+%   [lrcolumnx, lrcolumny] = calc_rigid_zone_column(secdim, stdh,
 %     mglevel, mgstype, idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y,
-%     idmc2st, idm2s, mcstype, idmc2s) は、柱の剛域長を計算します。
+%     idmc2st, idm2s, mcstype, idmc2s, ccxl, ccyl) は、柱の剛域長を計算します。
 %   SS7仕様書3.3.1(RC造)と3.3.2(S造)に準拠します。
 %
 %   入力引数:
@@ -22,6 +22,8 @@ function [lrcolumnx, lrcolumny] = calc_rigid_zone_column(...
 %     idm2s     - 部材断面ID配列 [nm×1]
 %     mcstype   - 柱断面タイプ配列 [nmc×1]
 %     idmc2s    - 柱断面ID配列 [nmc×1]
+%     ccxl      - 柱の方向余弦（X軸方向）[nmc×3]
+%     ccyl      - 柱の方向余弦（Y軸方向）[nmc×3]
 %
 %   出力引数:
 %     lrcolumnx - X方向柱剛域長 [nmc×2]
@@ -33,6 +35,7 @@ function [lrcolumnx, lrcolumny] = calc_rigid_zone_column(...
 %     - RC柱: 剛域長 = 梁せい - 階高差 - 0.25×柱寸法
 %     - S柱: RC梁が取り付く場合、剛域長 = 梁せい - 階高差（フェイス位置まで）
 %     - S柱にS梁のみの場合: 剛域なし
+%     - 斜め柱の場合、剛域長を柱軸方向に投影補正する
 %
 %   参考:
 %     calc_rigid_zone_girder, update_geometry
@@ -44,8 +47,20 @@ nmc = size(idmc2mf1x,1);
 lrcolumnx = zeros(nmc,2);
 lrcolumny = zeros(nmc,2);
 
+% 柱軸方向のZ成分を取得
+% ccxl は部材軸方向（i端からj端）の方向余弦 [cx, cy, cz]
+% 柱軸のZ成分 = ccxl(:,3) = cos(θ)、θは柱軸と鉛直線のなす角度
+cz = ccxl(:,3);
+
 % 柱の剛域長さ
 for ic=1:nmc
+  % 斜め柱の投影補正係数を計算
+  % cz(ic) = cos(θ)、θは柱軸と鉛直線のなす角度
+  if abs(cz(ic)) > 1e-6
+    proj_factor = 1 / abs(cz(ic));
+  else
+    proj_factor = 1;  % 水平柱（通常は存在しない）
+  end
   ist = idmc2st(ic);
   idsc = idmc2s(ic);  % 柱断面ID
   
@@ -129,9 +144,9 @@ for ic=1:nmc
         end
     end
 
-    % 方向別（負値は0に）
-    lrcolumnx(ic,ij) = max(rx, 0);
-    lrcolumny(ic,ij) = max(ry, 0);
+    % 方向別（負値は0に）、斜め柱の投影補正を適用
+    lrcolumnx(ic,ij) = max(rx, 0) * proj_factor;
+    lrcolumny(ic,ij) = max(ry, 0) * proj_factor;
   end
 end
 

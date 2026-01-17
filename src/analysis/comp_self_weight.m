@@ -1,5 +1,5 @@
 function sw = comp_self_weight(...
-  A, lm_weight, lm, member_property, msdim, slab, idn2df, mejoint, ...
+  A, lm_weight, lm, member_property, msdim, slab, idn2df, ndf, mejoint, ...
   face_deduct, options)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
@@ -16,6 +16,7 @@ function sw = comp_self_weight(...
 %   msdim           - 部材断面寸法配列
 %   slab            - スラブ情報構造体
 %   idn2df          - 節点→自由度変換配列
+%   ndf             - 全体自由度数
 %   mejoint         - 結合条件配列
 %   face_deduct     - 梁の柱面減算量 [nmeg x 2]（列1: i端, 列2: j端）
 %   options         - オプション構造体
@@ -39,7 +40,7 @@ gstype = stype(mtype==PRM.GIRDER);
 
 % 共通定数
 nme = length(mtype);
-ndf = max(idn2df,[],'all');
+% ndf は引数から受け取る
 
 % 部材ID→梁インデックスの変換マップ（偏心配分用）
 idme2ig = zeros(nme, 1);
@@ -107,16 +108,27 @@ czl = cross(cxl, cyl, 2);
 for im = 1:nme
   % --- 共通 ---
   li_w = lm_weight(im);  % 等価節点荷重用（荷重計算用部材長）
-  li_m = lm(im);         % CMQ用（実際の部材長）
   wi = w(im);
-  t = [cxl(im,:); cyl(im,:); czl(im,:)];
+  ns = idn2df(idme2j1(im),:);
+  ne = idn2df(idme2j2(im),:);
 
-  % --- 要素座標系 ---
-  wv = t*[0; 0; wi];
+  if mtype(im) == PRM.COLUMN
+    % === 柱の処理 ===
+    % 固定端反力なし、等価節点荷重はPZのみ（全体座標系で直接計算）
+    % 柱の自重は常に鉛直方向に作用するため、PZのみに寄与
+    ar(im,:) = zeros(1,12);
+    W = wi * li_w;  % 総自重
+    fi_global = [0; 0; W/2; 0; 0; 0];
+    fj_global = [0; 0; W/2; 0; 0; 0];
+    fc(ns) = fc(ns)+fi_global;
+    fc(ne) = fc(ne)+fj_global;
+  elseif mtype(im) == PRM.GIRDER
+    % === 梁の処理 ===
+    li_m = lm(im);  % CMQ用（実際の部材長）
+    t = [cxl(im,:); cyl(im,:); czl(im,:)];
+    wv = t*[0; 0; wi];  % 要素座標系での荷重
 
-  % 等価節点荷重の計算
-  if mtype(im) == PRM.GIRDER
-    % 梁: 柱面間に荷重が分布することを考慮した偏心配分
+    % 等価節点荷重の計算（柱面間分布荷重の偏心配分）
     ig = idme2ig(im);
     d1 = face_deduct(ig, 1);  % i端の柱面減算量
     % d2 = face_deduct(ig, 2) は li_w = li_m - d1 - d2 に既に反映済み
@@ -130,18 +142,10 @@ for im = 1:nme
     fv_j1 = wv(1) * li_w / 2;
     fvi = [fv_i1; 0; fv_i3 * sign(wv(3))];
     fvj = [fv_j1; 0; fv_j3 * sign(wv(3))];
-  else
-    % 柱: 均等配分
-    fvi = [wv(1)*li_w/2; 0; wv(3)*li_w/2];
-    fvj = fvi;
-  end
 
-  % 接合条件に応じたCMQ計算
-  % mejoint: 1:i端(強軸), 2:j端(強軸), 3:i端(弱軸), 4:j端(弱軸)
-  joint = mejoint(im,:);
-  if mtype(im) == PRM.GIRDER
-    % 梁: 柱面間に荷重が分布することを考慮した固定端モーメント
-    ig = idme2ig(im);
+    % 接合条件に応じたCMQ計算
+    % mejoint: 1:i端(強軸), 2:j端(強軸), 3:i端(弱軸), 4:j端(弱軸)
+    joint = mejoint(im,:);
     a = face_deduct(ig, 1);  % i端の柱面減算量
     b_ = face_deduct(ig, 2); % j端の柱面減算量（bは組み込み関数と重複を避ける）
     L = li_m;                % 通り心間距離
@@ -185,28 +189,16 @@ for im = 1:nme
       cvi = [0; CA; 0];
       cvj = [0; CB; 0];
     end
-  else
-    % 柱は常に両端固定（従来通り）
-    cvi = [0; wv(3)*li_m^2/12; 0];
-    cvj = [0; wv(3)*li_m^2/12; 0];
-  end
-  ari = [fvi; -cvi]; arj = [fvj; cvj];
-  ar(im,:) = [ari; arj];
 
-  % --- 全体座標系 ---
-  fi = [t'*ari(1:3); t'*ari(4:6)];
-  fj = [t'*arj(1:3); t'*arj(4:6)];
-  ns = idn2df(idme2j1(im),:);
-  ne = idn2df(idme2j2(im),:);
-  switch mtype(im)
-    case PRM.COLUMN
-      fc(ns) = fc(ns)+fi;
-      fc(ne) = fc(ne)+fj;
-    case PRM.GIRDER
-      fg(ns) = fg(ns)+fi;
-      fg(ne) = fg(ne)+fj;
-      m0m = wv(3)*li_m^2/8;  % M0も実際の部材長を使用
-      M0(im) = m0m;
+    % 局所座標系から全体座標系に変換
+    ari = [fvi; -cvi]; arj = [fvj; cvj];
+    ar(im,:) = [ari; arj];
+    fi = [t'*ari(1:3); t'*ari(4:6)];
+    fj = [t'*arj(1:3); t'*arj(4:6)];
+    fg(ns) = fg(ns)+fi;
+    fg(ne) = fg(ne)+fj;
+    m0m = wv(3)*li_m^2/8;  % M0も実際の部材長を使用
+    M0(im) = m0m;
   end
 end
 

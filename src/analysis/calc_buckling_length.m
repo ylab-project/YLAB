@@ -104,6 +104,14 @@ for inc = 1:nnc
   mca  = immm((js==jei | je==jei) & mtype==PRM.COLUMN & ~isself);
   mcb  = immm((js==jsi | je==jsi) & mtype==PRM.COLUMN & ~isself);
 
+  % 節点同一化により複数柱が接続する場合はエラー
+  if length(mca) > 1
+    error('節点に上側から2本以上の柱が接続しています');
+  end
+  if length(mcb) > 1
+    error('節点に下側から2本以上の柱が接続しています');
+  end
+
   % 柱の剛比計算（座屈長さ係数の計算時は構造心間の長さ）
   gc = Iy(imb)/lmni;
   if ~isempty(mca)

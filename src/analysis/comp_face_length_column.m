@@ -1,9 +1,9 @@
 function [lfcolumnx, lfcolumny] = comp_face_length_column(...
   secdim, stdh, column_idz, girder_level, stype, ...
   idmc2sf1x, idmc2sf2x, idmc2sf1y, idmc2sf2y, idmc2st, ...
-  idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, gcxl, gcyl)
-%UNTITLED この関数の概要をここに記述
-%   詳細説明をここに記述
+  idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, gcxl, gcyl, ccxl, ~)
+%comp_face_length_column 柱のフェイス長を計算
+%   斜め柱の場合、フェイス長を柱軸方向に投影補正する
 
 % 定数
 nmc = size(idmc2sf1x,1);
@@ -14,8 +14,19 @@ lfcolumnx = zeros(nmc,2);
 lfcolumny = zeros(nmc,2);
 gczl = cross(gcxl, gcyl, 2);
 
+% 柱軸方向のZ成分を取得
+% ccxl は部材軸方向（i端からj端）の方向余弦 [cx, cy, cz]
+% 柱軸のZ成分 = ccxl(:,3) = cos(θ)、θは柱軸と鉛直線のなす角度
+cz = ccxl(:,3);
+
 % 柱の梁面長さ
 for ic=1:nmc
+  % 斜め柱の投影補正係数を計算
+  if abs(cz(ic)) > 1e-6
+    proj_factor = 1 / abs(cz(ic));
+  else
+    proj_factor = 1;
+  end
   % ist = idmc2st(i);
   for ij=1:2
     switch ij
@@ -47,9 +58,9 @@ for ic=1:nmc
           gldh = max(gldh);
           switch idir
             case PRM.X
-              lfcolumnx(ic,ij) = gldh;
+              lfcolumnx(ic,ij) = gldh * proj_factor;
             case PRM.Y
-              lfcolumny(ic,ij) = gldh;
+              lfcolumny(ic,ij) = gldh * proj_factor;
           end
         end
       case 2
@@ -84,11 +95,10 @@ for ic=1:nmc
           gldh = max(gldh);
           switch idir
             case PRM.X
-              lfcolumnx(ic,ij) = gldh;
+              lfcolumnx(ic,ij) = gldh * proj_factor;
             case PRM.Y
-              lfcolumny(ic,ij) = gldh;
+              lfcolumny(ic,ij) = gldh * proj_factor;
           end
-          % end
         end
     end
   end

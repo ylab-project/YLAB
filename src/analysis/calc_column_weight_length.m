@@ -165,6 +165,18 @@ for ic = 1:nmec
       end
     end
   end
+
+  % --- 斜め柱対応: 水平移動量を考慮した斜め長さに変換 ---
+  % 節点同一化により柱頭が水平方向に移動している場合、
+  % 鉛直方向の部材長から斜め長さを計算する
+  in1 = idmc2n1(ic);
+  in2 = idmc2n2(ic);
+  dx = node.x(in2) - node.x(in1);
+  dy = node.y(in2) - node.y(in1);
+  horizontal = sqrt(dx^2 + dy^2);
+  if horizontal > 0
+    lm_weight(ic) = sqrt(lm_weight(ic)^2 + horizontal^2);
+  end
 end
 
 return

@@ -9,10 +9,9 @@ function lrgirder = calc_rigid_zone_girder(...
 %
 %   入力引数:
 %     mgstype - 梁断面タイプ [nmg×1]
-%     idmg2sfl - 梁左端の全断面ID [nmg×2]
-%               (1列目:下側柱、2列目:上側柱)
-%     idmg2sfr - 梁右端の全断面ID [nmg×2]
-%               (1列目:下側柱、2列目:上側柱)
+%     idmg2sfl - 梁左端の全断面ID [nmg×ncol]
+%               ncol: 接続柱本数（節点同一化で変動）
+%     idmg2sfr - 梁右端の全断面ID [nmg×ncol]
 %     idscb2s - 基礎柱の全断面ID [ncb×1]
 %     cbsDf - 基礎柱のフーチング幅 [ncb×1]
 %     sdimgm - 梁断面寸法 [nmg×4]
@@ -46,18 +45,23 @@ for ig=1:nmg
     % 最小・最大柱面サイズの初期化
     min_col_size = inf;
     max_col_size = 0;
-    
-    % 基礎柱のチェック（最初の要素）
-    if any(ids_all(1)==idscb2s)
-      Df = cbsDf(ids_all(1)==idscb2s);
-      min_col_size = min(min_col_size, Df);
-      max_col_size = max(max_col_size, Df);
-    end
-    
-    % RC柱に接続する場合（上下の柱を全てチェック）
+
+    % 全列を走査して柱をチェック
     for i = 1:length(ids_all)
       idsc = ids_all(i);
-      if idsc > 0 && stype(idsc) == PRM.RCRS
+      if idsc <= 0
+        continue
+      end
+
+      % 基礎柱のチェック
+      if any(idsc==idscb2s)
+        Df = cbsDf(idsc==idscb2s);
+        min_col_size = min(min_col_size, Df);
+        max_col_size = max(max_col_size, Df);
+      end
+
+      % RC柱に接続する場合
+      if stype(idsc) == PRM.RCRS
         % X方向梁：RC柱のY方向寸法（幅）
         % Y方向梁：RC柱のX方向寸法（せい）
         if gdir(ig) == PRM.X

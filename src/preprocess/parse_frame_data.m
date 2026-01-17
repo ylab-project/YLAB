@@ -464,52 +464,6 @@ return
 end
 
 %--------------------------------------------------------------------------
-function [idmeg2secl, idmeg2secr] = countup_girder_to_column_face(com)
-% 共通定数
-nmec = com.nmec;
-nmeg = com.nmeg;
-
-% 共通配列
-idmeg2n = [com.member.girder.idnode1 com.member.girder.idnode2];
-idmec2n = [com.member.column.idnode1 com.member.column.idnode2];
-idmec2sec = com.section.column.idsec(com.member.column.idsecc);
-
-% 計算の準備
-idmeg2secl = zeros(nmeg,2);
-idmeg2secr = zeros(nmeg,2);
-iccc = 1:nmec;
-
-% 関係する変数の数え上げ
-for ig = 1:nmeg
-  for ilr = 1:2
-    iddd = zeros(1,2);
-    for idu = 1:2
-      % 対象変数の特定
-      idmec = iccc(any(idmec2n(:,idu)==idmeg2n(ig,ilr),2));
-
-      % 節点の格納
-      n = length(idmec);
-      switch n
-        case 0
-        case 1
-          iddd(idu) = idmec2sec(idmec);
-        case 2
-          error('2つ以上の梁が同一方向から柱にとりついています');
-      end
-    end
-    switch ilr
-      case 1
-        idmeg2secl(ig,:) = iddd;
-      case 2
-        idmeg2secr(ig,:) = iddd;
-    end
-  end
-end
-
-return
-end
-
-%--------------------------------------------------------------------------
 function [idmec2seg1x, idmec2seg1y, idmec2seg2x, idmec2seg2y, ...
   idmec2meg1x, idmec2meg1y, idmec2meg2x, idmec2meg2y] = ...
   countup_column_to_girder_face(com)

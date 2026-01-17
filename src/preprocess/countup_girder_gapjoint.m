@@ -39,9 +39,26 @@ for i = 1:ngapjoint
   nvarH(i) = length(idvarofH_);
   idvarofH(i,1:nvarH(i)) = idvarofH_;
 end
+
+% 取り付く梁が1種類しかない接合部は除外（ms計算より前に実施）
+istarget = nvarH>1;
+idsec = idsec(istarget,:);
+idvarofH = idvarofH(istarget,:);
+idnode = idnode(istarget);
+ngapjoint = sum(istarget);
+
+% 対象接合部がない場合は空を返す
+if ngapjoint == 0
+  gapjoint = table();
+  idgapsec = zeros(0,2);
+  idgapvar = cell(0,1);
+  return
+end
+
+% 除外後にms計算
 ms = max(sum(~isnan(idsec),2));
 idsec = idsec(:,1:ms);
-mv = max(sum(~isnan(idvarofH),2));
+mv = max(sum(idvarofH>0,2));
 idvarofH = idvarofH(:,1:mv);
 
 % 断面別の数え上げ準備
@@ -65,14 +82,10 @@ end
 idgapsec(any(idgapsec==inf,2),:) = [];
 idgapsec = unique(idgapsec,'rows');
 
-% 取り付く梁が1種類しかない接合部は除外
-istarget = nvarH>1;
+% 重複行を除外（nvarH>1の除外は43行目で実施済み）
 [~,ia] = unique(idvarofH,'rows');
-tf = false(ngapjoint,1); tf(ia) = true;
-istarget = istarget&tf;
+istarget = false(ngapjoint,1); istarget(ia) = true;
 idnode = idnode(istarget,:);
-% idsec = idsec(istarget,:);
-% nvarH = nvarH(istarget,:);
 idvar = idvarofH(istarget,:);
  
 % 除外部材の削除

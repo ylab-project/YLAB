@@ -24,43 +24,61 @@ end
 ngapjoint = sum(+is_target_joint);
 
 % 計算の準備
-idnode = (1:nnode)'; idnode = idnode(is_target_joint);
-idvarofD = nan(ngapjoint,2);
+idnode_all = (1:nnode)'; idnode_all = idnode_all(is_target_joint);
+
+% 結果格納用（動的に拡張）
+result_idnode = [];
+result_idvar = [];
 
 % 同じ接合部にとりつく柱外径の数え上げ
-istarget = true(1,ngapjoint);
 immm = 1:nmec;
 for i = 1:ngapjoint
-  in = idnode(i);
-  idmec1 = immm(idmec2n1==in);  %上階柱部材番号
-  idmec2 = immm(idmec2n2==in);  %下階柱部材番号
-  
-  % 空チェック
+  in = idnode_all(i);
+  idmec1 = immm(idmec2n1==in);  %上階柱部材番号（柱下端が接続→上側の柱）
+  idmec2 = immm(idmec2n2==in);  %下階柱部材番号（柱上端が接続→下側の柱）
+
+  % 空チェック（上下どちらかがなければ除外）※複数柱チェックより先
   if isempty(idmec1) || isempty(idmec2)
-    istarget(i) = false;
     continue
   end
-  
-  % RC柱が含まれる場合は除外
-  if column_type(idmec1) == PRM.RCRS || column_type(idmec2) == PRM.RCRS
-    istarget(i) = false;
-    continue
+
+  % 複数柱が接続する場合は全ペアの組み合わせを対象
+  for j1 = 1:length(idmec1)
+    for j2 = 1:length(idmec2)
+      mc1 = idmec1(j1);
+      mc2 = idmec2(j2);
+
+      % RC柱が含まれる場合は除外
+      if column_type(mc1) == PRM.RCRS || column_type(mc2) == PRM.RCRS
+        continue
+      end
+
+      % 同じ変数の場合も除外
+      var1 = idmec2var(mc1,1);
+      var2 = idmec2var(mc2,1);
+      if var1 == var2
+        continue
+      end
+
+      % ペアを追加
+      result_idnode = [result_idnode; in]; %#ok<AGROW>
+      result_idvar = [result_idvar; var1 var2]; %#ok<AGROW>
+    end
   end
-  
-  % 同じ変数の場合も除外
-  if idmec2var(idmec1,1)==idmec2var(idmec2,1)
-    istarget(i) = false;
-    continue
-  end
-  
-  % idsec(i,1) = idm2s(idmec1);
-  % idsec(i,2) = idm2s(idmec2);
-  idvarofD(i,1) = idmec2var(idmec1,1);
-  idvarofD(i,2) = idmec2var(idmec2,1);
 end
-[idvar, ia] = unique(idvarofD(istarget,:),'rows');
-idnode = idnode(istarget);
-idnode = idnode(ia);
+
+% 結果が空の場合
+if isempty(result_idnode)
+  idnode = zeros(0,1);
+  idxy = zeros(0,2);
+  idvar = zeros(0,2);
+  gapjoint = table(idnode, idxy, idvar);
+  return
+end
+
+% 重複を除去
+[idvar, ia] = unique(result_idvar,'rows');
+idnode = result_idnode(ia);
 idxy = idn2xy(idnode,:);
 gapjoint = table(idnode, idxy, idvar);
 gapjoint = sortrows(gapjoint,[2 3]);
