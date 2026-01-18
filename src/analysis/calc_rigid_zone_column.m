@@ -65,9 +65,9 @@ for ic=1:nmc
   ist = idmc2st(ic);
   idsc = idmc2s(ic);  % 柱断面ID
 
-  % 柱の寸法を取得
-  col_D = secdim(idsc,3);  % 柱せい（X方向寸法）
-  col_B = secdim(idsc,4);  % 柱幅（Y方向寸法）
+  % 柱の寸法を取得（実寸法を使用、SS7仕様）
+  col_D = secdim(idsc,1);  % 柱せい（X方向寸法）
+  col_B = secdim(idsc,2);  % 柱幅（Y方向寸法）
 
   % 柱タイプ判定とα係数設定
   % RC柱: α=0.25（SS7仕様書3.3.1）

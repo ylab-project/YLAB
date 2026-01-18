@@ -70,10 +70,11 @@ for ig=1:nmg
       if stype(idsc) == PRM.RCRS
         % X方向梁：RC柱のY方向寸法（幅）
         % Y方向梁：RC柱のX方向寸法（せい）
+        % 実寸法を使用（列1-2、SS7仕様）
         if gdir(ig) == PRM.X
-          rc_dim = secdim(idsc,4);  % RC柱幅
+          rc_dim = secdim(idsc,2);  % RC柱幅（実寸法）
         else  % PRM.Y
-          rc_dim = secdim(idsc,3);  % RC柱せい
+          rc_dim = secdim(idsc,1);  % RC柱せい（実寸法）
         end
         min_col_size = min(min_col_size, rc_dim);
         max_col_size = max(max_col_size, rc_dim);
