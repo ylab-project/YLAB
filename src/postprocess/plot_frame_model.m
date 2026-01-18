@@ -19,6 +19,7 @@ idn2coord = [com.node.idx com.node.idy com.node.idz];
 idm2c = com.member.property.idmec;
 idm2g = com.member.property.idmeg;
 idmewfs = com.member.girder.idmewfs;
+idmehss = com.member.column.idmehss;
 Hn = com.design.idvar.wfs.H;
 Bn = com.design.idvar.wfs.B;
 twn = com.design.idvar.wfs.tw;
@@ -189,7 +190,8 @@ for i = idm
         Hn(iwfs), Bn(iwfs), twn(iwfs), tfn(iwfs));
     case PRM.HSS
       ic = idm2c(i);
-      dvlabel = sprintf('(%d,%d)',Dn(ic), tn(ic));
+      ihss = idmehss(ic);
+      dvlabel = sprintf('(%d,%d)',Dn(ihss), tn(ihss));
     otherwise
       dvlabel = '';
   end

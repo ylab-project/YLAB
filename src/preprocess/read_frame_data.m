@@ -386,6 +386,15 @@ member_girder.idme = idmeg2mem;
 member_column.idme = idmec2mem;
 member_brace.idme = idmeb2mem;
 member_horizontal_brace.idme = idmehb2mem;
+
+% HSS柱部材番号の設定
+nmec = size(member_column,1);
+idmehss = zeros(nmec,1);
+section_type_c = member_property.section_type(idmec2mem);
+is_hss = (section_type_c == PRM.HSS);
+idmehss(is_hss) = 1:sum(is_hss);
+member_column.idmehss = idmehss;
+
 member.property = member_property;
 member.column = member_column;
 member.girder = member_girder;
