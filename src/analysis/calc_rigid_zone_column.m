@@ -1,12 +1,12 @@
 function [lrcolumnx, lrcolumny] = calc_rigid_zone_column(...
   secdim, stdh, mglevel, mgstype, ...
-  idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, idmc2st, idm2s, ...
+  idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, idmc2st, idmg2sg, idsg2s, ...
   mcstype, idmc2s, ccxl, ~)
 %calc_rigid_zone_column 柱の剛域長を計算
 %   [lrcolumnx, lrcolumny] = calc_rigid_zone_column(secdim, stdh,
 %     mglevel, mgstype, idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y,
-%     idmc2st, idm2s, mcstype, idmc2s, ccxl, ccyl) は、柱の剛域長を計算します。
-%   SS7仕様書3.3.1(RC造)と3.3.2(S造)に準拠します。
+%     idmc2st, idmg2sg, idsg2s, mcstype, idmc2s, ccxl, ccyl) は、
+%   柱の剛域長を計算します。SS7仕様書3.3.1(RC造)と3.3.2(S造)に準拠します。
 %
 %   入力引数:
 %     secdim    - 断面寸法行列 [nsec×4]
@@ -19,7 +19,8 @@ function [lrcolumnx, lrcolumny] = calc_rigid_zone_column(...
 %     idmc2mf1y - 柱脚側Y方向梁ID配列 [nmc×*]
 %     idmc2mf2y - 柱頭側Y方向梁ID配列 [nmc×*]
 %     idmc2st   - 柱階ID配列 [nmc×1]
-%     idm2s     - 部材断面ID配列 [nm×1]
+%     idmg2sg   - 梁ID→梁断面IDマッピング [nmg×1]
+%     idsg2s    - 梁断面ID→全断面IDマッピング [nsecg×1]
 %     mcstype   - 柱断面タイプ配列 [nmc×1]
 %     idmc2s    - 柱断面ID配列 [nmc×1]
 %     ccxl      - 柱の方向余弦（X軸方向）[nmc×3]
@@ -63,11 +64,11 @@ for ic=1:nmc
   end
   ist = idmc2st(ic);
   idsc = idmc2s(ic);  % 柱断面ID
-  
+
   % 柱の寸法を取得
   col_D = secdim(idsc,3);  % 柱せい（X方向寸法）
   col_B = secdim(idsc,4);  % 柱幅（Y方向寸法）
-  
+
   % 柱タイプ判定とα係数設定
   % RC柱: α=0.25（SS7仕様書3.3.1）
   % S柱: α=0（フェイス位置まで、SS7仕様書3.3.2）
@@ -76,16 +77,16 @@ for ic=1:nmc
   else
     alfa = 0;     % S柱
   end
-  
+
   for ij=1:2
     switch ij
       case 1
         % 柱脚側
         dh = -stdh(ist-1);
         rx = 0; ry = 0;
-        
+
         % X方向梁の処理
-        idm_ = idmc2mf1x(ic,:); 
+        idm_ = idmc2mf1x(ic,:);
         idm_ = idm_(idm_>0);
         if any(mgstype(idm_)==PRM.RCRS)
           % RC梁が接続する場合
@@ -93,9 +94,9 @@ for ic=1:nmc
           % SS7仕様：柱寸法×αを減じる
           rx = rx - alfa * col_D;  % X方向梁なので柱せいを減じる
         end
-        
+
         % Y方向梁の処理
-        idm_ = idmc2mf1y(ic,:); 
+        idm_ = idmc2mf1y(ic,:);
         idm_ = idm_(idm_>0);
         if any(mgstype(idm_)==PRM.RCRS)
           ry = max([dh+mglevel(idm_); 0]);
@@ -105,9 +106,9 @@ for ic=1:nmc
 
       case 2
         % 柱頭側
-        dh = stdh(ist);
+        dh = -stdh(ist);
         rx = 0; ry = 0;
-        
+
         for idir = 1:2
           switch idir
             case PRM.X
@@ -117,24 +118,25 @@ for ic=1:nmc
               idm = idmc2mf2y(ic,:);
               col_dim = col_B;  % Y方向梁には柱幅
           end
-          
+
           for i = 1:length(idm)
-            idm_ = idm(i);
-            if idm_==0
+            img = idm(i);
+            if img==0
               continue
             end
-            ids = idm2s(idm_);
-            
-            if mgstype(idm_)==PRM.RCRS
+            % 梁インデックス→梁断面ID→全断面IDの順で変換
+            ids = idsg2s(idmg2sg(img));
+
+            if mgstype(img)==PRM.RCRS
               % RC梁のみ対象
               H = secdim(ids,2);  % 梁せい
-              r = H-dh+mglevel(idm_);
-              
+              r = H-dh+mglevel(img);
+
               % SS7仕様：柱寸法×αを減じる
               r = r - alfa * col_dim;
-              
+
               switch idir
-                case PRM.X                  
+                case PRM.X
                   rx = max([rx, r]);
                 case PRM.Y
                   ry = max([ry, r]);

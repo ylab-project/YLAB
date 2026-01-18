@@ -84,8 +84,18 @@ for ic=1:nmc
           gczl_(idmg>0) = gczl(idmg(idmg>0),3);
           if any(idmg>0)
             gldh = zeros(length(idmg),1)-dh;
+            % 断面タイプに応じて梁せいを取得（S梁:列1、RC梁:列2）
+            ids_valid = ids(ids>0);
+            H_girder = zeros(length(ids_valid),1);
+            for k = 1:length(ids_valid)
+              if stype(ids_valid(k)) == PRM.RCRS
+                H_girder(k) = secdim(ids_valid(k),2);
+              else
+                H_girder(k) = secdim(ids_valid(k),1);
+              end
+            end
             gldh(idmg>0) = gldh(idmg>0) ...
-              +secdim(ids(ids>0),1)./gczl_(idmg>0) ...
+              +H_girder./gczl_(idmg>0) ...
               -girder_level(idmg(idmg>0));
             gldh = gldh(idmg>0);
           else
