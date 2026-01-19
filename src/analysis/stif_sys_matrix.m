@@ -21,7 +21,13 @@ for im = 1:nm
 
   % 局所系剛性行列
   li = lm(im); Ai = A(im); Asyi = Asy(im); Aszi = Asz(im);
-  Iyi = Iy(im); Izi = Iz(im); Ji = JJ(im);                 
+  Iyi = Iy(im); Ji = JJ(im);
+  % 梁の弱軸剛性Izはゼロとする（SS7互換）
+  if mtype(im) == PRM.GIRDER
+    Izi = 0;
+  else
+    Izi = Iz(im);
+  end
   Ei = Em(im); pri = prm(im); jointi = joint(im,:);
 
   if any(lrxi+lryi>=li)

@@ -53,7 +53,13 @@ for im = 1:nme
   li = lm(im);
   t_local = [cxl(im, :); cyl(im, :); czl(im, :)];
   Ai = A(im); Asyi = Asy(im); Aszi = Asz(im);
-  Iyi = Iy(im); Izi = Iz(im); Ji = JJ(im);
+  Iyi = Iy(im); Ji = JJ(im);
+  % 梁の弱軸剛性Izはゼロとする（SS7互換）
+  if mtype(im) == PRM.GIRDER
+    Izi = 0;
+  else
+    Izi = Iz(im);
+  end
   Ei = Em(im); pri = prm(im);
   jointi = joint(im, :);
 

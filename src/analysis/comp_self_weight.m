@@ -126,9 +126,10 @@ for im = 1:nme
     % === 梁の処理 ===
     li_m = lm(im);  % CMQ用（実際の部材長）
     t = [cxl(im,:); cyl(im,:); czl(im,:)];
-    wv = t*[0; 0; wi];  % 要素座標系での荷重
+    wv = t*[0; 0; wi];  % 要素座標系での荷重（CMQ計算用）
 
     % 等価節点荷重の計算（柱面間分布荷重の偏心配分）
+    % 鉛直荷重成分（PX, PY, PZ）は全体座標系で直接計算（SS7方式）
     ig = idme2ig(im);
     d1 = face_deduct(ig, 1);  % i端の柱面減算量
     % d2 = face_deduct(ig, 2) は li_w = li_m - d1 - d2 に既に反映済み
@@ -137,11 +138,9 @@ for im = 1:nme
     % 偏心配分（モーメントのつり合いから）
     fv_i3 = W * (li_m - x_cg) / li_m;  % i端の鉛直荷重
     fv_j3 = W * x_cg / li_m;           % j端の鉛直荷重
-    % 軸方向荷重は均等配分
-    fv_i1 = wv(1) * li_w / 2;
-    fv_j1 = wv(1) * li_w / 2;
-    fvi = [fv_i1; 0; fv_i3 * sign(wv(3))];
-    fvj = [fv_j1; 0; fv_j3 * sign(wv(3))];
+    % 等価節点荷重は全体座標系で直接設定（PX=0, PY=0）
+    fvi = [0; 0; fv_i3];
+    fvj = [0; 0; fv_j3];
 
     % 接合条件に応じたCMQ計算
     % mejoint: 1:i端(強軸), 2:j端(強軸), 3:i端(弱軸), 4:j端(弱軸)
@@ -190,13 +189,36 @@ for im = 1:nme
       cvj = [0; CB; 0];
     end
 
-    % 局所座標系から全体座標系に変換
-    ari = [fvi; -cvi]; arj = [fvj; cvj];
+    % 固定端反力（要素座標系）
+    % fvi, fvjは全体座標系で計算済みなので、要素座標系に変換してarに格納
+    fvi_local = t * fvi;
+    fvj_local = t * fvj;
+    ari = [fvi_local; -cvi]; arj = [fvj_local; cvj];
     ar(im,:) = [ari; arj];
-    fi = [t'*ari(1:3); t'*ari(4:6)];
-    fj = [t'*arj(1:3); t'*arj(4:6)];
-    fg(ns) = fg(ns)+fi;
-    fg(ne) = fg(ne)+fj;
+
+    % 等価節点荷重（全体座標系）
+    % 力成分: 全体座標系で直接計算済み（座標変換不要）
+    fi_force = fvi;
+    fj_force = fvj;
+
+    % モーメント成分: XY平面内の2D変換のみ適用
+    % 梁方向の単位ベクトル（XY平面内で正規化）
+    cxl_xy_norm = norm(cxl(im, 1:2));
+    if cxl_xy_norm > 0
+      cos_theta = cxl(im, 1) / cxl_xy_norm;
+      sin_theta = cxl(im, 2) / cxl_xy_norm;
+    else
+      % 鉛直梁の場合（通常は存在しない）
+      cos_theta = 1;
+      sin_theta = 0;
+    end
+    % 要素座標系のMy（強軸）を全体座標系のMX, MYに変換
+    % cvi(2), cvj(2)は要素座標系の強軸回りモーメント
+    fi_moment = [-sin_theta * (-cvi(2)); cos_theta * (-cvi(2)); 0];
+    fj_moment = [-sin_theta * cvj(2); cos_theta * cvj(2); 0];
+
+    fg(ns) = fg(ns) + [fi_force; fi_moment];
+    fg(ne) = fg(ne) + [fj_force; fj_moment];
     m0m = wv(3)*li_m^2/8;  % M0も実際の部材長を使用
     M0(im) = m0m;
   end
