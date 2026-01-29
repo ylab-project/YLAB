@@ -22,7 +22,12 @@ idstory2nominal = zeros(nstory,1);
 idstory2nominal(idstory) = 1:nnstory;
 for ist=1:nstory
   if story.isdummy(ist)
-    idstory2nominal(ist) = idstory2nominal(story.id_dependent_story(ist));
+    % 通常層が見つかるまで連鎖を辿る
+    idep = story.id_dependent_story(ist);
+    while story.isdummy(idep)
+      idep = story.id_dependent_story(idep);
+    end
+    idstory2nominal(ist) = idstory2nominal(idep);
   end
 end
 
