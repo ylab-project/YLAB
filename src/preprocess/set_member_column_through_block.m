@@ -58,29 +58,53 @@ idy = [idy; idyb];
 idz = [idz; idzb];
 n = length(idx);
 
-% 通し接合の検索
-% 各通し柱位置について、柱脚(j=1)と柱頭(j=2)が一致する柱を探す
+% 2パス方式による通し接合の設定
+% 入力データの処理順序に依存せず、チェーンを正しく構築する
+%
+% パス1: 通し接合フラグ(isthrough)のみを設定
+% パス2: チェーン最下層から上へ辿ってidconnectedを設定
+
 isthrough = false(nmec,2);    % 通し接合フラグ
-iddd = 1:nmec;                % 柱インデックス
-idc = zeros(1,2);             % 一致した柱ID [柱脚側, 柱頭側]
 idconnected = zeros(nmec,1);  % 接続関係
+
+% パス1: 通し接合フラグの設定
 for i=1:n
   for j=1:2
     % 柱端部(j)が通し柱位置(i)と一致する柱を検索
-    id = iddd(column_idx(:,j) == idx(i) ...
-      & column_idy(:,j) == idy(i) ...
-      & column_idz(:,j) == idz(i));
+    mask = (column_idx(:,j)==idx(i)) & (column_idy(:,j)==idy(i)) ...
+      & (column_idz(:,j)==idz(i));
+    id = find(mask);
     if ~isempty(id)
-      idc(j) = id;
       isthrough(id,j) = true;
     end
   end
-  % 同じ位置で柱脚と柱頭が見つかった場合、接続関係を設定
-  % idc(1): 上階の柱（この位置が柱脚）
-  % idc(2): 下階の柱（この位置が柱頭）
-  if all(idc>0)
-    idconnected(idc(1)) = -1;      % 上階柱: チェーン開始マーク
-    idconnected(idc(2)) = idc(1);  % 下階柱: 上階柱への参照
+end
+
+% パス2: チェーンの構築（チェーン最下層から上へ辿る）
+% チェーン最下層: 柱頭が通し接合、柱脚が非通し接合
+iddd = 1:nmec;
+for ic=1:nmec
+  if isthrough(ic,2) && ~isthrough(ic,1)
+    % チェーン最下層を発見、上へ辿る
+    idcur = ic;
+    for iter=1:1000  % 無限ループ防止
+      % 上階の柱を検索
+      % 条件: 柱脚が現在の柱頭と同じ位置、かつ柱脚が通し接合
+      mask = (column_idx(:,1)==column_idx(idcur,2)) & ...
+        (column_idy(:,1)==column_idy(idcur,2)) & ...
+        (column_idz(:,1)==column_idz(idcur,2)) & ...
+        isthrough(:,1);
+      idnext = iddd(mask);
+      if isempty(idnext)
+        % チェーン終端（最上階）
+        idconnected(idcur) = -1;
+        break;
+      else
+        % 上階柱への参照を設定
+        idconnected(idcur) = idnext(1);
+        idcur = idnext(1);
+      end
+    end
   end
 end
 
