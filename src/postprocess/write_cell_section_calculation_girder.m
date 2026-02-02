@@ -186,7 +186,7 @@ for i = 1:nstory
         scgbody{irow2,13} = sprintf('%.0f', fbn(inm,3,jlc));
 
         %---
-        if any(stn(im1,[1 7],1)~=0)
+        if any(stn(inm,[1 7],1)~=0)
           irow2 = irow2+1;
           scgbody{irow2,10} = 'fc';
           fci = fcn(inm,1,ilc);

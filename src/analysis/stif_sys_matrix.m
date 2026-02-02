@@ -24,7 +24,8 @@ for im = 1:nm
   Iyi = Iy(im); Ji = JJ(im);
   % 梁の弱軸剛性Izはゼロとする（SS7互換）
   if mtype(im) == PRM.GIRDER
-    Izi = 0;
+    % Izi = 0;
+    Izi = Iz(im)*1.d-6;
   else
     Izi = Iz(im);
   end
