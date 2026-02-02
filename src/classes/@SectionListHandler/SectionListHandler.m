@@ -111,6 +111,21 @@ classdef SectionListHandler < handle
             list_.label = cellstr(num2str(label_));
           end
           list_ = list_(isok,:);
+          if isempty(list_)
+            throw_warn('SectionList', 'EmptyAfterFilter', ...
+              section_list_name{i}, type_name_, file_name{i,il});
+            % 空のリストでも最低限の構造を保持（il==1の場合）
+            if il == 1
+              obj.list{i} = list_;
+              obj.idmaterial{i} = [];
+              obj.cost_factor{i} = [];
+              obj.design_stress_factor{i} = [];
+              obj.isSN{i} = [];
+              obj.idphase{i} = [];
+              obj.idsublist{i} = [];
+            end
+            continue;
+          end
           % 個別処理
           switch obj.section_type(i)
             case PRM.WFS
@@ -186,8 +201,12 @@ classdef SectionListHandler < handle
     end
     %----------------------------------------------------------------------
     function dimension = getDimension(obj, idList, idPhase)
-      dimension = [];      
+      dimension = [];
       id = idList;
+      % 空のリストの場合は空を返す
+      if isempty(obj.list{id})
+        return
+      end
       stype = obj.section_type(id);
       if nargin==2
         idPhase = inf;
