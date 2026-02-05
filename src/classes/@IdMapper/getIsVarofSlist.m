@@ -15,7 +15,7 @@ function isVarofSlist = getIsVarofSlist(obj)
 
 % 初期化
 nxvar = obj.nxvar;
-nlist = max(obj.idSectionList_);  % 断面リスト数を自動取得
+nlist = obj.nlist;  % 断面リスト数を取得（idsublistCellの長さから）
 isVarofSlist = false(nxvar, nlist);
 
 % 各断面リストについて処理

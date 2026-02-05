@@ -326,8 +326,8 @@ classdef IdMapper < handle
     end
     
     function n = get.nlist(obj)
-      % 断面リスト数を計算
-      n = max(obj.idSectionList_);
+      % 断面リスト数を計算（idsublistCellの長さから取得）
+      n = length(obj.idsublistCell);
     end
     
     %% 基本データへの読み取り専用アクセス
