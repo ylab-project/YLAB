@@ -1,6 +1,11 @@
 function c = tochar(a)
-%UNTITLED この関数の概要をここに記述
-%   詳細説明をここに記述
+%tochar - 各種型を文字列に変換するユーティリティ
+
+% missing値は空文字に変換
+if ismissing(a)
+  c = '';
+  return
+end
 
 c = a;
 if ischar(a)

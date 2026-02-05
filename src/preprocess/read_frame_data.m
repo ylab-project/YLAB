@@ -1455,7 +1455,8 @@ for i=1:n
     idsl = iddd(issl);
     id_section_list(i) = idsl(1);
   else
-    error('断面リスト %s が見つかりません (梁断面)', section_list_name{i});
+    throw_err('SectionList', 'SectionListNotFound', ...
+      section_list_name{i}, 'S梁断面', ['層: ' story_name{i} ', 符号: ' name{i}]);
   end
 
   % 同一の鉄骨形状のみ複数リスト指定可
@@ -1757,7 +1758,8 @@ for i=1:n
     idsl = iddd(idx);
     id_section_list(i) = idsl(1);
   else
-    error('断面リスト %s が見つかりません (柱断面)', section_list_name{i});
+    throw_err('SectionList', 'SectionListNotFound', ...
+      section_list_name{i}, 'S柱断面', ['符号: ' full_name{i}]);
   end
 
   % 同一の鉄骨形状のみ複数リスト指定可
@@ -1931,8 +1933,8 @@ for i=1:n
     idsl = iddd(idx);
     id_section_list(i) = idsl(1);
   else
-    error('断面リスト %s が見つかりません (鉛直ブレース断面（鋼材）)', ...
-      section_list_name{i});
+    throw_err('SectionList', 'SectionListNotFound', ...
+      section_list_name{i}, '鉛直ブレース断面（鋼材）', ['符号: ' name{i}]);
   end
   type(i) = com.sectionList.section_type(id_section_list(i));
   type_name{i} = com.sectionList.section_type_name{id_section_list(i)};
@@ -2011,7 +2013,8 @@ for i=1:n
     idsl = iddd(idx);
     id_section_list(i) = idsl(1);
   else
-    error('断面リスト %s が見つかりません (ブレース断面)', section_list_name{i});
+    throw_err('SectionList', 'SectionListNotFound', ...
+      section_list_name{i}, '鉛直ブレース断面（メーカー製品）', ['符号: ' section_name{i}]);
   end
   % 同一の鉄骨形状のみ複数リスト指定可
   type_ = unique(com.sectionList.section_type(idsl));
