@@ -32,17 +32,25 @@ for isb = 1:nsb
   irow = irow+1;
   asrbbody{irow,1} = sprintf('%s', secb.name{isb});
 
-  % 左下り
-  imbl = ibbb(brace.idsecb==isb&brace.pair==PRM.BRACE_MEMBER_PAIR_L);
+  % 左下り（名目ブレースインデックスで参照）
+  imbl = ibbb(brace.idsecb==isb & ...
+    ismember(brace.pair, ...
+      [PRM.BRACE_MEMBER_PAIR_L, ...
+       PRM.BRACE_MEMBER_PAIR_BOTH_L]));
   if ~isempty(imbl)
-    bnl_ = max(bnmax(imbl));
+    inbl = brace.idnominal(imbl, 1);
+    bnl_ = max(bnmax(inbl));
     asrbbody{irow,2} = sprintf('%.2f', bnl_);
   end
 
-  % 右下り
-  imbr = ibbb(brace.idsecb==isb&brace.pair==PRM.BRACE_MEMBER_PAIR_R);
+  % 右下り（名目ブレースインデックスで参照）
+  imbr = ibbb(brace.idsecb==isb & ...
+    ismember(brace.pair, ...
+      [PRM.BRACE_MEMBER_PAIR_R, ...
+       PRM.BRACE_MEMBER_PAIR_BOTH_R]));
   if ~isempty(imbr)
-    bnr_ = max(bnmax(imbr));
+    inbr = brace.idnominal(imbr, 1);
+    bnr_ = max(bnmax(inbr));
     asrbbody{irow,3} = sprintf('%.2f', bnr_);
   end
 end

@@ -82,12 +82,21 @@ return
       % ブレース配置タイプ
       switch brace.type(ib)
         case PRM.BRACE_MEMBER_TYPE_X
-          if brace.pair(ib)==PRM.BRACE_MEMBER_PAIR_L
-            type_label = '／';
+          if ismember(brace.pair(ib), ...
+              [PRM.BRACE_MEMBER_PAIR_L, ...
+               PRM.BRACE_MEMBER_PAIR_BOTH_L])
             ipos = 1;
-          elseif brace.pair(ib)==PRM.BRACE_MEMBER_PAIR_R
-            type_label = '＼';
+          else
             ipos = 2;
+          end
+          if ismember(brace.pair(ib), ...
+              [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
+               PRM.BRACE_MEMBER_PAIR_BOTH_R])
+            type_label = 'Ｘ';
+          elseif ipos == 1
+            type_label = '／';
+          else
+            type_label = '＼';
           end
         case PRM.BRACE_MEMBER_TYPE_K_UPPER
           type_label = 'K上';

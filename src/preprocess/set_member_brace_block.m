@@ -191,11 +191,13 @@ if options.position_brace_foundation_girder ...
           idnode1(i) = member_column.idnode1(idc_L);
         end
       end
-      % 右柱の分割点を検索
+      % 右柱の分割点を検索（片側右のみ）
       if pair(i) == PRM.BRACE_MEMBER_PAIR_R
-        idc_R = find(member_column.idx(:,1) == idx(i,2) & ...
-                     member_column.idy(:,1) == idy(i,2) & ...
-                     member_column.type == PRM.COLUMN_FOR_BRACE2, 1);
+        idc_R = find(...
+          member_column.idx(:,1) == idx(i,2) & ...
+          member_column.idy(:,1) == idy(i,2) & ...
+          member_column.type ...
+            == PRM.COLUMN_FOR_BRACE2, 1);
         if ~isempty(idc_R)
           idnode1(i) = member_column.idnode1(idc_R);
         end
@@ -224,6 +226,37 @@ member_brace = table(floor_name, frame_name, coord_name, ...
 %% BOTHペアの展開処理
 if any(pair == PRM.BRACE_MEMBER_PAIR_BOTH)
   member_brace = expand_brace_pair_both_func(member_brace);
+
+  % BOTH_R展開後の柱分割点への節点置換（1階X形）
+  if options.position_brace_foundation_girder ...
+      == PRM.BRACE_FOUNDATION_GIRDER_TOP
+    nb_ = size(member_brace, 1);
+    for ib_ = 1:nb_
+      if member_brace.idz(ib_,1) ~= 1
+        continue
+      end
+      if member_brace.type(ib_) ...
+          ~= PRM.BRACE_MEMBER_TYPE_X
+        continue
+      end
+      if member_brace.pair(ib_) ...
+          ~= PRM.BRACE_MEMBER_PAIR_BOTH_R
+        continue
+      end
+      % BOTH_Rのidnode1（下端）を右柱分割点に置換
+      idc_ = find(...
+        member_column.idx(:,1) ...
+          == member_brace.idx(ib_,2) & ...
+        member_column.idy(:,1) ...
+          == member_brace.idy(ib_,2) & ...
+        member_column.type ...
+          == PRM.COLUMN_FOR_BRACE2, 1);
+      if ~isempty(idc_)
+        member_brace.idnode1(ib_) = ...
+          member_column.idnode1(idc_);
+      end
+    end
+  end
 end
 
 %% 方向余弦の計算（ベクトル化）
@@ -272,11 +305,17 @@ return
     idsfg = member_girder.idsecg(idfg);
     Dtarget = section_girder.dimension(idsfg,2);
 
-    % 対象柱数の計算（K上形は2本、X形は1本）
+    % 対象柱数の計算（K上形は2本、X形BOTHは2本、X形片側は1本）
     n_k_upper = sum(brace_type(id_target_brace) ...
       == PRM.BRACE_MEMBER_TYPE_K_UPPER);
-    n_x = ntarget - n_k_upper;
-    ncolumn = n_k_upper * 2 + n_x;
+    n_x_both = sum( ...
+      brace_type(id_target_brace) ...
+        == PRM.BRACE_MEMBER_TYPE_X & ...
+      pair(id_target_brace) ...
+        == PRM.BRACE_MEMBER_PAIR_BOTH);
+    n_x_single = ntarget - n_k_upper - n_x_both;
+    ncolumn = n_k_upper * 2 ...
+      + n_x_both * 2 + n_x_single;
 
     % 配列の事前確保
     iac_all = zeros(ncolumn, 1);
@@ -305,14 +344,15 @@ return
         idnode_template_all(icnt) = member_column.idnode1(iac_R);
         Dtarget_all(icnt) = Dtarget(ib);
       else
-        % X形：ペアに応じた柱のみ分割
+        % X形：ペアに応じた柱を分割
         if pair_type == PRM.BRACE_MEMBER_PAIR_L
           iac_L = find_idcolumn_from_idxyz(...
             idx(tid_,[1 1]), idy(tid_,[1 1]), ...
             idz(tid_,:), member_column);
           icnt = icnt + 1;
           iac_all(icnt) = iac_L;
-          idnode_template_all(icnt) = member_column.idnode1(iac_L);
+          idnode_template_all(icnt) = ...
+            member_column.idnode1(iac_L);
           Dtarget_all(icnt) = Dtarget(ib);
         elseif pair_type == PRM.BRACE_MEMBER_PAIR_R
           iac_R = find_idcolumn_from_idxyz(...
@@ -320,7 +360,26 @@ return
             idz(tid_,:), member_column);
           icnt = icnt + 1;
           iac_all(icnt) = iac_R;
-          idnode_template_all(icnt) = member_column.idnode1(iac_R);
+          idnode_template_all(icnt) = ...
+            member_column.idnode1(iac_R);
+          Dtarget_all(icnt) = Dtarget(ib);
+        elseif pair_type == PRM.BRACE_MEMBER_PAIR_BOTH
+          % BOTH：左右両方の柱を分割
+          iac_L = find_idcolumn_from_idxyz(...
+            idx(tid_,[1 1]), idy(tid_,[1 1]), ...
+            idz(tid_,:), member_column);
+          iac_R = find_idcolumn_from_idxyz(...
+            idx(tid_,[2 2]), idy(tid_,[2 2]), ...
+            idz(tid_,:), member_column);
+          icnt = icnt + 1;
+          iac_all(icnt) = iac_L;
+          idnode_template_all(icnt) = ...
+            member_column.idnode1(iac_L);
+          Dtarget_all(icnt) = Dtarget(ib);
+          icnt = icnt + 1;
+          iac_all(icnt) = iac_R;
+          idnode_template_all(icnt) = ...
+            member_column.idnode1(iac_R);
           Dtarget_all(icnt) = Dtarget(ib);
         end
       end
@@ -580,14 +639,14 @@ return
 
       % X形の場合
       else
-        % 右側：右上→左下（BOTH_R）
+        % 右側：右下→左上（BOTH_R）
         tb_add.pair(ie) = PRM.BRACE_MEMBER_PAIR_BOTH_R;
         tb_add.idnode1(ie) = find_idnode_from_idxyz(...
           tb_add.idx(ie,2), tb_add.idy(ie,2), ...
           tb_add.idz(ie,1), node);
         tb_add.idnode2(ie) = find_idnode_from_idxyz(...
           tb_add.idx(ie,1), tb_add.idy(ie,1), ...
-          tb_add.idz(ie,1), node);
+          tb_add.idz(ie,2), node);
       end
     end
 

@@ -49,6 +49,16 @@ return
 
   function write_bpbody()
     for ib = ibs
+      % X形BOTH_Rは前のBOTH_Lで処理済み
+      is_x_both_r = ...
+        brace.pair(ib) ...
+          == PRM.BRACE_MEMBER_PAIR_BOTH_R ...
+        && brace.type(ib) ...
+          == PRM.BRACE_MEMBER_TYPE_X;
+      if is_x_both_r
+        continue
+      end
+
       irow = irow+1;
       floor_name = story.floor_name{ist};
       bpbody{irow,1} = floor_name;
@@ -56,35 +66,82 @@ return
       bpbody(irow,3:4) = brace.coord_name(ib,1:2);
       idsb = brace.idsecb(ib);
       bpbody{irow,5} = secb.name{idsb};
-      switch brace.pair(ib)
-        case {PRM.BRACE_MEMBER_PAIR_L, PRM.BRACE_MEMBER_PAIR_BOTH_L}
-          pair = '／';
-        case {PRM.BRACE_MEMBER_PAIR_R, PRM.BRACE_MEMBER_PAIR_BOTH_R}
-          pair = '＼';
-        otherwise
-          pair = '';
+
+      % X形BOTH_Lの場合：1行に統合
+      is_x_both_l = ...
+        brace.pair(ib) ...
+          == PRM.BRACE_MEMBER_PAIR_BOTH_L ...
+        && brace.type(ib) ...
+          == PRM.BRACE_MEMBER_TYPE_X;
+      if is_x_both_l
+        bpbody{irow,6} = 'Ｘ';
+      else
+        switch brace.pair(ib)
+          case {PRM.BRACE_MEMBER_PAIR_L, ...
+              PRM.BRACE_MEMBER_PAIR_BOTH_L}
+            bpbody{irow,6} = '／';
+          case {PRM.BRACE_MEMBER_PAIR_R, ...
+              PRM.BRACE_MEMBER_PAIR_BOTH_R}
+            bpbody{irow,6} = '＼';
+          otherwise
+            bpbody{irow,6} = '';
+        end
       end
-      bpbody{irow,6} = pair;
+
       idm = brace.idme(ib);
       bpbody{irow,7} = Em(idm)*1.d-3;
-      bpbody{irow,8} = sprintf('%.1f', msprop.A(idm)*1.d-2);
+      bpbody{irow,8} = ...
+        sprintf('%.2f', msprop.A(idm)*1.d-2);
 
-      if brace.pair(ib)==PRM.BRACE_MEMBER_PAIR_L
-        bpbody{irow,9} = sprintf('%.3f', 1);
-        bpbody{irow,10} = sprintf('%.1f', msprop.A(idm)*1.d-2);
-        bpbody{irow,11} = '引圧';
-        bpbody{irow,13} = sprintf('%.0f', lm(idm));
-        bpbody{irow,14} = sprintf('%.0f', lm(idm));
+      % 左下りデータ（9-14列）
+      if ismember(brace.pair(ib), ...
+          [PRM.BRACE_MEMBER_PAIR_L, ...
+           PRM.BRACE_MEMBER_PAIR_BOTH_L])
+        write_left_columns(idm);
       end
 
-      if brace.pair(ib)==PRM.BRACE_MEMBER_PAIR_R
-        bpbody{irow,15} = sprintf('%.3f', 1);
-        bpbody{irow,16} = sprintf('%.1f', msprop.A(idm)*1.d-2);
-        bpbody{irow,17} = '引圧';
-        bpbody{irow,19} = sprintf('%.0f', lm(idm));
-        bpbody{irow,20} = sprintf('%.0f', lm(idm));
+      % 右下りデータ（15-20列）
+      if ismember(brace.pair(ib), ...
+          [PRM.BRACE_MEMBER_PAIR_R, ...
+           PRM.BRACE_MEMBER_PAIR_BOTH_R])
+        write_right_columns(idm);
+      end
+
+      % X形BOTH_L：対応するBOTH_Rの右下りデータを同一行に追加
+      if is_x_both_l
+        ib_r = ibs( ...
+          brace.pair(ibs) ...
+            == PRM.BRACE_MEMBER_PAIR_BOTH_R ...
+          & brace.type(ibs) ...
+            == PRM.BRACE_MEMBER_TYPE_X);
+        if ~isempty(ib_r)
+          idm_r = brace.idme(ib_r(1));
+          write_right_columns(idm_r);
+        end
       end
     end
+  end
+
+  function write_left_columns(idm_)
+    bpbody{irow,9} = sprintf('%.3f', 1);
+    bpbody{irow,10} = ...
+      sprintf('%.2f', msprop.A(idm_)*1.d-2);
+    bpbody{irow,11} = '引圧';
+    bpbody{irow,13} = ...
+      sprintf('%.0f', lm(idm_));
+    bpbody{irow,14} = ...
+      sprintf('%.0f', lm(idm_));
+  end
+
+  function write_right_columns(idm_)
+    bpbody{irow,15} = sprintf('%.3f', 1);
+    bpbody{irow,16} = ...
+      sprintf('%.2f', msprop.A(idm_)*1.d-2);
+    bpbody{irow,17} = '引圧';
+    bpbody{irow,19} = ...
+      sprintf('%.0f', lm(idm_));
+    bpbody{irow,20} = ...
+      sprintf('%.0f', lm(idm_));
   end
 end
 
