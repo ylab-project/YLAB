@@ -1,9 +1,9 @@
 function sw = comp_self_weight(...
   A, lm_weight, lm, member_property, msdim, slab, idn2df, ndf, mejoint, ...
-  face_deduct, options)
+  face_deduct, options, member_column, brace_unit_weight)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
-% 柱・梁の自重および仕上重量から等価節点荷重とCMQを計算する。
+% 柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを計算する。
 %
 % 梁の等価節点荷重は、柱面間に荷重が分布することを考慮し、
 % 荷重重心位置に基づく偏心配分を行う（SS7方式）。
@@ -20,12 +20,15 @@ function sw = comp_self_weight(...
 %   mejoint         - 結合条件配列
 %   face_deduct     - 梁の柱面減算量 [nmeg x 2]（列1: i端, 列2: j端）
 %   options         - オプション構造体
+%   member_column   - 柱部材構造体
+%   brace_unit_weight - ブレース単位重量 [nmeb x 1] N/mm（BRB: メーカー値, 他: 0）
 %
 % Outputs:
 %   sw - 結果構造体
 %        .f   : 等価節点荷重ベクトル
 %        .fc  : 柱の等価節点荷重
 %        .fg  : 梁の等価節点荷重
+%        .fw  : ブレースの等価節点荷重
 %        .ar  : 要素座標系の固定端反力
 %        .M0  : 単純梁モーメント
 
@@ -38,9 +41,30 @@ idme2j2 = member_property.idnode2;
 stype = member_property.section_type;
 gstype = stype(mtype==PRM.GIRDER);
 
-% 共通定数
+% 柱タイプ配列の生成
 nme = length(mtype);
-% ndf は引数から受け取る
+column_type = zeros(nme, 1);
+column_type(member_column.idme) = member_column.type;
+
+% 分割節点→基礎ノードの置換（idnominalペア）
+is_brace1_ = member_column.type == PRM.COLUMN_FOR_BRACE1;
+for ic = 1:length(member_column.idme)
+  if member_column.type(ic) ~= PRM.COLUMN_FOR_BRACE2
+    continue
+  end
+  ic_b1 = find( ...
+    member_column.idnominal(:,1) ...
+    == member_column.idnominal(ic, 1) ...
+    & is_brace1_, 1);
+  if isempty(ic_b1)
+    continue
+  end
+  in_split = member_column.idnode1(ic);
+  in_base = member_column.idnode1(ic_b1);
+  idme2j1(member_column.idme(ic)) = in_base;
+  idme2j1(idme2j1 == in_split & mtype == PRM.BRACE) = in_base;
+  idme2j2(idme2j2 == in_split & mtype == PRM.BRACE) = in_base;
+end
 
 % 部材ID→梁インデックスの変換マップ（偏心配分用）
 idme2ig = zeros(nme, 1);
@@ -56,14 +80,22 @@ A(mtype==PRM.GIRDER) = A(mtype==PRM.GIRDER)-b.*slab_thickness;
 ar = zeros(nme,12);
 fc = zeros(ndf,1);
 fg = zeros(ndf,1);
+fw = zeros(ndf,1);
 M0 = zeros(nme,1);
 rho = zeros(nme,1);
 if options.consider_self_weight
   rho(stype==PRM.HSS) = PRM.RHOS;
   rho(stype==PRM.WFS) = PRM.RHOS;
   rho(stype==PRM.RCRS) = PRM.RHORC;
+  % ブレース（全てS造）
+  rho(mtype==PRM.BRACE) = PRM.RHOS;
 end
 w = A.*rho*PRM.GRAVITY*1.d-6;
+% ブレース: BRBはメーカー指定の単位重量で上書き
+wb_ = w(mtype == PRM.BRACE);
+mask_brb_ = brace_unit_weight > 0;
+wb_(mask_brb_) = brace_unit_weight(mask_brb_);
+w(mtype == PRM.BRACE) = wb_;
 efc = options.self_weight_extra_factor_column;
 efg = options.self_weight_extra_factor_girder;
 % S柱のみに割増率適用
@@ -116,10 +148,17 @@ for im = 1:nme
     % === 柱の処理 ===
     % 固定端反力なし、等価節点荷重はPZのみ（全体座標系で直接計算）
     % 柱の自重は常に鉛直方向に作用するため、PZのみに寄与
+
+    % BRACE1: 基礎梁内のRC部分でありS柱自重の対象外
+    if column_type(im) == PRM.COLUMN_FOR_BRACE1
+      continue
+    end
+
     ar(im,:) = zeros(1,12);
     W = wi * li_w;  % 総自重
     fi_global = [0; 0; W/2; 0; 0; 0];
     fj_global = [0; 0; W/2; 0; 0; 0];
+
     fc(ns) = fc(ns)+fi_global;
     fc(ne) = fc(ne)+fj_global;
   elseif mtype(im) == PRM.GIRDER
@@ -221,13 +260,23 @@ for im = 1:nme
     fg(ne) = fg(ne) + [fj_force; fj_moment];
     m0m = wv(3)*li_m^2/8;  % M0も実際の部材長を使用
     M0(im) = m0m;
+  elseif mtype(im) == PRM.BRACE
+    % === ブレースの処理 ===
+    % W/2ずつ両端PZに配分（固定端反力なし）
+    ar(im,:) = zeros(1,12);
+    W = wi * li_w;
+    fi_global = [0; 0; W/2; 0; 0; 0];
+    fj_global = [0; 0; W/2; 0; 0; 0];
+    fw(ns) = fw(ns) + fi_global;
+    fw(ne) = fw(ne) + fj_global;
   end
 end
 
 % 結果の保存
-sw.f = fc+fg;
+sw.f = fc+fg+fw;
 sw.fc = fc;
 sw.fg = fg;
+sw.fw = fw;
 sw.ar = ar;
 sw.M0 = M0;
 return

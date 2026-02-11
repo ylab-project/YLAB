@@ -190,6 +190,14 @@ com.member.column.idmeg_face1y = idmec2meg1y;
 com.member.column.idmeg_face2x = idmec2meg2x;
 com.member.column.idmeg_face2y = idmec2meg2y;
 
+%% ブレース端点の柱・梁部材番号の数え上げ
+[idmecb1, idmecb2, idmegb1, idmegb2] = ...
+  countup_brace_to_column_girder(com);
+com.member.brace.idmec1 = idmecb1;
+com.member.brace.idmec2 = idmecb2;
+com.member.brace.idmeg1 = idmegb1;
+com.member.brace.idmeg2 = idmegb2;
+
 %% 各位置の階高計算
 column_floor_height = countup_column_floor_height(com);
 com.member.column.floor_height = column_floor_height;

@@ -36,6 +36,10 @@ nfl = size(floor, 1);
 idmc2n1 = member_column.idnode1;
 idmc2n2 = member_column.idnode2;
 
+% BRACE1（下側）は基礎梁内のRC部分であり、S柱自重の対象外。
+% BRACE2（上側）が実際のS柱であり、既存の計算式で自身のlm_weightを算出。
+ctype = member_column.type;
+
 % S造判定用: HSS/WFSはS造、RCRSはRC造
 is_steel_sec = stype_sec == PRM.HSS | stype_sec == PRM.WFS;
 
@@ -67,6 +71,23 @@ idgy2 = member_column.idmeg_face2y;  % 柱頭Y
 min_story = min(member_column.idstory);
 is_first_story = member_column.idstory == min_story;
 
+% BRACE2→BRACE1対応マップ（idnominalベース）
+% BRACE2の柱脚側はBRACE1のnode1・face1を使用
+brace1_pair = zeros(nmec, 1);
+is_brace2 = ctype == PRM.COLUMN_FOR_BRACE2;
+is_brace1 = ctype == PRM.COLUMN_FOR_BRACE1;
+for ic = 1:nmec
+  if ~is_brace2(ic)
+    continue
+  end
+  nominal_id = member_column.idnominal(ic, 1);
+  ic_b1 = find( ...
+    member_column.idnominal(:,1) == nominal_id & is_brace1, 1);
+  if ~isempty(ic_b1)
+    brace1_pair(ic) = ic_b1;
+  end
+end
+
 % 通し梁フラグ [nmeg×3]: 列1=i端が通し, 列2=j端が通し, 列3=中央部が通し
 isthrough = member_girder.isthrough;
 
@@ -78,7 +99,17 @@ girder_idnode2 = member_girder.idnode2;
 % （ダミー層を含む複数階にまたがる柱に対応）
 lm_weight = zeros(nmec, 1);
 for ic = 1:nmec
-  in1 = idmc2n1(ic);
+  % BRACE1は基礎梁内のRC部分でありS柱自重の対象外
+  if ctype(ic) == PRM.COLUMN_FOR_BRACE1
+    continue
+  end
+
+  % BRACE2: BRACE1のnode1を使用（分割節点のidzはフロア範囲外）
+  if is_brace2(ic) && brace1_pair(ic) > 0
+    in1 = idmc2n1(brace1_pair(ic));
+  else
+    in1 = idmc2n1(ic);
+  end
   in2 = idmc2n2(ic);
   ifl1 = node.idz(in1);       % 柱脚のフロアID
   ifl2 = node.idz(in2) - 1;   % 柱頭のフロアID - 1
@@ -93,8 +124,19 @@ for ic = 1:nmec
 end
 
 for ic = 1:nmec
+  % BRACE1は基礎梁内のRC部分でありスキップ
+  if ctype(ic) == PRM.COLUMN_FOR_BRACE1
+    continue
+  end
+
   % --- 柱脚側: 取り付く梁の最大glv ---
-  idg1 = [idgx1(ic,:) idgy1(ic,:)];
+  % BRACE2: BRACE1のface1を使用（分割節点には梁接続なし）
+  if is_brace2(ic) && brace1_pair(ic) > 0
+    ic_f1 = brace1_pair(ic);
+  else
+    ic_f1 = ic;
+  end
+  idg1 = [idgx1(ic_f1,:) idgy1(ic_f1,:)];
   idg1 = idg1(idg1 > 0);
   if ~isempty(idg1)
     max_glv1 = max(glv(idg1));  % 最も高い梁天端のglv
@@ -121,7 +163,7 @@ for ic = 1:nmec
     % 柱脚側の梁で、柱と同種別（S-S または RC-RC）のものの最大梁せいを取得
     % 通し梁の中間部（両端でない）は除外
     same_type_mask = is_steel_g(idg1) == is_steel_c(ic);
-    in1 = idmc2n1(ic);  % 柱脚節点
+    in1 = idmc2n1(ic_f1);  % 柱脚節点（BRACE2はBRACE1のnode1）
     for k = 1:length(idg1)
       ig = idg1(k);
       % 梁のどちら側が柱脚に接続しているか
@@ -146,7 +188,7 @@ for ic = 1:nmec
   % --- 通し梁中間部: 柱頭側の梁が通し梁の中間部なら梁せい分を減算 ---
   % SS7の定義: 柱頭側の梁に一本部材の指定があり、両端でない中間箇所では梁下面まで
   if ~isempty(idg2)
-    in2 = idmc2n2(ic);  % 柱頭節点
+    in2 = idmc2n2(ic);
     for k = 1:length(idg2)
       ig = idg2(k);
       is_through_intermediate = false;

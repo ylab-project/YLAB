@@ -248,11 +248,18 @@ lm_weight = lm;  % 初期値は構造階高ベースの部材長
 lm_weight(mtype==PRM.COLUMN) = lm_column_weight;
 lm_weight(mtype==PRM.GIRDER) = lm_girder_weight;
 
+% BRB単位重量の取得
+brace_unit_weight = calc_brb_unit_weight( ...
+  com.section.brace, com.member.brace, ...
+  com.secmgr, secdim);
+
 % 自重の計算
 if options.consider_self_weight && options.consider_finishing_material
   sw = comp_self_weight(...
-    A, lm_weight, lm, member_property, msdim, slab, idn2df, ndf, mejoint, ...
-    face_deduct, options);
+    A, lm_weight, lm, member_property, ...
+    msdim, slab, idn2df, ndf, mejoint, ...
+    face_deduct, options, member_column, ...
+    brace_unit_weight);
   fvec(:,1) = fvec(:,1)-sw.f;
   ar(:,:,1) = ar(:,:,1)+sw.ar;
   M0(:,1)= M0(:,1)+sw.M0;
@@ -261,6 +268,7 @@ else
   sw.f = zeros(ndf,1);
   sw.fc = zeros(ndf,1);
   sw.fg = zeros(ndf,1);
+  sw.fw = zeros(ndf,1);
   sw.M0 = zeros(nme,1);
 end
 

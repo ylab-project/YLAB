@@ -30,6 +30,8 @@ for iy = 1:nbly
     for i = 1:nstory
       ist = nstory-i+1;
       in = innn(node.idx==ix & node.idy==iy & node.idstory==ist);
+      % ブレース用柱分割節点をスキップ（自重は基礎ノードに直接配分済み）
+      in = in(node.type(in) ~= PRM.NODE_BRACE_FOR_COLUMN);
       if isempty(in)
         continue
       end
@@ -42,10 +44,13 @@ for iy = 1:nbly
       nwbody{irow*2-1,2} = node.yname{in};
       nwbody{irow*2-1,3} = node.zname{in};
       idf = n2df(in,3);
-      nwbody{irow*2-1,4} = sprintf('%.1f', feqvec(idf)*1.d-3);
+      nwbody{irow*2-1,4} = sprintf('%.1f', ...
+        feqvec(idf)*1.d-3);
       nwbody{irow*2,5} = sprintf('%.1f', sw.fg(idf)*1.d-3);
+      nwbody{irow*2,6} = sprintf('%.1f', sw.fw(idf)*1.d-3);
       nwbody{irow*2,8} = sprintf('%.1f', sw.fc(idf)*1.d-3);
-      nwbody{irow*2,12} = sprintf('%.1f', (feqvec(idf)+sw.f(idf))*1.d-3);
+      nwbody{irow*2,12} = sprintf('%.1f', ...
+        (feqvec(idf)+sw.f(idf))*1.d-3);
       % nwbody{irow*2-1,13} = sprintf('%.1f', feqvec(idf)*1.d-3);
       % nwbody{irow*2,13} = sprintf('%.1f', (sw.f(idf))*1.d-3);
       % nwbody{irow*2,14} = sprintf('%.1f', (feqvec(idf)+sw.f(idf))*1.d-3);

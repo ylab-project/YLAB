@@ -117,6 +117,9 @@ if options.do_autoupdate_floor_height
   story.delta_height = stdh;
   [zcoord, nodez, lm] = update_zcoord(flh, idfl2z, idm2n, baseline, node);
   node.z = nodez;
+  % 注: 分割節点のz座標はglv込みで前処理時に設定済み。
+  %      update_zcoordは分割節点のidz(フロア外)を更新しないため、
+  %      前処理値がそのまま保持される。追加補正は不要。
   [gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl] = ...
     update_member_cosine(member_girder, member_column, ...
     member_brace, member_horizontal_brace, node);
@@ -128,6 +131,12 @@ if options.do_autoupdate_floor_height
   cyl(mtype==PRM.BRACE,:) = bcyl;
   cxl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcxl;
   cyl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcyl;
+  % ブレース長の算出（SS7 3.8.1）
+  lm_brace = calc_brace_length(...
+    member_brace, member_column, ...
+    member_girder, node, stype, ...
+    idsc2s, idsg2s, secdim);
+  lm(mtype==PRM.BRACE) = lm_brace;
 else
   stdh = story.girder_level;
   story.delta_height = stdh;
