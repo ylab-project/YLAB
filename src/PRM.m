@@ -116,7 +116,7 @@ classdef PRM
     %% 物理定数
     GRAVITY = 9.8         % 重力加速度 [m/s2]
     RHOS = 7.85           % 鋼材密度 [t/m3]
-    RHORC = 2.45          % RC密度 [t/m3]
+    RHORC = 2.5           % RC密度 [t/m3]（24.5 kN/m3）
     % RIGID_COEF = 1.d5
     RIGID_COEF = 1.d4
     % RIGID_COEF = 1.d3
