@@ -121,12 +121,17 @@ isgmirrored = com.member.girder.ismirrored;  % 梁の左右反転フラグ
 
 %% 許容応力度比制約
 if coptions.consider_stress_ratio
-  [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
-    fcn, fbn, fsn, kcx, kcy, lambday, lambdaz, ration] = ...
+  % ブレース水平力分担率の算出
+  beta = calc_brace_force_share_ratio(...
+    com, struct('rs0', rs0));
+  [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, ...
+    bnij, fcn, fbn, fsn, kcx, kcy, lambday, ...
+    lambdaz, ration, bkinfo] = ...
     eval_nominal_allowable_stress_ratio(...
     msdimwfs, stn, stcn, A, Iy, Iz, C, ...
     mtype, mstype, mgdir, Em, Fm, idm2n, lb, lnm, lr, ...
-    mejoint, nominal, isgmirrored, idmg2mng, idmc2mnc, options);
+    mejoint, nominal, isgmirrored, idmg2mng, idmc2mnc, ...
+    options, beta, lcdir, idmc2st);
   gr = max([reshape([gri; grj; grc],nng,[])],[],2) ...
     +coptions.alfa_stress_ratio;
   gs = max([reshape([gsi; gsj],nng,[])],[],2) ...
@@ -137,12 +142,14 @@ if coptions.consider_stress_ratio
     +coptions.alfa_stress_ratio;
   bn = max(bnij,[],2)+coptions.alfa_stress_ratio;
 else
+  beta = [];
   gri = []; grj = []; grc = [];
   cri = []; crj = [];
   gsi = []; gsj = [];
   csi = []; csj = []; bnij = [];
   fcn = []; fbn = []; fsn = [];
   kcx = []; kcy = []; lambday = []; lambdaz = []; ration = [];
+  bkinfo = [];
   gr = []; gs = []; cr = []; cs = []; bn = [];
 
 end
@@ -343,6 +350,7 @@ result.Hgapval = conhgapvar;
 result.Hgapsec = conhgapsec;
 result.rs = rs;
 result.rs0 = rs0;
+result.beta = beta;
 result.Mc = Mc;
 result.Mc0 = Mc0;
 result.dfn = dfn;
@@ -354,6 +362,7 @@ result.fcn = fcn;
 result.fsn = fsn;
 result.kcx = kcx;
 result.kcy = kcy;
+result.bkinfo = bkinfo;
 result.lambday = lambday;
 result.lambdaz = lambdaz;
 result.ration = ration;

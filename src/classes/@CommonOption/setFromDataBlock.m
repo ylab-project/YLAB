@@ -62,6 +62,11 @@ for i=1:size(data,1)
       options.consider_lateral_torsional_buckling = (data{i,2}=='Y');
     case '柱座屈長さ係数の自動計算'
       options.consider_column_buckling_length_factor = (data{i,2}=='Y');
+    case '柱座屈長さ係数の自動計算入力値α'
+      p = data{i,2};
+      if ~ismissing(p)
+        options.brace_share_threshold = p;
+      end
     case 'スカラップの考慮'
       options.consider_girder_scallop = (data{i,2}=='Y');
       p1 = data{i,3};

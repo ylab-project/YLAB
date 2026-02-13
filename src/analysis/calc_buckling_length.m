@@ -1,6 +1,7 @@
-function [lkx, lky, kcx, kcy] = calc_buckling_length( ...
+function [lkx, lky, kcx, kcy, bkinfo] = calc_buckling_length( ...
   Iy, mtype, js, je, dir_girder, lm, lrm, lb, ...
-  Em, mejoint, nominal, idmc2nc, options)
+  Em, mejoint, nominal, idmc2nc, options, ...
+  beta, lcdir, col_idstory)
 % 柱部材の座屈長さを計算する
 %
 % この関数は、構造骨組みにおける柱部材の座屈長さを算出する。
@@ -25,12 +26,16 @@ function [lkx, lky, kcx, kcy] = calc_buckling_length( ...
 %   nominal (struct): 名目部材情報
 %   idmc2nc (double array): 部材-名目部材対応表
 %   options (struct): 計算オプション
+%   beta (double array): ブレース水平力分担率 [nstory×nlc]
+%   lcdir (double array): 荷重ケース方向配列
+%   col_idstory (double array): 柱部材の層番号
 %
 % Outputs
 %   lkx (double array): X方向座屈長さ
 %   lky (double array): Y方向座屈長さ
 %   kcx (double array): X方向座屈長さ係数
 %   kcy (double array): Y方向座屈長さ係数
+%   bkinfo (struct): 座屈長さ係数の中間値（GA/GB等）
 %
 % Example
 %   >> [lkx, lky, kcx, kcy] = calc_buckling_length(Iy, mtype, js, je, ...
@@ -57,10 +62,17 @@ idm2mc = zeros(nme,1); idm2mc(mtype==PRM.COLUMN) = 1:nmc;
 % idmg2m = 1:nme; idmg2m = idmg2m(mtype==PRM.GIRDER)';
 % iy = zeros(1,nme); iz = zeros(1,nme);
 % lamy = zeros(1,nme); lamz = zeros(1,nme);
-anx = zeros(1,nnc); bnx = zeros(1,nnc);
-any = zeros(1,nnc); bny = zeros(1,nnc);
+akx = zeros(1,nnc); bkx = zeros(1,nnc);
+aky = zeros(1,nnc); bky = zeros(1,nnc);
 Gaxst = zeros(1,nnc); Gbxst = zeros(1,nnc);
 Gayst = zeros(1,nnc); Gbyst = zeros(1,nnc);
+bk_IcLc = zeros(1,nnc);
+bk_sumIcTop = zeros(1,nnc);
+bk_sumIcBot = zeros(1,nnc);
+bk_sumIgTopX = zeros(1,nnc);
+bk_sumIgBotX = zeros(1,nnc);
+bk_sumIgTopY = zeros(1,nnc);
+bk_sumIgBotY = zeros(1,nnc);
 
 % 剛域を除外した柱補剛間隔
 lrcm = lrm(mtype==PRM.COLUMN,:);
@@ -125,6 +137,11 @@ for inc = 1:nnc
     gcb = 0;
   end
 
+  % 中間値の保存
+  bk_IcLc(inc) = gc;
+  bk_sumIcTop(inc) = gc + gca;
+  bk_sumIcBot(inc) = gc + gcb;
+
   % --------------------------------
   % X方向
   % --------------------------------
@@ -136,6 +153,7 @@ for inc = 1:nnc
     [ispin_self, ispin_other] = check_pinjoint(mgax, je(ima));
     ggax(ispin_self) = 0;
     ggax(ispin_other) = ggax(ispin_other)*0.5;
+    bk_sumIgTopX(inc) = sum(ggax);
     if sum(ggax)>0
       Gax = (gc+gca)/sum(ggax);
     else
@@ -151,6 +169,7 @@ for inc = 1:nnc
     [ispin_self, ispin_other] = check_pinjoint(mgbx, js(imb));
     ggbx(ispin_self) = 0;
     ggbx(ispin_other) = ggbx(ispin_other)*0.5;
+    bk_sumIgBotX(inc) = sum(ggbx);
     if sum(ggbx)>0
       Gbx = (gc+gcb)/sum(ggbx);
     else
@@ -163,8 +182,8 @@ for inc = 1:nnc
   % Gbx = max(Gbx,0.001);
 
   % 係数計算
-  anx(inc) = -Gax*Gbx/(6*(Gax+Gbx));
-  bnx(inc) = -6/(Gax+Gbx);
+  akx(inc) = -Gax*Gbx/(6*(Gax+Gbx));
+  bkx(inc) = -6/(Gax+Gbx);
 
   % ---- 確認用 ---
   Gaxst(inc) = Gax;
@@ -181,6 +200,7 @@ for inc = 1:nnc
     [ispin_self, ispin_other] = check_pinjoint(mgay, je(ima));
     ggay(ispin_self) = 0;
     ggay(ispin_other) = ggay(ispin_other)*0.5;
+    bk_sumIgTopY(inc) = sum(ggay);
     if sum(ggay)>0
       Gay = (gc+gca)/sum(ggay);
     else
@@ -196,6 +216,7 @@ for inc = 1:nnc
     [ispin_self, ispin_other] = check_pinjoint(mgby, js(imb));
     ggby(ispin_self) = 0;
     ggby(ispin_other) = ggby(ispin_other)*0.5;
+    bk_sumIgBotY(inc) = sum(ggby);
     if sum(ggby)>0
       Gby = (gc+gcb)/sum(ggby);
     else
@@ -208,8 +229,8 @@ for inc = 1:nnc
   % Gby = max(Gby,0.001);
 
   % 係数計算
-  any(inc) = -Gay*Gby/(6*(Gay+Gby));
-  bny(inc) = -6/(Gay+Gby);
+  aky(inc) = -Gay*Gby/(6*(Gay+Gby));
+  bky(inc) = -6/(Gay+Gby);
 
   % ---- 確認用 ---
   Gayst(inc) = Gay;
@@ -219,6 +240,49 @@ end
 % 座屈長さ係数の計算（2分法）
 kcxn = solveK(Gaxst, Gbxst, 1e-3);
 kcyn = solveK(Gayst, Gbyst, 1e-3);
+
+% β修正前のK値を保存
+kcxn_raw = kcxn;
+kcyn_raw = kcyn;
+
+% βによる座屈長さ係数の修正（図3.30: 線形補間）
+if options.consider_column_buckling_length_factor
+  alpha = options.brace_share_threshold;
+  ilc_x = (lcdir == PRM.EXP ...
+    | lcdir == PRM.EXN);
+  ilc_y = (lcdir == PRM.EYP ...
+    | lcdir == PRM.EYN);
+  for inc = 1:nnc
+    nsub = nominal_column.idsub(inc, 2);
+    idmec = ...
+      nominal_column.idmec(inc, 1:nsub);
+    ist = col_idstory(idmec);
+    % X方向
+    if any(ilc_x)
+      bmin = min(beta(ist, ilc_x), ...
+        [], 'all');
+      if bmin >= alpha
+        kcxn(inc) = 1.0;
+      else
+        r = bmin / alpha;
+        kcxn(inc) = ...
+          kcxn_raw(inc) * (1 - r) + r;
+      end
+    end
+    % Y方向
+    if any(ilc_y)
+      bmin = min(beta(ist, ilc_y), ...
+        [], 'all');
+      if bmin >= alpha
+        kcyn(inc) = 1.0;
+      else
+        r = bmin / alpha;
+        kcyn(inc) = ...
+          kcyn_raw(inc) * (1 - r) + r;
+      end
+    end
+  end
+end
 
 % 結果の整理
 kcx = kcxn(idmc2nc(:,1));
@@ -241,6 +305,23 @@ end
 
 % 梁用
 lky(mtype==PRM.GIRDER,:) = lb(mtype==PRM.GIRDER,:);
+
+% 座屈長さ係数の中間値
+bkinfo.IcLc = bk_IcLc(:);
+bkinfo.sumIcTop = bk_sumIcTop(:);
+bkinfo.sumIcBot = bk_sumIcBot(:);
+bkinfo.sumIgTopX = bk_sumIgTopX(:);
+bkinfo.sumIgBotX = bk_sumIgBotX(:);
+bkinfo.sumIgTopY = bk_sumIgTopY(:);
+bkinfo.sumIgBotY = bk_sumIgBotY(:);
+bkinfo.GAx = Gaxst(:);
+bkinfo.GBx = Gbxst(:);
+bkinfo.GAy = Gayst(:);
+bkinfo.GBy = Gbyst(:);
+bkinfo.kcxRaw = kcxn_raw(:);
+bkinfo.kcyRaw = kcyn_raw(:);
+bkinfo.kcx = kcxn(:);
+bkinfo.kcy = kcyn(:);
 
 return
 
