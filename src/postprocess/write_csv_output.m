@@ -163,10 +163,40 @@ write_csv_from_cell(fout, bphead, bpbody);
 fprintf(fout, ',\n,\n');
 
 %% 柱座屈長さ
-[cblhead, cblbody] = write_cell_column_buckling_length(com, result);
+[cblhead, cblbody] = ...
+  write_cell_column_buckling_length(com, result);
 fprintf(fout, 'name=柱座屈長さ,case=標準\n');
 write_csv_from_cell(fout, cblhead, cblbody);
 fprintf(fout, ',\n,\n');
+
+%% 柱座屈長さ係数の自動計算
+if ~isempty(result.bkinfo)
+  [bkh, bkb] = ...
+    write_cell_column_buckling_length_factor(...
+    com, result);
+  fprintf(fout, ...
+    'name=柱座屈長さ係数の自動計算,case=標準\n');
+  write_csv_from_cell(fout, bkh, bkb);
+  fprintf(fout, ',\n,\n');
+end
+
+%% 水平力分担表
+if com.nmeb > 0
+  for ilc = 1:nlc
+    lcdir_ = com.loadcase.dir(ilc);
+    if lcdir_ == PRM.EXP || lcdir_ == PRM.EXN ...
+        || lcdir_ == PRM.EYP || lcdir_ == PRM.EYN
+      [fsrh, fsrb] = ...
+        write_cell_force_share_ratio( ...
+        com, result, ilc);
+      fprintf(fout, ...
+        'name=水平力分担表,case=%s\n', ...
+        loadcase.name{ilc});
+      write_csv_from_cell(fout, fsrh, fsrb);
+      fprintf(fout, ',\n,\n');
+    end
+  end
+end
 
 %% 保有耐力横補剛
 fprintf(fout, 'name=保有耐力横補剛\n');

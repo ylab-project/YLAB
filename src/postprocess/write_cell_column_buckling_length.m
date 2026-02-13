@@ -15,16 +15,9 @@ column = com.member.column;
 secc = com.section.column;
 lm_nominal = result.lm_nominal;
 
-% 断面特性
-msprop = result.msprop;
-iy = sqrt(msprop.Iy./msprop.A);
-iz = sqrt(msprop.Iz./msprop.A);
-
-% 座屈長さ係数と座屈長さ
+% 座屈長さ係数と細長比
 kcx = result.kcx;
 kcy = result.kcy;
-% lkx = result.lkx;
-% lky = result.lky;
 lambday = result.lambday;
 lambdaz = result.lambdaz;
 
@@ -88,16 +81,24 @@ for i = 1:nstory
         cblbody{irow,8} = sprintf('%.0f', lbmax_val);
         
         % 座屈長さ係数（x方向、y方向）
-        % cblbody{irow,9} = sprintf('%.3f', kcx(im1));
-        % cblbody{irow,10} = sprintf('%.3f', kcy(im1));
-        
+        cblbody{irow,9} = sprintf( ...
+          '%.3f', kcx(ic1));
+        cblbody{irow,10} = sprintf( ...
+          '%.3f', kcy(ic1));
+
         % 座屈長さ（x方向、y方向）
-        % cblbody{irow,11} = sprintf('%.0f', lkx(im1));
-        % cblbody{irow,12} = sprintf('%.0f', lky(im1));
-        
+        cblbody{irow,11} = sprintf( ...
+          '%.0f', ...
+          kcx(ic1) * lm_nominal(im1));
+        cblbody{irow,12} = sprintf( ...
+          '%.0f', ...
+          kcy(ic1) * lm_nominal(im1));
+
         % 細長比（x方向、y方向）
-        cblbody{irow,13} = sprintf('%.1f', lambday);
-        cblbody{irow,14} = sprintf('%.1f', lambdaz);
+        cblbody{irow,13} = sprintf( ...
+          '%.1f', lambday(im1));
+        cblbody{irow,14} = sprintf( ...
+          '%.1f', lambdaz(im1, 1));
       end
     end
   end
