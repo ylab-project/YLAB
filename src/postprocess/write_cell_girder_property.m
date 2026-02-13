@@ -87,7 +87,8 @@ return
     gpbody{irow_*2-1,11} = 1;
     gpbody{irow_*2-1,12} = sprintf('%.2f', msprop.Asy(idm_)*1.d-2);
     gpbody{irow_*2-1,13} = 1;
-    gpbody{irow_*2-1,14} = 1;
+    gpbody{irow_*2-1,14} = ...
+      get_kappa(secg.type(girder.idsecg(ig_)));
     gpbody{irow_*2-1,15} = sprintf('%.0f', lm(idm_));
     gpbody{irow_*2-1,16} = sprintf('%.0f', lrg(ig_,1));
     gpbody{irow_*2-1,17} = sprintf('%.0f', lfg(ig_,1));
@@ -105,7 +106,8 @@ return
     gpbody{irow_*2,11} = 1;
     gpbody{irow_*2,12} = sprintf('%.1f', msprop.A(idm_)*1.d-2);
     gpbody{irow_*2,13} = 1;
-    gpbody{irow_*2,14} = 1;
+    gpbody{irow_*2,14} = ...
+      get_kappa(secg.type(girder.idsecg(ig_)));
     % gpbody{irow_*2,15} = sprintf('%.0f', lm(idm_));
     gpbody{irow_*2,16} = sprintf('%.0f', lrg(ig_,2));
     gpbody{irow_*2,17} = sprintf('%.0f', lfg(ig_,2));
@@ -121,5 +123,16 @@ return
       otherwise
         label = "";
     end
+  end
+
+  function kappa = get_kappa(stype)
+  %get_kappa - 断面種別に応じたせん断形状係数を返す
+    if stype == PRM.RCRS
+      kappa = 1.2;
+    else
+      kappa = 1;
+    end
+
+    return
   end
 end

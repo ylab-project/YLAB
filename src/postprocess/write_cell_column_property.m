@@ -152,7 +152,8 @@ return
     cpbody(irow*2-1:irow*2,17) = {1; 1};
     cpbody{irow*2-1,18} = 1;
     cpbody(irow*2-1:irow*2,19) = {1; 1};
-    cpbody(irow*2-1:irow*2,20) = {1; 1};
+    kappa_ = get_kappa(secc.type(idsc));
+    cpbody(irow*2-1:irow*2,20) = {kappa_; kappa_};
     cpbody{irow*2-1,21} = sprintf('%.0f', lm_);
     cpbody(irow*2-1:irow*2,22) = ...
       {sprintf('%.0f', lrcx(ic,2)); sprintf('%.0f', lrcy(ic,2))};
@@ -182,6 +183,17 @@ return
       cpbody(irow*2-1:irow*2,27) = ...
         {sprintf('%.0f', kcb*1.d-6); sprintf('%.0f', kcb*1.d-6)};
     end
+    return
+  end
+
+  function kappa = get_kappa(stype)
+  %get_kappa - 断面種別に応じたせん断形状係数を返す
+    if stype == PRM.RCRS
+      kappa = 1.2;
+    else
+      kappa = 1;
+    end
+
     return
   end
 end

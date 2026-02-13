@@ -1,6 +1,5 @@
 function section_property = calc_prop_rcrs(secdim)
-%CALC_PROP_HSS この関数の概要をここに記述
-%   詳細説明をここに記述
+%calc_prop_rcrs - RC矩形断面の断面性能を計算
 
 % 計算の準備
 n = size(secdim,1);
@@ -11,8 +10,9 @@ D = secdim(:,4);
 
 % 断面性能の計算
 A = b.*D;
-Asy = A;
-Asz = A;
+kappa = 1.2;  % せん断形状係数（矩形断面）
+Asy = A / kappa;
+Asz = A / kappa;
 Iy = b.*D.^3/12;
 Iz = b.^3.*D/12;
 Zy = Iy./(D/2);
