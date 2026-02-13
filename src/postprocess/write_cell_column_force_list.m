@@ -53,9 +53,9 @@ for i = 1:nfl
         switch column.type(ic)
           case PRM.COLUMN_STANDARD
             idsub = 1;
-          case PRM.COLUMN_FOR_BRACE1
+          case PRM.COLUMN_FOR_BRACE_FOUNDATION
             idsub = 1;
-          case PRM.COLUMN_FOR_BRACE2
+          case PRM.COLUMN_FOR_BRACE_BODY
             idsub = 2;
         end
         irow = irow+1;

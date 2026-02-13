@@ -68,7 +68,7 @@ for ic=1:nnmc
   idnominal_column(ic) = id;
 
   % 名目部材種別
-  if any(column.type(idmec)==PRM.COLUMN_FOR_BRACE1)
+  if any(column.type(idmec)==PRM.COLUMN_FOR_BRACE_FOUNDATION)
     ntype(id) = PRM.NOMINAL_MULTI_COLUMN_BRACE;
   elseif(ncol>1)
     ntype(id) = PRM.NOMINAL_MULTI_MEMBER;

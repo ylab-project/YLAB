@@ -1891,7 +1891,7 @@ idm2ctype(com.member.column.idme) = idmc2ctype;
 for i=1:n
   idsc = idsecc(i);
   idme2seccb(idm2sc==idsc&idm2story==2&idm2ctype==PRM.COLUMN_STANDARD) = i;
-  idme2seccb(idm2sc==idsc&idm2story==2&idm2ctype==PRM.COLUMN_FOR_BRACE2) = i;
+  idme2seccb(idm2sc==idsc&idm2story==2&idm2ctype==PRM.COLUMN_FOR_BRACE_BODY) = i;
   % idme2seccb(idm2sc==idsc&idm2story==2&idm2ctype==PRM.COLUMN_FOR_BRACE) = i;
   % idme2seccb(idm2sc==idsc&idm2z==1) = i;
 end

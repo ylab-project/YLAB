@@ -47,9 +47,9 @@ column_type = zeros(nme, 1);
 column_type(member_column.idme) = member_column.type;
 
 % 分割節点→基礎ノードの置換（idnominalペア）
-is_brace1_ = member_column.type == PRM.COLUMN_FOR_BRACE1;
+is_brace1_ = member_column.type == PRM.COLUMN_FOR_BRACE_FOUNDATION;
 for ic = 1:length(member_column.idme)
-  if member_column.type(ic) ~= PRM.COLUMN_FOR_BRACE2
+  if member_column.type(ic) ~= PRM.COLUMN_FOR_BRACE_BODY
     continue
   end
   ic_b1 = find( ...
@@ -150,7 +150,7 @@ for im = 1:nme
     % 柱の自重は常に鉛直方向に作用するため、PZのみに寄与
 
     % BRACE1: 基礎梁内のRC部分でありS柱自重の対象外
-    if column_type(im) == PRM.COLUMN_FOR_BRACE1
+    if column_type(im) == PRM.COLUMN_FOR_BRACE_FOUNDATION
       continue
     end
 

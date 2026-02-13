@@ -74,8 +74,8 @@ is_first_story = member_column.idstory == min_story;
 % BRACE2→BRACE1対応マップ（idnominalベース）
 % BRACE2の柱脚側はBRACE1のnode1・face1を使用
 brace1_pair = zeros(nmec, 1);
-is_brace2 = ctype == PRM.COLUMN_FOR_BRACE2;
-is_brace1 = ctype == PRM.COLUMN_FOR_BRACE1;
+is_brace2 = ctype == PRM.COLUMN_FOR_BRACE_BODY;
+is_brace1 = ctype == PRM.COLUMN_FOR_BRACE_FOUNDATION;
 for ic = 1:nmec
   if ~is_brace2(ic)
     continue
@@ -100,7 +100,7 @@ girder_idnode2 = member_girder.idnode2;
 lm_weight = zeros(nmec, 1);
 for ic = 1:nmec
   % BRACE1は基礎梁内のRC部分でありS柱自重の対象外
-  if ctype(ic) == PRM.COLUMN_FOR_BRACE1
+  if ctype(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
     continue
   end
 
@@ -125,7 +125,7 @@ end
 
 for ic = 1:nmec
   % BRACE1は基礎梁内のRC部分でありスキップ
-  if ctype(ic) == PRM.COLUMN_FOR_BRACE1
+  if ctype(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
     continue
   end
 

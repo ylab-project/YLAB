@@ -83,7 +83,7 @@ for i=1:nfl
         if isempty(ic)
           continue
         end
-        if column.type(ic) == PRM.COLUMN_FOR_BRACE2
+        if column.type(ic) == PRM.COLUMN_FOR_BRACE_BODY
           continue
         end
         % 共通
@@ -93,7 +93,7 @@ for i=1:nfl
         lfcy_ = lfcy(ic,:);
         iscb_ = idm2scb(idm);
         % 分割部材対応
-        if column.type(ic) == PRM.COLUMN_FOR_BRACE1
+        if column.type(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
           idnmc = idmc2nmc(ic);
           idcc = nominal_column.idmec(idnmc,:);
           idmm = idmc2m(idcc);

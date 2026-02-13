@@ -168,8 +168,8 @@ classdef PRM
 
     %% 柱種類
     COLUMN_STANDARD = 0       % 標準柱
-    COLUMN_FOR_BRACE1 = 98    % ブレース柱1
-    COLUMN_FOR_BRACE2 = 99    % ブレース柱2
+    COLUMN_FOR_BRACE_FOUNDATION = 98  % ブレース柱（下側）
+    COLUMN_FOR_BRACE_BODY = 99        % ブレース柱（上側）
 
     %% 部材群種別
     COLUMN_RANK_FA = 1        % 柱FAランク

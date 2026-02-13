@@ -186,7 +186,7 @@ if options.position_brace_foundation_girder ...
          pair(i) == PRM.BRACE_MEMBER_PAIR_BOTH
         idc_L = find(member_column.idx(:,1) == idx(i,1) & ...
                      member_column.idy(:,1) == idy(i,1) & ...
-                     member_column.type == PRM.COLUMN_FOR_BRACE2, 1);
+                     member_column.type == PRM.COLUMN_FOR_BRACE_BODY, 1);
         if ~isempty(idc_L)
           idnode1(i) = member_column.idnode1(idc_L);
         end
@@ -197,7 +197,7 @@ if options.position_brace_foundation_girder ...
           member_column.idx(:,1) == idx(i,2) & ...
           member_column.idy(:,1) == idy(i,2) & ...
           member_column.type ...
-            == PRM.COLUMN_FOR_BRACE2, 1);
+            == PRM.COLUMN_FOR_BRACE_BODY, 1);
         if ~isempty(idc_R)
           idnode1(i) = member_column.idnode1(idc_R);
         end
@@ -250,7 +250,7 @@ if any(pair == PRM.BRACE_MEMBER_PAIR_BOTH)
         member_column.idy(:,1) ...
           == member_brace.idy(ib_,2) & ...
         member_column.type ...
-          == PRM.COLUMN_FOR_BRACE2, 1);
+          == PRM.COLUMN_FOR_BRACE_BODY, 1);
       if ~isempty(idc_)
         member_brace.idnode1(ib_) = ...
           member_column.idnode1(idc_);
@@ -410,14 +410,14 @@ return
     add_node.type(:) = PRM.NODE_BRACE_FOR_COLUMN;
     add_node.zname(:) = baseline.z.name(nz);
 
-    % 柱の分割（下側：BRACE1、上側：BRACE2）
+    % 柱の分割（下側：FOUNDATION、上側：BODY）
     add_column = member_column(iac,:);
-    add_column.type(:) = PRM.COLUMN_FOR_BRACE1;
+    add_column.type(:) = PRM.COLUMN_FOR_BRACE_FOUNDATION;
     add_column.idnode2 = (1:length(iac))' + nnode;
     add_column.idz(:,2) = nz;
     member_column.idnode1(iac) = (1:length(iac))' + nnode;
     member_column.idz(iac,1) = nz;
-    member_column.type(iac) = PRM.COLUMN_FOR_BRACE2;
+    member_column.type(iac) = PRM.COLUMN_FOR_BRACE_BODY;
 
     % 結果の更新
     node = [node; add_node];
