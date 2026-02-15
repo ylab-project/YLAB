@@ -128,14 +128,21 @@ design.variable.idsrep = idvar2srep;
 com.design = design;
 
 %% 通し梁
-[nominal_girder, idnominal_girder] = countup_nominal_girder(com);
+if ~isfield(com, 'nominal') ...
+    || ~isfield(com.nominal, 'girder') ...
+    || isempty(com.nominal.girder)
+  [nominal_girder_, idnominal_girder_] = ...
+    countup_nominal_girder(com);
+  com.nominal.girder = nominal_girder_;
+  com.member.girder.idnominal = idnominal_girder_;
+end
+nominal_girder = com.nominal.girder;
 lgm = com.member.property.lm(com.member.girder.idme);
-lgm_nominal = calc_nominal_girder_length(nominal_girder, lgm);
-com.nominal.girder = nominal_girder;
-com.member.girder.idnominal = idnominal_girder;
+lgm_nominal = calc_nominal_girder_length(...
+  nominal_girder, lgm);
 com.member.girder.lm = lgm;
 com.member.girder.lm_nominal = lgm_nominal;
-com.num.nominal_girder = size(nominal_girder,1);
+com.num.nominal_girder = size(nominal_girder, 1);
 
 %% 名目ブレース
 [nominal_brace, idnominal_brace] = countup_nominal_brace(com);

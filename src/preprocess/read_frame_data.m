@@ -499,6 +499,12 @@ com.exclusion.is_section_column_allowable_stress = istarget;
 idexclusion = set_exclusion_girder_smooth_block(dbc, com);
 com.exclusion.girder_smooth.idme = idexclusion;
 
+%% 名目梁（set_girder_force_blockで使用）
+[nominal_girder, idnominal_girder] = ...
+  countup_nominal_girder(com);
+com.nominal.girder = nominal_girder;
+com.member.girder.idnominal = idnominal_girder;
+
 %% 荷重ケース
 loadcase = set_loadcase_block(dbc);
 com.loadcase = loadcase;
@@ -3459,11 +3465,13 @@ ndf = com.ndf;
 % 共通配列
 baseline = com.baseline;
 member_girder = com.member.girder;
+nominal_girder = com.nominal.girder;
 js = com.member.girder.idnode1;
 je = com.member.girder.idnode2;
 loadcase = com.loadcase;
 node = com.node;
 story = com.story;
+lm = com.member.property.lm;
 cxl = member_girder.cxl;
 cyl = member_girder.cyl;
 idmg2m = member_girder.idme;
@@ -3493,11 +3501,13 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz, idir] = find_idxyz_girder(...
+[idx, idy, idz] = find_idxyz_girder(...
   story_name, frame_name, coord_name, baseline);
 
-% 梁部材番号
-idmgs = find_idgirder_from_idxyz(idx, idy, idz, member_girder);
+% 名目梁・個別梁の統合検索
+[idngs, is_split_nominal, idmgs] = ...
+  find_idnominal_girder_from_idxyz(...
+  idx, idy, idz, nominal_girder, member_girder);
 
 % 部材にかかる中間荷重の等価節点力の総和
 ar = zeros(nm,12,nlc);
@@ -3510,31 +3520,89 @@ czl = cross(cxl, cyl, 2);
 %   ※座標変換行列は[T]^Tなので注意
 felement = zeros(ndf,nlc);
 for i = 1:n
-  idmg = idmgs(i);
-  idm = idmg2m(idmg);
-  if (idmg==0)
-    continue
-  end
   ilc = lcase(i);
   arunit = cell2mat(data(i,6:17));
-  ar(idm,:,ilc) = ar(idm,:,ilc)+arunit;
-  M0(idm,ilc) = M0(idm,ilc)+data{i,18};
-  tt = [cxl(idmg,:)' cyl(idmg,:)' czl(idmg,:)'];
-  nn = node.dof(js(idmg),:);
-  fi = tt*arunit(1:3)';  % i端の荷重（全体座標系）
-  felement(nn,ilc) = felement(nn,ilc) + [fi; tt*arunit(4:6)'];
-  felement = add_rigid_eccentric_moment(felement, js(idmg), fi(1), fi(2), ...
-    ilc, node, story);
-  nn = node.dof(je(idmg),:);
-  fj = tt*arunit(7:9)';  % j端の荷重（全体座標系）
-  felement(nn,ilc) = felement(nn,ilc) + [fj; tt*arunit(10:12)'];
-  felement = add_rigid_eccentric_moment(felement, je(idmg), fj(1), fj(2), ...
-    ilc, node, story);
+
+  if is_split_nominal(i)
+    % === 自動分割梁の処理 ===
+    ing = idngs(i);
+    idmeg_all = nominal_girder.idmeg(ing,:);
+    idmeg_all = idmeg_all(idmeg_all > 0);
+    ig_first = idmeg_all(1);
+    ig_last = idmeg_all(end);
+
+    % felement: 名目梁の両端に適用
+    tt = [cxl(ig_first,:)' ...
+      cyl(ig_first,:)' czl(ig_first,:)'];
+    % i端 → 最初の部材のi端節点
+    nn = node.dof(js(ig_first),:);
+    fi = tt * arunit(1:3)';
+    felement(nn, ilc) = felement(nn, ilc) ...
+      + [fi; tt*arunit(4:6)'];
+    felement = add_rigid_eccentric_moment(...
+      felement, js(ig_first), ...
+      fi(1), fi(2), ilc, node, story);
+    % j端 → 最後の部材のj端節点
+    nn = node.dof(je(ig_last),:);
+    fj = tt * arunit(7:9)';
+    felement(nn, ilc) = felement(nn, ilc) ...
+      + [fj; tt*arunit(10:12)'];
+    felement = add_rigid_eccentric_moment(...
+      felement, je(ig_last), ...
+      fj(1), fj(2), ilc, node, story);
+
+    % ar: 構成部材に長さ比で按分
+    Lf = sum(lm(idmg2m(idmeg_all)));
+    for k = 1:length(idmeg_all)
+      idm_k = idmg2m(idmeg_all(k));
+      r = lm(idm_k) / Lf;
+      ar_k = arunit;
+      % 力成分: 長さ比
+      ar_k([1:3 7:9]) = arunit([1:3 7:9]) * r;
+      % モーメント成分: 長さ比の2乗
+      ar_k([4:6 10:12]) = ...
+        arunit([4:6 10:12]) * r^2;
+      ar(idm_k,:,ilc) = ...
+        ar(idm_k,:,ilc) + ar_k;
+    end
+
+    % M0: 同様に按分
+    M0_orig = data{i,18};
+    for k = 1:length(idmeg_all)
+      idm_k = idmg2m(idmeg_all(k));
+      r = lm(idm_k) / Lf;
+      M0(idm_k, ilc) = ...
+        M0(idm_k, ilc) + M0_orig * r;
+    end
+
+  else
+    % === 従来処理（通し梁・通常梁） ===
+    idmg = idmgs(i,1);
+    if idmg == 0
+      continue
+    end
+    idm = idmg2m(idmg);
+    ar(idm,:,ilc) = ar(idm,:,ilc) + arunit;
+    M0(idm,ilc) = M0(idm,ilc) + data{i,18};
+    tt = [cxl(idmg,:)' ...
+      cyl(idmg,:)' czl(idmg,:)'];
+    nn = node.dof(js(idmg),:);
+    fi = tt * arunit(1:3)';
+    felement(nn,ilc) = felement(nn,ilc) ...
+      + [fi; tt*arunit(4:6)'];
+    felement = add_rigid_eccentric_moment(...
+      felement, js(idmg), ...
+      fi(1), fi(2), ilc, node, story);
+    nn = node.dof(je(idmg),:);
+    fj = tt * arunit(7:9)';
+    felement(nn,ilc) = felement(nn,ilc) ...
+      + [fj; tt*arunit(10:12)'];
+    felement = add_rigid_eccentric_moment(...
+      felement, je(idmg), ...
+      fj(1), fj(2), ilc, node, story);
+  end
 end
 
-% 水平荷重は要素荷重として扱わない
-% xydof = unique(reshape(node.dof(:,1:2),1,[]));
-% felement(xydof,1) = 0;
 return
 end
 

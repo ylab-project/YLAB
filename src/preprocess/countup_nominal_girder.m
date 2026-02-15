@@ -154,6 +154,17 @@ for ing=1:nnmg
   end
 end
 
+% 通し梁判定
+isthrough = false(nnmg, 1);
+for i = 1:nnmg
+  ncol_ = nnz(idmeg(i,:));
+  if ncol_ > 1
+    ids_ = idmeg(i, 1:ncol_);
+    isthrough(i) = ...
+      all(girder.type(ids_) == PRM.GIRDER_STANDARD);
+  end
+end
+
 % 許容応力度制約除外判定
 is_allowable_stress = true(nnmg,1);
 for ig=1:nnmg
@@ -165,7 +176,7 @@ end
 % 結果の保存
 nominal_girder = table(idmeg, idsub, story_name, frame_name, ...
   coord_name, idstory, idir, idx, idy, idz, idzn, ...
-  is_allowable_stress);
+  isthrough, is_allowable_stress);
 return
 end
 
