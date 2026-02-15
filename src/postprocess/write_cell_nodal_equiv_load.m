@@ -18,6 +18,9 @@ faddnode = com.faddnode;
 felement = result.felement;
 fvec = fnode(:,1)+faddnode(:,1)-felement(:,1)-sw.f;
 
+% KBRACE-MID節点の等価荷重をグリッド節点に再配分（出力表示用）
+fvec = redistribute_kbrace_mid(com, fvec);
+
 % --- 等価節点荷重 ---
 nlhead = {...
   '層','X軸','Y軸','PX','PY','PZ','MX','MY','MZ'; ...

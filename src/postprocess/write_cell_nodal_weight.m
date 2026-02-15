@@ -14,6 +14,15 @@ node = com.node;
 n2df = com.node.dof;
 sw = result.sw;
 
+% KBRACE-MID節点の自重をグリッド節点に再配分（出力表示用）
+[feqvec, fg_, fw_, fc_, f_] = ...
+  redistribute_kbrace_mid(...
+  com, feqvec, sw.fg, sw.fw, sw.fc, sw.f);
+sw.fg = fg_;
+sw.fw = fw_;
+sw.fc = fc_;
+sw.f = f_;
+
 % --- 節点重量表 ---
 nwhead = {...
   'X軸', 'Y軸', '層', '床自重', '梁自重', '壁自重', ...
