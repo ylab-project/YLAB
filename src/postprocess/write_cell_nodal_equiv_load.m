@@ -1,5 +1,14 @@
-function [nlhead, nlbody] = write_cell_nodal_equiv_load(com, result)
-%writeSectionProperties - Write section properties
+function [nlhead, nlbody] = write_cell_nodal_equiv_load(...
+  com, result, doRedistribute)
+%write_cell_nodal_equiv_load - 等価節点荷重の出力セル配列を生成
+%
+% doRedistribute: KBRACE-MID荷重をグリッド節点に再配分するか
+%   true（既定）: 再配分する（節点重量表と整合）
+%   false: 再配分しない（SS7等価節点荷重と比較用）
+
+if nargin < 3
+  doRedistribute = true;
+end
 
 % 定数
 nn = com.nnode;
@@ -19,7 +28,9 @@ felement = result.felement;
 fvec = fnode(:,1)+faddnode(:,1)-felement(:,1)-sw.f;
 
 % KBRACE-MID節点の等価荷重をグリッド節点に再配分（出力表示用）
-fvec = redistribute_kbrace_mid(com, fvec);
+if doRedistribute
+  fvec = redistribute_kbrace_mid(com, fvec);
+end
 
 % --- 等価節点荷重 ---
 nlhead = {...

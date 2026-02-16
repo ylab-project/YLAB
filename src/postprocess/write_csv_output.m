@@ -211,7 +211,7 @@ write_csv_from_cell(fout, nwhead, nwbody);
 fprintf(fout, ',\n,\n');
 
 %% 等価節点荷重
-[nlhead, nlbody] = write_cell_nodal_equiv_load(com, result);
+[nlhead, nlbody] = write_cell_nodal_equiv_load(com, result, false);
 fprintf(fout, 'name=等価節点荷重,case=G+P\n');
 write_csv_from_cell(fout, nlhead, nlbody);
 fprintf(fout, ',\n,\n');
