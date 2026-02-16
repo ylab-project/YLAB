@@ -1,5 +1,7 @@
-function [lm_girder_weight, face_deduct] = calc_girder_weight_length(...
-  member_girder, node, story, floor, stype_sec, idsecg2sec, secdim)
+function [lm_girder_weight, face_deduct] = ...
+  calc_girder_weight_length(...
+  member_girder, node, story, floor, stype_sec, ...
+  idsecg2sec, secdim, Df_foundation)
 %calc_girder_weight_length - 梁荷重計算用の部材長を算出
 %
 % SS7マニュアル「4.1.1 梁」に基づき、梁の自重・仕上重量計算用の部材長を算出する。
@@ -28,6 +30,7 @@ function [lm_girder_weight, face_deduct] = calc_girder_weight_length(...
 %   stype_sec     - 断面種別配列 [nsec×1]
 %   idsecg2sec    - 梁断面ID→統一断面IDの変換配列
 %   secdim        - 断面寸法配列 [nsec×ncol]
+%   Df_foundation - 基礎柱面寸法配列 [nsec×1]（統一断面ID→Df）
 %
 % Outputs:
 %   lm_girder_weight - 梁荷重計算用の部材長配列 [nmeg x 1]
@@ -142,12 +145,22 @@ for ig = 1:nmeg
     ids_l = ids_l(ids_l > 0);
     for k = 1:length(ids_l)
       is_steel_c1 = is_steel_sec(ids_l(k));
-      % 同種別（S-S または RC-RC）なら柱面まで減算
       if is_steel_g(ig) == is_steel_c1
+        % 同種別（S-S または RC-RC）: 柱面まで減算
         Dc1 = Dc(ids_l(k));
-        face_deduct(ig, 1) = Dc1/2 * scale;  % 斜め方向に換算
-        lm_girder_weight(ig) = lm_girder_weight(ig) - Dc1/2 * scale;
-        break;  % 1つの柱面で減算したら終了
+        face_deduct(ig, 1) = Dc1/2 * scale;
+        lm_girder_weight(ig) = ...
+          lm_girder_weight(ig) - Dc1/2 * scale;
+        break;
+      elseif ~is_steel_g(ig) && is_steel_c1
+        % RC梁-S柱: 基礎柱があれば基礎柱面まで減算
+        Df1 = Df_foundation(ids_l(k));
+        if Df1 > 0
+          face_deduct(ig, 1) = Df1/2 * scale;
+          lm_girder_weight(ig) = ...
+            lm_girder_weight(ig) - Df1/2 * scale;
+        end
+        break;
       end
     end
   end
@@ -159,12 +172,22 @@ for ig = 1:nmeg
     ids_r = ids_r(ids_r > 0);
     for k = 1:length(ids_r)
       is_steel_c2 = is_steel_sec(ids_r(k));
-      % 同種別（S-S または RC-RC）なら柱面まで減算
       if is_steel_g(ig) == is_steel_c2
+        % 同種別（S-S または RC-RC）: 柱面まで減算
         Dc2 = Dc(ids_r(k));
-        face_deduct(ig, 2) = Dc2/2 * scale;  % 斜め方向に換算
-        lm_girder_weight(ig) = lm_girder_weight(ig) - Dc2/2 * scale;
-        break;  % 1つの柱面で減算したら終了
+        face_deduct(ig, 2) = Dc2/2 * scale;
+        lm_girder_weight(ig) = ...
+          lm_girder_weight(ig) - Dc2/2 * scale;
+        break;
+      elseif ~is_steel_g(ig) && is_steel_c2
+        % RC梁-S柱: 基礎柱があれば基礎柱面まで減算
+        Df2 = Df_foundation(ids_r(k));
+        if Df2 > 0
+          face_deduct(ig, 2) = Df2/2 * scale;
+          lm_girder_weight(ig) = ...
+            lm_girder_weight(ig) - Df2/2 * scale;
+        end
+        break;
       end
     end
   end

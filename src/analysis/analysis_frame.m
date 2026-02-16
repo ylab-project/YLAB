@@ -238,10 +238,22 @@ mejoint(idmc2m,:) = cjoint;
 stype_sec = com.section.property.type;
 lm_column_weight = calc_column_weight_length(...
   member_column, member_girder, floor, com.node, ...
-  stype_sec, com.section.column.idsec, com.section.girder.idsec, secdim);
+  stype_sec, com.section.column.idsec, ...
+  com.section.girder.idsec, secdim);
+
+% 基礎柱面寸法の配列（統一断面ID→Df）
+Df_foundation = zeros(size(secdim, 1), 1);
+for icb = 1:length(column_base.idsecc)
+  if cbs.Df(icb) > 0
+    ids_ = idsc2s(column_base.idsecc(icb));
+    Df_foundation(ids_) = cbs.Df(icb);
+  end
+end
+
 [lm_girder_weight, face_deduct] = calc_girder_weight_length(...
   member_girder, com.node, com.story, floor, ...
-  stype_sec, com.section.girder.idsec, secdim);
+  stype_sec, com.section.girder.idsec, secdim, ...
+  Df_foundation);
 
 % 柱・梁を結合して全部材の荷重計算用部材長を作成
 lm_weight = lm;  % 初期値は構造階高ベースの部材長
@@ -259,7 +271,7 @@ if options.consider_self_weight && options.consider_finishing_material
     A, lm_weight, lm, member_property, ...
     msdim, slab, idn2df, ndf, mejoint, ...
     face_deduct, options, member_column, ...
-    brace_unit_weight);
+    brace_unit_weight, Df_foundation, idsup2n);
   fvec(:,1) = fvec(:,1)-sw.f;
   ar(:,:,1) = ar(:,:,1)+sw.ar;
   M0(:,1)= M0(:,1)+sw.M0;

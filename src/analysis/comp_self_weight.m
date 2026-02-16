@@ -1,6 +1,8 @@
 function sw = comp_self_weight(...
-  A, lm_weight, lm, member_property, msdim, slab, idn2df, ndf, mejoint, ...
-  face_deduct, options, member_column, brace_unit_weight)
+  A, lm_weight, lm, member_property, msdim, ...
+  slab, idn2df, ndf, mejoint, ...
+  face_deduct, options, member_column, ...
+  brace_unit_weight, Df_foundation, idsup2n)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
 % 柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを計算する。
@@ -22,6 +24,8 @@ function sw = comp_self_weight(...
 %   options         - オプション構造体
 %   member_column   - 柱部材構造体
 %   brace_unit_weight - ブレース単位重量 [nmeb x 1] N/mm（BRB: メーカー値, 他: 0）
+%   Df_foundation     - 基礎柱面寸法配列 [nsec×1]（統一断面ID→Df）
+%   idsup2n           - 支点節点IDの配列 [nsup×1]
 %
 % Outputs:
 %   sw - 結果構造体
@@ -270,6 +274,52 @@ for im = 1:nme
     fw(ns) = fw(ns) + fi_global;
     fw(ne) = fw(ne) + fj_global;
   end
+end
+
+% --- 基礎柱自重 ---
+% SS7計算編 4.1.2(4): W = γ_RC × Df² × D（基礎梁せい）
+gamma_rc = PRM.RHORC * PRM.GRAVITY * 1.d-6; % N/mm³
+nme_ = length(mtype);
+idm2s_ = member_property.idsec;
+for isup = 1:length(idsup2n)
+  in_sup = idsup2n(isup);
+  % 支点節点にとりつく柱からDfを取得
+  Df_ = 0;
+  for ic = 1:length(member_column.idme)
+    im_ = member_column.idme(ic);
+    if idme2j1(im_) ~= in_sup ...
+        && idme2j2(im_) ~= in_sup
+      continue
+    end
+    Df_ = Df_foundation(idm2s_(im_));
+    if Df_ > 0
+      break
+    end
+  end
+  if Df_ <= 0
+    continue
+  end
+  % 支点節点にとりつくRC梁から基礎梁せいを取得（最大値）
+  D_beam = 0;
+  for im_ = 1:nme_
+    if mtype(im_) ~= PRM.GIRDER
+      continue
+    end
+    if idme2j1(im_) ~= in_sup ...
+        && idme2j2(im_) ~= in_sup
+      continue
+    end
+    if stype(im_) == PRM.RCRS
+      D_beam = max(D_beam, msdim(im_, 2));
+    end
+  end
+  if D_beam <= 0
+    continue
+  end
+  % 基礎柱自重の計算と加算
+  W_ = gamma_rc * Df_ * Df_ * D_beam;
+  ns_ = idn2df(in_sup, :);
+  fc(ns_) = fc(ns_) + [0; 0; W_; 0; 0; 0];
 end
 
 % 結果の保存
