@@ -27,6 +27,8 @@ for i = 1:nstory
   for iy = 1:nbly
     for ix = 1:nblx
       in = innn(node.idx==ix & node.idy==iy & node.idstory== ist);
+      % ブレース用柱分割節点をスキップ（床節点と同一の(idx,idy,idstory)を持つため）
+      in = in(node.type(in) ~= PRM.NODE_BRACE_FOR_COLUMN);
       if isempty(in)
         continue
       end
