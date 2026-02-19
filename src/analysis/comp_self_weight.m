@@ -74,11 +74,17 @@ end
 idme2ig = zeros(nme, 1);
 idme2ig(mtype==PRM.GIRDER) = 1:sum(mtype==PRM.GIRDER);
 
-% 重複スラブの考慮
-slab_thickness = max(slab.thickness,[],2);
-slab_thickness(gstype~=PRM.RCRS,:) = 0;
+% 重複スラブの考慮（SS7 計算編 式4.3準拠）
+% 梁断面の左右それぞれB/2の範囲でスラブと重複する
+% 体積を控除する。スラブ幅が0の側は控除しない。
+has_slab = slab.width > 0;
+t1 = slab.thickness(:,1) .* has_slab(:,1);
+t2 = slab.thickness(:,2) .* has_slab(:,2);
+slab_t = t1 + t2;
+slab_t(gstype~=PRM.RCRS) = 0;
 b = msdim(mtype==PRM.GIRDER,1);
-A(mtype==PRM.GIRDER) = A(mtype==PRM.GIRDER)-b.*slab_thickness;
+A(mtype==PRM.GIRDER) = A(mtype==PRM.GIRDER) ...
+  - b/2 .* slab_t;
 
 % 計算の準備
 ar = zeros(nme,12);
@@ -230,6 +236,19 @@ for im = 1:nme
       CB = w3/L2 * (GB_Lb - GB_a);
       cvi = [0; CA; 0];
       cvj = [0; CB; 0];
+    end
+
+    % ピン端のモーメント解放に伴うせん断力の再配分
+    if joint(1)==PRM.PIN && joint(2)~=PRM.PIN
+      % i端ピン: CMQ_jに応じてPZを再配分
+      dv = cvj(2) / li_m;
+      fvi(3) = fvi(3) - dv;
+      fvj(3) = fvj(3) + dv;
+    elseif joint(2)==PRM.PIN && joint(1)~=PRM.PIN
+      % j端ピン: CMQ_iに応じてPZを再配分
+      dv = cvi(2) / li_m;
+      fvi(3) = fvi(3) + dv;
+      fvj(3) = fvj(3) - dv;
     end
 
     % 固定端反力（要素座標系）
