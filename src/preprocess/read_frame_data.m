@@ -2688,17 +2688,17 @@ idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder);
 % 結合状態
 joint = PRM.FIX*ones(nmeg,4);
 for i=1:n
+  ids = idmeg(i,:);
+  ids = ids(ids > 0);
+  if isempty(ids); continue; end
   for j=1:4
     val = data{i,j+4};
-    im = idmeg(i);
-    if ismissing(val) || im==0
-      continue
-    end
+    if ismissing(val); continue; end
     switch val
       case 0
-        joint(im,j) = PRM.PIN;
+        joint(ids,j) = PRM.PIN;
       otherwise
-        joint(im,j) = PRM.FIX;
+        joint(ids,j) = PRM.FIX;
     end
   end
 end
@@ -2797,7 +2797,8 @@ end
 % 梁部材番号
 [idx, idy, idz, idir] = find_idxyz_girder(...
   story_name, frame_name, coord_name, baseline);
-idmeg = find_idgirder_from_idxyz_range(idx, idy, idz, member_girder);
+idmeg = find_idgirder_from_idxyz(...
+  idx, idy, idz, member_girder);
 
 % % 結合状態
 % stiffening.Lb = nan(nmeg,3);
@@ -2868,9 +2869,9 @@ idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder);
 % レベル調整値
 girder_level = zeros(nmg,1);
 for i=1:n
-  if (idmeg(i)>0)
-    girder_level(idmeg(i)) = data{i,5};
-  end
+  ids = idmeg(i,:);
+  ids = ids(ids > 0);
+  girder_level(ids) = data{i,5};
 end
 
 return
@@ -2912,46 +2913,38 @@ end
 % 梁部材番号
 idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder);
 
-% スラブ協力幅
+% スラブ協力幅・スラブ厚・材料・デッキ高さ
 slab_width = zeros(nmg,2);
-for i=1:n
-  if (idmeg(i)>0)
-    slab_width(idmeg(i),1) = data{i,6};
-    slab_width(idmeg(i),2) = data{i,7};
-  end
-end
-
-% スラブ厚
 slab_thickness = zeros(nmg,2);
-for i=1:n
-  if (idmeg(i)>0)
-    slab_thickness(idmeg(i),:) = data{i,8};
-    if (~ismissing(data{i,10}))
-      slab_thickness(idmeg(i),2) = data{i,10};
-    end
-  end
-end
-
-% 材料名
 slab_E = zeros(nmg,1); iddd = 1:com.nma;
-for i=1:n
-  material_name = data{i,9};
-  idmaterial = iddd(matches(material.name, material_name));
-  if (idmeg(i)>0)
-    slab_E(idmeg(i)) = material.E(idmaterial);
-  end
-end
-
-% デッキ高さ
 deck_height = zeros(nmg,2);
 for i=1:n
-  if (idmeg(i)>0)
-    if ~ismissing(data{i,11})
-      deck_height(idmeg(i),1) = data{i,11};
-    end
-    if ~ismissing(data{i,12})
-      deck_height(idmeg(i),2) = data{i,12};
-    end
+  ids = idmeg(i,:);
+  ids = ids(ids > 0);
+  if isempty(ids); continue; end
+
+  % スラブ協力幅
+  slab_width(ids,1) = data{i,6};
+  slab_width(ids,2) = data{i,7};
+
+  % スラブ厚
+  slab_thickness(ids,:) = data{i,8};
+  if ~ismissing(data{i,10})
+    slab_thickness(ids,2) = data{i,10};
+  end
+
+  % 材料
+  material_name = data{i,9};
+  idmaterial = iddd(...
+    matches(material.name, material_name));
+  slab_E(ids) = material.E(idmaterial);
+
+  % デッキ高さ
+  if ~ismissing(data{i,11})
+    deck_height(ids,1) = data{i,11};
+  end
+  if ~ismissing(data{i,12})
+    deck_height(ids,2) = data{i,12};
   end
 end
 
@@ -2996,13 +2989,12 @@ for i=1:n
     idx(i,:), idy(i,:), idz(i,:), member_girder, idir(i));
 
   % 存在しないときはスキップ
-  if idmeg ==0
-    continue
-  end
+  ids = idmeg(idmeg > 0);
+  if isempty(ids); continue; end
 
   % 値のセット
   val = data{i,8};
-  girder_phi(idmeg) = val;
+  girder_phi(ids) = val;
 end
 return
 end

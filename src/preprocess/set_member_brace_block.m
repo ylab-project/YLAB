@@ -522,6 +522,10 @@ return
 
     addnode.type(:) = PRM.NODE_BRACE_FOR_GIRDER;
 
+    % 分割梁兄弟ポインタの初期化（既存梁は全て0）
+    member_girder.idsplit = ...
+      zeros(size(member_girder,1), 1);
+
     % 梁の分割（元の梁→KBRACE1左側、新規梁→KBRACE2右側）
     idg_unique = idg(idu2o);
     addgirder = member_girder(idg_unique,:);
@@ -561,6 +565,12 @@ return
     % 中間節点配列の作成（親スコープ配列に格納）
     idnode_mid_array = zeros(n,1);
     idnode_mid_array(iab) = idnode_mid(ido2u);
+
+    % 分割梁兄弟ポインタのセット
+    nmg_orig = size(member_girder, 1);
+    member_girder.idsplit(idg_unique) = ...
+      nmg_orig + (1:length(idg_unique))';
+    addgirder.idsplit = idg_unique;
 
     % 結果の更新
     node = [node; addnode];
