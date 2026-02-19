@@ -125,6 +125,8 @@ for i=1:nb
           secdim(ids,2) = str2double(sss{1}{2});
         end
       end
+    case PRM.TB
+      % 引張ブレース: 読み込み時に dimension 確定済み
   end
 end
 

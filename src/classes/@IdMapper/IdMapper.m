@@ -135,7 +135,8 @@ classdef IdMapper < handle
     idhss2slist   % HSS断面→断面リストID [nhss×1]
     idbrbs2slist  % BRB断面→断面リストID [nbrbs×1]
     idhsr2slist   % HSR断面→断面リストID [nhsr×1]
-    
+    idtbs2slist   % TB断面→断面リストID [ntbs×1]
+
     % 代表断面関連
     idsrep2stype  % 代表断面→断面タイプ [nsrep×1]
     
@@ -469,7 +470,13 @@ classdef IdMapper < handle
       val = obj.idSectionList_(obj.idsec2stype_ == PRM.HSR);
       val = val(:);  % 列ベクトル化
     end
-    
+
+    function val = get.idtbs2slist(obj)
+      % TB断面の断面リストIDを取得
+      val = obj.idSectionList_(obj.idsec2stype_ == PRM.TB);
+      val = val(:);  % 列ベクトル化
+    end
+
     function val = get.idbrbs2repbrbs(obj)
       % BRB断面→代表BRB断面マッピングを取得
       % mapBrbsToRepresentativeメソッドを呼び出す

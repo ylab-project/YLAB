@@ -46,6 +46,14 @@ if any(stype==PRM.HBR)
   section_property(stype==PRM.HBR,12) = sdim(:,1); % A;
 end
 
+% 引張ブレース
+% dimension: [shape_code, A(mm2), Ae(mm2), Ta(kN)]
+if any(stype==PRM.TB)
+  sdim = secdim(stype==PRM.TB,:);
+  section_property(stype==PRM.TB,1) = sdim(:,2);  % A
+  section_property(stype==PRM.TB,12) = sdim(:,3); % Ae
+end
+
 section_property = array2table(section_property, ...
   'VariableNames', {...
   'A', 'Asy', 'Asz', 'Iy', 'Iz', ...

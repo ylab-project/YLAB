@@ -82,7 +82,12 @@ for idslist = 1:nlist
       % RCRS断面（最適化対象外）
       id_slist(is_target) = 0;
       id_section(is_target) = 0;
-      
+
+    case PRM.TB
+      % 引張ブレース: 最適化対象外
+      id_slist(is_target) = 0;
+      id_section(is_target) = 0;
+
     otherwise
       % その他の断面タイプ
       id_slist(is_target) = 0;

@@ -158,6 +158,18 @@ classdef SectionListHandler < handle
               dimension_(:,1) = list_.D;     % 外径
               dimension_(:,2) = list_.t;     % 板厚
               list_.dimension = dimension_;
+            case PRM.TB
+              % 引張ブレースの場合
+              % dimension: [shape_code, A(mm2), Ae(mm2)]
+              n = size(list_, 1);
+              dimension_ = zeros(n, 3);
+              for j = 1:n
+                dimension_(j, 1) = ...
+                  PRM.get_tb_shape_code(list_.type{j});
+              end
+              dimension_(:, 2) = list_.A * 100; % cm2→mm2
+              dimension_(:, 3) = list_.Ae * 100; % cm2→mm2
+              list_.dimension = dimension_;
           end
           nlist_ = size(list_,1);
           idsublist_ = idsub*(ones(nlist_,1));
@@ -232,6 +244,10 @@ classdef SectionListHandler < handle
           dimension = dimension(obj.idphase{id}<=idPhase,:);
         case PRM.HSR
           % HSR断面の寸法取得
+          dimension = obj.list{id}.dimension;
+          dimension = dimension(obj.idphase{id}<=idPhase,:);
+        case PRM.TB
+          % 引張ブレース断面の寸法取得
           dimension = obj.list{id}.dimension;
           dimension = dimension(obj.idphase{id}<=idPhase,:);
       end

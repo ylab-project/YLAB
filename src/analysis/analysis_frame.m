@@ -141,6 +141,9 @@ for isechb = 1:nsechb
   Em(idm2s==isec) = section.horizontal_brace.E(isechb);
 end
 
+% 引張ブレース
+Em(stype(idm2s) == PRM.TB) = PRM.ES;
+
 % 結果の保存
 msprop.E = Em;
 % msprop.F = Fm;  % 既に108行目で設定済み

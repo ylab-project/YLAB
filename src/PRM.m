@@ -40,6 +40,7 @@ classdef PRM
     RCRS = 50   % ＲＣ矩形断面
     BRB  = 101  % 座屈拘束ブレース
     HBR  = 110  % 水平ブレース
+    TB   = 120  % 引張ブレース
     OTS  = 999  % その他
 
     % 柱脚
@@ -70,7 +71,16 @@ classdef PRM
     BRB_V2 = 302          % 降伏軸力
     BRB_V3 = 303          % 枝番
     BRB_V4 = 304          % 新旧番号
-    
+
+    %% 引張ブレース形状コード
+    TB_L   = 1211         % 山形鋼
+    TB_2L  = 1212         % 2山形鋼
+    TB_2LP = 1213         % 2山形鋼（並列）
+    TB_C   = 1221         % 溝形鋼
+    TB_2C  = 1222         % 2溝形鋼
+    TB_TB  = 1231         % ターンバックル
+    TB_FB  = 1241         % 平鋼
+
     %% secdim配列の列インデックス（WFS断面用）
     % WFS断面のsecdim配列は7列構成
     SECDIM_WFS_H = 1      % H実寸法
@@ -116,6 +126,7 @@ classdef PRM
     %% 物理定数
     GRAVITY = 9.8         % 重力加速度 [m/s2]
     RHOS = 7.85           % 鋼材密度 [t/m3]
+    ES   = 205            % 鋼材ヤング係数 [kN/mm2]
     RHORC = 2.5           % RC密度 [t/m3]（24.5 kN/m3）
     % RIGID_COEF = 1.d5
     RIGID_COEF = 1.d4
@@ -253,8 +264,10 @@ classdef PRM
           n = 2;
         case PRM.BRB
           n = 2;
+        case PRM.TB
+          n = 0;
         otherwise
-          error('WFS,HSS,HSR,BRBのいずれかを指定してください')
+          error('WFS,HSS,HSR,BRB,TBのいずれかを指定してください')
       end
       return
     end
@@ -323,6 +336,8 @@ classdef PRM
             section_type(i) = PRM.HSR;
           case 'アンボンドブレース(耐震)'
             section_type(i) = PRM.BRB;
+          case '引張ブレース'
+            section_type(i) = PRM.TB;
           case ''
             section_type(i) = PRM.OTS;
         end
@@ -363,6 +378,42 @@ classdef PRM
             ubb_type(i) = PRM.OTS;
         end
       end
+      return
+    end
+
+    %% get_tb_shape_code
+    function shape_code = get_tb_shape_code(type_str)
+      %get_tb_shape_code - TB種別文字列から形状コードを取得
+      %
+      % type 文字列のハイフン前プレフィックスで形状を判定する。
+      %
+      % Inputs:
+      %   type_str - TB種別文字列（例: 'L-75x75x6'）
+      %
+      % Outputs:
+      %   shape_code - 形状コード（PRM.TB_L 等）
+      tokens = split(type_str, '-');
+      prefix = tokens{1};
+      switch prefix
+        case 'L'
+          shape_code = PRM.TB_L;
+        case '2L'
+          shape_code = PRM.TB_2L;
+        case '2L(並)'
+          shape_code = PRM.TB_2LP;
+        case '['
+          shape_code = PRM.TB_C;
+        case '2['
+          shape_code = PRM.TB_2C;
+        case 'TB'
+          shape_code = PRM.TB_TB;
+        case 'FB'
+          shape_code = PRM.TB_FB;
+        otherwise
+          error('PRM:UnknownTbShape', ...
+            '未知のTB形状: %s', type_str);
+      end
+
       return
     end
   end

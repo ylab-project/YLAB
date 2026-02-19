@@ -26,6 +26,7 @@ idwfs2slist = obj.idMapper_.idwfs2slist;
 idhss2slist = obj.idMapper_.idhss2slist;
 idbrbs2slist = obj.idMapper_.idbrbs2slist;
 idhsr2slist = obj.idMapper_.idhsr2slist;
+idtbs2slist = obj.idMapper_.idtbs2slist;
 
 % 断面リストごとに処理（元の実装と同じループ構造）
 for idslist = 1:nlist
@@ -76,7 +77,19 @@ for idslist = 1:nlist
       id.slist(is_target) = 0;  % RCRS断面は最適化対象外なので0
       id.section(is_target) = 0;  % RCRS断面は最適化対象外なので0
       % 寸法値はdimension_の初期値をそのまま使用
-      
+
+    case PRM.TB
+      % 引張ブレース
+      is_target_tb = (idtbs2slist == idslist);
+      [sectb, id_temp] = ...
+        obj.findNearestSectionTb(idslist);
+      secdim(is_target, 1:3) = ...
+        sectb(is_target_tb, 1:3);
+      id.slist(is_target) = ...
+        id_temp.slist(is_target_tb);
+      id.section(is_target) = ...
+        id_temp.section(is_target_tb);
+
     otherwise
       % その他の断面タイプ（最適化対象外）
       id.slist(is_target) = 0;  % 最適化対象外なので0

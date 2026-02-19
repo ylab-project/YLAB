@@ -103,7 +103,10 @@ for idslist = 1:nlist
       
     case PRM.RCRS
       % RCRS断面（最適化対象外）- 変更なし
-      
+
+    case PRM.TB
+      % 引張ブレース: 設計変数なし、dimension をそのまま保持
+
     otherwise
       % その他の断面タイプ - 変更なし
   end
