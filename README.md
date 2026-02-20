@@ -11,13 +11,7 @@ YLABは、東京理科大学 山川研究室で開発された、鋼構造骨組
 
 ## インストール
 
-### 1. インストーラーを使用する場合（Windows推奨）
-
-配布されている `build/YLabInstaller.exe` を使用すると、MATLABライセンスがなくても実行可能です。
-
-1. `build/YLabInstaller.exe` を実行します。
-2. 画面の指示に従い、インストール先を指定します（デフォルト: `C:\Program Files\TUS\YLAB`）。
-3. 必要に応じて MATLAB Runtime が自動的にダウンロード・インストールされます。
+~~### 1. インストーラーを使用する場合（Windows推奨）~~
 
 ### 2. MATLAB環境で使用する場合
 
