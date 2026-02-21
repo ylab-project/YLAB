@@ -1,9 +1,22 @@
 function [rs, Mc, rvec] = calc_member_force(ilcset, dvec, rs, ...
   frvec, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, prm, ...
   lm, lrxm, lrym, flag, ...
-  member_property, node, material, cbstiff, idm2mat, idm2scb, joint)
-%MEMBER_FORCE この関数の概要をここに記述
-%   詳細説明をここに記述
+  member_property, node, material, cbstiff, idm2mat, idm2scb, joint, ...
+  tb_stif)
+%calc_member_force - 部材応力の計算
+%
+%   [rs, Mc, rvec] = calc_member_force(ilcset, dvec, rs, ...
+%     frvec, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, prm, ...
+%     lm, lrxm, lrym, flag, ...
+%     member_property, node, material, ...
+%     cbstiff, idm2mat, idm2scb, joint, tb_stif) は、
+%   各部材の応力を計算する。
+%
+%   入力引数:
+%     ilcset - 荷重ケース番号 [1×nlc]
+%     dvec - 変位ベクトル [ndf×nlc]
+%     rs - 応力配列（空の場合は内部で初期化）
+%     tb_stif - 引張ブレース構造体配列（空可）
 
 % 共通配列
 idme2j1 = member_property.idnode1;
@@ -21,6 +34,14 @@ mtype = member_property.type;
 nme = size(member_property,1);
 ns6 = size(sks,1);
 nlc = length(ilcset);
+
+% TB除外対象の構築
+if ~isempty(tb_stif)
+  tb_im = [tb_stif(:).im];
+  targetset = setdiff(1:nme, tb_im);
+else
+  targetset = 1:nme;
+end
 
 % 計算準備
 xr_ = [xr(idme2j1) xr(idme2j2)];
@@ -47,7 +68,7 @@ tg_cache = cell(nme, 1);
 t_cache = cell(nme, 1);
 ndi_cache = cell(nme, 1);
 
-for im = 1:nme
+for im = targetset(:)'
   lrxi = lrxm(im, :);
   lryi = lrym(im, :);
   li = lm(im);
@@ -92,8 +113,9 @@ for im = 1:nme
   ndi_cache{im} = [idnode2jf(idme2j1(im), :), idnode2jf(idme2j2(im), :)];
 end
 
+% 通常部材の応力計算
 for ilc = ilcset(:)'
-  for im = 1:nme
+  for im = targetset(:)'
     ke = ke_cache{im};
     tg = tg_cache{im};
     t = t_cache{im};
@@ -113,6 +135,20 @@ for ilc = ilcset(:)'
 
     rs(im, :, ilc) = arm;
     Mc(im, ilc) = M0(im, ilc) + (arm(5) - arm(11)) / 2;
+  end
+end
+
+% TB: 共通関数で軸力を計算し rs に格納
+ntb = length(tb_stif);
+for idx = 1:ntb
+  im = tb_stif(idx).im;
+  for ilc = ilcset(:)'
+    N = calc_tb_axial_force( ...
+      tb_stif(idx).tmat, tb_stif(idx).kn, ...
+      tb_stif(idx).ndi, dvec(:, ilc));
+    rs(im, 1, ilc) = -N;
+    rs(im, 7, ilc) = N;
+    Mc(im, ilc) = M0(im, ilc);
   end
 end
 

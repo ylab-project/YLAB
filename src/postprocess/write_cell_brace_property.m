@@ -97,14 +97,14 @@ return
       if ismember(brace.pair(ib), ...
           [PRM.BRACE_MEMBER_PAIR_L, ...
            PRM.BRACE_MEMBER_PAIR_BOTH_L])
-        write_left_columns(idm);
+        write_left_columns(idm, idsb);
       end
 
       % 右下りデータ（15-20列）
       if ismember(brace.pair(ib), ...
           [PRM.BRACE_MEMBER_PAIR_R, ...
            PRM.BRACE_MEMBER_PAIR_BOTH_R])
-        write_right_columns(idm);
+        write_right_columns(idm, idsb);
       end
 
       % X形BOTH_L：対応するBOTH_Rの右下りデータを同一行に追加
@@ -116,28 +116,38 @@ return
             == PRM.BRACE_MEMBER_TYPE_X);
         if ~isempty(ib_r)
           idm_r = brace.idme(ib_r(1));
-          write_right_columns(idm_r);
+          write_right_columns(idm_r, idsb);
         end
       end
     end
   end
 
-  function write_left_columns(idm_)
+  function write_left_columns(idm_, idsb_)
     bpbody{irow,9} = sprintf('%.3f', 1);
     bpbody{irow,10} = ...
       sprintf('%.2f', msprop.A(idm_)*1.d-2);
-    bpbody{irow,11} = '引圧';
+    if secb.tctype(idsb_) == PRM.BRACE_TENSION
+      bpbody{irow,11} = '引張';
+      bpbody{irow,12} = '-1.0';
+    else
+      bpbody{irow,11} = '引圧';
+    end
     bpbody{irow,13} = ...
       sprintf('%.0f', lm(idm_));
     bpbody{irow,14} = ...
       sprintf('%.0f', lm(idm_));
   end
 
-  function write_right_columns(idm_)
+  function write_right_columns(idm_, idsb_)
     bpbody{irow,15} = sprintf('%.3f', 1);
     bpbody{irow,16} = ...
       sprintf('%.2f', msprop.A(idm_)*1.d-2);
-    bpbody{irow,17} = '引圧';
+    if secb.tctype(idsb_) == PRM.BRACE_TENSION
+      bpbody{irow,17} = '引張';
+      bpbody{irow,18} = '-1.0';
+    else
+      bpbody{irow,17} = '引圧';
+    end
     bpbody{irow,19} = ...
       sprintf('%.0f', lm(idm_));
     bpbody{irow,20} = ...

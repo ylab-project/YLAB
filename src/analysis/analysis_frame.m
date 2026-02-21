@@ -1,6 +1,6 @@
 function [msprop, secdim, dvec, dnode, felement,...
   stn, stcn, Mc, C, vix, viy, ...
-  rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, isuplifted, sw, ...
+  rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, state, sw, ...
   lf, lr, lm, lm_weight, lnm, lbnm, ...
   Iy0, Iz0, gphiI, cphiI, cbs, baseline, node, story, floor] = ...
   analysis_frame(xvar, com, options)
@@ -300,14 +300,32 @@ ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
   idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ...
   ndf, nbw, flag);
 
-if options.consider_foundation_uplift
+% 引張ブレースの判定
+has_tension_brace = any(stype(idm2s) == PRM.TB);
+
+if options.consider_foundation_uplift ...
+    || has_tension_brace
   iter_max = 30;
 else
   iter_max = 1;
 end
 
+% 引張ブレース剛性の事前計算
+tb_stif = struct([]);
+if has_tension_brace
+  tb_stif = ...
+    precompute_tension_brace_stiffness( ...
+    A, Iy, Iz, JJ, cxl, cyl, lm, Em, prm, ...
+    xr, yr, idn2df, idm2n1, idm2n2, ...
+    mtype, stype, idm2s, flag);
+  ntb = length(tb_stif);
+end
+
 % 初期化
 isuplifted = false(nsup, nlc);
+if has_tension_brace
+  iscompressed = false(ntb, nlc);
+end
 dvec = zeros(ndf, nlc);
 dnode = zeros(nnode,6,nlc);
 sks = zeros(ns6, nlc);
@@ -316,71 +334,177 @@ frvec = zeros(ndf, nlc);
 rvec = zeros(ns6, nlc);
 
 % 解析ループ
-for iter = 1:iter_max
-  if ~options.consider_foundation_uplift
-    % 浮き上がりを考慮しない場合は一括で解く
-    ilcset = 1:nlc;
-    isuplifted = false(nsup, 1);
-    [ksmat, sks] = add_sup_stif(...
-      ksmat0, xr, yr, idsup2n, isfixedsup, isuplifted, idn2df);
-    % [ks, sks] = suptsf(ks0, idsup2n, issupfixed, isuplifted, idn2df);
-    dvec = eqsoln(ksmat, fvec, nbw, ndf);
-    sks = repmat(sks, 1, nlc);
-    dnode = trans_dvec2dnode(ilcset, dnode, dvec);
-    rvec = reaction_force(ilcset, dnode, frvec, rvec, sks, ...
-      xr, yr, idn2df, idsup2n, isfixedsup);
-    break
+if ~options.consider_foundation_uplift ...
+    && ~has_tension_brace
+  % Fast path: 浮き上がり・引張ブレースなし
+  ilcset_ = 1:nlc;
+  isuplifted_ = false(nsup, 1);
+  [ksmat, sks] = add_sup_stif( ...
+    ksmat0, xr, yr, idsup2n, ...
+    isfixedsup, isuplifted_, idn2df);
+  dvec = eqsoln(ksmat, fvec, nbw, ndf);
+  sks = repmat(sks, 1, nlc);
+  dnode = trans_dvec2dnode( ...
+    ilcset_, dnode, dvec);
+  rvec = reaction_force( ...
+    ilcset_, dnode, frvec, rvec, sks, ...
+    xr, yr, idn2df, idsup2n, isfixedsup);
+else
+  % === G+P収束（ilc=1） ===
+  for iter = 1:iter_max
+    if has_tension_brace ...
+        && any(iscompressed(:, 1))
+      ksmat = subtract_brace_stiffness( ...
+        ksmat0, tb_stif, ...
+        iscompressed(:, 1));
+    else
+      ksmat = ksmat0;
+    end
+    [ksmat, sks(:,1)] = add_sup_stif( ...
+      ksmat, xr, yr, idsup2n, ...
+      isfixedsup, isuplifted(:,1), idn2df);
+    dvec(:,1) = eqsoln( ...
+      ksmat, fvec(:,1), nbw, ndf);
+    if ~has_tension_brace
+      break
+    end
+    iscompressed_prev_ = iscompressed(:, 1);
+    iscompressed(:, 1) = ...
+      check_brace_compression_case( ...
+      tb_stif, dvec, 1, ...
+      iscompressed(:, 1), []);
+    if all(iscompressed(:,1) ...
+        == iscompressed_prev_)
+      break
+    end
   end
 
-  if iter==1
-    % 長期荷重時の変位・反力計算
-    ilc = 1;
-    [ksmat, sks(:,ilc)] = add_sup_stif(...
-      ksmat0, xr, yr, idsup2n, isfixedsup, isuplifted(:,ilc), idn2df);
-    dvec(:,ilc) = eqsoln(ksmat, fvec(:,ilc), nbw, ndf);
-    dnode = trans_dvec2dnode(ilc, dnode, dvec);
-    rvec = reaction_force(ilc, dnode, frvec, rvec, sks, ...
-      xr, yr, idn2df, idsup2n, isfixedsup);
+  % G+P収束後: dnode, rvec確定
+  dnode = trans_dvec2dnode(1, dnode, dvec);
+  rvec = reaction_force( ...
+    1, dnode, frvec, rvec, sks, ...
+    xr, yr, idn2df, idsup2n, isfixedsup);
+
+  % 浮き上がり外力
+  if options.consider_foundation_uplift
+    frvec = uplift_force( ...
+      idn2df, idm2n1, idsup2n, ...
+      isfixedsup, rvec, fvec, isuplifted);
+  else
+    frvec = fvec;
   end
 
-  % 長期反力を外力に変換
-  frvec = uplift_force(idn2df, idm2n1, idsup2n, isfixedsup, ...
-    rvec, fvec, isuplifted);
-
-  % 地震荷重時の変位計算
+  % === 地震ケース収束（ilc=2:nlc） ===
   for ilc = 2:nlc
-    [ksmat, sks(:,ilc)] = add_sup_stif(...
-      ksmat0, xr, yr, idsup2n, isfixedsup, isuplifted(:,ilc), idn2df);
-    dvec(:,ilc) = eqsoln(ksmat, frvec(:,ilc), nbw, ndf);
+    for iter = 1:iter_max
+      % TB剛性減算
+      if has_tension_brace ...
+          && any(iscompressed(:, ilc))
+        ksmat = subtract_brace_stiffness( ...
+          ksmat0, tb_stif, ...
+          iscompressed(:, ilc));
+      else
+        ksmat = ksmat0;
+      end
+      % 支点剛性
+      [ksmat, sks(:,ilc)] = add_sup_stif( ...
+        ksmat, xr, yr, idsup2n, ...
+        isfixedsup, isuplifted(:,ilc), ...
+        idn2df);
+      % 浮き上がり外力
+      if options.consider_foundation_uplift
+        frvec_ilc_ = uplift_force_case( ...
+          idn2df, idsup2n, isfixedsup, ...
+          rvec, fvec(:,ilc), ...
+          isuplifted(:,ilc));
+      else
+        frvec_ilc_ = fvec(:, ilc);
+      end
+      % 変位計算
+      dvec(:,ilc) = eqsoln( ...
+        ksmat, frvec_ilc_, nbw, ndf);
+      % 収束判定
+      converged_ = true;
+      % TB圧縮判定
+      if has_tension_brace
+        iscompressed_prev_ = ...
+          iscompressed(:, ilc);
+        iscompressed(:, ilc) = ...
+          check_brace_compression_case( ...
+          tb_stif, dvec, ilc, ...
+          iscompressed(:, ilc), ...
+          iscompressed(:, 1));
+        if ~all(iscompressed(:,ilc) ...
+            == iscompressed_prev_)
+          converged_ = false;
+        end
+      end
+      % 浮き上がり判定
+      if options.consider_foundation_uplift
+        isuplifted_prev_ = ...
+          isuplifted(:, ilc);
+        isuplifted(:, ilc) = ...
+          check_uplift_case( ...
+          idn2df, idsup2n, ...
+          isfixedsup, dvec, ilc);
+        if ~all(isuplifted(:,ilc) ...
+            == isuplifted_prev_)
+          converged_ = false;
+        end
+      end
+      if converged_
+        break
+      end
+    end
   end
 
-  % 浮き上がり判定
-  isuplifted_previous = isuplifted;
-  isuplifted = check_uplift(idn2df, idsup2n, isfixedsup, dvec);
-  % sum(+(isuplifted~=isuplifted_previous));
+  % 地震ケース完了後: frvec, dnode, rvec確定
+  if options.consider_foundation_uplift
+    frvec = uplift_force( ...
+      idn2df, idm2n1, idsup2n, ...
+      isfixedsup, rvec, fvec, isuplifted);
+  end
+  dnode = trans_dvec2dnode( ...
+    2:nlc, dnode, dvec);
+  rvec = reaction_force( ...
+    2:nlc, dnode, frvec, rvec, sks, ...
+    xr, yr, idn2df, idsup2n, isfixedsup);
+end
 
-  % 収束判定
-  if all(all(isuplifted==isuplifted_previous))
-    break
+% 応力計算
+[rs, Mc] = calc_member_force( ...
+  1:nlc, dvec, [], ...
+  frvec, sks, M0, ar, A, Asy, Asz, ...
+  Iy, Iz, JJ, Em, prm, ...
+  lm, lrxm, lrym, flag, ...
+  member_property, node, material, ...
+  cbstiff, idm2mat, idm2scb, mejoint, ...
+  tb_stif);
+rs0 = rs; Mc0 = Mc; rvec0 = rvec;
+
+% 圧縮除去ブレースの応力ゼロクリア（重ね合わせ前）
+if has_tension_brace
+  for itb = 1:ntb
+    im = tb_stif(itb).im;
+    for ilc = 1:nlc
+      if iscompressed(itb, ilc)
+        rs0(im, :, ilc) = 0;
+      end
+    end
   end
 end
 
-% 反力計算
-ilcset = 2:nlc;
-dnode = trans_dvec2dnode(ilcset, dnode, dvec);
-rvec = reaction_force(ilcset, dnode, frvec, rvec, sks, ...
-  xr, yr, idn2df, idsup2n, isfixedsup);
-
-% 応力計算
-[rs, Mc] = calc_member_force(1:nlc, dvec, [], ...
-  frvec, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, prm, ...
-  lm, lrxm, lrym, flag, ...
-  member_property, node, material, cbstiff, idm2mat, idm2scb, mejoint);
-rs0 = rs; Mc0 = Mc; rvec0 = rvec;
-
-% % 荷重ケースの重ね合わせ
+% 荷重ケースの重ね合わせ
 [rs, Mc, rvec, cgsrn] = superpose_analysis_case(...
   rs0, Mc0, rvec0, lcdir, idmc2m, idmg2m, lm, lf, stress_factor);
+
+% state 構造体の構築
+state.sup.islifted = isuplifted;
+if has_tension_brace
+  state.tb.iscompressed = iscompressed;
+else
+  state.tb.iscompressed = [];
+end
 
 % 設計応力の計算
 dfm0 = calc_face_moment(rs0, lcdir, idmc2m, idmg2m, lm, lf, nominal_column);
@@ -539,5 +663,47 @@ isjpin = mejoint(:,2) == PRM.PIN;
 % 長期のみ
 ar(isipin,5,1) = 0;
 ar(isjpin,11,1) = 0;
+return
+end
+
+% -------------------------------------------------------------------------
+function ksmat = subtract_brace_stiffness( ...
+  ksmat0, tb_stif, iscompressed_ilc)
+%subtract_brace_stiffness - 圧縮ブレースの剛性を減算
+%
+%   ksmat = subtract_brace_stiffness( ...
+%     ksmat0, tb_stif, iscompressed_ilc) は、
+%   基本剛性マトリクスから圧縮ブレースの寄与を
+%   減算した剛性マトリクスを返す。
+%
+%   入力引数:
+%     ksmat0 - 基本剛性マトリクス [ndf×nbw]
+%     tb_stif - 引張ブレース構造体配列
+%     iscompressed_ilc - 圧縮状態 [ntb×1]
+%
+%   出力引数:
+%     ksmat - 減算後の剛性マトリクス [ndf×nbw]
+
+ksmat = ksmat0;
+ntb = length(tb_stif);
+
+for itb = 1:ntb
+  if ~iscompressed_ilc(itb)
+    continue
+  end
+  ke_ = tb_stif(itb).ke;
+  ndi_ = tb_stif(itb).ndi;
+  for ii = 1:12
+    for jj = 1:12
+      kk = ndi_(jj) - ndi_(ii);
+      if kk >= 0
+        kk = kk + 1;
+        ksmat(ndi_(ii), kk) = ...
+          ksmat(ndi_(ii), kk) - ke_(ii, jj);
+      end
+    end
+  end
+end
+
 return
 end

@@ -66,7 +66,7 @@ xvar = xvar(:);                               % 設計変数を列ベクトル�
 %% マトリクス解析
 [msprop, secdim, dvec, dnode, felement, ...
   stn, stcn, Mc, C, vix, viy, ...
-  rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, ~, sw, ...
+  rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, state, sw, ...
   lf, lr, lm, lm_weight, lnm, lb, Iy, Iz, gphiI, cphiI, ...
   cbs, baseline, node, story, floor] = ...
   analysis_frame(xvar, com, options);
@@ -132,6 +132,30 @@ if coptions.consider_stress_ratio
     mtype, mstype, mgdir, Em, Fm, idm2n, lb, lnm, lr, ...
     mejoint, nominal, isgmirrored, idmg2mng, idmc2mnc, ...
     options, beta, lcdir, idmc2st);
+
+  % TB検定比の上書き（N/Ta）
+  nmtype_ = nominal.property.mtype;
+  idnm2m_ = nominal.property.idme;
+  ibbb_ = find(nmtype_ == PRM.BRACE);
+  bnij_member = zeros(nme, size(bnij, 2));
+  for imb = 1:length(ibbb_)
+    inm = ibbb_(imb);
+    ncol_ = nnz(idnm2m_(inm, :));
+    for jcol_ = 1:ncol_
+      im = idnm2m_(inm, jcol_);
+      if mstype(im) ~= PRM.TB
+        continue
+      end
+      Ta_N = msdim(im, 4) * 1e3;
+      for ilc = 1:size(bnij, 2)
+        N = abs(rs(im, 1, ilc));
+        ratio_ = N / Ta_N - 1;
+        bnij(imb, ilc) = max(bnij(imb, ilc), ratio_);
+        bnij_member(im, ilc) = ratio_;
+      end
+    end
+  end
+
   gr = max([reshape([gri; grj; grc],nng,[])],[],2) ...
     +coptions.alfa_stress_ratio;
   gs = max([reshape([gsi; gsj],nng,[])],[],2) ...
@@ -146,7 +170,7 @@ else
   gri = []; grj = []; grc = [];
   cri = []; crj = [];
   gsi = []; gsj = [];
-  csi = []; csj = []; bnij = [];
+  csi = []; csj = []; bnij = []; bnij_member = [];
   fcn = []; fbn = []; fsn = [];
   kcx = []; kcy = []; lambday = []; lambdaz = []; ration = [];
   bkinfo = [];
@@ -324,6 +348,7 @@ result.gsj = gsj;
 result.csi = csi;
 result.csj = csj;
 result.bnij = bnij;
+result.bnij_member = bnij_member;
 result.form = congdef;
 result.wid_thick = conwtg;
 result.wid_c = conwtc;
@@ -391,5 +416,6 @@ result.slratio = slratio;
 result.conslr = conslr;
 result.jbsratio = jbsratio;
 result.felement = felement;
+result.state = state;
 return
 end

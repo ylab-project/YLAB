@@ -94,7 +94,11 @@ if ~isempty(xvar)
 else
   secdim = [];
 end
-[bshead, bsbody] = write_cell_brace_manufacturer_section_list_ss7(...
+[bshead, bsbody] = ...
+  write_cell_brace_manufacturer_section_list_ss7(...
+  secb, stype, secdim, secmgr);
+[blhead, blbody] = ...
+  write_cell_brace_section_list_ss7(...
   secb, stype, secdim, secmgr);
 
 fprintf(fout, 'name=S柱断面\n');
@@ -111,7 +115,12 @@ fprintf(fout, 'name=S梁断面\n');
 write_csv_from_cell(fout, gshead, gsbody);
 fprintf(fout, ',\n,\n');
 
-fprintf(fout, 'name=鉛直ブレース断面リスト(メーカー製品)\n');
+fprintf(fout, 'name=鉛直ブレース断面リスト\n');
+write_csv_from_cell(fout, blhead, blbody);
+fprintf(fout, ',\n,\n');
+
+fprintf(fout, ...
+  'name=鉛直ブレース断面リスト(メーカー製品)\n');
 write_csv_from_cell(fout, bshead, bsbody);
 fprintf(fout, ',\n,\n');
 
@@ -125,7 +134,12 @@ if ~isempty(options.x0)
 else
   secdim = [];
 end
-[bshead, bsbody] = write_cell_brace_manufacturer_section_list_ss7(secb, stype, secdim, secmgr);
+[bshead, bsbody] = ...
+  write_cell_brace_manufacturer_section_list_ss7(...
+  secb, stype, secdim, secmgr);
+[blhead, blbody] = ...
+  write_cell_brace_section_list_ss7(...
+  secb, stype, secdim, secmgr);
 
 fprintf(fout, 'name=S柱断面(仮定)\n');
 write_csv_from_cell(fout, cshead, csbody);
@@ -141,7 +155,12 @@ fprintf(fout, 'name=S梁断面(仮定)\n');
 write_csv_from_cell(fout, gshead, gsbody);
 fprintf(fout, ',\n,\n');
 
-fprintf(fout, 'name=鉛直ブレース断面リスト(メーカー製品)(仮定)\n');
+fprintf(fout, 'name=鉛直ブレース断面リスト(仮定)\n');
+write_csv_from_cell(fout, blhead, blbody);
+fprintf(fout, ',\n,\n');
+
+fprintf(fout, ...
+  'name=鉛直ブレース断面リスト(メーカー製品)(仮定)\n');
 write_csv_from_cell(fout, bshead, bsbody);
 fprintf(fout, ',\n,\n');
 
@@ -320,10 +339,17 @@ for icase = 1:2
     case 2
       label = '地震時';
   end
-  fprintf(fout, 'name=ブレース設計応力表,case=%s\n', label);
+  fprintf(fout, 'name=鉛直ブレース設計応力表,case=%s\n', label);
   write_csv_from_cell(fout, dbflhead, dbflbody);
   fprintf(fout, ',\n,\n');
 end
+
+%% 鉛直ブレース設計応力表(組合せ前)
+fprintf(fout, 'name=鉛直ブレース設計応力表(組合せ前)\n');
+[dbiflhead, dbiflbody] = ...
+  write_cell_design_brace_init_force_list(com, result);
+write_csv_from_cell(fout, dbiflhead, dbiflbody);
+fprintf(fout, ',\n,\n');
 
 %% 梁設計応力表(組合せ前)
 fprintf(fout, 'name=梁設計応力表(組合せ前)\n');
@@ -353,8 +379,8 @@ fprintf(fout, 'name=S柱検定比一覧\n');
 write_csv_from_cell(fout, asrchead, asrcbody);
 fprintf(fout, ',\n,\n');
 
-%% ブレース検定比一覧
-fprintf(fout, 'name=ブレース検定比一覧\n');
+%% 鉛直ブレース検定比一覧
+fprintf(fout, 'name=鉛直ブレース検定比一覧\n');
 [asrbhead, asrbbody] = ...
   write_cell_allowable_stress_ratio_brace(com, result);
 write_csv_from_cell(fout, asrbhead, asrbbody);
@@ -370,6 +396,13 @@ fprintf(fout, ',\n,\n');
 sccbody = write_cell_section_calculation_column(com, result);
 fprintf(fout, 'name=S柱断面算定表\n');
 write_csv_from_cell(fout, [], sccbody);
+fprintf(fout, ',\n,\n');
+
+%% 鉛直ブレース断面算定表
+scbbody = ...
+  write_cell_section_calculation_brace(com, result);
+fprintf(fout, 'name=鉛直ブレース断面算定表\n');
+write_csv_from_cell(fout, [], scbbody);
 fprintf(fout, ',\n,\n');
 
 %% 層間変形角
