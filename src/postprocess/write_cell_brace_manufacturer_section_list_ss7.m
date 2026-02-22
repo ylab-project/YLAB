@@ -20,10 +20,9 @@ function [bshead, bsbody] = ...
 %     bsbody - データセル配列
 
 isBRB = (stype == PRM.BRB);
-isTB = (stype == PRM.TB);
-ntb = sum(isTB);
+ntb = sum(stype == PRM.TB);
 
-if any(isTB)
+if ntb > 0
   % TB断面リスト出力
   bshead = cell(2, 8);
   bshead(1,:) = { ...
@@ -37,7 +36,7 @@ if any(isTB)
   idsb_tb = find( ...
     secb.tctype == PRM.BRACE_TENSION);
   tblist = getListRecord( ...
-    secmgr, secdim(isTB, end-1:end));
+    secmgr, secdim(stype == PRM.TB, :));
   bsbody = cell(ntb, 8);
   for i = 1:ntb
     isb = idsb_tb(i);
@@ -63,7 +62,7 @@ elseif any(isBRB)
 
   nbrb_ = sum(isBRB);
   secblist = getListRecord( ...
-    secmgr, secdim(isBRB, end-1:end));
+    secmgr, secdim(isBRB, :));
   bsbody = cell(nbrb_, 4);
   for i = 1:nbrb_
     bsbody{i, 1} = secb.name{i};

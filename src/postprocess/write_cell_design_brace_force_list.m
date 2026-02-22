@@ -54,6 +54,22 @@ for i = 1:nstory
           continue
         end
         for ib = ibs
+          % X形BOTH_Rは前のBOTH_Lで処理済み
+          is_x_both_r = ...
+            brace.pair(ib) ...
+              == PRM.BRACE_MEMBER_PAIR_BOTH_R ...
+            && brace.type(ib) ...
+              == PRM.BRACE_MEMBER_TYPE_X;
+          if is_x_both_r
+            continue
+          end
+
+          is_x_both_l = ...
+            brace.pair(ib) ...
+              == PRM.BRACE_MEMBER_PAIR_BOTH_L ...
+            && brace.type(ib) ...
+              == PRM.BRACE_MEMBER_TYPE_X;
+
           irow = irow+1;
           rows{irow,1} = brace.floor_name{ib};
           rows{irow,2} = brace.frame_name{ib};
@@ -62,21 +78,52 @@ for i = 1:nstory
           isb = brace.idsecb(ib);
           rows{irow,5} = secb.name{isb};
           im = brace.idme(ib);
+
+          % X形BOTH_L：対応するBOTH_Rを特定
+          if is_x_both_l
+            ib_r = ibs( ...
+              brace.pair(ibs) ...
+                == PRM.BRACE_MEMBER_PAIR_BOTH_R ...
+              & brace.type(ibs) ...
+                == PRM.BRACE_MEMBER_TYPE_X);
+            if ~isempty(ib_r)
+              im_r = brace.idme(ib_r(1));
+            end
+          end
+
           for ilc=1:nlc
             if ilc>1
               irow = irow+1;
             end
             rows{irow,6} = label{ilc};
-            switch brace.pair(ib)
-              case {PRM.BRACE_MEMBER_PAIR_L, PRM.BRACE_MEMBER_PAIR_BOTH_L}
-                pair = '／';
-                rows{irow,8} = sprintf('%.0f', rs(im,1,ilc)*1.d-3);
-              case {PRM.BRACE_MEMBER_PAIR_R, PRM.BRACE_MEMBER_PAIR_BOTH_R}
-                pair = '＼';
-                rows{irow,9} = sprintf('%.0f', rs(im,1,ilc)*1.d-3);
-            end
-            if ilc==1
-              rows{irow,7} = pair;
+            if is_x_both_l
+              % Ｘ形：左下り+右下りを1行に
+              rows{irow,8} = sprintf( ...
+                '%.0f', rs(im,1,ilc)*1.d-3);
+              if ~isempty(ib_r)
+                rows{irow,9} = sprintf( ...
+                  '%.0f', ...
+                  rs(im_r,1,ilc)*1.d-3);
+              end
+              if ilc==1
+                rows{irow,7} = 'Ｘ';
+              end
+            else
+              switch brace.pair(ib)
+                case PRM.BRACE_MEMBER_PAIR_L
+                  pair = '／';
+                  rows{irow,8} = sprintf( ...
+                    '%.0f', ...
+                    rs(im,1,ilc)*1.d-3);
+                case PRM.BRACE_MEMBER_PAIR_R
+                  pair = '＼';
+                  rows{irow,9} = sprintf( ...
+                    '%.0f', ...
+                    rs(im,1,ilc)*1.d-3);
+              end
+              if ilc==1
+                rows{irow,7} = pair;
+              end
             end
           end
         end

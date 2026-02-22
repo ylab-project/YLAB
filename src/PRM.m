@@ -299,6 +299,34 @@ classdef PRM
       return
     end
     
+    %% load_case_short_name
+    function lcname = load_case_short_name(idlc)
+      %load_case_short_name - 荷重ケース短縮名を取得
+      %
+      % Inputs:
+      %   idlc - 荷重ケースID
+      %
+      % Outputs:
+      %   lcname - 短縮名（組合せ前テーブル用）
+      %
+      % Example:
+      %   PRM.load_case_short_name(PRM.EXP)
+      %   % returns 'EX+'
+      switch idlc
+        case PRM.LT
+          lcname = 'G+P';
+        case PRM.EXP
+          lcname = 'EX+';
+        case PRM.EXN
+          lcname = 'EX-';
+        case PRM.EYP
+          lcname = 'EY+';
+        case PRM.EYN
+          lcname = 'EY-';
+      end
+      return
+    end
+
     %% get_id_section_type
     function section_type = get_id_section_type(char_section_type)
       % 断面種別文字列から断面種別IDを取得

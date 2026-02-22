@@ -2088,17 +2088,6 @@ idvar(type==PRM.COLUMN,:) = section_column.idvar(member_column.idsecc,:);
 idvar(type==PRM.GIRDER,:) = section_girder.idvar(member_girder.idsecg,:);
 idvar(type==PRM.BRACE,:) = section_brace.idvar(member_brace.idsecb,:);
 
-% 部材座標軸
-cxl = zeros(nme,3); cyl = zeros(nme,3);
-cxl(type==PRM.GIRDER,:) = member_girder.cxl;
-cyl(type==PRM.GIRDER,:) = member_girder.cyl;
-cxl(type==PRM.COLUMN,:) = member_column.cxl;
-cyl(type==PRM.COLUMN,:) = member_column.cyl;
-cxl(type==PRM.BRACE,:) = member_brace.cxl;
-cyl(type==PRM.BRACE,:) = member_brace.cyl;
-cxl(type==PRM.HORIZONTAL_BRACE,:) = member_horizontal_brace.cxl;
-cyl(type==PRM.HORIZONTAL_BRACE,:) = member_horizontal_brace.cyl;
-
 % 向き
 idir = zeros(nme,1);
 idir(type==PRM.GIRDER) = member_girder.idir;
@@ -2107,7 +2096,7 @@ idir(type==PRM.BRACE) = member_brace.idir;
 % 結果の保存
 member_property = table(type, idir, idmeg, idmec, idmeb, idmehb, ...
   section_type, idsec, idsecc, idsecg, idsecb, idsechb, ...
-  idnode1, idnode2, idstory, lm, cxl, cyl, idvar);
+  idnode1, idnode2, idstory, lm, idvar);
 return
 end
 

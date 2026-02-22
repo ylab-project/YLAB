@@ -27,7 +27,7 @@ section_property(stype==PRM.RCRS,1:12) = ...
 
 % 座屈拘束ブレース
 if any(stype==PRM.BRB)
-  table = secmgr.getListRecord(secdim(stype==PRM.BRB,end-1:end));
+  table = secmgr.getListRecord(secdim(stype==PRM.BRB,:));
   section_property(stype==PRM.BRB,1) = table.A*100;
   section_property(stype==PRM.BRB,12) = table.A*100;
   section_property(stype==PRM.BRB,15) = table.Lkmax;

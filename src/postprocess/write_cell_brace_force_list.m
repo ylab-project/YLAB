@@ -1,11 +1,29 @@
-function [bflhead, bflbody] = write_cell_brace_force_list(com, result, icase)
-%WRITE_CELL_BRACE_FORCE_LIST 名目ブレースの力一覧を生成
+function [bflhead, bflbody] = ...
+  write_cell_brace_force_list(com, result, icase)
+%write_cell_brace_force_list - 名目ブレースの力一覧を生成
+%
+%   [bflhead, bflbody] = write_cell_brace_force_list( ...
+%     com, result, icase) は、指定荷重ケースの鉛直ブレース応力表
+%   を生成します。Q値はresult.Q_nbから取得します。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 解析結果（rs0, Q_nbフィールドを含む）
+%     icase  - 荷重ケース番号
+%
+%   出力引数:
+%     bflhead - ヘッダセル配列
+%     bflbody - データセル配列
 
 nominal_brace = com.nominal.brace;
 brace = com.member.brace;
 secb = com.section.brace;
 lm = result.lm;
 rs = result.rs0(:,:,icase);
+Q_nb = result.Q_nb(:, icase);
+lcdir_i = com.loadcase.dir(icase);
+is_eq = ismember(lcdir_i, ...
+  [PRM.EXP, PRM.EXN, PRM.EYP, PRM.EYN]);
 
 bflhead = cell(2,11);
 bflhead(1,1:11) = { ...
@@ -33,8 +51,9 @@ for ist = nstory:-1:1
   idir_current = PRM.X;
   for iy = 1:nbly
     for ix = 1:nblx
-      inb_list = find(ids_story==ist & idx_nom(:,1)==ix & ...
-        idy_nom(:,1)==iy & idir_nom==idir_current);
+      inb_list = find(ids_story==ist ...
+        & idx_nom(:,1)==ix & idy_nom(:,1)==iy ...
+        & idir_nom==idir_current);
       for inb = inb_list'
         add_row(inb);
       end
@@ -45,8 +64,9 @@ for ist = nstory:-1:1
   idir_current = PRM.Y;
   for ix = 1:nblx
     for iy = 1:nbly
-      inb_list = find(ids_story==ist & idx_nom(:,1)==ix & ...
-        idy_nom(:,1)==iy & idir_nom==idir_current);
+      inb_list = find(ids_story==ist ...
+        & idx_nom(:,1)==ix & idy_nom(:,1)==iy ...
+        & idir_nom==idir_current);
       for inb = inb_list'
         add_row(inb);
       end
@@ -63,6 +83,7 @@ return
 
   function add_row(inb)
     ibij = nominal_brace.idmeb(inb,:);
+
     for ij=1:nnz(ibij)
       ib = ibij(ij);
       im = brace.idme(ib);
@@ -70,9 +91,12 @@ return
         irow = irow+1;
 
         rows{irow,1} = nominal_brace.floor_name{inb};
-        rows{irow,2} = nominal_brace.frame_name{inb,1};
-        rows{irow,3} = nominal_brace.coord_name{inb,1};
-        rows{irow,4} = nominal_brace.coord_name{inb,2};
+        rows{irow,2} = ...
+          nominal_brace.frame_name{inb,1};
+        rows{irow,3} = ...
+          nominal_brace.coord_name{inb,1};
+        rows{irow,4} = ...
+          nominal_brace.coord_name{inb,2};
 
         isb = brace.idsecb(ib);
         rows{irow,5} = secb.name{isb};
@@ -111,11 +135,20 @@ return
       switch ipos
         case 1
           rows{irow,7} = sprintf('%.0f', lm(im));
-          rows{irow,8} = sprintf('%.1f', rs(im,1)*1.d-3);
+          rows{irow,8} = sprintf('%.1f', ...
+            rs(im,1)*1.d-3);
         case 2
           rows{irow,9} = sprintf('%.0f', lm(im));
-          rows{irow,10} = sprintf('%.1f', rs(im,1)*1.d-3);
+          rows{irow,10} = sprintf('%.1f', ...
+            rs(im,1)*1.d-3);
       end
     end
+
+    % Q [N→kN]（上側節点の力; 非地震は絶対値）
+    q_out = -Q_nb(inb) * 1.d-3;
+    if ~is_eq
+      q_out = abs(q_out);
+    end
+    rows{irow,11} = sprintf('%.1f', q_out + 0);
   end
 end

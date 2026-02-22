@@ -25,7 +25,6 @@ matF = com.material.F;
 lm = com.member.property.lm;
 mdir = com.member.property.idir;
 mtype = com.member.property.type;
-cxl = com.member.property.cxl;
 secmgr = com.secmgr;
 section = com.section;
 member = com.member;
@@ -139,7 +138,8 @@ for iter = start_iter+1:max_iter
 
   % TODO 毎回解析するか要検討
   % 解析結果の更新
-  [cvec, ~, restoration] = analysis_constraint(xvar, com, options);
+  [cvec, result, restoration] = analysis_constraint(xvar, com, options);
+  cxl = result.cxl;
   % st = restoration.st;
   % stc = restoration.stc;
   % C = restoration.C;

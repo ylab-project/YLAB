@@ -968,27 +968,23 @@ classdef SectionManager < handle
       [stvals, stnum] = secmgr.standardAccessor.getStandardValues();
     end
     
-    function record = getListRecord(secmgr, sectionIds)
+    function record = getListRecord(secmgr, secdim)
     %getListRecord 断面テーブルレコードを取得
-    %   record = getListRecord(secmgr, sectionIds) は、
-    %   指定された断面IDペアに対応するテーブルレコードを取得します。
+    %   record = getListRecord(secmgr, secdim) は、
+    %   secdim の末尾2列（断面リストID, 断面ID）から
+    %   対応するテーブルレコードを取得します。
     %
     %   入力引数:
-    %     sectionIds - 断面IDペア配列 [n×2]
-    %                  第1列: 断面リストID, 第2列: 断面ID
+    %     secdim - 断面寸法配列 [n×ncol]
     %
     %   出力引数:
     %     record - テーブルレコード (table型) [n×列数]
     %
-    %   例:
-    %     brbIds = secdim(stype==PRM.BRB, end-1:end);
-    %     brbTable = secmgr.getListRecord(brbIds);
-    %
     %   参考:
     %     SectionStandardAccessor.getListRecord
-      
+
       % StandardAccessorに委譲
-      record = secmgr.standardAccessor.getListRecord(sectionIds);
+      record = secmgr.standardAccessor.getListRecord(secdim);
     end
     
     function initValidSectionFlagCell(secmgr)

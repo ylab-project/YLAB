@@ -44,7 +44,7 @@ for isb = 1:nsb
       inbl = brace.idnominal(imbl, 1);
       bnl_ = max(bnmax(inbl));
     end
-    asrbbody{irow,2} = sprintf('%.2f', bnl_);
+    asrbbody{irow,2} = sprintf('%.2f', ceil(bnl_ * 100) / 100);
   end
 
   % 右下り
@@ -59,7 +59,7 @@ for isb = 1:nsb
       inbr = brace.idnominal(imbr, 1);
       bnr_ = max(bnmax(inbr));
     end
-    asrbbody{irow,3} = sprintf('%.2f', bnr_);
+    asrbbody{irow,3} = sprintf('%.2f', ceil(bnr_ * 100) / 100);
   end
 end
 

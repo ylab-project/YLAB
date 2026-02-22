@@ -132,7 +132,7 @@ return
         rows{irow, 5} = secb.name{isb};
         rows{irow, 7} = type_label_;
       end
-      rows{irow, 6} = PRM.load_case_name(ilc);
+      rows{irow, 6} = PRM.load_case_short_name(ilc);
       for ij_ = 1:npair
         icol = 7 + ipos_pair(ij_);
         rows{irow, icol} = sprintf( ...

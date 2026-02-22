@@ -21,8 +21,8 @@ stype_b = section_brace.type;
 idsecb = section_brace.idsec;
 is_brb = stype_b == PRM.BRB;
 if any(is_brb)
-  brb_ids = secdim(idsecb(is_brb), end-1:end);
-  rec = getListRecord(secmgr, brb_ids);
+  rec = getListRecord( ...
+    secmgr, secdim(idsecb(is_brb), :));
   % kg/m → N/mm
   uw_brb = rec.rho * PRM.GRAVITY / 1000;
   % 断面→部材への展開

@@ -104,10 +104,6 @@ end
 member_girder.level = mglevel;
 
 %---
-% 計算の準備
-cxl = member.property.cxl;
-cyl = member.property.cyl;
-
 % 構造階高の更新
 if options.do_autoupdate_floor_height
   [flh, stdh] = calc_floor_height(...
@@ -120,26 +116,31 @@ if options.do_autoupdate_floor_height
   % 注: 分割節点のz座標はglv込みで前処理時に設定済み。
   %      update_zcoordは分割節点のidz(フロア外)を更新しないため、
   %      前処理値がそのまま保持される。追加補正は不要。
-  [gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl] = ...
-    update_member_cosine(member_girder, member_column, ...
-    member_brace, member_horizontal_brace, node);
-  cxl(mtype==PRM.GIRDER,:) = gcxl;
-  cyl(mtype==PRM.GIRDER,:) = gcyl;
-  cxl(mtype==PRM.COLUMN,:) = ccxl;
-  cyl(mtype==PRM.COLUMN,:) = ccyl;
-  cxl(mtype==PRM.BRACE,:) = bcxl;
-  cyl(mtype==PRM.BRACE,:) = bcyl;
-  cxl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcxl;
-  cyl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcyl;
-  % ブレース長の算出（SS7 3.8.1）
-  lm_brace = calc_brace_length(...
-    member_brace, member_column, ...
-    member_girder, node, stype, ...
-    idsc2s, idsg2s, secdim);
-  lm(mtype==PRM.BRACE) = lm_brace;
 else
   stdh = story.girder_level;
   story.delta_height = stdh;
+end
+
+% 方向余弦を現在の node 座標から常に計算
+[gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl] = ...
+  update_member_cosine(member_girder, member_column, ...
+  member_brace, member_horizontal_brace, node);
+nme = length(mtype);
+cxl = zeros(nme, 3); cyl = zeros(nme, 3);
+cxl(mtype==PRM.GIRDER,:) = gcxl;
+cyl(mtype==PRM.GIRDER,:) = gcyl;
+cxl(mtype==PRM.COLUMN,:) = ccxl;
+cyl(mtype==PRM.COLUMN,:) = ccyl;
+cxl(mtype==PRM.BRACE,:) = bcxl;
+cyl(mtype==PRM.BRACE,:) = bcyl;
+cxl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcxl;
+cyl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcyl;
+
+if options.do_autoupdate_floor_height
+  % ブレース長の算出（SS7 3.8.1）
+  lm_brace = calc_brace_length(member_brace, member_column, ...
+    member_girder, node, stype, idsc2s, idsg2s, secdim);
+  lm(mtype==PRM.BRACE) = lm_brace;
 end
 
 %---

@@ -1,24 +1,20 @@
-function record = getListRecord(obj, sectionIds)
+function record = getListRecord(obj, secdim)
 %getListRecord 断面テーブルレコードを取得
-%   record = getListRecord(obj, sectionIds) は、
-%   指定された断面IDペアに対応するテーブルレコードを取得します。
+%   record = getListRecord(obj, secdim) は、
+%   secdim の末尾2列（断面リストID, 断面ID）から
+%   対応するテーブルレコードを取得します。
 %
 %   入力引数:
-%     sectionIds - 断面IDペア配列 [n×2]
-%                  第1列: 断面リストID
-%                  第2列: 断面ID
+%     secdim - 断面寸法配列 [n×ncol]
+%              末尾2列: 断面リストID, 断面ID
 %
 %   出力引数:
 %     record - テーブルレコード (table型) [n×列数]
 %              各断面リストの全列データを含む
 %
 %   例:
-%     % 断面リスト1の断面5,8のレコード取得
-%     data = accessor.getListRecord([1, 5; 1, 8]);
-%     % BRB断面での使用例
-%     brbIds = secdim(stype==PRM.BRB, end-1:end);
-%     brbTable = accessor.getListRecord(brbIds);
-%     area = brbTable.A;
+%     tbTable = accessor.getListRecord( ...
+%       secdim(stype==PRM.TB, :));
 %
 %   参考:
 %     SectionListHandler.list
@@ -26,20 +22,17 @@ function record = getListRecord(obj, sectionIds)
 % 引数の検証
 if nargin < 2
   error('SectionStandardAccessor:InsufficientArguments', ...
-    '断面IDペア配列が必要です');
+    '断面寸法配列が必要です');
 end
 
 % 空配列の処理
-if isempty(sectionIds)
+if isempty(secdim)
   record = [];
   return
 end
 
-% 入力形式の検証
-if size(sectionIds, 2) ~= 2
-  error('SectionStandardAccessor:InvalidFormat', ...
-    '断面IDペア配列は [n×2] の形式である必要があります');
-end
+% 末尾2列を断面IDペアとして取得
+sectionIds = secdim(:, end-1:end);
 
 % 計算の準備
 uniqueListIds = unique(sectionIds(:, 1));

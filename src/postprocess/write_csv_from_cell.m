@@ -31,24 +31,24 @@ function write_csv_from_cell_(fid, tab)
 
 [n,m] = size(tab);
 
-% 空行の判定 (全セルが空の行はスキップ対象)
-isempty_row = true(1,n);
+% 各行の最終非空列を計算 (末尾カンマ除去+空行判定)
+lastcol = zeros(1, n);
 for i=1:n
   for j=1:m
     if ~isempty(tab{i,j})
-      isempty_row(i) = false;
+      lastcol(i) = j;
     end
   end
 end
 
 % 各行を出力
 for i=1:n
-  if isempty_row(i)
+  if lastcol(i) == 0
     continue
   end
-  for j=1:m
+  for j=1:lastcol(i)
     % 最終列以外はカンマ区切り
-    if j==m
+    if j == lastcol(i)
       delimeter = '';
     else
       delimeter = ',';

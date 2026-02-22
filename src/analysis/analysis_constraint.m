@@ -71,6 +71,20 @@ xvar = xvar(:);                               % 設計変数を列ベクトル�
   cbs, baseline, node, story, floor] = ...
   analysis_frame(xvar, com, options);
 
+% 方向余弦を更新後の node 座標から再計算
+[gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl] = ...
+  update_member_cosine(com.member.girder, com.member.column, ...
+  com.member.brace, com.member.horizontal_brace, node);
+cxl = zeros(nme, 3); cyl = zeros(nme, 3);
+cxl(mtype==PRM.GIRDER,:) = gcxl;
+cyl(mtype==PRM.GIRDER,:) = gcyl;
+cxl(mtype==PRM.COLUMN,:) = ccxl;
+cyl(mtype==PRM.COLUMN,:) = ccyl;
+cxl(mtype==PRM.BRACE,:) = bcxl;
+cyl(mtype==PRM.BRACE,:) = bcyl;
+cxl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcxl;
+cyl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcyl;
+
 % 解析結果から断面諸元を取得
 A = msprop.A;                                 % 断面積
 Zy = msprop.Zy;                              % 弾性断面係数（Y軸）
@@ -119,11 +133,14 @@ mejoint = PRM.FIX*ones(nme,4);              % 全部材を固定で初期化
 mejoint(idmg2m,:) = gjoint;                  % 梁の結合条件を設定
 isgmirrored = com.member.girder.ismirrored;  % 梁の左右反転フラグ
 
+% 名目ブレースごとの水平力成分Q
+Q_nb = calc_Q_nominal_brace(com, rs0, cxl, cyl);
+
 %% 許容応力度比制約
 if coptions.consider_stress_ratio
   % ブレース水平力分担率の算出
   beta = calc_brace_force_share_ratio(...
-    com, struct('rs0', rs0));
+    com, struct('rs0', rs0), cxl, cyl, Q_nb);
   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, ...
     bnij, fcn, fbn, fsn, kcx, kcy, lambday, ...
     lambdaz, ration, bkinfo] = ...
@@ -242,9 +259,9 @@ end
 
 %% 柱梁耐力比制約
 if coptions.consider_joint_strength_ratio
-  cxl = com.member.property.cxl;
   [concgsr, cgsr] = calc_cgstrength_ratio(...
-    Zpy, vix, viy, idncgsr, idm2n, idmc2m, mdir, mtype, Fm, cxl);
+    Zpy, vix, viy, idncgsr, idm2n, idmc2m, ...
+    mdir, mtype, Fm, cxl);
   concgsr = concgsr+coptions.alfa_joint_strength_ratio;
 else
   concgsr = [];
@@ -316,8 +333,9 @@ if nargout==3
   restoration.lmwfs = lmwfs;
   restoration.slr = slr;
 
-  % とりあえず
-  result = [];
+  result.cxl = cxl;
+  result.cyl = cyl;
+  result.Q_nb = Q_nb;
   return
 end
 result.ncon = [...
@@ -376,6 +394,7 @@ result.Hgapsec = conhgapsec;
 result.rs = rs;
 result.rs0 = rs0;
 result.beta = beta;
+result.Q_nb = Q_nb;
 result.Mc = Mc;
 result.Mc0 = Mc0;
 result.dfn = dfn;
@@ -415,6 +434,8 @@ result.story = story;
 result.slratio = slratio;
 result.conslr = conslr;
 result.jbsratio = jbsratio;
+result.cxl = cxl;
+result.cyl = cyl;
 result.felement = felement;
 result.state = state;
 return

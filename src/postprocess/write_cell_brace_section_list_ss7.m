@@ -20,11 +20,10 @@ function [bshead, bsbody] = ...
 %     bsbody - 断面リストの本体 [n×8]
 
 % TB断面の判定
-isTB = (stype == PRM.TB);
-ntb = sum(isTB);
+ntb = sum(stype == PRM.TB);
 
 % TBなしの場合は空を返す
-if ~any(isTB) || isempty(secdim)
+if ntb == 0 || isempty(secdim)
   bshead = cell(0, 8);
   bsbody = cell(0, 8);
   return
@@ -45,7 +44,7 @@ if true
   tb_secb = find(...
     secb.tctype == PRM.BRACE_TENSION);
   secblist = getListRecord(secmgr, ...
-    secdim(isTB, end-1:end));
+    secdim(stype == PRM.TB, :));
   for i = 1:ntb
     isb = tb_secb(i);
     bsbody{i, 1} = secb.name{isb};
