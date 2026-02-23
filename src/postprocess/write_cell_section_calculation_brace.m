@@ -24,7 +24,7 @@ secdim = result.secdim;
 rs0_all = result.rs0;
 rs_all = result.rs;
 lm = result.lm;
-bnij_member = result.bnij_member;
+bnij = result.bnij;
 nstory = com.nstory;
 nblx = com.nblx;
 nbly = com.nbly;
@@ -219,11 +219,11 @@ return
       % 最大検定比のケース（tiebreak付き）
       tiebreak_ = [eps eps 0 eps 0];
       [~, c_ilc_] = max( ...
-        bnij_member(im_, :) + tiebreak_);
-      ratio_ = bnij_member(im_, c_ilc_) + 1;
+        bnij(ib_, :) + tiebreak_);
+      ratio_ = bnij(ib_, c_ilc_) + 1;
 
       % NK値（G+P+K、両方向から最大選択）
-      [nkp_, nkn_] = get_nk(im_);
+      [nkp_, nkn_] = get_nk(ib_, im_);
       scbbody{irow, 17} = ...
         sprintf('%.0f', nkp_);
       scbbody{irow, 18} = ...
@@ -276,19 +276,17 @@ return
     end
   end
 
-  function [nkp, nkn] = get_nk(im_)
+  function [nkp, nkn] = get_nk(ib_, im_)
   %get_nk - 地震時軸力の取得（G+P+K、両方向最大）
     % NK(正): L+Ex, L+Ey の最大検定比ケース
-    bp_ = bnij_member( ...
-      im_, [PRM.EXP PRM.EYP]);
+    bp_ = bnij(ib_, [PRM.EXP PRM.EYP]);
     [~, idp_] = max(bp_);
     idc_pos_ = [PRM.EXP PRM.EYP];
     nkp = rs_all( ...
       im_, 1, idc_pos_(idp_)) * 1e-3;
 
     % NK(負): L-Ex, L-Ey の最大検定比ケース
-    bn_ = bnij_member( ...
-      im_, [PRM.EXN PRM.EYN]);
+    bn_ = bnij(ib_, [PRM.EXN PRM.EYN]);
     [~, idn_] = max(bn_);
     idc_neg_ = [PRM.EXN PRM.EYN];
     nkn = rs_all( ...

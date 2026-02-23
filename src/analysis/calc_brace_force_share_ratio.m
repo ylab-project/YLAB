@@ -1,19 +1,19 @@
 function beta = calc_brace_force_share_ratio( ...
-  com, result, cxl, cyl, Q_nb)
+  com, rs0, cxl, cyl, Q_nb)
 %calc_brace_force_share_ratio - ブレース水平力分担率βを算出
 %
 %   beta = calc_brace_force_share_ratio( ...
-%     com, result, cxl, cyl, Q_nb) は、
+%     com, rs0, cxl, cyl, Q_nb) は、
 %   各層・各荷重ケースについてブレース水平力分担率βを算出します。
 %   ブレース負担せん断力Qbは名目ブレースごとのQ値（Q_nb）を
 %   層ごとに集計して求めます。
 %
 %   入力引数:
-%     com    - 共通オブジェクト
-%     result - 解析結果（rs0フィールドを含む）
-%     cxl    - 部材x軸方向余弦 [nme×3]
-%     cyl    - 部材y軸方向余弦 [nme×3]
-%     Q_nb   - 名目ブレースごとのQ値 [nnb×nlc] (N)
+%     com  - 共通オブジェクト
+%     rs0  - 部材応力（重ね合わせ前）[nme×13×nlc]
+%     cxl  - 部材x軸方向余弦 [nme×3]
+%     cyl  - 部材y軸方向余弦 [nme×3]
+%     Q_nb - 名目ブレースごとのQ値 [nnb×nlc] (N)
 %
 %   出力引数:
 %     beta - ブレース水平力分担率 [nstory×nlc]
@@ -35,8 +35,7 @@ czl = cross(cxl, cyl, 2);
 sign_cz = ones(size(cxl, 1), 1);
 sign_cz(cxl(:, 3) < 0) = -1;
 
-% 部材応力（重ね合わせ前）
-rs0 = result.rs0;
+% 部材応力（重ね合わせ前）は引数rs0で受領済み
 
 % 結果配列
 beta = zeros(nstory, nlc);

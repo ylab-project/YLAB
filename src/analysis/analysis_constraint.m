@@ -140,38 +140,15 @@ Q_nb = calc_Q_nominal_brace(com, rs0, cxl, cyl);
 if coptions.consider_stress_ratio
   % ブレース水平力分担率の算出
   beta = calc_brace_force_share_ratio(...
-    com, struct('rs0', rs0), cxl, cyl, Q_nb);
+    com, rs0, cxl, cyl, Q_nb);
   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, ...
     bnij, fcn, fbn, fsn, kcx, kcy, lambday, ...
     lambdaz, ration, bkinfo] = ...
     eval_nominal_allowable_stress_ratio(...
-    msdimwfs, stn, stcn, A, Iy, Iz, C, ...
+    msdim, stn, stcn, A, Iy, Iz, C, ...
     mtype, mstype, mgdir, Em, Fm, idm2n, lb, lnm, lr, ...
     mejoint, nominal, isgmirrored, idmg2mng, idmc2mnc, ...
     options, beta, lcdir, idmc2st);
-
-  % TB検定比の上書き（N/Ta）
-  nmtype_ = nominal.property.mtype;
-  idnm2m_ = nominal.property.idme;
-  ibbb_ = find(nmtype_ == PRM.BRACE);
-  bnij_member = zeros(nme, size(bnij, 2));
-  for imb = 1:length(ibbb_)
-    inm = ibbb_(imb);
-    ncol_ = nnz(idnm2m_(inm, :));
-    for jcol_ = 1:ncol_
-      im = idnm2m_(inm, jcol_);
-      if mstype(im) ~= PRM.TB
-        continue
-      end
-      Ta_N = msdim(im, 4) * 1e3;
-      for ilc = 1:size(bnij, 2)
-        N = abs(rs(im, 1, ilc));
-        ratio_ = N / Ta_N - 1;
-        bnij(imb, ilc) = max(bnij(imb, ilc), ratio_);
-        bnij_member(im, ilc) = ratio_;
-      end
-    end
-  end
 
   gr = max([reshape([gri; grj; grc],nng,[])],[],2) ...
     +coptions.alfa_stress_ratio;
@@ -187,7 +164,7 @@ else
   gri = []; grj = []; grc = [];
   cri = []; crj = [];
   gsi = []; gsj = [];
-  csi = []; csj = []; bnij = []; bnij_member = [];
+  csi = []; csj = []; bnij = [];
   fcn = []; fbn = []; fsn = [];
   kcx = []; kcy = []; lambday = []; lambdaz = []; ration = [];
   bkinfo = [];
@@ -352,8 +329,9 @@ result.ncon = [...
   length(condgapvar) ...
   length(conhsmoothvar)];
 result.conlabel = {...
-  '梁曲げ応力','梁せん断応力','柱曲げ応力','柱せん断応力', 'ブレース応力'...
-  '梁たわみ','梁幅厚比', '柱幅厚比', '保有耐力横補剛','保有耐力接合(仕口)', ...
+  '梁曲げ応力','梁せん断応力','柱曲げ応力','柱せん断応力', ...
+  'ブレース応力','梁たわみ','梁幅厚比', '柱幅厚比', ...
+  '保有耐力横補剛','保有耐力接合(仕口)', ...
   '層間変形','柱梁耐力比', ...
   '断面規格','梁せい差-呼称','梁せい差-寸法', '柱外径', '梁せい分布'};
 result.gri = gri;
@@ -366,7 +344,6 @@ result.gsj = gsj;
 result.csi = csi;
 result.csj = csj;
 result.bnij = bnij;
-result.bnij_member = bnij_member;
 result.form = congdef;
 result.wid_thick = conwtg;
 result.wid_c = conwtc;

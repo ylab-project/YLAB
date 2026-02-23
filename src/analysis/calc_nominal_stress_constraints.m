@@ -10,6 +10,13 @@ nnm = size(nominal.property.ntype,1);
 nng = size(nominal.girder.idmeg,1);
 nnc = size(nominal.column.idmec,1);
 nmb = nnz(nominal.property.mtype==PRM.BRACE);
+if nmb > 0
+  idmeb = nominal.brace.idmeb;
+  nb = max(idmeb(:));
+else
+  idmeb = zeros(0, 2);
+  nb = 0;
+end
 nlc = size(ration,3);
 
 % 計算の準備
@@ -19,7 +26,7 @@ grc = zeros(nng,nlc);
 cri = zeros(nnc,nlc); crj = zeros(nnc,nlc);
 gsi = zeros(nng,nlc); gsj = zeros(nng,nlc);
 csi = zeros(nnc,nlc); csj = zeros(nnc,nlc);
-bnij = zeros(nmb,nlc);
+bnij = zeros(nb,nlc);
 
 ration = abs(ration);
 innn = 1:nnm;
@@ -98,10 +105,16 @@ for ilc = 1:nlc
   % --- ブレース ---
   for imb = 1:nmb
     inm = ibbb(imb);
-
-    % 軸応力度の検定
-    nnn = abs(ration(inm,[1 7],ilc));
-    bnij(imb,ilc) = max(nnn)-1;
+    idme_ = idmeb(imb, :);
+    if nnz(idme_) == 1
+      bnij(idme_(1),ilc) = ...
+        max(abs(ration(inm,[1 7],ilc)))-1;
+    else
+      bnij(idme_(1),ilc) = ...
+        abs(ration(inm,1,ilc))-1;
+      bnij(idme_(2),ilc) = ...
+        abs(ration(inm,7,ilc))-1;
+    end
   end
 
 end
