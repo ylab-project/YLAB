@@ -100,7 +100,10 @@ for i = 1:nstory
         % --- 最大ケースの判定 ---
         % L+Ex vs L-Ex, L+Ey vs L-Ey で正の地震荷重を優先するため微小値を加算
         % L(G+P)にも同じ値を加算し、G+P vs L+Ex の優先順位は変えない
-        tiebreak = [eps eps 0 eps 0];  % L,L+Ex,L-Ex,L+Ey,L-Ey
+        tiebreak = zeros(1, nlc);
+        tiebreak(PRM.LT) = eps;
+        tiebreak(PRM.EXP) = eps;
+        tiebreak(PRM.EYP) = eps;
         isg = idnm2sg(ing);
         [grimax, ilc] = max(gri(ing,:) + tiebreak);
         [grcmax, clc] = max(grc(ing,:) + tiebreak);

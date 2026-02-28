@@ -13,13 +13,15 @@ if isscalar(stype)
   stype = stype*ones(1,n);
 end
 
-% H形鋼
-section_property(stype==PRM.WFS,1:14) = ...
-  calc_prop_wfs(secdim(stype==PRM.WFS,:), scallop);
+% H形鋼（梁柱 WFS + ブレース BWFS）
+iw = stype==PRM.WFS | stype==PRM.BWFS;
+section_property(iw,1:14) = ...
+  calc_prop_wfs(secdim(iw,:), scallop);
 
-% 角形鋼管
-section_property(stype==PRM.HSS,1:12) = ...
-  calc_prop_hss(secdim(stype==PRM.HSS,:));
+% 角形鋼管（梁柱 HSS + ブレース BHSS）
+ih = stype==PRM.HSS | stype==PRM.BHSS;
+section_property(ih,1:12) = ...
+  calc_prop_hss(secdim(ih,:));
 
 % RC矩形断面
 section_property(stype==PRM.RCRS,1:12) = ...
@@ -33,10 +35,11 @@ if any(stype==PRM.BRB)
   section_property(stype==PRM.BRB,15) = table.Lkmax;
 end
 
-% 円形鋼管（HSR）
-if any(stype==PRM.HSR)
-  section_property(stype==PRM.HSR,1:12) = ...
-    calc_prop_hsr(secdim(stype==PRM.HSR,:));
+% 円形鋼管（梁柱 HSR + ブレース BHSR）
+ir = stype==PRM.HSR | stype==PRM.BHSR;
+if any(ir)
+  section_property(ir,1:12) = ...
+    calc_prop_hsr(secdim(ir,:));
 end
 
 % 水平ブレース

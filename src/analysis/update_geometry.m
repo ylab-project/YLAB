@@ -138,8 +138,8 @@ cyl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcyl;
 
 if options.do_autoupdate_floor_height
   % ブレース長の算出（SS7 3.8.1）
-  lm_brace = calc_brace_length(member_brace, member_column, ...
-    member_girder, node, stype, idsc2s, idsg2s, secdim);
+  lm_brace = calc_brace_length(...
+    member_brace, member_girder, node);
   lm(mtype==PRM.BRACE) = lm_brace;
 end
 

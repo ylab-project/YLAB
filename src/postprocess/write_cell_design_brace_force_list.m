@@ -1,14 +1,21 @@
 function [dbflhead, dbflbody] = ...
   write_cell_design_brace_force_list(com, result, icase)
-%writeSectionProperties - Write section properties
+%write_cell_design_brace_force_list - 鉛直ブレース設計応力表(長期/地震時)
+%
+%   [dbflhead, dbflbody] = ...
+%     write_cell_design_brace_force_list(com, result, icase)
+%   は、設計応力表(長期 or 地震時)をセル配列で返す。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 結果構造体（rs を使用）
+%     icase  - 1=長期, 2=地震時
+%
+%   出力引数:
+%     dbflhead - ヘッダセル配列 [3×10]
+%     dbflbody - データセル配列 [nrow×10]
 
-% 定数
-nb = com.nmeb;
-nblx = com.nblx;
-nbly = com.nbly;
-nstory = com.nstory;
-
-% 共通配列
+nominal_brace = com.nominal.brace;
 brace = com.member.brace;
 secb = com.section.brace;
 rs_all = result.rs;
@@ -24,118 +31,129 @@ end
 nlc = length(ilcset);
 maxlc = max(ilcset);
 
-% --- 柱設計応力表 ---
-dbflhead = cell(3,10);
-dbflhead(1,1:10) = { ...
-  '階','ﾌﾚｰﾑ','軸－軸','','符号', ...
-  'ケース','タイプ','軸力','','多層'};
-dbflhead(2,8:9) = {'左下り','右下り'}';
-dbflhead(3,8:9) = {'kN','kN'}';
+% ヘッダ
+dbflhead = cell(3, 10);
+dbflhead(1, 1:10) = { ...
+  '階', 'ﾌﾚｰﾑ', '軸－軸', '', '符号', ...
+  'ケース', 'タイプ', '軸力', '', '多層'};
+dbflhead(2, 8:9) = {'左下り', '右下り'};
+dbflhead(3, 8:9) = {'kN', 'kN'};
 
-dbflbody = cell(0,size(dbflhead,2));
-if nb==0
+nnb = com.num.nominal_brace;
+dbflbody = cell(0, 10);
+if nnb == 0 || isempty(rs_all) ...
+    || size(rs_all, 3) < maxlc
   return
 end
-if isempty(rs_all) || size(rs_all,3)<maxlc
-  return
-end
-rs = rs_all(:,:,ilcset);
-rows = cell(nb*nlc,size(dbflhead,2));
-ibbb = 1:nb;
+rs = rs_all(:, :, ilcset);
+
+nstory = com.nstory;
+nblx = com.nblx;
+nbly = com.nbly;
+rows = cell(nnb * nlc, 10);
 irow = 0;
-for i = 1:nstory
-  ist = nstory-i+1;
-  for idir = 1:2
+
+ids_story = nominal_brace.idstory;
+idx_nom = nominal_brace.idx;
+idy_nom = nominal_brace.idy;
+idir_nom = nominal_brace.idir;
+
+for ist = nstory:-1:1
+  % X通りブレース
+  for iy = 1:nbly
+    for ix = 1:nblx
+      inb_list = find( ...
+        ids_story == ist ...
+        & idx_nom(:, 1) == ix ...
+        & idy_nom(:, 1) == iy ...
+        & idir_nom == PRM.X);
+      for inb = inb_list'
+        add_row(inb);
+      end
+    end
+  end
+  % Y通りブレース
+  for ix = 1:nblx
     for iy = 1:nbly
-      for ix = 1:nblx
-        ibs = ibbb(brace.idstory==ist & ...
-          brace.idx(:,1)==ix & brace.idy(:,1)==iy & brace.idir==idir);
-        if isempty(ibs)
-          continue
-        end
-        for ib = ibs
-          % X形BOTH_Rは前のBOTH_Lで処理済み
-          is_x_both_r = ...
-            brace.pair(ib) ...
-              == PRM.BRACE_MEMBER_PAIR_BOTH_R ...
-            && brace.type(ib) ...
-              == PRM.BRACE_MEMBER_TYPE_X;
-          if is_x_both_r
-            continue
-          end
-
-          is_x_both_l = ...
-            brace.pair(ib) ...
-              == PRM.BRACE_MEMBER_PAIR_BOTH_L ...
-            && brace.type(ib) ...
-              == PRM.BRACE_MEMBER_TYPE_X;
-
-          irow = irow+1;
-          rows{irow,1} = brace.floor_name{ib};
-          rows{irow,2} = brace.frame_name{ib};
-          rows{irow,3} = brace.coord_name{ib,1};
-          rows{irow,4} = brace.coord_name{ib,2};
-          isb = brace.idsecb(ib);
-          rows{irow,5} = secb.name{isb};
-          im = brace.idme(ib);
-
-          % X形BOTH_L：対応するBOTH_Rを特定
-          if is_x_both_l
-            ib_r = ibs( ...
-              brace.pair(ibs) ...
-                == PRM.BRACE_MEMBER_PAIR_BOTH_R ...
-              & brace.type(ibs) ...
-                == PRM.BRACE_MEMBER_TYPE_X);
-            if ~isempty(ib_r)
-              im_r = brace.idme(ib_r(1));
-            end
-          end
-
-          for ilc=1:nlc
-            if ilc>1
-              irow = irow+1;
-            end
-            rows{irow,6} = label{ilc};
-            if is_x_both_l
-              % Ｘ形：左下り+右下りを1行に
-              rows{irow,8} = sprintf( ...
-                '%.0f', rs(im,1,ilc)*1.d-3);
-              if ~isempty(ib_r)
-                rows{irow,9} = sprintf( ...
-                  '%.0f', ...
-                  rs(im_r,1,ilc)*1.d-3);
-              end
-              if ilc==1
-                rows{irow,7} = 'Ｘ';
-              end
-            else
-              switch brace.pair(ib)
-                case PRM.BRACE_MEMBER_PAIR_L
-                  pair = '／';
-                  rows{irow,8} = sprintf( ...
-                    '%.0f', ...
-                    rs(im,1,ilc)*1.d-3);
-                case PRM.BRACE_MEMBER_PAIR_R
-                  pair = '＼';
-                  rows{irow,9} = sprintf( ...
-                    '%.0f', ...
-                    rs(im,1,ilc)*1.d-3);
-              end
-              if ilc==1
-                rows{irow,7} = pair;
-              end
-            end
-          end
-        end
+      inb_list = find( ...
+        ids_story == ist ...
+        & idx_nom(:, 1) == ix ...
+        & idy_nom(:, 1) == iy ...
+        & idir_nom == PRM.Y);
+      for inb = inb_list'
+        add_row(inb);
       end
     end
   end
 end
 
-if irow==0
-  dbflbody = cell(0,size(dbflhead,2));
+if irow == 0
+  dbflbody = cell(0, 10);
 else
-  dbflbody = rows(1:irow,:);
+  dbflbody = rows(1:irow, :);
 end
+
 return
+
+  function add_row(inb)
+    ibij = nominal_brace.idmeb(inb, :);
+    % 左右の部材番号とiposを先に決定
+    im_pair = zeros(1, 2);
+    ipos_pair = zeros(1, 2);
+    npair = nnz(ibij);
+    for ij_ = 1:npair
+      ib_ = ibij(ij_);
+      im_pair(ij_) = brace.idme(ib_);
+      switch brace.type(ib_)
+        case PRM.BRACE_MEMBER_TYPE_X
+          if ismember(brace.pair(ib_), ...
+              [PRM.BRACE_MEMBER_PAIR_L, ...
+               PRM.BRACE_MEMBER_PAIR_BOTH_L])
+            ipos_pair(ij_) = 1;
+          else
+            ipos_pair(ij_) = 2;
+          end
+          if ismember(brace.pair(ib_), ...
+              [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
+               PRM.BRACE_MEMBER_PAIR_BOTH_R])
+            type_label_ = 'Ｘ';
+          elseif ipos_pair(ij_) == 1
+            type_label_ = '／';
+          else
+            type_label_ = '＼';
+          end
+        case PRM.BRACE_MEMBER_TYPE_K_UPPER
+          type_label_ = 'K上';
+          ipos_pair(ij_) = ij_;
+        case PRM.BRACE_MEMBER_TYPE_K_LOWER
+          type_label_ = 'K下';
+          ipos_pair(ij_) = ij_;
+      end
+    end
+
+    % 各荷重ケースの軸力を出力
+    for ilc = 1:nlc
+      irow = irow + 1;
+      if ilc == 1
+        rows{irow, 1} = ...
+          nominal_brace.floor_name{inb};
+        rows{irow, 2} = ...
+          nominal_brace.frame_name{inb, 1};
+        rows{irow, 3} = ...
+          nominal_brace.coord_name{inb, 1};
+        rows{irow, 4} = ...
+          nominal_brace.coord_name{inb, 2};
+        isb_ = brace.idsecb(ibij(1));
+        rows{irow, 5} = secb.name{isb_};
+        rows{irow, 7} = type_label_;
+      end
+      rows{irow, 6} = label{ilc};
+      for ij_ = 1:npair
+        icol = 7 + ipos_pair(ij_);
+        rows{irow, icol} = sprintf( ...
+          '%.0f', ...
+          rs(im_pair(ij_), 1, ilc) * 1.d-3);
+      end
+    end
+  end
 end

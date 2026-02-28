@@ -188,9 +188,11 @@ classdef SectionConstraintValidator < handle
             % WFS断面: nwfs×nsecOfList
             obj.validSectionFlagCell_{idsList} = true(nwfs_, nsecOfList(idsList));
           case {PRM.HSS, PRM.HSR, PRM.BRB}
-            % HSS/BRB断面: 1×nsecOfList
-            obj.validSectionFlagCell_{idsList} = true(1, nsecOfList(idsList));
-          case {PRM.RCRS, PRM.TB}
+            % HSS/HSR/BRB断面: 1×nsecOfList
+            obj.validSectionFlagCell_{idsList} = ...
+              true(1, nsecOfList(idsList));
+          case {PRM.BWFS, PRM.BHSS, PRM.BHSR, ...
+              PRM.RCRS, PRM.TB}
             % 最適化対象外: 空の論理行列
             obj.validSectionFlagCell_{idsList} = ...
               true(0, nsecOfList(idsList));

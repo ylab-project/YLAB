@@ -72,11 +72,26 @@ for idslist = 1:nlist
       id.slist(is_target) = id_temp.slist(is_target_hsr);
       id.section(is_target) = id_temp.section(is_target_hsr);
 
+    case {PRM.BWFS, PRM.BHSS, PRM.BHSR}
+      % ブレース鋼材断面（初回のみ検索）
+      cache = obj.braceSteelCache_;
+      if ~all(cache.initialized(is_target))
+        obj.findNearestSectionBraceSteelOnce( ...
+          xvar, idslist, is_target);
+        cache = obj.braceSteelCache_;
+      end
+      ndim = min(5, size(secdim, 2));
+      secdim(is_target, 1:ndim) = ...
+        cache.secdim(is_target, 1:ndim);
+      id.slist(is_target) = ...
+        cache.idslist(is_target);
+      id.section(is_target) = ...
+        cache.idsec(is_target);
+
     case PRM.RCRS
       % RCRS断面（最適化対象外）
-      id.slist(is_target) = 0;  % RCRS断面は最適化対象外なので0
-      id.section(is_target) = 0;  % RCRS断面は最適化対象外なので0
-      % 寸法値はdimension_の初期値をそのまま使用
+      id.slist(is_target) = 0;
+      id.section(is_target) = 0;
 
     case PRM.TB
       % 引張ブレース

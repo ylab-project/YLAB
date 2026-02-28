@@ -64,6 +64,10 @@ for idlist = 1:nlist
     end
     % Hの検索
     rep_indices = idsrep2repwfs(idvar2srep{ivH});
+    rep_indices = rep_indices(rep_indices > 0);
+    if isempty(rep_indices)
+      continue
+    end
     Hset = repwfs(rep_indices, 1);
     % pdist2の代わりに単純な差の絶対値を使用（1次元データの場合）
     % より効率的で、同じ結果を得られる
@@ -81,6 +85,10 @@ for idlist = 1:nlist
     end
     % Bの検索
     rep_indices = idsrep2repwfs(idvar2srep{ivB});
+    rep_indices = rep_indices(rep_indices > 0);
+    if isempty(rep_indices)
+      continue
+    end
     Bset = repwfs(rep_indices, 2);
     % 1次元データのため、単純な差の絶対値を使用
     ddd = abs(Bnom(:) - Bset(:)');
@@ -97,6 +105,10 @@ for idlist = 1:nlist
     end
     % twの検索
     rep_indices = idsrep2repwfs(idvar2srep{ivtw});
+    rep_indices = rep_indices(rep_indices > 0);
+    if isempty(rep_indices)
+      continue
+    end
     if size(repwfs, 2) >= 3
       twset = repwfs(rep_indices, 3);
       % 1次元データのため、単純な差の絶対値を使用
@@ -115,6 +127,10 @@ for idlist = 1:nlist
     end
     % tfの検索
     rep_indices = idsrep2repwfs(idvar2srep{ivtf});
+    rep_indices = rep_indices(rep_indices > 0);
+    if isempty(rep_indices)
+      continue
+    end
     if size(repwfs, 2) >= 4
       tfset = repwfs(rep_indices, 4);
       % 1次元データのため、単純な差の絶対値を使用

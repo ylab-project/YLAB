@@ -142,13 +142,25 @@ if coptions.consider_stress_ratio
   beta = calc_brace_force_share_ratio(...
     com, rs0, cxl, cyl, Q_nb);
   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, ...
-    bnij, fcn, fbn, fsn, kcx, kcy, lambday, ...
-    lambdaz, ration, bkinfo] = ...
+    bnij, fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ...
+    ration, bkinfo] = ...
     eval_nominal_allowable_stress_ratio(...
     msdim, stn, stcn, A, Iy, Iz, C, ...
     mtype, mstype, mgdir, Em, Fm, idm2n, lb, lnm, lr, ...
     mejoint, nominal, isgmirrored, idmg2mng, idmc2mnc, ...
     options, beta, lcdir, idmc2st);
+
+  % ブレースの座屈長を上書き
+  lk_brace = calc_brace_buckling_length(...
+    com.member.brace, com.member.girder, ...
+    node, com.section.property.type, ...
+    com.section.girder.idsec, secdim, ...
+    options.position_brace_foundation_girder);
+  lkx(mtype==PRM.BRACE,1) = lk_brace;
+  lky(mtype==PRM.BRACE,1) = lk_brace;
+
+  % 正確な細長比を算出（lk_brace 反映後の lkx/lky を使用）
+  [lambday, lambdaz] = calc_lambda(A, Iy, Iz, mtype, mstype, lkx, lky);
 
   gr = max([reshape([gri; grj; grc],nng,[])],[],2) ...
     +coptions.alfa_stress_ratio;
@@ -166,7 +178,9 @@ else
   gsi = []; gsj = [];
   csi = []; csj = []; bnij = [];
   fcn = []; fbn = []; fsn = [];
-  kcx = []; kcy = []; lambday = []; lambdaz = []; ration = [];
+  kcx = []; kcy = [];
+  lkx = lm; lky = [lm lm lm];
+  lambday = []; lambdaz = []; ration = [];
   bkinfo = [];
   gr = []; gs = []; cr = []; cs = []; bn = [];
 
@@ -381,6 +395,7 @@ result.stcn = stcn;
 result.fbn = fbn;
 result.fcn = fcn;
 result.fsn = fsn;
+result.ftn = ftn;
 result.kcx = kcx;
 result.kcy = kcy;
 result.bkinfo = bkinfo;
@@ -401,8 +416,10 @@ result.lb = lb;
 result.lf = lf;
 result.lr = lr;
 result.lm = lm;
+result.lkx = lkx;
+result.lky = lky;
 result.lm_weight = lm_weight;
-result.lm_nominal = lnm; 
+result.lm_nominal = lnm;
 result.cbs = cbs;
 result.baseline = baseline;
 result.node = node;

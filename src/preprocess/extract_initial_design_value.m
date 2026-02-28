@@ -111,20 +111,24 @@ for i=1:nb
         '%s %f %f %f','Delimiter',{'-','(',')'});
       ubb_type = PRM.get_id_ubb_type(sss{1});
       secdim(ids,1:4) = [ubb_type sss{2} sss{3} sss{4}];
-    case PRM.HSR
-      % 円形鋼管: ○-D×t → [D, t] を抽出
+    case {PRM.HSR, PRM.BHSR}
+      % 円形鋼管: 記号-Dxt → [D, t] を抽出
       ch = inisecb.dimension{i};
-      if contains(ch, '○-')
-        sss = sscanf(ch, '○-%fx%f');
-        secdim(ids,1:2) = sss(1:2);
-      else
-        % 数値x数値の形式を抽出（フォールバック）
-        sss = regexp(ch, '([0-9.]+)x([0-9.]+)', 'tokens');
-        if ~isempty(sss)
-          secdim(ids,1) = str2double(sss{1}{1});
-          secdim(ids,2) = str2double(sss{1}{2});
-        end
-      end
+      numstr = ch(find(ch == '-', 1)+1:end);
+      sss = sscanf(numstr, '%fx%f');
+      secdim(ids,1:2) = sss(1:2);
+    case {PRM.HSS, PRM.BHSS}
+      % 角形鋼管: 記号-DxDxtxr → [D, t] を抽出
+      ch = inisecb.dimension{i};
+      numstr = ch(find(ch == '-', 1)+1:end);
+      sss = sscanf(numstr, '%fx%fx%fx%f');
+      secdim(ids,1:2) = sss([1 3]);
+    case {PRM.WFS, PRM.BWFS}
+      % H形鋼: 記号-HxBxtwxtfxr → [H, B, tw, tf] を抽出
+      ch = inisecb.dimension{i};
+      numstr = ch(find(ch == '-', 1)+1:end);
+      sss = sscanf(numstr, '%fx%fx%fx%fx%f');
+      secdim(ids,1:4) = sss(1:4);
     case PRM.TB
       % 引張ブレース: 読み込み時に dimension 確定済み
   end

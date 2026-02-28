@@ -48,7 +48,12 @@ for i = 1:nlist_
       % BRB断面: 1次元配列 (1 x nsecOfList)
       obj.validSectionFlagCell_{i} = ...
         true(1, nsecOfList(i));
-      
+
+    case {PRM.BWFS, PRM.BHSS, PRM.BHSR}
+      % ブレース鋼材: 最適化対象外（空の論理行列）
+      obj.validSectionFlagCell_{i} = ...
+        true(0, nsecOfList(i));
+
     otherwise
       % その他: デフォルトで1次元配列
       obj.validSectionFlagCell_{i} = ...

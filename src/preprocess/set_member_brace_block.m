@@ -213,6 +213,31 @@ for i=1:n
   idvar(i,:) = section_brace.idvar(idsecb(i),:);
 end
 
+%% 基礎梁接続フラグの設定
+onfg = false(n, 2);
+for i = 1:n
+  % 端点1側（下端）の接続梁を検索
+  idg_ = find_idgirder_from_idxyz(...
+    idx(i,:), idy(i,:), ...
+    idz(i,[1 1]), member_girder);
+  idg_ = idg_(idg_ > 0);
+  for k = 1:length(idg_)
+    if member_girder.isfg(idg_(k))
+      onfg(i,1) = true; break
+    end
+  end
+  % 端点2側（上端）の接続梁を検索
+  idg_ = find_idgirder_from_idxyz(...
+    idx(i,:), idy(i,:), ...
+    idz(i,[2 2]), member_girder);
+  idg_ = idg_(idg_ > 0);
+  for k = 1:length(idg_)
+    if member_girder.isfg(idg_(k))
+      onfg(i,2) = true; break
+    end
+  end
+end
+
 %% ブレース部材テーブルの作成
 cxl = zeros(n,3);
 cyl = zeros(n,3);
@@ -221,7 +246,7 @@ idpair = (1:n)';
 member_brace = table(floor_name, frame_name, coord_name, ...
   section_name, section_type, type, pair, idpair, ...
   idstory, idir, idx, idy, idz, idzn, idsecb, idnode1, idnode2, ...
-  cxl, cyl, idvar);
+  onfg, cxl, cyl, idvar);
 
 %% BOTHペアの展開処理
 if any(pair == PRM.BRACE_MEMBER_PAIR_BOTH)

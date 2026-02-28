@@ -37,5 +37,12 @@ sechsr = secdim(idsec2stype == PRM.HSR, :);
 rephsr = sechsr(idrephsr2hsr, :);
 xvar = obj.findNearestXvarofHsr(rephsr, xvar, options);
 
+% ブレース鋼材（BWFS/BHSS/BHSR）
+is_bsteel = idsec2stype == PRM.BWFS ...
+  | idsec2stype == PRM.BHSS ...
+  | idsec2stype == PRM.BHSR;
+xvar = obj.findNearestXvarofBraceSteel( ...
+  secdim, is_bsteel, xvar);
+
 return
 end

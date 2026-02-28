@@ -251,6 +251,7 @@ if ~isempty(section_rc_column)
   section_column = [section_column; section_rc_column];
   section.column = section_column;
 end
+com.section = section;
 
 %% ブレース断面
 % メーカー製品
@@ -2496,6 +2497,12 @@ member_girder = table(story_name, frame_name, coord_name, ...
 % いずれも |cxl(:,1)| ≈ 0.707 で判定可能
 is_45deg = abs(abs(cxl(:,1)) - sqrt(2)/2) < 0.01;
 member_girder.idir(is_45deg) = PRM.XY;
+
+% 基礎梁フラグ（両端が支点節点なら基礎梁）
+idsup2n = com.support.idnode;
+member_girder.isfg = ...
+  ismember(idnode1, idsup2n) & ...
+  ismember(idnode2, idsup2n);
 
 % WFS部材番号の設定
 nmeg = size(member_girder,1);

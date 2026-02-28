@@ -1,7 +1,8 @@
 function tb_stif = precompute_tension_brace_stiffness( ...
   A, Iy, Iz, JJ, cxl, cyl, lm, Em, prm, ...
   xr, yr, idn2df, idm2n1, idm2n2, ...
-  mtype, stype, idm2s, flag)
+  mtype, stype, idm2s, flag, ...
+  is_tension_only)
 %precompute_tension_brace_stiffness - 引張ブレース剛性の事前計算
 %
 %   tb_stif = precompute_tension_brace_stiffness(...)
@@ -24,6 +25,7 @@ function tb_stif = precompute_tension_brace_stiffness( ...
 %     stype - 断面種別 [nsec×1]
 %     idm2s - 部材-断面変換 [nme×1]
 %     flag - 解析フラグ
+%     is_tension_only - λe判定による引張のみ [nme×1]
 %
 %   出力引数:
 %     tb_stif - 構造体配列 [ntb×1]
@@ -33,9 +35,10 @@ function tb_stif = precompute_tension_brace_stiffness( ...
 %       tmat - 変換行列（dvec→局所変位）[12×12]
 %       kn   - 軸剛性 EA/L
 
-% 引張ブレース部材の特定
+% 引張ブレース部材の特定（TB + λe判定鋼材）
 is_tb = (mtype == PRM.BRACE) ...
-  & (stype(idm2s) == PRM.TB);
+  & (stype(idm2s) == PRM.TB ...
+  | is_tension_only);
 id_tb = find(is_tb);
 ntb = length(id_tb);
 

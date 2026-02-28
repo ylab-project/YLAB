@@ -224,10 +224,10 @@ classdef SectionListHandler < handle
         idPhase = inf;
       end
       switch stype
-        case PRM.WFS
+        case {PRM.WFS, PRM.BWFS}
           dimension = table2array(obj.list{id}(...
             obj.idphase{id}<=idPhase,4:10));
-        case PRM.HSS
+        case {PRM.HSS, PRM.BHSS}
           dimension = table2array(obj.list{id}(...
             obj.idphase{id}<=idPhase,4:6));
         case PRM.BRB
@@ -242,7 +242,7 @@ classdef SectionListHandler < handle
           % end
           dimension = obj.list{id}.dimension;
           dimension = dimension(obj.idphase{id}<=idPhase,:);
-        case PRM.HSR
+        case {PRM.HSR, PRM.BHSR}
           % HSR断面の寸法取得
           dimension = obj.list{id}.dimension;
           dimension = dimension(obj.idphase{id}<=idPhase,:);

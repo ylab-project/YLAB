@@ -20,6 +20,12 @@ iddd = 1:com.nsectionList;
 type = zeros(n,1);
 type_name = cell(n,1);
 
+% 梁/柱が参照する断面リストIDを取得
+gc_slist = unique([ ...
+  com.section.girder.id_section_list; ...
+  com.section.column.id_section_list]);
+gc_slist = gc_slist(gc_slist > 0);
+
 for i=1:n
   section_list_name{i} = tochar(data{i,2});
   idx = strcmp(com.sectionList.name, ...
@@ -34,8 +40,28 @@ for i=1:n
       '鉛直ブレース断面（鋼材）', ...
       ['符号: ' name{i}]);
   end
-  type(i) = ...
-    com.sectionList.section_type(id_section_list(i));
+
+  % 梁/柱との断面リスト共有チェック
+  if any(gc_slist == id_section_list(i))
+    throw_err('Input', 'SharedSectionList', ...
+      section_list_name{i});
+  end
+
+  % 断面リストの型からブレース専用型をセット
+  slist_type = com.sectionList.section_type( ...
+    id_section_list(i));
+  switch slist_type
+    case PRM.WFS
+      type(i) = PRM.BWFS;
+    case PRM.HSS
+      type(i) = PRM.BHSS;
+    case PRM.HSR
+      type(i) = PRM.BHSR;
+    otherwise
+      type(i) = slist_type;
+  end
+  com.sectionList.section_type( ...
+    id_section_list(i)) = type(i);
   type_name{i} = ...
     com.sectionList.section_type_name{ ...
       id_section_list(i)};

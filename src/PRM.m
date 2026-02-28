@@ -33,11 +33,15 @@ classdef PRM
     NOMINAL_MULTI_GIRDER_BRACE = 102
     NOMINAL_NORMAL_MEMBER = 0
 
-    % 断面種別
+    % 断面種別（梁/柱）
     WFS  = 10   % Ｈ形鋼
     HSS  = 20   % 角形鋼管
     HSR  = 30   % 円形鋼管
     RCRS = 50   % ＲＣ矩形断面
+    % 断面種別（ブレース鋼材）
+    BWFS = 11   % ブレースＨ形鋼
+    BHSS = 21   % ブレース角形鋼管
+    BHSR = 31   % ブレース円形鋼管
     BRB  = 101  % 座屈拘束ブレース
     HBR  = 110  % 水平ブレース
     TB   = 120  % 引張ブレース
@@ -256,18 +260,18 @@ classdef PRM
       % Example:
       %   n = PRM.nvar_of_section_type(PRM.WFS)  % returns 4
       switch section_type
-        case PRM.WFS
+        case {PRM.WFS, PRM.BWFS}
           n = 4;
-        case PRM.HSS
+        case {PRM.HSS, PRM.BHSS}
           n = 2;
-        case PRM.HSR
+        case {PRM.HSR, PRM.BHSR}
           n = 2;
         case PRM.BRB
           n = 2;
         case PRM.TB
           n = 0;
         otherwise
-          error('WFS,HSS,HSR,BRB,TBのいずれかを指定してください')
+          error('未対応の断面種別です: %d', section_type)
       end
       return
     end
