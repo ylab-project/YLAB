@@ -2094,10 +2094,17 @@ idir = zeros(nme,1);
 idir(type==PRM.GIRDER) = member_girder.idir;
 idir(type==PRM.BRACE) = member_brace.idir;
 
+% 引張のみ判定（水平ブレース・部材レベル）
+is_tension_only_hb = false(nme, 1);
+if nmehb > 0
+  is_tension_only_hb(type == PRM.HORIZONTAL_BRACE) = ...
+    member_horizontal_brace.tctype == PRM.BRACE_TENSION;
+end
+
 % 結果の保存
 member_property = table(type, idir, idmeg, idmec, idmeb, idmehb, ...
   section_type, idsec, idsecc, idsecg, idsecb, idsechb, ...
-  idnode1, idnode2, idstory, lm, idvar);
+  idnode1, idnode2, idstory, lm, idvar, is_tension_only_hb);
 return
 end
 
@@ -2563,6 +2570,18 @@ for i=1:n
   end
 end
 
+% 引張／引圧
+tctype = repmat(PRM.BRACE_TENSION_COMPRESSION, n, 1);
+for i = 1:n
+  val = data{i, 9};
+  if ~ismissing(val)
+    val = tochar(val);
+    if contains(val, '引張') && ~contains(val, '引圧')
+      tctype(i) = PRM.BRACE_TENSION;
+    end
+  end
+end
+
 % 層番号
 idstory = zeros(n,1); idds = 1:com.nstory;
 for i=1:n
@@ -2598,7 +2617,7 @@ an = zeros(n,1);
 
 % 結果の保存
 member_horizontal_brace = table(story_name, xcoord_name, ycoord_name, ...
-  section_name, section_type, idpair, ...
+  section_name, section_type, idpair, tctype, ...
   idstory, idx, idy, idz, idsechb, idnode1, idnode2, ...
   cxl, cyl);
 

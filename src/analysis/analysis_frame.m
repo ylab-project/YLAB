@@ -314,7 +314,11 @@ if any(is_steel_brace)
   is_tension(is_steel_brace) = lam_e >= 1980 ./ sqrt(F_);
 end
 
-%% 引張ブレースの判定（TB + λe判定鋼材）
+%% 水平ブレース引張のみ判定
+is_tension_hb = com.member.property.is_tension_only_hb;
+is_tension = is_tension | is_tension_hb;
+
+%% 引張ブレースの判定（TB + λe判定鋼材 + 水平ブレース引張のみ）
 has_tension_brace = any(stype(idm2s) == PRM.TB) ...
   || any(is_tension);
 
