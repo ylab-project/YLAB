@@ -236,6 +236,7 @@ classdef PRM
     EXITFLAG_SECTION_ERROR = -12;     % 断面リスト関連エラー
 
     % システム/環境エラー
+    EXITFLAG_PARPOOL_ERROR = -20;    % 並列プール起動失敗
     EXITFLAG_LICENSE_ERROR = -50;     % ライセンス認証エラー
     
     % 内部エラー
