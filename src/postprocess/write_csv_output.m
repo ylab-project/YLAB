@@ -13,7 +13,7 @@ function result = write_csv_output(xvar, com, options)
 %   出力引数:
 %     result  - 解析結果構造体
 
-% 計算の準備
+%% 計算の準備
 nlc = com.nlc;
 loadcase = com.loadcase;
 output = options.outputfile;
@@ -27,11 +27,26 @@ story = com.story;
 floor = com.floor;
 % material = com.material;
 
+% 断面関連
+secb = com.section.brace;
+stype = com.section.property.type;
+
 %% 解析
 [cvec, result] = analysis_constraint(xvar, com, options);
-% lm = result.lm;
-[fval, fdetail] = objective_lsr(...
+[fval, fdetail, cost] = objective_lsr(...
   xvar, secmgr, baseline, node, section, member, story, floor, options);
+
+% 最適解
+secdim = result.secdim;
+
+% 初期解
+if ~isempty(options.x0)
+  secdim0 = secmgr.findNearestSection( ...
+    options.x0, options);
+else
+  secdim0 = [];
+end
+
 [fout, msg] = fopen(output, 'w+', 'native', 'Shift_JIS');
 if fout == -1
   error('write_csv_output:FileOpenError', ...
@@ -92,21 +107,13 @@ write_table(fout, '梁断面リスト', gshead, gsbody);
 
 %% 柱梁断面リスト(SS7用)
 [gshead, gsbody, cshead, csbody, cbshead, cbsbody] = ...
-  write_cell_section_list_ss7(xvar, com, result, options);
+  write_cell_section_list_ss7(secdim, com, result, options);
 
 %% ブレース断面リストの出力
-secb = com.section.brace;
-stype = com.section.property.type;
-secmgr = com.secmgr;
-if ~isempty(xvar)
-  secdim = secmgr.findNearestSection(xvar, options);
-else
-  secdim = [];
-end
 [bshead, bsbody] = write_cell_brace_manufacturer_section_list_ss7(...
-  secb, stype, secdim, secmgr);
+  secb, stype, secdim, com.secmgr);
 [blhead, blbody] = write_cell_brace_section_list_ss7(...
-  secb, stype, secdim, secmgr);
+  secb, stype, secdim, com.secmgr);
 
 write_table(fout, 'S柱断面', cshead, csbody);
 write_table(fout, 'メーカー製柱脚断面', cbshead, cbsbody);
@@ -117,24 +124,18 @@ write_table(fout, ...
 
 %% 仮定断面出力
 [gshead, gsbody, cshead, csbody, cbshead, cbsbody] = ...
-  write_cell_section_list_ss7(options.x0, com, result, options);
+  write_cell_section_list_ss7(secdim0, com, result, options);
 
 % ブレース断面リストの出力（仮定）
-if ~isempty(options.x0)
-  secdim = secmgr.findNearestSection( ...
-    options.x0, options);
-else
-  secdim = [];
-end
 [slhead, slbody] = ...
   write_cell_brace_steel_section_list( ...
-  secb, stype, secdim, secmgr);
+  secb, stype, secdim0, com.secmgr);
 [tbhead, tbbody] = ...
   write_cell_brace_tb_section_list( ...
-  secb, stype, secdim, secmgr);
+  secb, stype, secdim0, com.secmgr);
 [bshead, bsbody] = ...
   write_cell_brace_manufacturer_section_list( ...
-  secb, stype, secdim, secmgr);
+  secb, stype, secdim0, com.secmgr);
 
 write_table(fout, 'S柱断面(仮定)', cshead, csbody);
 write_table(fout, ...
@@ -354,6 +355,32 @@ for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
     cgscell.head, cgscell.body);
 end
 
+%% 鉄骨数量
+[sch, scb] = ...
+  write_cell_steel_cost_column(com, result);
+write_table(fout, ...
+  '柱の部位ごと数量(鉄骨)', sch, scb);
+[sgh, sgb] = ...
+  write_cell_steel_cost_girder(com, result);
+write_table(fout, ...
+  '大梁の部位ごと数量(鉄骨)', sgh, sgb);
+[sbh, sbb] = ...
+  write_cell_steel_cost_brace(com, result, cost);
+write_table(fout, ...
+  '鉛直ブレースの部位ごと数量(鉄骨)', ...
+  sbh, sbb);
+[shh, shb] = ...
+  write_cell_steel_cost_hbrace(com, result, cost);
+write_table(fout, ...
+  '水平ブレースの部位ごと数量(鉄骨)', ...
+  shh, shb);
+
+%% 部位別集計表(鉄骨)
+[smh, smb] = write_cell_steel_cost_summary( ...
+  com, options, cost, secdim);
+write_table(fout, ...
+  '部位別集計表(鉄骨)', smh, smb);
+
 fclose(fout);
 fclose('all');
 
@@ -376,7 +403,7 @@ if size(body, 1) == 0
 end
 fprintf(fout, 'name=%s\n', name);
 write_csv_from_cell(fout, head, body);
-fprintf(fout, ',\n,\n');
+fprintf(fout, '\n\n');
 
 return
 end

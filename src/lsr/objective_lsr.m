@@ -1,87 +1,164 @@
-function [fval, fdetail] = objective_lsr(...
-  xvar, secmgr, baseline, node, section, member, story, floor, options)
-
-% 定数
-% nstory = length(story.idz);
-% nmc = size(member.column,1);
+function [fval, fdetail, cost] = objective_lsr(...
+  xvar, secmgr, ~, node, section, ...
+  member, story, floor, options)
 
 % 共通配列
 stype = secmgr.idsec2stype;
-% mtype = member.property.type;
+mtype = member.property.type;
 idm2stype = secmgr.idme2stype;
 idm2s = secmgr.idme2sec;
-% idm2st = member.property.idstory;
-% idm2n = [member.property.idnode1 member.property.idnode2];
 idmg2m = member.girder.idme;
 idmc2m = member.column.idme;
 idsc2s = section.column.idsec;
+idsg2s = section.girder.idsec;
 idscb2s = idsc2s(section.column_base.idsecc);
 
 cbstiff = section.column_base.property;
 column_base = section.column_base;
-% column_base_list = com.column_base_list;
 column_base_list = secmgr.column_base_list;
 
-% idmc2st = member.column.idstory;
-% idmg2sg = member.girder.idsecg;
-% idmg2st = member.girder.idstory;
-% idsg2s = 1:secmgr.nsec; idsg2s = idsg2s(secmgr.idsecg>0);
-
 % 断面積の計算
-secdim = secmgr.findNearestSection(xvar, options);
+secdim = secmgr.findNearestSection( ...
+  xvar, options);
 sprop = calc_secprop(secdim, stype, [], secmgr);
 A = sprop.A;
 Am = A(idm2s);
 
 % RC断面を除外
-Am(idm2stype==PRM.RCRS) = 0;
+Am(idm2stype == PRM.RCRS) = 0;
 
-if nargin==4
+if nargin == 4
   options.do_autoupdate_floor_height = false;
-  options.consider_allowable_stress_at_face = false;
+  options.consider_allowable_stress_at_face ...
+    = false;
 end
 
-
 % 基礎柱寸法
-Dcb = secdim(idscb2s,1);
+Dcb = secdim(idscb2s, 1);
 cbs = calc_column_base_section(...
   Dcb, cbstiff, column_base, column_base_list);
 
-[~, ~, ~, ~, ~, lm, lf, ~] = update_geometry(...
-  secdim, baseline, node, story, floor, section, member, cbs, options);
-
-% 梁接合部長さの除外
-lme = lm;
-lme(idmg2m) = lme(idmg2m)-sum(lf.girder,2);
-
-% コスト係数
-ids2slist = SectionManager.getSectionListMapping(secdim);
-cfm = secmgr.getMemberCostFactor(ids2slist, options);
-
-% コスト（鋼材重量）の計算
-fval = sum(cfm.*Am.*lme)*1e-3*PRM.RHOS*1e-6;
-
-if nargout == 2
-  nsublist = secmgr.getNumSectionSubList;
-  fdetail.weight = sum(Am.*lme)*1e-3*PRM.RHOS*1e-6;
-  fdetail.weight_girder = sum(Am(idmg2m).*lme(idmg2m))*1e-3*PRM.RHOS*1e-6;
-  fdetail.weight_column = sum(Am(idmc2m).*lme(idmc2m))*1e-3*PRM.RHOS*1e-6;
-  fdetail.weigth_sublist = zeros(nsublist,1);
-  fdetail.cost = fval;
-  fdetail.cost_girder = sum(cfm(idmg2m).*Am(idmg2m).*lme(idmg2m))*1e-3*PRM.RHOS*1e-6;
-  fdetail.cost_column = sum(cfm(idmc2m).*Am(idmc2m).*lme(idmc2m))*1e-3*PRM.RHOS*1e-6;
-  fdetail.cost_sublist = zeros(nsublist,1);
-  % リスト別集計
-  idm2sslist = secmgr.getIdMemberToSubList(ids2slist);
-  fdetail.weight_sublist = zeros(secmgr.nlist,1);
-  fdetail.cost_sublist = zeros(secmgr.nlist,1);
-  for id=1:nsublist
-    istarget = (idm2sslist==id);
-    fdetail.weight_sublist(id) = ...
-      sum(Am(istarget).*lme(istarget))*1e-3*PRM.RHOS*1e-6;
-    fdetail.cost_sublist(id) = ...
-      sum(cfm(istarget).*Am(istarget).*lme(istarget))*1e-3*PRM.RHOS*1e-6;
+% 基礎柱面寸法（統一断面ID→Df）
+Df_foundation = zeros(size(secdim, 1), 1);
+for icb = 1:length(column_base.idsecc)
+  if cbs.Df(icb) > 0
+    ids_ = idsc2s(column_base.idsecc(icb));
+    Df_foundation(ids_) = cbs.Df(icb);
   end
 end
-return 
+
+% 柱: 標準階高ベースの積算長さ
+lm_col = calc_column_weight_length(...
+  member.column, member.girder, floor, node, ...
+  stype, idsc2s, idsg2s, secdim);
+
+% 梁: 柱面間内法の積算長さ
+lm_gir = calc_girder_weight_length(...
+  member.girder, node, ...
+  stype, idsg2s, secdim, Df_foundation);
+
+% ブレース: 標準階高の内法対角長
+lm_brc = calc_brace_cost_length(...
+  member.brace, member.girder, member.column, ...
+  node, story, floor, ...
+  stype, idsc2s, idsg2s, secdim);
+
+% 水平ブレース等は節点座標から直接計算
+idm2n = [member.property.idnode1 ...
+  member.property.idnode2];
+dx = node.x(idm2n(:,2)) - node.x(idm2n(:,1));
+dy = node.y(idm2n(:,2)) - node.y(idm2n(:,1));
+dz = node.z(idm2n(:,2)) - node.z(idm2n(:,1));
+lm = sqrt(dx.^2 + dy.^2 + dz.^2);
+
+% lm_cost 組み立て
+lm_cost = lm;
+lm_cost(mtype == PRM.COLUMN) = lm_col;
+lm_cost(mtype == PRM.GIRDER) = lm_gir;
+lm_cost(mtype == PRM.BRACE) = lm_brc;
+
+% コスト係数
+ids2slist = ...
+  SectionManager.getSectionListMapping(secdim);
+cfm = secmgr.getMemberCostFactor( ...
+  ids2slist, options);
+
+% コスト（鋼材重量）の計算
+fval = sum(cfm .* Am .* lm_cost) ...
+  * 1e-3 * PRM.RHOS * 1e-6;
+
+if nargout >= 2
+  nsublist = secmgr.getNumSectionSubList;
+  fdetail.weight = ...
+    sum(Am .* lm_cost) ...
+    * 1e-3 * PRM.RHOS * 1e-6;
+  fdetail.weight_girder = ...
+    sum(Am(idmg2m) .* lm_cost(idmg2m)) ...
+    * 1e-3 * PRM.RHOS * 1e-6;
+  fdetail.weight_column = ...
+    sum(Am(idmc2m) .* lm_cost(idmc2m)) ...
+    * 1e-3 * PRM.RHOS * 1e-6;
+  fdetail.weigth_sublist = zeros(nsublist, 1);
+  fdetail.cost = fval;
+  fdetail.cost_girder = ...
+    sum(cfm(idmg2m) .* Am(idmg2m) ...
+    .* lm_cost(idmg2m)) ...
+    * 1e-3 * PRM.RHOS * 1e-6;
+  fdetail.cost_column = ...
+    sum(cfm(idmc2m) .* Am(idmc2m) ...
+    .* lm_cost(idmc2m)) ...
+    * 1e-3 * PRM.RHOS * 1e-6;
+  fdetail.cost_sublist = zeros(nsublist, 1);
+  % リスト別集計
+  idm2sslist = secmgr.getIdMemberToSubList( ...
+    ids2slist);
+  fdetail.weight_sublist = ...
+    zeros(secmgr.nlist, 1);
+  fdetail.cost_sublist = ...
+    zeros(secmgr.nlist, 1);
+  for id = 1:nsublist
+    istarget = (idm2sslist == id);
+    fdetail.weight_sublist(id) = ...
+      sum(Am(istarget) ...
+      .* lm_cost(istarget)) ...
+      * 1e-3 * PRM.RHOS * 1e-6;
+    fdetail.cost_sublist(id) = ...
+      sum(cfm(istarget) .* Am(istarget) ...
+      .* lm_cost(istarget)) ...
+      * 1e-3 * PRM.RHOS * 1e-6;
+  end
+end
+
+if nargout >= 3
+  % 積算用データの構築
+  idsb2s = section.brace.idsec;
+  idshb2s = section.horizontal_brace.idsec;
+
+  % 水平ブレース積算用部材長
+  lm_hbr = calc_hbrace_cost_length( ...
+    member.horizontal_brace, node);
+
+  % 各部位の積算データ
+  [cost.column.weight, ~, ...
+    cost.column.idsec, cost.column.idmat] = ...
+    calc_steel_cost_column(member.column, stype, ...
+    idsc2s, secdim, lm_cost, Am, secmgr);
+  [cost.girder.weight, ~, ...
+    cost.girder.idsec, cost.girder.idmat] = ...
+    calc_steel_cost_girder(member.girder, stype, ...
+    idsg2s, secdim, lm_cost, Am, secmgr);
+  [cost.brace.weight, ~, ...
+    cost.brace.idsec, cost.brace.idmat] = ...
+    calc_steel_cost_brace(member.brace, ...
+    idsb2s, secdim, lm_cost, Am, secmgr);
+  cost.brace.lm = lm_brc;
+  [cost.hbrace.weight, ~, ...
+    cost.hbrace.idsec, cost.hbrace.idmat] = ...
+    calc_steel_cost_hbrace( ...
+    member.horizontal_brace, ...
+    idshb2s, secdim, lm_hbr, Am, secmgr);
+  cost.hbrace.lm = lm_hbr;
+end
+
+return
 end

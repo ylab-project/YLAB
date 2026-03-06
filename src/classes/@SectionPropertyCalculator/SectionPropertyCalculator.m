@@ -10,6 +10,7 @@ classdef SectionPropertyCalculator < handle
   %
   %   SectionPropertyCalculator メソッド:
   %     getSectionCostFactor - 断面コスト係数を取得
+  %     getSectionCostConstant - 断面コスト定数を取得
   %     getMemberCostFactor - 部材コスト係数を取得
   %     getSectionStressFactor - 断面応力係数を取得
   %     extractSectionMaterialF - 断面の材料F値を抽出
@@ -31,6 +32,7 @@ classdef SectionPropertyCalculator < handle
     material_  % 材料データの実体を保持
     idsec2mat_ % デフォルト断面→材料IDマッピング
     sectionCostFactor_ % 断面コスト係数初期値
+    sectionCostConstant_ % 断面コスト定数初期値
     sectionStressFactor_ % 断面応力係数初期値
   end
 
@@ -70,10 +72,11 @@ classdef SectionPropertyCalculator < handle
       obj.idsec2mat_ = idsec2mat;              % デフォルト材料IDマッピング
       obj.idMapper_ = idMapper;                % IdMapper参照
       
-      % sectionCostFactor/sectionStressFactorの初期化
+      % sectionCostFactor/CostConstant/StressFactorの初期化
       nsec = length(idsec2mat);
-      obj.sectionCostFactor_ = zeros(nsec, 1);    % ゼロで初期化
-      obj.sectionStressFactor_ = ones(nsec, 1);   % 1で初期化
+      obj.sectionCostFactor_ = zeros(nsec, 1);
+      obj.sectionCostConstant_ = zeros(nsec, 1);
+      obj.sectionStressFactor_ = ones(nsec, 1);
     end
 
 

@@ -10,6 +10,7 @@ classdef SectionListHandler < handle
     list
     % isValid
     cost_factor
+    cost_constant
     design_stress_factor
     isSN
     idphase
@@ -60,7 +61,8 @@ classdef SectionListHandler < handle
     function obj = registerList(obj, ...
         section_type, section_type_name, nlist, ...
         section_list_name, material_name, ...
-        file_name, idmaterial, cost_factor, design_stress_factor, ...
+        file_name, idmaterial, cost_factor, ...
+        cost_constant, design_stress_factor, ...
         isSN, idphase, type_name)
 
       % プロパティの保存
@@ -75,6 +77,7 @@ classdef SectionListHandler < handle
       % obj.isValid = cell(nlistset,1);
       obj.idmaterial = cell(nlistset,1);
       obj.cost_factor = cell(nlistset,1);
+      obj.cost_constant = cell(nlistset,1);
       obj.design_stress_factor = cell(nlistset,1);
       obj.isSN = cell(nlistset,1);
       obj.idsublist = cell(nlistset,1);
@@ -119,6 +122,7 @@ classdef SectionListHandler < handle
               obj.list{i} = list_;
               obj.idmaterial{i} = [];
               obj.cost_factor{i} = [];
+              obj.cost_constant{i} = [];
               obj.design_stress_factor{i} = [];
               obj.isSN{i} = [];
               obj.idphase{i} = [];
@@ -165,7 +169,7 @@ classdef SectionListHandler < handle
               dimension_ = zeros(n, 3);
               for j = 1:n
                 dimension_(j, 1) = ...
-                  PRM.get_tb_shape_code(list_.type{j});
+                  PRM.get_tb_shape_code(list_.label{j});
               end
               dimension_(:, 2) = list_.A * 100; % cm2→mm2
               dimension_(:, 3) = list_.Ae * 100; % cm2→mm2
@@ -179,7 +183,10 @@ classdef SectionListHandler < handle
             % obj.isValid{i} = true(1,nlist_);
             obj.idmaterial{i} = idmaterial(i,il)*ones(1,nlist_);
             obj.cost_factor{i} = cost_factor(i,il)*ones(1,nlist_);
-            obj.design_stress_factor{i} = design_stress_factor(i,il)...
+            obj.cost_constant{i} = ...
+              cost_constant(i,il)*ones(1,nlist_);
+            obj.design_stress_factor{i} = ...
+              design_stress_factor(i,il) ...
               *ones(1,nlist_);
             if isSN(i,il)
               obj.isSN{i} = true(1,nlist_);
@@ -196,8 +203,13 @@ classdef SectionListHandler < handle
               idmaterial(i,il)*ones(1,nlist_)];
             obj.cost_factor{i} = [obj.cost_factor{i} ...
               cost_factor(i,il)*ones(1,nlist_)];
-            obj.design_stress_factor{i} = [obj.design_stress_factor{i} ...
-              design_stress_factor(i,il)*ones(1,nlist_)];
+            obj.cost_constant{i} = ...
+              [obj.cost_constant{i} ...
+              cost_constant(i,il)*ones(1,nlist_)];
+            obj.design_stress_factor{i} = ...
+              [obj.design_stress_factor{i} ...
+              design_stress_factor(i,il) ...
+              *ones(1,nlist_)];
             if isSN(i,il)
               obj.isSN{i} = [obj.isSN{i} true(1,nlist_)];
             else

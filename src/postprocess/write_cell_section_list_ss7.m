@@ -1,26 +1,38 @@
 function [gshead, gsbody, cshead, csbody, ...
   cbshead, cbsbody] = ...
-  write_cell_section_list_ss7(xvar, com, result, options)
+  write_cell_section_list_ss7(secdim, com, result, options)
+%write_cell_section_list_ss7 - SS7形式の断面リストセル配列を生成
+%
+%   [gshead, gsbody, cshead, csbody, cbshead, cbsbody] =
+%     write_cell_section_list_ss7(secdim, com,
+%     result, options)
+%   は、SS7形式の梁・柱・柱脚断面リストを生成する。
+%
+%   入力引数:
+%     secdim  - 断面寸法配列 [nsec×ncol]
+%     com     - 共通オブジェクト
+%     result  - 解析結果構造体
+%     options - オプション構造体
+%
+%   出力引数:
+%     gshead  - 梁断面リストヘッダ
+%     gsbody  - 梁断面リストボディ
+%     cshead  - 柱断面リストヘッダ
+%     csbody  - 柱断面リストボディ
+%     cbshead - 柱脚断面リストヘッダ
+%     cbsbody - 柱脚断面リストボディ
 
 % 共通定数
 nstory = com.nstory;
 ncb = com.nseccb;
-nb = com.nsecb;
 
 % 共通配列
 secg = com.section.girder;
 secc = com.section.column;
-secb = com.section.brace;
 seclist = com.sectionList.list;
-stype = com.section.property.type;
 cstype = com.section.column.type;
 secmgr = com.secmgr;
 material = com.material;
-
-% 断面寸法の計算
-if ~isempty(xvar)
-  secdim = secmgr.findNearestSection(xvar, options);
-end
 
 % 梁断面リスト出力
 ng = length(secg.name);

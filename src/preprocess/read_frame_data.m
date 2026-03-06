@@ -708,6 +708,7 @@ section_type_name_ = cell(n,1);
 material_name_ = cell(n,1);
 file_name_ = cell(n,1);
 cost_factor_ = zeros(n,1);
+cost_constant_ = zeros(n,1);
 design_stress_factor_ = ones(n,1);
 idphase_ = ones(n,1);
 type_name_ = cell(n,1);
@@ -730,6 +731,10 @@ for i=1:n
   % else
   %   design_stress_factor_(i) = val;
   % end
+  val = data{i,6};
+  if ~ismissing(val)
+    cost_constant_(i) = val;
+  end
   val = data{i,7};
   if ismissing(val)
     idphase_(i) = 1;
@@ -790,6 +795,7 @@ material_name = cell(nulist,PRM.MAX_SECTION_LIST);
 file_name = cell(nulist,PRM.MAX_SECTION_LIST);
 idmaterial = zeros(nulist,PRM.MAX_SECTION_LIST);
 cost_factor = zeros(nulist,PRM.MAX_SECTION_LIST);
+cost_constant = zeros(nulist,PRM.MAX_SECTION_LIST);
 design_stress_factor = zeros(nulist,PRM.MAX_SECTION_LIST);
 isSN = false(nulist,PRM.MAX_SECTION_LIST);
 idphase = zeros(nulist,PRM.MAX_SECTION_LIST);
@@ -802,6 +808,7 @@ for i=1:nulist
     file_name(i,j) = file_name_(target(j));
     idmaterial(i,j) = idmaterial_(target(j));
     cost_factor(i,j) = cost_factor_(target(j));
+    cost_constant(i,j) = cost_constant_(target(j));
     design_stress_factor(i,j) = design_stress_factor_(target(j));
     isSN(i,j) = isSN_(target(j));
     idphase(i,j) = idphase_(target(j));
@@ -813,7 +820,8 @@ end
 section_list = section_list.registerList(...
   section_type, section_type_name, nlist, ...
   section_list_name, material_name, ...
-  file_name, idmaterial, cost_factor, design_stress_factor, ...
+  file_name, idmaterial, cost_factor, ...
+  cost_constant, design_stress_factor, ...
   isSN, idphase, type_name);
 return
 end

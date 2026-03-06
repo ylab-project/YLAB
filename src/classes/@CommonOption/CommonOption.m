@@ -55,6 +55,10 @@ classdef CommonOption
     self_weight_extra_factor_girder (1,1) double {mustBeNonnegative} = 1;
     self_weight_extra_factor_column (1,1) double {mustBeNonnegative} = 1;
 
+    % 鉄骨積算の重量増減率（SS7 Op.積算 3.1.1-5）
+    steel_cost_weight_extra_factor_girder (1,1) double {mustBeNonnegative} = 1.215;
+    steel_cost_weight_extra_factor_column (1,1) double {mustBeNonnegative} = 1.215;
+
     % 仕上げ荷重
     consider_finishing_material (1,1) logical = true
     finishing_material_s_column (1,1) double {mustBeNonnegative} = 500e-6
