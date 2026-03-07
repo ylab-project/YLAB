@@ -13,7 +13,7 @@ nstory = com.nstory;
 nominal_column = com.nominal.column;
 column = com.member.column;
 secc = com.section.column;
-lm_nominal = result.lm_nominal;
+lm_nominal = result.lm_nominal_bk;
 
 % 座屈長さ係数と細長比
 kcx = result.kcx;
@@ -21,8 +21,9 @@ kcy = result.kcy;
 lambday = result.lambday;
 lambdaz = result.lambdaz;
 
-% 最大横補剛間隔
-lbmax = result.lb(com.member.property.type==PRM.COLUMN,3);
+% 最大横補剛間隔（方向別）
+lbmax_x = result.lbmax_x;
+lbmax_y = result.lbmax_y;
 
 % ID変換
 idnm2sc = column.idsecc(nominal_column.idmec(:,1));
@@ -71,28 +72,31 @@ for i = 1:nstory
         isc = column.idsecc(ic1);
         cblbody{irow,4} = [secc.subindex{isc} secc.name{isc}];
         
-        % 部材長（x方向、y方向）
-        cblbody{irow,5} = sprintf('%.0f', lm_nominal(im1));
-        cblbody{irow,6} = sprintf('%.0f', lm_nominal(im1));
-        
-        % 最大横補剛間隔（x方向、y方向）
-        lbmax_val = lbmax(inc);
-        cblbody{irow,7} = sprintf('%.0f', lbmax_val);
-        cblbody{irow,8} = sprintf('%.0f', lbmax_val);
-        
-        % 座屈長さ係数（x方向、y方向）
-        cblbody{irow,9} = sprintf( ...
-          '%.3f', kcx(ic1));
-        cblbody{irow,10} = sprintf( ...
-          '%.3f', kcy(ic1));
+        % 部材長（x方向、y方向）切り上げ
+        cblbody{irow,5} = sprintf( ...
+          '%.0f', ceil(lm_nominal(im1, 1)));
+        cblbody{irow,6} = sprintf( ...
+          '%.0f', ceil(lm_nominal(im1, 2)));
 
-        % 座屈長さ（x方向、y方向）
+        % 最大横補剛間隔（x方向、y方向）切り上げ
+        cblbody{irow,7} = sprintf( ...
+          '%.0f', ceil(lbmax_x(inc)));
+        cblbody{irow,8} = sprintf( ...
+          '%.0f', ceil(lbmax_y(inc)));
+
+        % 座屈長さ係数（x方向、y方向）小数4桁切り上げ
+        cblbody{irow,9} = sprintf( ...
+          '%.3f', ceil(kcx(ic1) * 1000) / 1000);
+        cblbody{irow,10} = sprintf( ...
+          '%.3f', ceil(kcy(ic1) * 1000) / 1000);
+
+        % 座屈長さ Lk = K * Lb（切り上げ）
         cblbody{irow,11} = sprintf( ...
           '%.0f', ...
-          kcx(ic1) * lm_nominal(im1));
+          ceil(kcx(ic1) * lbmax_x(inc)));
         cblbody{irow,12} = sprintf( ...
           '%.0f', ...
-          kcy(ic1) * lm_nominal(im1));
+          ceil(kcy(ic1) * lbmax_y(inc)));
 
         % 細長比（x方向、y方向）
         cblbody{irow,13} = sprintf( ...

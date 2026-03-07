@@ -1,5 +1,4 @@
-function [gphead, gpbody] = ...
-  write_cell_girder_property(com, result)
+function [gphead, gpbody] = write_cell_girder_property(com, result)
 %write_cell_girder_property 梁断面を出力するセル配列を生成
 
 % 定数
@@ -12,7 +11,9 @@ secg = com.section.girder;
 msprop = result.msprop;
 Iy = result.Iy;
 gphiI = result.gphiI;
+gphiN = result.gphiN;
 lm = result.lm;
+lnm = result.lm_nominal;
 lfg = result.lf.girder;
 lrg = result.lr.girder;
 
@@ -87,9 +88,12 @@ return
     gpbody{irow_*2-1,11} = 1;
     gpbody{irow_*2-1,12} = sprintf('%.2f', msprop.Asy(idm_)*1.d-2);
     gpbody{irow_*2-1,13} = 1;
-    gpbody{irow_*2-1,14} = ...
-      get_kappa(secg.type(girder.idsecg(ig_)));
-    gpbody{irow_*2-1,15} = sprintf('%.0f', lm(idm_));
+    gpbody{irow_*2-1,14} = 1;
+    if girder.type(ig_) == PRM.GIRDER_FOR_KBRACE1
+      gpbody{irow_*2-1,15} = sprintf('%.0f', lnm(idm_));
+    else
+      gpbody{irow_*2-1,15} = sprintf('%.0f', lm(idm_));
+    end
     gpbody{irow_*2-1,16} = sprintf('%.0f', lrg(ig_,1));
     gpbody{irow_*2-1,17} = sprintf('%.0f', lfg(ig_,1));
     gpbody{irow_*2-1,19} = joint_label(girder.joint(ig_,1));
@@ -102,12 +106,13 @@ return
     % gpbody{irow_*2,7} = sprintf('%.0f', msprop.Iy(idm_)*1.d-4);
     % gpbody{irow_*2,8} = sprintf('%.3f', gphiI(ig_));
     % gpbody{irow_*2,9} = sprintf('%.0f', Iy(idm_)*1.d-4);
-    gpbody{irow_*2,10} = sprintf('%.1f', msprop.A(idm_)*1.d-2);
-    gpbody{irow_*2,11} = 1;
-    gpbody{irow_*2,12} = sprintf('%.1f', msprop.A(idm_)*1.d-2);
+    Ano_ = msprop.A(idm_) * 1.d-2;
+    gpbody{irow_*2,10} = sprintf('%.1f', Ano_);
+    gpbody{irow_*2,11} = sprintf('%.3f', gphiN(ig_));
+    gpbody{irow_*2,12} = sprintf('%.1f', Ano_ * gphiN(ig_));
     gpbody{irow_*2,13} = 1;
-    gpbody{irow_*2,14} = ...
-      get_kappa(secg.type(girder.idsecg(ig_)));
+    kappa_ = get_kappa(secg.type(girder.idsecg(ig_)));
+    gpbody{irow_*2,14} = kappa_;
     % gpbody{irow_*2,15} = sprintf('%.0f', lm(idm_));
     gpbody{irow_*2,16} = sprintf('%.0f', lrg(ig_,2));
     gpbody{irow_*2,17} = sprintf('%.0f', lfg(ig_,2));

@@ -89,6 +89,28 @@ com.member.property.idsecc(member_column.idme) = idsecc;
 com.nominal.column = nominal_column;
 com.num.nominal_column = nnz(idnominal_column(:,2)==1);
 
+%% 柱の方向別基礎梁接続フラグ
+col_in1 = member_column.idnode1;
+gir_in1 = member_girder.idnode1;
+gir_in2 = member_girder.idnode2;
+gir_idir = member_girder.idir;
+gir_isfg = member_girder.isfg;
+nmc_ = length(member_column.idme);
+onfg_x = false(nmc_, 1);
+onfg_y = false(nmc_, 1);
+for ic = 1:nmc_
+  in = col_in1(ic);
+  is_conn = (gir_in1 == in | gir_in2 == in);
+  is_fg = is_conn & gir_isfg;
+  if any(is_fg)
+    dirs = gir_idir(is_fg);
+    onfg_x(ic) = any(dirs==PRM.X | dirs==PRM.XY);
+    onfg_y(ic) = any(dirs==PRM.Y | dirs==PRM.XY);
+  end
+end
+com.member.column.onfg_x = onfg_x;
+com.member.column.onfg_y = onfg_y;
+
 %% 層内梁変数の数
 [idstory2var_girder, idstory2num_var_girder] = ...
   countup_idvar_each_story(com);
@@ -271,15 +293,14 @@ com.exclusion.is_joint_bearing_strength = is_joint_bearing_strength;
 
 % 形状の更新
 secdim = secmgr.findNearestSection(xini, options);
-[zcoord, nodez, lm] = ...
+[zcoord, nodez, ~] = ...
   update_geometry_z(secdim, com.baseline, com.node, com.story, ...
   com.floor, com.section, com.member, options);
 com.baseline.z.coord = zcoord;
 com.node.z = nodez;
-com.member.property.lm = lm;
-
-% 補剛間隔
-com.nominal.property.lb = coutup_nominal_lb(com);
+% 注: com.member.property.lm は上書きしない。
+% 部材心距離（構造階高更新前の節点座標による部材長）を
+% 座屈長の基準として保持する。
 
 % 要素数
 com.num.member.girder = com.nmeg;

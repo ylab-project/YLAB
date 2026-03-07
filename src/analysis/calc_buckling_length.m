@@ -1,95 +1,70 @@
-function [lkx, lky, kcx, kcy, bkinfo] = calc_buckling_length( ...
-  Iy, mtype, js, je, dir_girder, lm, lrm, lb, ...
-  Em, mejoint, nominal, idmc2nc, options, ...
-  beta, lcdir, col_idstory)
-% 柱部材の座屈長さを計算する
+function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
+  js, je, is_girder, lnm, lm, lr_col, Em, mejoint, nominal, ...
+  idmc2nc, options, beta, ilc, col_idstory, onfg)
+%calc_buckling_length - 柱部材の座屈長さを計算する（1方向分）
 %
-% この関数は、構造骨組みにおける柱部材の座屈長さを算出する。
-% 接続する梁部材の剛比を考慮して座屈長さ係数を計算し、
-% X方向およびY方向の座屈長さを決定する。
+%   [lk, kc, bkinfo] = calc_buckling_length(Iy,
+%   mtype, js, je, is_girder, lnm, lm, lr_col,
+%   Em, mejoint, nominal, idmc2nc, options, beta,
+%   ilc, col_idstory, onfg) は、
+%   構造骨組みにおける柱部材の座屈長さを算出する。
+%   呼び出し側で方向別の引数を準備し、本関数を
+%   X方向・Y方向それぞれ1回ずつ呼び出す。
 %
-% Syntax
-%   [lkx, lky, kcx, kcy] = calc_buckling_length(Iy, mtype, js, je, ...
-%     dir_girder, lm, lrm, lb, Em, mejoint, nominal, idmc2nc, options)
+%   入力引数:
+%     Iy          - 断面2次モーメント [nme×1]
+%     mtype       - 部材タイプ配列 [nme×1]
+%     js          - 部材始端節点番号 [nme×1]
+%     je          - 部材終端節点番号 [nme×1]
+%     is_girder   - 該当方向の梁マスク [nme×1]
+%     lnm         - 通し部材の構造心間距離 [nme×1]
+%     lm          - セグメント芯間距離 [nme×1]
+%     lr_col      - 方向別剛域長 [nmc×2]
+%     Em          - ヤング係数 [nme×1]
+%     mejoint     - 接合条件 [nme×2]（柱脚,柱頭）
+%     nominal     - 名目部材情報 (struct)
+%     idmc2nc     - 部材-名目部材対応表
+%     options     - 計算オプション (struct)
+%     beta        - ブレース水平力分担率
+%     ilc         - 荷重ケースマスク [nlc×1]
+%     col_idstory - 柱部材の層番号
+%     onfg        - 基礎梁接続フラグ [nmc×1]
 %
-% Inputs
-%   Iy (double array): 部材の断面2次モーメント
-%   mtype (double array): 部材タイプ配列
-%   js (double array): 部材始端節点番号
-%   je (double array): 部材終端節点番号
-%   dir_girder (double array): 梁部材方向（X/Y）
-%   lm (double array): 部材長（構造心間）
-%   lrm (double array): 部材長（梁面からの長さ）
-%   lb (double array): 補剛間隔配列
-%   Em (double array): ヤング係数
-%   mejoint (double array): 接合条件配列（1:X柱脚, 2:X柱頭, 3:Y柱脚, 4:Y柱頭）
-%   nominal (struct): 名目部材情報
-%   idmc2nc (double array): 部材-名目部材対応表
-%   options (struct): 計算オプション
-%   beta (double array): ブレース水平力分担率 [nstory×nlc]
-%   lcdir (double array): 荷重ケース方向配列
-%   col_idstory (double array): 柱部材の層番号
-%
-% Outputs
-%   lkx (double array): X方向座屈長さ
-%   lky (double array): Y方向座屈長さ
-%   kcx (double array): X方向座屈長さ係数
-%   kcy (double array): Y方向座屈長さ係数
-%   bkinfo (struct): 座屈長さ係数の中間値（GA/GB等）
-%
-% Example
-%   >> [lkx, lky, kcx, kcy] = calc_buckling_length(Iy, mtype, js, je, ...
-%        dir_girder, lm, lrm, lb, Em, mejoint, nominal, idmc2nc, options);
-%   >> disp(['X方向座屈長さ: ', num2str(lkx(1))]);
-%   X方向座屈長さ: 3.5
+%   出力引数:
+%     lk     - 座屈長さ [nme×1]
+%     kc     - 座屈長さ係数 [nmc×1]
+%     bkinfo - 中間値 (struct)
 
 % 定数
 nme = length(mtype);
-nmc = sum(+(mtype==PRM.COLUMN));
-% nmb = sum(+(mtype==PRM.BRACE));
-nmg = sum(+(mtype==PRM.GIRDER));
 nnc = size(nominal.column.idmec,1);
+BK_MAX_IG_LG = 9999.99e3;  % 梁剛比上限 [mm3]
 
 % ヤング係数比で補正
-% Iy0 = Iy;
-% Iz0 = Iz;
 Iy = Iy.*Em/max(Em);
 
 % 計算の準備
 nominal_column = nominal.column;
-idmc2m = 1:nme; idmc2m = idmc2m(mtype==PRM.COLUMN)';
-idm2mc = zeros(nme,1); idm2mc(mtype==PRM.COLUMN) = 1:nmc;
-% idmg2m = 1:nme; idmg2m = idmg2m(mtype==PRM.GIRDER)';
-% iy = zeros(1,nme); iz = zeros(1,nme);
-% lamy = zeros(1,nme); lamz = zeros(1,nme);
-akx = zeros(1,nnc); bkx = zeros(1,nnc);
-aky = zeros(1,nnc); bky = zeros(1,nnc);
-Gaxst = zeros(1,nnc); Gbxst = zeros(1,nnc);
-Gayst = zeros(1,nnc); Gbyst = zeros(1,nnc);
+idmc2m = 1:nme;
+idmc2m = idmc2m(mtype==PRM.COLUMN)';
+Gast = zeros(1,nnc); Gbst = zeros(1,nnc);
 bk_IcLc = zeros(1,nnc);
 bk_sumIcTop = zeros(1,nnc);
 bk_sumIcBot = zeros(1,nnc);
-bk_sumIgTopX = zeros(1,nnc);
-bk_sumIgBotX = zeros(1,nnc);
-bk_sumIgTopY = zeros(1,nnc);
-bk_sumIgBotY = zeros(1,nnc);
+bk_sumIgTop = zeros(1,nnc);
+bk_sumIgBot = zeros(1,nnc);
 
-% 剛域を除外した柱補剛間隔
-lrcm = lrm(mtype==PRM.COLUMN,:);
-lrcxn = calc_nominal_lb_column(lrcm(:,1), nominal_column);
-lrcyn = calc_nominal_lb_column(lrcm(:,2), nominal_column);
+% 横補剛間隔（lr控除・横補剛点判定付き）
+lmc = lm(mtype==PRM.COLUMN);
+onfg_col = onfg;
+lbcn = calc_nominal_lb_column(lmc, nominal_column, lr_col, ...
+  js, je, is_girder, onfg_col, idmc2m);
 
 % 通し柱の最大補剛間隔
-lrcxnmax = lrcxn.max;
-lrcynmax = lrcyn.max;
+lbcnmax = lbcn.max;
 
-% TODO: とりあえず
-dir_girder_ = dir_girder;
-dir_girder = zeros(nme,1);
-dir_girder(mtype==PRM.GIRDER) = dir_girder_;
-
-% 通し柱を考慮した部材長の計算：節点間距離
-lmn = lm;
+% 剛比計算用の部材長（構造心間距離）
+lmn = lnm;
 
 % 剛比計算
 immm = 1:nme;
@@ -107,16 +82,13 @@ for inc = 1:nnc
   lmni = lmn(imb);
   isself = false(nme,1); isself(idme) = true;
 
-  % 接続部材番号
-  % 45度梁（PRM.XY）は両方向に含める
-  mgax = immm((js==jei | je==jei) & (dir_girder==PRM.X|dir_girder==PRM.XY));
-  mgay = immm((js==jei | je==jei) & (dir_girder==PRM.Y|dir_girder==PRM.XY));
-  mgbx = immm((js==jsi | je==jsi) & (dir_girder==PRM.X|dir_girder==PRM.XY));
-  mgby = immm((js==jsi | je==jsi) & (dir_girder==PRM.Y|dir_girder==PRM.XY));
-  mca  = immm((js==jei | je==jei) & mtype==PRM.COLUMN & ~isself);
-  mcb  = immm((js==jsi | je==jsi) & mtype==PRM.COLUMN & ~isself);
+  % 接続部材番号（方向は呼び出し側で解決済み）
+  mga = immm((js==jei | je==jei) & is_girder);
+  mgb = immm((js==jsi | je==jsi) & is_girder);
+  mca = immm((js==jei | je==jei) & mtype==PRM.COLUMN & ~isself);
+  mcb = immm((js==jsi | je==jsi) & mtype==PRM.COLUMN & ~isself);
 
-  % 節点同一化により複数柱が接続する場合はエラー
+  % 複数柱接続エラー
   if length(mca) > 1
     error('節点に上側から2本以上の柱が接続しています');
   end
@@ -124,7 +96,7 @@ for inc = 1:nnc
     error('節点に下側から2本以上の柱が接続しています');
   end
 
-  % 柱の剛比計算（座屈長さ係数の計算時は構造心間の長さ）
+  % 柱の剛比計算
   gc = Iy(imb)/lmni;
   if ~isempty(mca)
     gca = Iy(mca)/lmn(mca);
@@ -142,206 +114,109 @@ for inc = 1:nnc
   bk_sumIcTop(inc) = gc + gca;
   bk_sumIcBot(inc) = gc + gcb;
 
-  % --------------------------------
-  % X方向
-  % --------------------------------
-  % 上側節点
-  if isempty(mgax) || mejoint(ima,2)==PRM.PIN
-    Gax = 10.0;
+  % 上側節点（柱頭）
+  if isempty(mga) || mejoint(ima,2)==PRM.PIN
+    Ga = 10.0;
   else
-    ggax = Iy(mgax)./lm(mgax);
-    [ispin_self, ispin_other] = check_pinjoint(mgax, je(ima));
-    ggax(ispin_self) = 0;
-    ggax(ispin_other) = ggax(ispin_other)*0.5;
-    bk_sumIgTopX(inc) = sum(ggax);
-    if sum(ggax)>0
-      Gax = (gc+gca)/sum(ggax);
+    gga = Iy(mga)./lnm(mga);
+    [ispin_self, ispin_other] = check_pinjoint(mga, je(ima));
+    gga(ispin_self) = 0;
+    gga(ispin_other) = gga(ispin_other)*0.5;
+    bk_sumIgTop(inc) = min(sum(gga), BK_MAX_IG_LG);
+    if bk_sumIgTop(inc)>0
+      Ga = (gc+gca)/bk_sumIgTop(inc);
     else
-      Gax = 10.0;
+      Ga = 10.0;
     end
   end
 
-  % 下側節点
-  if isempty(mgbx) || mejoint(ima,1)==PRM.PIN
-    Gbx = 10.0;
+  % 下側節点（柱脚）
+  if isempty(mgb) || mejoint(ima,1)==PRM.PIN
+    Gb = 10.0;
   else
-    ggbx = Iy(mgbx)./lm(mgbx);
-    [ispin_self, ispin_other] = check_pinjoint(mgbx, js(imb));
-    ggbx(ispin_self) = 0;
-    ggbx(ispin_other) = ggbx(ispin_other)*0.5;
-    bk_sumIgBotX(inc) = sum(ggbx);
-    if sum(ggbx)>0
-      Gbx = (gc+gcb)/sum(ggbx);
+    ggb = Iy(mgb)./lnm(mgb);
+    [ispin_self, ispin_other] = check_pinjoint(mgb, js(imb));
+    ggb(ispin_self) = 0;
+    ggb(ispin_other) = ggb(ispin_other)*0.5;
+    bk_sumIgBot(inc) = min(sum(ggb), BK_MAX_IG_LG);
+    if bk_sumIgBot(inc)>0
+      Gb = (gc+gcb)/bk_sumIgBot(inc);
     else
-      Gbx = 10.0;
+      Gb = 10.0;
     end
   end
 
-  % % 下限値の処理
-  % Gax = max(Gax,0.001);
-  % Gbx = max(Gbx,0.001);
-
-  % 係数計算
-  akx(inc) = -Gax*Gbx/(6*(Gax+Gbx));
-  bkx(inc) = -6/(Gax+Gbx);
-
-  % ---- 確認用 ---
-  Gaxst(inc) = Gax;
-  Gbxst(inc) = Gbx;
-
-  % --------------------------------
-  % Y方向
-  % --------------------------------
-  % 上側節点
-  if isempty(mgay) || mejoint(ima,4)==PRM.PIN
-    Gay = 10.0;
-  else
-    ggay = Iy(mgay)./lm(mgay);
-    [ispin_self, ispin_other] = check_pinjoint(mgay, je(ima));
-    ggay(ispin_self) = 0;
-    ggay(ispin_other) = ggay(ispin_other)*0.5;
-    bk_sumIgTopY(inc) = sum(ggay);
-    if sum(ggay)>0
-      Gay = (gc+gca)/sum(ggay);
-    else
-      Gay = 10.0;
-    end
-  end
-
-  % 下側節点
-  if isempty(mgby) || mejoint(ima,3)==PRM.PIN
-    Gby = 10.0;
-  else
-    ggby = Iy(mgby)./lm(mgby);
-    [ispin_self, ispin_other] = check_pinjoint(mgby, js(imb));
-    ggby(ispin_self) = 0;
-    ggby(ispin_other) = ggby(ispin_other)*0.5;
-    bk_sumIgBotY(inc) = sum(ggby);
-    if sum(ggby)>0
-      Gby = (gc+gcb)/sum(ggby);
-    else
-      Gby = 10.0;
-    end
-  end
-
-  % % 下限値の処理
-  % Gay = max(Gay,0.001);
-  % Gby = max(Gby,0.001);
-
-  % 係数計算
-  aky(inc) = -Gay*Gby/(6*(Gay+Gby));
-  bky(inc) = -6/(Gay+Gby);
-
-  % ---- 確認用 ---
-  Gayst(inc) = Gay;
-  Gbyst(inc) = Gby;
+  Gast(inc) = Ga;
+  Gbst(inc) = Gb;
 end
 
 % 座屈長さ係数の計算（2分法）
-kcxn = solveK(Gaxst, Gbxst, 1e-3);
-kcyn = solveK(Gayst, Gbyst, 1e-3);
+kcn = solveK(Gast, Gbst, 1e-3);
 
 % β修正前のK値を保存
-kcxn_raw = kcxn;
-kcyn_raw = kcyn;
+kcn_raw = kcn;
 
 % βによる座屈長さ係数の修正（図3.30: 線形補間）
 if options.consider_column_buckling_length_factor
   alpha = options.brace_share_threshold;
-  ilc_x = (lcdir == PRM.EXP ...
-    | lcdir == PRM.EXN);
-  ilc_y = (lcdir == PRM.EYP ...
-    | lcdir == PRM.EYN);
   for inc = 1:nnc
     nsub = nominal_column.idsub(inc, 2);
-    idmec = ...
-      nominal_column.idmec(inc, 1:nsub);
+    idmec = nominal_column.idmec(inc, 1:nsub);
     ist = col_idstory(idmec);
-    % X方向
-    if any(ilc_x)
-      bmin = min(beta(ist, ilc_x), ...
-        [], 'all');
+    if any(ilc)
+      bmin = min(beta(ist, ilc), [], 'all');
       if bmin >= alpha
-        kcxn(inc) = 1.0;
+        kcn(inc) = 1.0;
       else
         r = bmin / alpha;
-        kcxn(inc) = ...
-          kcxn_raw(inc) * (1 - r) + r;
-      end
-    end
-    % Y方向
-    if any(ilc_y)
-      bmin = min(beta(ist, ilc_y), ...
-        [], 'all');
-      if bmin >= alpha
-        kcyn(inc) = 1.0;
-      else
-        r = bmin / alpha;
-        kcyn(inc) = ...
-          kcyn_raw(inc) * (1 - r) + r;
+        kcn(inc) = kcn_raw(inc) * (1 - r) + r;
       end
     end
   end
 end
 
 % 結果の整理
-kcx = kcxn(idmc2nc(:,1));
-kcy = kcyn(idmc2nc(:,1));
-lrcxmax = lrcxnmax(idmc2nc(:,1));
-lrcymax = lrcynmax(idmc2nc(:,1));
+kc = kcn(idmc2nc(:,1));
+lbmax = lbcnmax(idmc2nc(:,1));
 
 % 座屈長さの初期化（梁面からの長さ）
-lkx = zeros(nme,1);
-lky = zeros(nme,3);
-lkx(:,1) = lrm(:,1);
-lky(:,1) = lrm(:,2);
+lk = zeros(nme,1);
+lk(:) = lm;
 if options.consider_column_buckling_length_factor
-  lkx(mtype==PRM.COLUMN,1) = kcx.*lrcxmax;
-  lky(mtype==PRM.COLUMN,1) = kcy.*lrcymax;
+  lk(mtype==PRM.COLUMN) = kc.*lbmax;
 else
-  lkx(mtype==PRM.COLUMN,1) = lrcxmax;
-  lky(mtype==PRM.COLUMN,1) = lrcymax;
+  lk(mtype==PRM.COLUMN) = lbmax;
 end
-
-% 梁用
-lky(mtype==PRM.GIRDER,:) = lb(mtype==PRM.GIRDER,:);
 
 % 座屈長さ係数の中間値
 bkinfo.IcLc = bk_IcLc(:);
 bkinfo.sumIcTop = bk_sumIcTop(:);
 bkinfo.sumIcBot = bk_sumIcBot(:);
-bkinfo.sumIgTopX = bk_sumIgTopX(:);
-bkinfo.sumIgBotX = bk_sumIgBotX(:);
-bkinfo.sumIgTopY = bk_sumIgTopY(:);
-bkinfo.sumIgBotY = bk_sumIgBotY(:);
-bkinfo.GAx = Gaxst(:);
-bkinfo.GBx = Gbxst(:);
-bkinfo.GAy = Gayst(:);
-bkinfo.GBy = Gbyst(:);
-bkinfo.kcxRaw = kcxn_raw(:);
-bkinfo.kcyRaw = kcyn_raw(:);
-bkinfo.kcx = kcxn(:);
-bkinfo.kcy = kcyn(:);
+bkinfo.sumIgTop = bk_sumIgTop(:);
+bkinfo.sumIgBot = bk_sumIgBot(:);
+bkinfo.GA = Gast(:);
+bkinfo.GB = Gbst(:);
+bkinfo.kcRaw = kcn_raw(:);
+bkinfo.kc = kcn(:);
+bkinfo.lbcnmax = lbcnmax(:);
 
 return
 
-%--------------------------------------------------------------------------
+%--------------------------------------------------------------
   function [ispin_self, ispin_other] = check_pinjoint(mg, jc)
-    % ピン接合条件をチェックする
+    %check_pinjoint - ピン接合条件をチェックする
     %
-    % この関数は、指定された梁部材のピン接合条件を確認する。
-    % 接続端および接続他端のピン接合状態を判定する。
+    %   [ispin_self, ispin_other] =
+    %   check_pinjoint(mg, jc) は、指定された梁部材の
+    %   ピン接合条件を確認する。
     %
-    % Syntax
-    %   [ispin_self, ispin_other] = check_pinjoint(mg, jc)
+    %   入力引数:
+    %     mg - 対象梁部材番号配列
+    %     jc - 対象節点番号
     %
-    % Inputs
-    %   mg (double array): 対象梁部材番号配列
-    %   jc (double): 対象節点番号
-    %
-    % Outputs
-    %   ispin_self (logical array): 接続端がピン接合かどうか
-    %   ispin_other (logical array): 接続他端がピン接合かどうか
+    %   出力引数:
+    %     ispin_self  - 接続端がピン接合か
+    %     ispin_other - 接続他端がピン接合か
 
     nmg_ = length(mg);
     ispin_self = false(1,nmg_);
@@ -356,32 +231,24 @@ return
         ispin_other(i_) = true;
       end
     end
+    return
   end
 end
 
-%--------------------------------------------------------------------------
+%--------------------------------------------------------------
 function K = solveK(GA, GB, tol)
-% 2分法で座屈長さ係数を解く
+%solveK - 2分法で座屈長さ係数を解く
 %
-% この関数は、2分法を用いて座屈長さ係数の非線形方程式を解く。
-% 各終端の剛性比に対して対応する座屈長さ係数を算出する。
+%   K = solveK(GA, GB, tol) は、2分法を用いて
+%   座屈長さ係数の非線形方程式を解く。
 %
-% Syntax
-%   K = solveK(GA, GB)
-%   K = solveK(GA, GB, tol)
+%   入力引数:
+%     GA  - 柱頭側剛性比配列
+%     GB  - 柱脚側剛性比配列
+%     tol - 収束判定用許容誤差 (default: 1e-12)
 %
-% Inputs
-%   GA (double array): 柱頭側剛性比配列
-%   GB (double array): 柱脚側剛性比配列
-%   tol (double): 収束判定用許容誤差 (default: 1e-12)
-%
-% Outputs
-%   K (double array): 座屈長さ係数配列（収束しない場合はNaN）
-%
-% Example
-%   >> GA = [1.0, 2.0]; GB = [1.5, 2.5];
-%   >> K = solveK(GA, GB);
-%   >> disp(K);
+%   出力引数:
+%     K - 座屈長さ係数配列
 
 if nargin < 3
   tol = 1e-12;
@@ -412,7 +279,7 @@ if any(mask1)
   K(mask1) = pi./x1;
 end
 
-% 区間 (pi/2, pi) での探索（まだ解が見つかっていない要素のみ）
+% 区間 (pi/2, pi) での探索
 remaining = isnan(K);
 if any(remaining)
   a2 = pi/2 + epsx;
@@ -434,54 +301,48 @@ if any(remaining)
     K(solve_idx) = pi./x2;
   end
 end
+
+return
 end
 
-%--------------------------------------------------------------------------
+%--------------------------------------------------------------
 function f = buckling_equation(A, B, x)
-% 座屈長さ係数の非線形方程式を評価する
+%buckling_equation - 座屈方程式を評価する
 %
-% この関数は、柱の座屈長さ係数を求めるための非線形方程式
-% (A.*x.^2 - 36).*tan(x) - 6*B.*x = 0 を評価する。
+%   f = buckling_equation(A, B, x) は、
+%   (A.*x.^2 - 36).*tan(x) - 6*B.*x = 0 を評価する。
 %
-% Syntax
-%   f = buckling_equation(A, B, x)
+%   入力引数:
+%     A - 係数 A = GA.*GB
+%     B - 係数 B = GA+GB
+%     x - 評価点
 %
-% Inputs
-%   A (double array): 係数 A = GA.*GB（柱頭・柱脚剛性比の積）
-%   B (double array): 係数 B = GA+GB（柱頭・柱脚剛性比の和）
-%   x (double): 評価点
-%
-% Outputs
-%   f (double array): 方程式の値
-%
-% Example
-%   >> A = [2.0, 3.0]; B = [4.0, 5.0]; x = 1.5;
-%   >> f = buckling_equation(A, B, x);
-%   >> disp(f);
+%   出力引数:
+%     f - 方程式の値
 
 f = (A.*x.^2 - 36).*tan(x) - 6*B.*x;
+
+return
 end
 
-%--------------------------------------------------------------------------
+%--------------------------------------------------------------
 function x = bisect_vectorized(A, B, a_init, b_init, tol, maxIter)
-% ベクトル化された2分法で方程式の根を求める
+%bisect_vectorized - ベクトル化2分法で根を求める
 %
-% この関数は、2分法を用いて複数の座屈長さ係数方程式を同時に解く。
-% 各要素は同じ区間[a_init, b_init]で探索される。
+%   x = bisect_vectorized(A, B, a_init, b_init,
+%   tol, maxIter) は、2分法を用いて複数の座屈長さ
+%   係数方程式を同時に解く。
 %
-% Syntax
-%   x = bisect_vectorized(A, B, a_init, b_init, tol, maxIter)
+%   入力引数:
+%     A      - 係数ベクトル A = GA.*GB
+%     B      - 係数ベクトル B = GA+GB
+%     a_init - 区間の下限
+%     b_init - 区間の上限
+%     tol    - 収束判定用許容誤差
+%     maxIter - 最大反復回数
 %
-% Inputs
-%   A (double array): 係数ベクトル A = GA.*GB
-%   B (double array): 係数ベクトル B = GA+GB
-%   a_init (double): 区間の下限
-%   b_init (double): 区間の上限
-%   tol (double): 収束判定用許容誤差
-%   maxIter (double): 最大反復回数
-%
-% Outputs
-%   x (double array): 各方程式の根
+%   出力引数:
+%     x - 各方程式の根
 
 n = length(A);
 x = nan(n, 1);
@@ -489,14 +350,13 @@ x = nan(n, 1);
 % 初期化
 a = repmat(a_init, n, 1);
 b = repmat(b_init, n, 1);
-active = true(n, 1);  % まだ収束していない要素
+active = true(n, 1);
 
 for k = 1:maxIter
   if ~any(active)
     break
   end
 
-  % アクティブな要素のインデックスを取得
   act_idx = find(active);
   n_active = length(act_idx);
 
@@ -504,22 +364,19 @@ for k = 1:maxIter
     break
   end
 
-  % アクティブな要素のみ計算
-  c_act = 0.5 * (a(act_idx) + b(act_idx));
+  c_act = 0.5*(a(act_idx) + b(act_idx));
   fc_act = buckling_equation(A(act_idx), B(act_idx), c_act);
   fa_act = buckling_equation(A(act_idx), B(act_idx), a(act_idx));
 
   % 収束判定
-  converged = abs(fc_act) < tol | 0.5*abs(b(act_idx) - a(act_idx)) < tol;
+  converged = abs(fc_act) < tol | 0.5*abs(b(act_idx)-a(act_idx)) < tol;
 
-  % 収束した要素を結果に格納
   conv_global_idx = act_idx(converged);
   if any(converged)
     x(conv_global_idx) = c_act(converged);
     active(conv_global_idx) = false;
   end
 
-  % まだ収束していない要素の区間更新
   not_converged = ~converged;
   if any(not_converged)
     not_conv_global_idx = act_idx(not_converged);
@@ -527,10 +384,8 @@ for k = 1:maxIter
     fc_not_conv = fc_act(not_converged);
     fa_not_conv = fa_act(not_converged);
 
-    % 根の位置判定
     left_side = fa_not_conv .* fc_not_conv < 0;
 
-    % 区間更新
     left_idx = not_conv_global_idx(left_side);
     right_idx = not_conv_global_idx(~left_side);
 
@@ -542,6 +397,9 @@ end
 % 収束しなかった要素に警告
 if any(active)
   warning('bisect_vectorized:NoConverge', ...
-    'ベクトル化2分法で %d 個の要素が最大反復に到達しました', sum(active));
+    'ベクトル化2分法で %d 個の要素が最大反復に到達しました', ...
+    sum(active));
 end
+
+return
 end

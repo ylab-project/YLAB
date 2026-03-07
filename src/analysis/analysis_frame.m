@@ -2,7 +2,8 @@ function [msprop, secdim, dvec, dnode, felement,...
   stn, stcn, Mc, C, vix, viy, ...
   rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, state, sw, ...
   lf, lr, lm, lm_weight, lnm, lbnm, ...
-  Iy0, Iz0, gphiI, cphiI, cbs, baseline, node, story, floor] = ...
+  Iy0, Iz0, gphiI, gphiN, cphiI, cbs, baseline, ...
+  node, story, floor] = ...
   analysis_frame(xvar, com, options)
 
 % 共通定数
@@ -162,6 +163,10 @@ stress_factor = sec_stress_factor(idm2s);
   member_girder, msdim, msprop, idmg2m, options);
 Iy(idmg2m) = Igm;
 
+% 床による軸断面積の増大率（出力用）
+[~, gphiN] = calc_composite_girder_Asy(...
+  member_girder, msdim, msprop, idmg2m);
+
 % 柱の剛度増減率
 cphiI = member_column.phiI;
 Iy(mtype==PRM.COLUMN) = Iy(mtype==PRM.COLUMN).*cphiI(:,1);
@@ -205,20 +210,24 @@ Iy0 = Iy; Iz0 = Iz;
 Iy(isrigid_xm) = Iy(isrigid_xm)*PRM.RIGID_SCALE;
 Iz(isrigid_ym) = Iz(isrigid_ym)*PRM.RIGID_SCALE;
 
-% 1本部材
+% 通し部材の部材長（構造階高ベース）
 lnm = lm;
 
 % 通し梁長さ
 lnm(mtype==PRM.GIRDER) = ...
-  calc_nominal_girder_length(nominal_girder, lm(mtype==PRM.GIRDER));
+  calc_nominal_girder_length(...
+  nominal_girder, lm(mtype==PRM.GIRDER));
 
-% 通し柱長さ
+% 通し柱長さ（全合算、設計応力用）
 lnm(mtype==PRM.COLUMN) = ...
-  calc_nominal_column_length(nominal_column, lm(mtype==PRM.COLUMN));
+  calc_nominal_column_length(...
+  nominal_column, lm(mtype==PRM.COLUMN));
 
 % 横補剛間隔の更新
-lbng = update_lb_nominal_girder(lm(mtype==PRM.GIRDER), lbng);
-lbnc = update_lb_nominal_column(lm(mtype==PRM.COLUMN), ...
+lbng = update_lb_nominal_girder(...
+  lm(mtype==PRM.GIRDER), lbng);
+lbnc = update_lb_nominal_column(...
+  lm(mtype==PRM.COLUMN), ...
   lnm(mtype==PRM.COLUMN), nominal_column);
 lbnm = zeros(nme,3);
 lbnm(mtype==PRM.GIRDER,1:3) = lbng;
@@ -264,11 +273,21 @@ lm_weight(mtype==PRM.GIRDER) = lm_girder_weight;
 brace_unit_weight = calc_brb_unit_weight( ...
   com.section.brace, com.member.brace, com.secmgr, secdim);
 
+%% RC密度の計算（Fc依存: SS7マニュアル表2.1）
+idmat_sec = com.section.property.idmaterial;
+Fc_sec = zeros(size(idmat_sec));
+valid = idmat_sec > 0;
+Fc_sec(valid) = com.material.F(idmat_sec(valid));
+rho_rc_sec = calc_rc_density(Fc_sec);
+rho_rc_member = rho_rc_sec(idm2s);
+
 %% 自重の計算
 if options.consider_self_weight && options.consider_finishing_material
-  sw = comp_self_weight(A, lm_weight, lm, member_property, ...
-    msdim, slab, idn2df, ndf, mejoint, face_deduct, options, ...
-    member_column, brace_unit_weight, Df_foundation, idsup2n);
+  sw = comp_self_weight(A, lm_weight, lm, ...
+    member_property, msdim, slab, idn2df, ndf, ...
+    mejoint, face_deduct, options, member_column, ...
+    brace_unit_weight, Df_foundation, idsup2n, ...
+    rho_rc_member);
   fvec(:,1) = fvec(:,1)-sw.f;
   ar(:,:,1) = ar(:,:,1)+sw.ar;
   M0(:,1)= M0(:,1)+sw.M0;
