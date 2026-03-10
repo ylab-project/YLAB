@@ -649,7 +649,18 @@ classdef SectionManager < handle
       
       memberCostFactor = secmgr.propertyCalculator.getMemberCostFactor(idsec2slist, options);
     end
-    
+
+    function memberCostConstant = getMemberCostConstant(secmgr, idsec2slist)
+    %getMemberCostConstant 部材コスト定数を取得
+    %   memberCostConstant = getMemberCostConstant(secmgr, idsec2slist)
+    %   は、断面リストIDと断面IDのペアから各部材のコスト定数を取得します。
+    %
+    %   参考:
+    %     SectionPropertyCalculator.getMemberCostConstant
+
+      memberCostConstant = secmgr.propertyCalculator.getMemberCostConstant(idsec2slist);
+    end
+
     function sectionStressFactor = getSectionStressFactor(secmgr, idsec2slist)
     %getSectionStressFactor 断面応力係数を取得
     %   sectionStressFactor = getSectionStressFactor(secmgr, idsec2slist)
