@@ -41,7 +41,9 @@ switch slist_type
     isvalid = obj.validSectionFlagCell_{idsList};
     isvalid = isvalid(:,istarget);
   case PRM.HSS
+    istarget = obj.secList_.idphase{idsList} <= idPhase;
     isvalid = obj.validSectionFlagCell_{idsList};
+    isvalid = isvalid(:, istarget);
   otherwise
     isvalid = obj.validSectionFlagCell_{idsList};
 end
