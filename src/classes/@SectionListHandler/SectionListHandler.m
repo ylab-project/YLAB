@@ -115,7 +115,7 @@ classdef SectionListHandler < handle
           end
           list_ = list_(isok,:);
           if isempty(list_)
-            throw_warn('SectionList', 'EmptyAfterFilter', ...
+            throw_warn('List', 'EmptyAfterFilter', ...
               section_list_name{i}, type_name_, file_name{i,il});
             % 空のリストでも最低限の構造を保持（il==1の場合）
             if il == 1

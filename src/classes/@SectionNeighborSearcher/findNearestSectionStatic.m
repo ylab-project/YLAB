@@ -187,7 +187,7 @@ for id_ = 1:nrepwfs
   end
   
   if ~any(isvalid_)
-    throw_err('Search', 'NoWfsCandidate', idslist);
+    throw_err('List', 'NoWfsCandidate', idslist);
     return
   end
   

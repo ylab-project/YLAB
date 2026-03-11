@@ -26,12 +26,15 @@ end
 
 % 初期ペナルティ係数
 options.idphase = max_idphase;
-fub = objective_lsr(ub, secmgr, baseline, node, section, member, story, floor, options);
-flb = objective_lsr(lb, secmgr, baseline, node, section, member, story, floor, options);
+fub = objective_lsr(ub, secmgr, baseline, node, section, ...
+  member, story, floor, options);
+flb = objective_lsr(lb, secmgr, baseline, node, section, ...
+  member, story, floor, options);
 f0 = (fub+flb)/2;
-% mu = (fub+flb)/200;
-% mu = (fub+flb)/2*options.mu0;
-% options.mu = mu;
+
+% 最大断面での制約チェック
+[cvec_ub, result_ub] = analysis_constraint(ub, com, options);
+check_max_section_violation(cvec_ub, result_ub, options);
 
 % 初期解
 if ~isempty(options.x0)
@@ -77,6 +80,11 @@ end
 bestid = select_best_solution;
 x = trials.xopt(:,bestid,max_idphase);
 fval = trials.fval(bestid,max_idphase);
+
+% 許容解が見つからなかった場合
+if trials.maxvio(bestid,max_idphase) >= 1.e-4
+  exitflag = PRM.EXITFLAG_NO_FEASIBLE;
+end
 return
 %--------------------------------------------------------------------------
   function save_trial
@@ -124,9 +132,9 @@ return
     idtrial_ = options.idtrial_resume;
     idphase_ = options.idphase_resume;
     iter_ = options.iter_resume;
-    history = resume.history(idtrial_, idphase_);   
+    history = resume.history(idtrial_, idphase_);
     x0 = resume.history(idtrial_, idphase_).xvar(history.iter==iter_, :);
-      return
+    return
   end
 %--------------------------------------------------------------------------
   function bestid = select_best_solution
@@ -147,9 +155,42 @@ return
       % 許容な最良解を選択
       return
     end
-    
+
     % 許容解が存在しない場合
     [~, bestid] = min(trials.maxvio(:,max_idphase));
 end
 end
 
+%--------------------------------------------------------------------------
+function check_max_section_violation(cvec, result, options) %#ok<INUSD>
+%check_max_section_violation - 最大断面での制約違反チェック
+%
+%   check_max_section_violation(cvec, result, options) は、
+%   断面サイズ依存の制約（ncon[1]-[11]）のみを対象に
+%   カテゴリ別の違反件数を集計しワーニングを出す。
+%
+%   入力引数:
+%     cvec    - 制約値ベクトル [1×ncon]
+%     result  - 結果構造体（ncon, conlabel）
+%     options - オプション構造体（未使用）
+  ncon = result.ncon;
+  label = result.conlabel;
+  % 断面サイズ依存の制約（[1]-[11]）
+  ncat = 11;
+  parts = {};
+  idx = 0;
+  for k = 1:ncat
+    vio = cvec(idx+1:idx+ncon(k));
+    nvio = sum(vio > 0);
+    if nvio > 0
+      parts{end+1} = sprintf('%s:%d件', label{k}, nvio); %#ok<AGROW>
+    end
+    idx = idx + ncon(k);
+  end
+  if ~isempty(parts)
+    detail = strjoin(parts, ', ');
+    throw_warn('List', 'MaxSectionViolation', detail);
+  end
+
+  return
+end

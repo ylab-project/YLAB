@@ -79,7 +79,7 @@ for id_ = 1:nrepwfs
   secdimlist = secdimlist_all(isvalid_, :);
   valid_indices = find(isvalid_);
   if isempty(valid_indices)
-    throw_err('Search', 'NoWfsCandidate', idwfs);
+    throw_err('List', 'NoWfsCandidate', idwfs);
     return
   end
   

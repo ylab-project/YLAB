@@ -114,10 +114,9 @@ classdef PRM
     SECLIST_BRB_WEIGHT = 4     % 単位重量 [N/mm]
     
     %% 変数タイプセット（境界値計算用）
-    VTYPE_SET_BOUNDS = [...
-      PRM.WFS_H PRM.WFS_B PRM.WFS_TW PRM.WFS_TF ...
-      PRM.HSS_D PRM.HSS_T PRM.HSR_D PRM.HSR_T ...
-      PRM.BRB_V1 PRM.BRB_V2];
+    VTYPE_SET_BOUNDS = [PRM.WFS_H PRM.WFS_B ...
+      PRM.WFS_TW PRM.WFS_TF PRM.HSS_D PRM.HSS_T ...
+      PRM.HSR_D PRM.HSR_T PRM.BRB_V1 PRM.BRB_V2];
 
     %% UB種別
     UB400 = 101400
@@ -227,20 +226,24 @@ classdef PRM
     % 停止条件（0）
     EXITFLAG_MAXITER = 0;             % 最大反復回数に到達
 
-    % 実行時エラー（負の値）
-    EXITFLAG_NO_FEASIBLE = -1;        % 実行可能解なし
-    EXITFLAG_TIMEOUT = -2;            % 時間制限に到達
-    EXITFLAG_USER_STOP = -3;          % ユーザーによる中断
-    EXITFLAG_INPUT_ERROR = -10;       % 入力データエラー
-    EXITFLAG_CONSTRAINT_ERROR = -11;  % 制約条件エラー（強度/変形など）
-    EXITFLAG_SECTION_ERROR = -12;     % 断面リスト関連エラー
+    % 最適化結果（負の値）
+    EXITFLAG_NO_FEASIBLE = -1;         % 許容解なし
+    EXITFLAG_TIMEOUT = -2;             % 時間制限到達
+    EXITFLAG_USER_STOP = -3;           % ユーザー中断
 
-    % システム/環境エラー
-    EXITFLAG_PARPOOL_ERROR = -20;    % 並列プール起動失敗
-    EXITFLAG_LICENSE_ERROR = -50;     % ライセンス認証エラー
-    
-    % 内部エラー
-    EXITFLAG_INTERNAL_ERROR = -99;    % 予期しないエラー
+    % ファイルエラー
+    EXITFLAG_FILE_ERROR = -10;        % ファイルI/Oエラー
+
+    % データエラー
+    EXITFLAG_INPUT_ERROR = -100;       % 入力データエラー
+    EXITFLAG_LIST_ERROR = -110;        % リストデータ内容エラー
+
+    % 環境エラー
+    EXITFLAG_ENV_ERROR = -200;         % 実行環境エラー
+
+    % システムエラー
+    EXITFLAG_LICENSE_ERROR = -500;     % ライセンス認証エラー
+    EXITFLAG_INTERNAL_ERROR = -999;    % 予期しないエラー
   end
   methods(Static)
     %% nvar_of_section_type
@@ -443,8 +446,7 @@ classdef PRM
         case 'FB'
           shape_code = PRM.TB_FB;
         otherwise
-          error('PRM:UnknownTbShape', ...
-            '未知のTB形状: %s', type_str);
+          error('PRM:UnknownTbShape', '未知のTB形状: %s', type_str);
       end
 
       return

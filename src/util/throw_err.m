@@ -10,7 +10,7 @@ function throw_err(cat, id, varargin)
 %     varargin - メッセージに埋め込む変数（可変長引数）
 %
 %   例:
-%     throw_err('SectionList', 'EmptyAfterFilter', listname, typename)
+%     throw_err('IO', 'FileNotFound', label, filepath)
 %
 %   参考:
 %     throw_warn, throw_msg_impl

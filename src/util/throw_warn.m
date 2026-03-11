@@ -10,7 +10,7 @@ function throw_warn(cat, id, varargin)
 %     varargin - メッセージに埋め込む変数（可変長引数）
 %
 %   例:
-%     throw_warn('SectionList', 'EmptyList', listname)
+%     throw_warn('List', 'EmptyAfterFilter', listname)
 %
 %   参考:
 %     throw_err, throw_msg_impl

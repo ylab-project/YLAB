@@ -1484,7 +1484,7 @@ for i=1:n
     idsl = iddd(issl);
     id_section_list(i) = idsl(1);
   else
-    throw_err('SectionList', 'SectionListNotFound', ...
+    throw_err('IO', 'SectionListNotFound', ...
       section_list_name{i}, 'S梁断面', ['層: ' story_name{i} ', 符号: ' name{i}]);
   end
 
@@ -1787,7 +1787,7 @@ for i=1:n
     idsl = iddd(idx);
     id_section_list(i) = idsl(1);
   else
-    throw_err('SectionList', 'SectionListNotFound', ...
+    throw_err('IO', 'SectionListNotFound', ...
       section_list_name{i}, 'S柱断面', ['符号: ' full_name{i}]);
   end
 
@@ -3263,7 +3263,7 @@ for i=1:n
   id_found = iddn((node.idx==idx(i))&(node.idy==idy(i)) ...
     &(node.idz==idz(i)));
   if isempty(id_found)
-    throw_err('read_frame_data', 'NodeNotFound', i);
+    throw_err('Input', 'NodeNotFound', i);
   end
   idnode(i) = id_found;
   f(i,:) = cell2mat(data(i,5:10));

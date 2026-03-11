@@ -50,7 +50,7 @@ for idlist = 1:nlist
   % 断面リストの読み出し
   secdimlist = standardAccessor.getSectionDimension(idlist);
   if isempty(secdimlist)
-    throw_err('Search', 'NoHssCandidate', idlist);
+    throw_err('List', 'NoHssCandidate', idlist);
   end
   Dlist = unique(secdimlist(:, 1));
   tlist = unique(secdimlist(:, 2));

@@ -182,7 +182,7 @@ for id_ = 1:nrepwfs
   valid_indices = find(isvalid_);
   
   if isempty(valid_indices)
-    throw_err('Search', 'NoWfsCandidate', idslist);
+    throw_err('List', 'NoWfsCandidate', idslist);
     return
   end
   

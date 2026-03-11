@@ -99,7 +99,7 @@ if ~all(isvalid_wfs)
   id = 1:nwfs_;
   id = id(~isvalid_wfs);
   ids_text = format_id_list(id);
-  throw_err('Parse', 'limit_jbs_section', ids_text);
+  throw_err('List', 'limit_jbs_section', ids_text);
 end
 
 return
