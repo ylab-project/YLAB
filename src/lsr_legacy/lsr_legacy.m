@@ -282,15 +282,8 @@ for iter = start_iter+1:max_iter
 
   % --- 終了判定 ---
   if all(vio<=0) && pfval-pfvalold>=omega && all(viold<=0)
-    if options.do_progressive_cost_change
-      if iter>options.progressive_cost_change_iter+1
-        exitflag = PRM.EXITFLAG_CONVERGED;
-        break
-      end
-    else
-      exitflag = PRM.EXITFLAG_CONVERGED;
-      break
-    end
+    exitflag = PRM.EXITFLAG_CONVERGED;
+    break
   end
 
   % --- 関数値が改良されないときの処理 ---

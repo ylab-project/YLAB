@@ -19,7 +19,8 @@ classdef CommonOption
     % --- フロー制御 ---
     version (1,:) char
     uimode (1,1) double = PRM.UIMODE_CUI
-    exemode char {mustBeMember(exemode,{'OPT', 'GA', 'CHECK', 'CONVERT'})} = 'OPT'
+    exemode char {mustBeMember(exemode, ...
+      {'OPT', 'GA', 'CHECK', 'CONVERT'})} = 'OPT'
     developer_mode logical = false;
     % do_limit_initial_girder_height(1,1) logical = true
     do_limit_initial_girder_height(1,1) logical = false
@@ -56,8 +57,10 @@ classdef CommonOption
     self_weight_extra_factor_column (1,1) double {mustBeNonnegative} = 1;
 
     % 鉄骨積算の重量増減率（SS7 Op.積算 3.1.1-5）
-    steel_cost_weight_extra_factor_girder (1,1) double {mustBeNonnegative} = 1.215;
-    steel_cost_weight_extra_factor_column (1,1) double {mustBeNonnegative} = 1.215;
+    steel_cost_weight_extra_factor_girder (1,1) double ...
+      {mustBeNonnegative} = 1.215;
+    steel_cost_weight_extra_factor_column (1,1) double ...
+      {mustBeNonnegative} = 1.215;
 
     % 仕上げ荷重
     consider_finishing_material (1,1) logical = true
@@ -102,10 +105,14 @@ classdef CommonOption
     consider_SNH_WTRATIO (1,1) logical = true
 
     % 床による梁剛性の考慮
-    consider_composite_slab_effect_s (1,1) double = PRM.COMPOSITE_SLAB_WIDTH
-    composite_slab_coefficient_s (1,2) double {mustBeNonnegative} = [1.3 1.5];
-    consider_composite_slab_effect_rc (1,1) double = PRM.COMPOSITE_SLAB_WIDTH
-    composite_slab_coefficient_rc (1,2) double {mustBeNonnegative} = [1.3 1.5];
+    consider_composite_slab_effect_s (1,1) double = ...
+      PRM.COMPOSITE_SLAB_WIDTH
+    composite_slab_coefficient_s (1,2) double ...
+      {mustBeNonnegative} = [1.3 1.5];
+    consider_composite_slab_effect_rc (1,1) double = ...
+      PRM.COMPOSITE_SLAB_WIDTH
+    composite_slab_coefficient_rc (1,2) double ...
+      {mustBeNonnegative} = [1.3 1.5];
 
     % ブレースの取り付き位置
     position_brace_foundation_girder (1,1) double = ...
@@ -134,8 +141,8 @@ classdef CommonOption
     % 画面出力
     % display(1,:) char {mustBeMember(...
     %   display,{'None','Iter10','Iter','Final'})} = 'Iter10'
-    display(1,:) char {mustBeMember(...
-      display,{'None','Iter10','Iter','Final'})} = 'Iter'
+    display(1,:) char {mustBeMember(display, ...
+      {'None', 'Iter10', 'Iter', 'Final'})} = 'Iter'
    
     % --- 制約条件計算用パラメータ ---
     type % 保留
@@ -165,10 +172,6 @@ classdef CommonOption
     % 初期解
     x0(1,:) double
 
-    % --- コスト変化量操作 ---
-    do_progressive_cost_change = false;
-    progressive_cost_change_iter = 5;
-
     % --- 出力制御用パラメータ ---
     output_girder_list_label = [];
     output_column_list_label = [];
@@ -188,14 +191,18 @@ classdef CommonOption
 
     function validate(obj)
       % オプション値の検証
-      validateattributes(obj.num_basement_floor, {'double'}, {'scalar', 'nonnegative'});
-      validateattributes(obj.num_penthouse_floor, {'double'}, {'scalar', 'nonnegative'});
-      validateattributes(obj.self_weight_extra_factor_girder, {'double'}, {'scalar', 'positive'});
-      validateattributes(obj.self_weight_extra_factor_column, {'double'}, {'scalar', 'positive'});
-      validateattributes(obj.girder_scallop_size, {'double'}, {'scalar', 'nonnegative'});
-      validateattributes(obj.maxiter_in_LS, {'double'}, {'scalar', 'positive'});
-      validateattributes(obj.maxcache, {'double'}, {'scalar', 'positive'});
-      validateattributes(obj.r, {'double'}, {'scalar', 'positive'});
+      va_ = @validateattributes;
+      nn_ = {'scalar', 'nonnegative'};
+      po_ = {'scalar', 'positive'};
+      dbl_ = {'double'};
+      va_(obj.num_basement_floor, dbl_, nn_);
+      va_(obj.num_penthouse_floor, dbl_, nn_);
+      va_(obj.self_weight_extra_factor_girder, dbl_, po_);
+      va_(obj.self_weight_extra_factor_column, dbl_, po_);
+      va_(obj.girder_scallop_size, dbl_, nn_);
+      va_(obj.maxiter_in_LS, dbl_, po_);
+      va_(obj.maxcache, dbl_, po_);
+      va_(obj.r, dbl_, po_);
       
       % 必須パスの検証
       if isempty(obj.approot)
@@ -212,7 +219,7 @@ classdef CommonOption
       end
     end
 
-    function setDefaultValues(obj)
+    function setDefaultValues(~)
       % デフォルト値の設定
       % 注: プロパティブロックで既に定義済みの値は
       % 二重管理を避けるためコメントアウト（経過措置）
@@ -259,7 +266,8 @@ classdef CommonOption
       % obj.composite_slab_coefficient_s = [1.3 1.5];
       % obj.consider_composite_slab_effect_rc = PRM.COMPOSITE_SLAB_WIDTH;
       % obj.composite_slab_coefficient_rc = [1.3 1.5];
-      % obj.position_brace_foundation_girder = PRM.BRACE_FOUNDATION_GIRDER_TOP;
+      % obj.position_brace_foundation_girder = ...
+      %   PRM.BRACE_FOUNDATION_GIRDER_TOP;
       % obj.consider_web_at_girder_center = false;
       % obj.consider_web_at_girder_end = false;
       % obj.penalty_method = PRM.PENALTY_MAXIMUM;
@@ -279,8 +287,6 @@ classdef CommonOption
       % obj.mu0 = [0.2 ones(1,PRM.MAX_NUM_PHASE-1)];
       % obj.tau = 0;
       % obj.omega = 0;
-      % obj.do_progressive_cost_change = false;
-      % obj.progressive_cost_change_iter = 5;
     end
   end
 end

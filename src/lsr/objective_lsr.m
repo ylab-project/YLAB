@@ -96,7 +96,7 @@ lm_cost(mtype == PRM.BRACE) = lm_brc;
 
 % コスト係数・コスト定数
 ids2slist = SectionManager.getSectionListMapping(secdim);
-cfm = secmgr.getMemberCostFactor(ids2slist, options);
+cfm = secmgr.getMemberCostFactor(ids2slist);
 ccm = secmgr.getMemberCostConstant(ids2slist);
 
 % 部材重量（ton）

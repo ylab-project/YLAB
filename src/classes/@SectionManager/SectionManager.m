@@ -630,33 +630,33 @@ classdef SectionManager < handle
     
     % コスト係数・応力係数取得
     function sectionCostFactor = getSectionCostFactor( ...
-        secmgr, idsec2slist, options)
-    %getSectionCostFactor 断面コスト係数を取得
+        secmgr, idsec2slist)
+    %getSectionCostFactor - 断面コスト係数を取得
     %   sectionCostFactor = getSectionCostFactor( ...
-    %     secmgr, idsec2slist, options)
+    %     secmgr, idsec2slist)
     %   は、断面リストIDと断面IDのペアから各断面のコスト係数を取得します。
     %
     %   参考:
     %     SectionPropertyCalculator.getSectionCostFactor
-      
+
       sectionCostFactor = ...
         secmgr.propertyCalculator.getSectionCostFactor( ...
-        idsec2slist, options);
+        idsec2slist);
     end
-    
+
     function memberCostFactor = getMemberCostFactor( ...
-        secmgr, idsec2slist, options)
-    %getMemberCostFactor 部材コスト係数を取得
+        secmgr, idsec2slist)
+    %getMemberCostFactor - 部材コスト係数を取得
     %   memberCostFactor = getMemberCostFactor( ...
-    %     secmgr, idsec2slist, options)
+    %     secmgr, idsec2slist)
     %   は、断面リストIDと断面IDのペアから各部材のコスト係数を取得します。
     %
     %   参考:
     %     SectionPropertyCalculator.getMemberCostFactor
-      
+
       memberCostFactor = ...
         secmgr.propertyCalculator.getMemberCostFactor( ...
-        idsec2slist, options);
+        idsec2slist);
     end
 
     function memberCostConstant = getMemberCostConstant( ...

@@ -81,16 +81,16 @@ write_csv_constraint_problem(result, options, cvec, fout)
 %% 目的関数
 fprintf(fout, 'name=鋼材量,\n');
 fprintf(fout, '種類,重量(ton),コスト\n');
-fprintf(fout, 'S柱梁,%.1f,%.1f\n', fdetail.weight, fdetail.cost);
-fprintf(fout, 'S梁,%.1f,%.1f\n', ...
+fprintf(fout, 'S柱梁,%.2f,%.2f\n', fdetail.weight, fdetail.cost);
+fprintf(fout, 'S梁,%.2f,%.2f\n', ...
   fdetail.weight_girder, fdetail.cost_girder);
-fprintf(fout, 'S柱,%.1f,%.1f\n', ...
+fprintf(fout, 'S柱,%.2f,%.2f\n', ...
   fdetail.weight_column, fdetail.cost_column);
 fprintf(fout, '断面リスト番号,重量(ton),コスト\n');
 for id=1:secmgr.getNumSectionSubList
   weight_sublist = fdetail.weight_sublist(id);
   cost_sublist = fdetail.cost_sublist(id);
-  fprintf(fout, '%d,%.1f,%.1f\n', id, weight_sublist, cost_sublist);
+  fprintf(fout, '%d,%.2f,%.2f\n', id, weight_sublist, cost_sublist);
 end
 fprintf(fout, ',\n,\n');
 
