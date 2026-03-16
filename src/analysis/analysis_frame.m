@@ -501,10 +501,9 @@ end
 state.tb.is_tension = is_tension;
 
 %% 設計応力の計算
-dfm0 = calc_face_moment(rs0, lcdir, idmc2m, ...
-  idmg2m, lm, lf, nominal_column);
-dfn0 = calc_design_force(dfm0, Mc0, rvec0, ...
-  lcdir, idmc2m, idmg2m, lnm, lf, ...
+df0 = calc_design_force(rs0, lcdir, idmc2m, ...
+  idmg2m, lm, lf);
+dfn0 = calc_nominal_design_force(df0, ...
   nominal_property);
 dfn = superpose_design_force(dfn0, lcdir);
 
@@ -520,7 +519,7 @@ nomgc.Mcn0 = squeeze(Mcn0);
 
 % 名目部材レベルの中央N（ケース別→重ね合わせ）
 nnm = size(idnm2m, 1);
-Ncn0 = calc_nominal_Nc(rs0, idmeg, idmg2m, idnmg2nm, nnm, lm, lf);
+Ncn0 = calc_nominal_Nc(df0, idmeg, idmg2m, idnmg2nm, nnm, lm, lf);
 Ncn = superpose_design_force(Ncn0, lcdir);
 nomgc.Ncn = squeeze(Ncn);
 

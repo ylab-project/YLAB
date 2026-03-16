@@ -132,7 +132,7 @@ return
       Qj_ = dfn(inm, 9, ilc) * 1e-3;
       rows{irow, 23} = sprintf('%.1f', Qj_);
       % 軸力: 左端(24), 右端(26)
-      Ni_ = dfn(inm, 1, ilc) * 1e-3;
+      Ni_ = -dfn(inm, 1, ilc) * 1e-3;
       Nj_ = -dfn(inm, 7, ilc) * 1e-3;
       rows{irow, 24} = sprintf('%.1f', Ni_);
       rows{irow, 26} = sprintf('%.1f', Nj_);

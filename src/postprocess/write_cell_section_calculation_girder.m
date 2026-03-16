@@ -312,8 +312,8 @@ for i = 1:nstory
         % --- N ---
         irow = irow + 1;
         scgbody{irow, 1} = 'N';
-        scgbody{irow,2} = sprintf('%.1f', dfn(inm,1,ilc)*1e-3);
-        scgbody{irow,4} = sprintf('%.1f', result.nomgc.Ncn(inm,clc)*1e-3);
+        scgbody{irow,2} = sprintf('%.1f', -dfn(inm,1,ilc)*1e-3);
+        scgbody{irow,4} = sprintf('%.1f', -result.nomgc.Ncn(inm,clc)*1e-3);
         scgbody{irow,6} = sprintf('%.1f', -dfn(inm,7,jlc)*1e-3);
         scgbody{irow, 9} = 'fb';
         scgbody{irow,10} = sprintf('%.1f', fbn(inm,1,ilc));

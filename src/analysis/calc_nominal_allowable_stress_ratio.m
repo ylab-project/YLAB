@@ -20,14 +20,14 @@ for ilc = 1:nlc
   % 梁
   for inm = 1:nnm
 
-    % Ni：引張時は fc,fb ともに ft に置換
-    if st(inm,1,ilc) <= 0
+    % Ni：引張時は fc,fb ともに ft に置換（引張正）
+    if st(inm,1,ilc) > 0
       fcn(inm,1,ilc) = ftn(inm,ilc_);
       fbn(inm,1,ilc) = ftn(inm,ilc_);
     end
 
-    % Nj：引張時は fc,fb ともに ft に置換
-    if st(inm,7,ilc) >= 0
+    % Nj：引張時は fc,fb ともに ft に置換（引張正）
+    if st(inm,7,ilc) > 0
       fcn(inm,2,ilc) = ftn(inm,ilc_);
       fbn(inm,2,ilc) = ftn(inm,ilc_);
     end
@@ -58,14 +58,14 @@ for ilc = 1:nlc
     switch nmtype(inm)
       case PRM.COLUMN
       case PRM.GIRDER
-        % 中央σb/fb — 引張時はfb=ft
-        if Ncn(inm,ilc) <= 0
+        % 中央σb/fb — 引張時はfb=ft（引張正）
+        if Ncn(inm,ilc) > 0
           fbn(inm,3,ilc) = ftn(inm,ilc_);
         end
         ration(inm,13,ilc) = stc(inm,ilc) / fbn(inm,3,ilc);
-        % 中央N/fc
+        % 中央N/fc（引張正）
         stcn_N = Ncn(inm,ilc) / A(inm);
-        if stcn_N <= 0
+        if stcn_N > 0
           fcn(inm,3,ilc) = ftn(inm,ilc_);
           ration(inm,14,ilc) = stcn_N / ftn(inm,ilc_);
         else

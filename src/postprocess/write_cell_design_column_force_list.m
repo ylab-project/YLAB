@@ -90,7 +90,7 @@ for i = 1:nstory
             rows{irow,6} = sprintf('%.0f', lm_nominal(im1));
           end
           rows{irow,5} = label{ilc};
-          rows{irow,7} = sprintf('%.0f', dfn(inm,1,ilc)*1.d-3);
+          rows{irow,7} = sprintf('%.0f', -dfn(inm,1,ilc)*1.d-3);
           rows{irow,8} = sprintf('%.0f', dfn(inm,11,ilc)*1.d-6);
           rows{irow,9} = '';
           rows{irow,10} = sprintf('%.0f', -dfn(inm,5,ilc)*1.d-6);

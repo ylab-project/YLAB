@@ -1,4 +1,4 @@
-function Ncn0 = calc_nominal_Nc(rs0, idmeg, idmg2m, idnmg2nm, nnm, lm, lf)
+function Ncn0 = calc_nominal_Nc(df0, idmeg, idmg2m, idnmg2nm, nnm, lm, lf)
 %calc_nominal_Nc - 名目部材レベルの中央Nを算出
 %
 %   分割梁の中央Nを内法スパン中央位置で線形補間し、
@@ -6,7 +6,7 @@ function Ncn0 = calc_nominal_Nc(rs0, idmeg, idmg2m, idnmg2nm, nnm, lm, lf)
 %   単一sub梁はi端Nをそのまま使用する。
 %
 %   入力引数:
-%     rs0      [nme×12×nlc] - 部材応力（ケース別）
+%     df0      [nme×12×nlc] - 部材応力（ケース別）
 %     idmeg    [nng×nsub] - 名目梁→sub梁
 %     idmg2m   [nmeg×1] - 梁→部材インデックス
 %     idnmg2nm [nng×1] - 名目梁→名目部材
@@ -17,7 +17,7 @@ function Ncn0 = calc_nominal_Nc(rs0, idmeg, idmg2m, idnmg2nm, nnm, lm, lf)
 %   出力引数:
 %     Ncn0 [nnm×1×nlc] - 名目部材中央N
 
-nlc = size(rs0, 3);
+nlc = size(df0, 3);
 Ncn0 = zeros(nnm, 1, nlc);
 
 % 名目梁ループ
@@ -33,7 +33,7 @@ for ing = 1:nng
 
   if nsub <= 1
     % 単一sub梁: i端Nを使用
-    Ncn0(inm, 1, :) = rs0(im_first, 1, :);
+    Ncn0(inm, 1, :) = df0(im_first, 1, :);
     continue
   end
 
@@ -53,8 +53,8 @@ for ing = 1:nng
 
   % ケース別に中央Nを線形補間
   for ilc = 1:nlc
-    Nlk = rs0(im_igs(ksub), 1, ilc);
-    Nrk = rs0(im_igs(ksub), 7, ilc);
+    Nlk = df0(im_igs(ksub), 1, ilc);
+    Nrk = df0(im_igs(ksub), 7, ilc);
     Ncn0(inm, 1, ilc) = Nlk + (Nrk - Nlk) * t / lk;
   end
 end
