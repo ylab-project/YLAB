@@ -1,11 +1,11 @@
 function options = parseargs(options, varargin)
-%PARSEARGS 実行時引数の解釈処理
+%parseargs - 実行時引数の解釈処理
 %
 %   options = parseargs(options, varargin)
 %
 %   入力:
-%       options - CommonOption オブジェクト
-%       varargin - コマンドライン引数ペア
+%     options  - CommonOption オブジェクト
+%     varargin - コマンドライン引数ペア
 
 n = length(varargin);
 tf = true(1,n);
@@ -20,6 +20,9 @@ for i=1:n
     case '-dev'
       tf(i) = false;
       options.developer_mode = true;
+    case '-legacy'
+      tf(i) = false;
+      options.do_legacy_output = true;
   end
 end
 varargin = varargin(tf);
@@ -41,20 +44,19 @@ addParameter(p, 'maxiter', options.maxiter_in_LS);
 addParameter(p, 'maxphase', options.maxphase);
 parse(p,varargin{:});
 
-% 結果の保存
 % UIモードの決定（文字列 -> 数値ID変換）
 raw_uimode = p.Results.uimode;
 if isnumeric(raw_uimode)
-    options.uimode = raw_uimode;
+  options.uimode = raw_uimode;
 elseif strcmpi(raw_uimode, 'GUI')
-    options.uimode = PRM.UIMODE_GUI;
+  options.uimode = PRM.UIMODE_GUI;
 else
-    options.uimode = PRM.UIMODE_CUI;
+  options.uimode = PRM.UIMODE_CUI;
 end
 
 % -devフラグの優先（developer_mode=trueならGUIモード）
 if options.developer_mode
-    options.uimode = PRM.UIMODE_GUI;
+  options.uimode = PRM.UIMODE_GUI;
 end
 
 options.exemode = p.Results.exemode;
@@ -95,8 +97,10 @@ if ~isempty(options.optionfile)
     options = set_from_optionfile(options);
   catch ME
     error('YLAB:InvalidOptionFile', ...
-      'オプションファイルの読み込みに失敗しました: %s', ME.message);
+      'オプションファイルの読み込みに失敗しました: %s', ...
+      ME.message);
   end
 end
 
+return
 end

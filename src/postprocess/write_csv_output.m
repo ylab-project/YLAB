@@ -41,8 +41,7 @@ secdim = result.secdim;
 
 % 初期解
 if ~isempty(options.x0)
-  secdim0 = secmgr.findNearestSection( ...
-    options.x0, options);
+  secdim0 = secmgr.findNearestSection(options.x0, options);
 else
   secdim0 = [];
 end
@@ -119,8 +118,7 @@ write_table(fout, 'S柱断面', cshead, csbody);
 write_table(fout, 'メーカー製柱脚断面', cbshead, cbsbody);
 write_table(fout, 'S梁断面', gshead, gsbody);
 write_table(fout, '鉛直ブレース断面リスト', blhead, blbody);
-write_table(fout, ...
-  '鉛直ブレース断面リスト(メーカー製品)', bshead, bsbody);
+write_table(fout, '鉛直ブレース断面リスト(メーカー製品)', bshead, bsbody);
 
 %% 仮定断面出力
 [gshead, gsbody, cshead, csbody, cbshead, cbsbody] = ...
@@ -138,17 +136,11 @@ write_table(fout, ...
   secb, stype, secdim0, com.secmgr);
 
 write_table(fout, 'S柱断面(仮定)', cshead, csbody);
-write_table(fout, ...
-  'メーカー製柱脚断面(仮定)', cbshead, cbsbody);
+write_table(fout, 'メーカー製柱脚断面(仮定)', cbshead, cbsbody);
 write_table(fout, 'S梁断面(仮定)', gshead, gsbody);
-write_table(fout, ...
-  '鉛直ブレース断面(鋼材)(仮定)', slhead, slbody);
-write_table(fout, ...
-  '鉛直ブレース断面(引張ブレース)(仮定)', ...
-  tbhead, tbbody);
-write_table(fout, ...
-  '鉛直ブレース断面(メーカー製品)(仮定)', ...
-  bshead, bsbody);
+write_table(fout, '鉛直ブレース断面(鋼材)(仮定)', slhead, slbody);
+write_table(fout, '鉛直ブレース断面(引張ブレース)(仮定)', tbhead, tbbody);
+write_table(fout, '鉛直ブレース断面(メーカー製品)(仮定)', bshead, bsbody);
 
 %% 断面剛性表
 [gphead, gpbody] = write_cell_girder_property(com, result);
@@ -166,8 +158,7 @@ write_table(fout, '柱座屈長さ,case=標準', cblhead, cblbody);
 %% 柱座屈長さ係数の自動計算
 if ~isempty(result.bkinfo)
   [bkh, bkb] = write_cell_column_buckling_length_factor(com, result);
-  write_table(fout, ...
-    '柱座屈長さ係数の自動計算,case=標準', bkh, bkb);
+  write_table(fout, '柱座屈長さ係数の自動計算,case=標準', bkh, bkb);
 end
 
 %% 水平力分担表
@@ -309,13 +300,23 @@ write_table(fout, '梁設計応力表(組合せ前)', dgiflhead, dgiflbody);
 write_table(fout, '柱設計応力表(組合せ前)', dciflhead, dciflbody);
 
 %% S梁検定比一覧
-[asrghead, asrgbody] = ...
-  write_cell_allowable_stress_ratio_girder(com, result);
+if options.do_legacy_output
+  [asrghead, asrgbody] = ...
+    write_cell_allowable_stress_ratio_girder_legacy(com, result);
+else
+  [asrghead, asrgbody] = ...
+    write_cell_allowable_stress_ratio_girder(com, result);
+end
 write_table(fout, 'S梁検定比一覧', asrghead, asrgbody);
 
 %% S柱検定比一覧
-[asrchead, asrcbody] = ...
-  write_cell_allowable_stress_ratio_column(com, result);
+if options.do_legacy_output
+  [asrchead, asrcbody] = ...
+    write_cell_allowable_stress_ratio_column_legacy(com, result);
+else
+  [asrchead, asrcbody] = ...
+    write_cell_allowable_stress_ratio_column(com, result);
+end
 write_table(fout, 'S柱検定比一覧', asrchead, asrcbody);
 
 %% 鉛直ブレース検定比一覧
@@ -328,8 +329,7 @@ scgbody = write_cell_section_calculation_girder(com, result, options);
 write_table(fout, 'S梁断面算定表', [], scgbody);
 
 %% S柱断面算定表
-sccbody = write_cell_section_calculation_column( ...
-  com, result, options);
+sccbody = write_cell_section_calculation_column(com, result, options);
 write_table(fout, 'S柱断面算定表', [], sccbody);
 
 %% 鉛直ブレース断面算定表
@@ -357,30 +357,18 @@ for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
 end
 
 %% 鉄骨数量
-[sch, scb] = ...
-  write_cell_steel_cost_column(com, result);
-write_table(fout, ...
-  '柱の部位ごと数量(鉄骨)', sch, scb);
-[sgh, sgb] = ...
-  write_cell_steel_cost_girder(com, result);
-write_table(fout, ...
-  '大梁の部位ごと数量(鉄骨)', sgh, sgb);
-[sbh, sbb] = ...
-  write_cell_steel_cost_brace(com, result, cost);
-write_table(fout, ...
-  '鉛直ブレースの部位ごと数量(鉄骨)', ...
-  sbh, sbb);
-[shh, shb] = ...
-  write_cell_steel_cost_hbrace(com, result, cost);
-write_table(fout, ...
-  '水平ブレースの部位ごと数量(鉄骨)', ...
-  shh, shb);
+[sch, scb] = write_cell_steel_cost_column(com, result);
+write_table(fout, '柱の部位ごと数量(鉄骨)', sch, scb);
+[sgh, sgb] = write_cell_steel_cost_girder(com, result);
+write_table(fout, '大梁の部位ごと数量(鉄骨)', sgh, sgb);
+[sbh, sbb] = write_cell_steel_cost_brace(com, result, cost);
+write_table(fout, '鉛直ブレースの部位ごと数量(鉄骨)', sbh, sbb);
+[shh, shb] = write_cell_steel_cost_hbrace(com, result, cost);
+write_table(fout, '水平ブレースの部位ごと数量(鉄骨)', shh, shb);
 
 %% 部位別集計表(鉄骨)
-[smh, smb] = write_cell_steel_cost_summary( ...
-  com, options, cost, secdim);
-write_table(fout, ...
-  '部位別集計表(鉄骨)', smh, smb);
+[smh, smb] = write_cell_steel_cost_summary(com, options, cost, secdim);
+write_table(fout, '部位別集計表(鉄骨)', smh, smb);
 
 fclose(fout);
 fclose('all');

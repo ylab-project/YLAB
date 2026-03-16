@@ -296,6 +296,7 @@ target_output = target_output_file;
     mod_options.outputfile = h_gen.edt_output.Value;
     mod_options.exemode = h_gen.dd_exemode.Value;
     mod_options.do_writeout_pdf = h_gen.cb_pdf.Value;
+    mod_options.do_legacy_output = h_gen.cb_legacy.Value;
 
     % History
     mod_options.matfile = h_hist.edt_matfile.Value;

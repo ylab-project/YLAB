@@ -1,6 +1,6 @@
 function [asrchead, asrcbody] = ...
-  write_cell_allowable_stress_ratio_column(com, result)
-%write_cell_allowable_stress_ratio_column - S柱検定比一覧
+  write_cell_allowable_stress_ratio_column_legacy(com, result)
+%write_cell_allowable_stress_ratio_column_legacy - S柱検定比一覧（旧仕様）
 
 % 定数
 nsc = com.nsecc;
@@ -20,9 +20,9 @@ csi_all = result.csi;
 csj_all = result.csj;
 
 % --- ヘッダ ---
-asrchead = {'階', '符号', 'M', '', '', ...
+asrchead = {'階', '符号', 'M', '', ...
   'Q', ''; ...
-  '', '', '柱頭', '中央', '柱脚', '柱頭', '柱脚'};
+  '', '', '柱頭', '柱脚', '柱頭', '柱脚'};
 
 % --- S柱検定比一覧 ---
 ncol = size(asrchead,2);
@@ -74,10 +74,9 @@ for i = 1:nstory
     asrcbody{irow,2} = sprintf('%s', ...
       [secc.subindex{isc} secc.name{isc}]);
     asrcbody{irow,3} = sprintf('%.2f', crj_);
-    asrcbody{irow,4} = '';
-    asrcbody{irow,5} = sprintf('%.2f', cri_);
-    asrcbody{irow,6} = sprintf('%.2f', csj_);
-    asrcbody{irow,7} = sprintf('%.2f', csi_);
+    asrcbody{irow,4} = sprintf('%.2f', cri_);
+    asrcbody{irow,5} = sprintf('%.2f', csj_);
+    asrcbody{irow,6} = sprintf('%.2f', csi_);
   end
 end
 
