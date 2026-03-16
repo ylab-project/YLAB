@@ -60,8 +60,9 @@ for ilc = 1:nlc
     % 弱軸曲げは見ない？
     grj(ing,ilc) = gcj+gj1-1;
 
-    % 中央曲げ応力度の検定
-    grc(ing,ilc) = ration(inm,13,ilc)-1;
+    % 中央曲げ応力度の検定（N/fc + M/fb）
+    grc(ing,ilc) = abs(ration(inm,14,ilc)) ...
+      + ration(inm,13,ilc) - 1;
 
     % i端せん断応力度の検定
     gsi1 = ration(inm,2,ilc);

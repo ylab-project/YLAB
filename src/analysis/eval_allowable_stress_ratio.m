@@ -19,7 +19,7 @@ fs = [Fm/(1.5*sqrt(3)) Fm/sqrt(3)];
 % 通し部材長さ
 lm_nominal = lm;
 lm_nominal(mtype==PRM.GIRDER) = ...
-  calc_nominal_girder_length(nominal.girder, lm(mtype==PRM.GIRDER));
+  calc_nominal_girder_length(nominal.girder.idmeg, lm(mtype==PRM.GIRDER));
 lm_nominal(mtype==PRM.COLUMN) = ...
   calc_nominal_column_length(nominal.column, lm(mtype==PRM.COLUMN));
 

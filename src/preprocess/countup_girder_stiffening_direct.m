@@ -1,124 +1,155 @@
-function member_girder = countup_girder_stiffening_direct(com)
+function [member_girder, nominal_girder] = ...
+  countup_girder_stiffening_direct(com, lm)
+%countup_girder_stiffening_direct - 横補剛間隔の算定
+%
+%   名目部材単位で補剛間隔(lb)を算定。
+%   lb は2列 [左, 右] で出力する。中央検定位置の
+%   lb/xcは解析時にcalc_nominal_girder_check_intervalで算出。
+%
+%   入力引数:
+%     com - 共通オブジェクト
+%     lm  [nme×1] - 部材長（post-geometry）
+%
+%   出力引数:
+%     member_girder  - slr_lb, slr_is_target,
+%                      slr_lbmax を追加
+%     nominal_girder - stiffening_lb を追加
 
 % 共通配列
 member_column = com.member.column;
 member_girder = com.member.girder;
+nominal_girder = com.nominal.girder;
 girder_stiffening = com.girder_stiffening;
-ignominal = com.nominal.girder.idmeg;
+ignominal = nominal_girder.idmeg;
 gjoint = com.member.girder.joint;
 
 % 定数
+idme = member_girder.idme;
 nmg = size(member_girder,1);
 nnode = size(com.node,1);
+nng = size(ignominal, 1);
 
 % 補剛間隔
-% nstiff = member_girder.nstiff;
 lb0 = member_girder.Lb;
-lm = member_girder.lm;
-lm_nominal = member_girder.lm_nominal;
+lmg = lm(idme);
+lgmn = calc_nominal_girder_length(ignominal, lmg);
 
-% 計算の準備
-lb = [lb0 lb0 lb0];
-xc = zeros(nmg,3);
-is_through = member_girder.isthrough;
+% 計算の準備（lb を2列 [左, 右] で管理）
+lb = [lb0 lb0];
+lbmax = lb0;
 ngs = size(girder_stiffening,1);
 idmeg = girder_stiffening.idmeg;
 lbgs = girder_stiffening.Lb;
-xcgs = girder_stiffening.xc;
 
-% 補剛間隔
-for i=1:ngs
+% 補剛間隔の読み取り
+has_stiff_entry = false(nmg, 1);
+has_lbmax_entry = false(nmg, 1);
+for i = 1:ngs
   % 指定値の読み取り
   lb1 = lbgs(i,1);
   lb2 = lbgs(i,2);
-  lbmax = lbgs(i,3);
-  xc1 = xcgs(i,1);
-  xc2 = xcgs(i,2);
+  lbmax_ = lbgs(i,3);
 
-  % 左右の補剛間隔が指定されてなければ補剛なし
+  % 左右の補剛間隔が未指定なら補剛なし
   if ismissing(lb1)
-    lb1 = lbmax;
-    xc1 = 0;
+    lb1 = lbmax_;
   end
   if ismissing(lb2)
-    lb2 = lbmax;
-    xc2 = 0;
+    lb2 = lbmax_;
   end
 
   % 結果の保存
   ngi = nnz(idmeg(i,:));
-  for j=1:ngi
-    lb(idmeg(i,j),:) = [lb1 lb2 lbmax];
-    xc(idmeg(i,j),1:2) = [xc1 xc2];
+  for j = 1:ngi
+    ig = idmeg(i,j);
+    lb(ig,1:2) = [lb1 lb2];
+    lbmax(ig) = lbmax_;
+    has_stiff_entry(ig) = true;
+    has_lbmax_entry(ig) = ~ismissing(lbmax_);
   end
 end
 
-% 中央位置
-for i=1:nmg
-  % 指定されている場合はそのまま
-  if all(~ismissing(xc(i,:))) && xc(i,2)>0
-    continue
+% 節点情報（直交梁判定用）
+idcnode = [member_column.idnode1 member_column.idnode2];
+idgnode = [member_girder.idnode1 member_girder.idnode2];
+idcnode_ = unique(idcnode(:));
+
+% ループ1: lb(:,1:2) の確定（名目部材単位）
+for ing = 1:nng
+  isubs = ignominal(ing,:);
+  isubs(isubs==0) = [];
+  i0 = isubs(1);
+  lnom = lgmn(i0);
+
+  % Lb未指定/0（横補剛なし）→ 全長を補剛間隔
+  if isnan(lb0(i0)) || lb0(i0) == 0
+    lb(isubs, :) = lnom;
   end
 
-  % 指定されていない場合
-  lb1 = min(lb(i,1),lm(i));
-  lb2 = min(lb(i,2),lm(i));
-  lbmax = min(lb(i,3),lm(i));
-  lbmin = min([lb(i,:) lm(i)]);
-  nstiff = lm(i)/lbmin;
-  if nstiff-1<0.01
-    % 補剛なし
-    xc1 = 0;
-    xc2 = 0;
-  elseif mod(nstiff,2)<=0.1
-    % 均等偶数本
-    xc1 = max(lm(i)/2-lbmax,0);
-    xc2 = lm(i)/2;
-  elseif (lm(i)-lb1-lb2)/lbmax<=1.01 && (lm(i)-lb1-lb2)/lbmax>0.01
-    % 中央区間は最大区間以下
-    xc1 = lb1;
-    xc2 = lb2;
-  else
-    % 最大区間とする
-    xc1 = max((lm(i)-lbmax)/2,0);
-    xc2 = max((lm(i)-lbmax)/2,0);
-  end
-  xc1 = min(xc1,lm(i));
-  xc2 = min(xc2,lm(i));
-  xc(i,1:2) = [xc1 xc2];
-end
-
-% 通し梁中央位置
-for i=1:nmg
-  xc(i,3) = lm_nominal(i)/2;
-end
-
-% チェック用
-% lb3 = lm-xc(:,1)-xc(:,2);
-% check = max([lb(:,1) lb(:,2) lb3],[],2)-lb(:,3);
-
-% 対象外の削除
-for i=1:nmg
-  for j=1:2
-    if is_through(i,j)
-      lb(i,j) = 0;
+  % 通し梁中間節点のlb処理
+  if numel(isubs) > 1
+    for k = 1:numel(isubs)-1
+      i1 = isubs(k);
+      i2 = isubs(k+1);
+      % 補剛指定ありの場合はスキップ
+      if has_stiff_entry(i1) || has_stiff_entry(i2)
+        continue
+      end
+      % 中間節点に柱または直交梁があるか
+      mid_node = idgnode(i1, 2);
+      exist_col = any(idcnode_ == mid_node);
+      eg1 = idgnode(:,1) == mid_node;
+      eg2 = idgnode(:,2) == mid_node;
+      eg1(isubs) = false;
+      eg2(isubs) = false;
+      has_ortho = exist_col || any([eg1; eg2]);
+      if ~has_ortho
+        lb_span = lmg(i1) + lmg(i2);
+        lb(i1,2) = lb_span;
+        lb(i2,1) = lb_span;
+      end
     end
   end
+end
+
+% 名目部材単位でlb左右端を集約
+lbn = zeros(nng, 2);
+for ing = 1:nng
+  isubs = ignominal(ing,:);
+  isubs(isubs==0) = [];
+  i0 = isubs(1);
+  lb1 = lb(i0, 1);
+  lb2 = lb(isubs(end), 2);
+  lbn(ing, :) = [lb1, lb2];
 end
 
 % --- 保有耐力横補剛の対象チェック ---
 % 単材の接合条件
 is_target_slr = (gjoint(:,1:2)~=PRM.PIN);
-is_target_slr(member_girder.section_type==PRM.RCRS,:) = false;
+is_target_slr(member_girder.section_type==PRM.RCRS, :) = false;
 slrlb = lb;
 slrlb(~is_target_slr(:,1),1) = 0;
 slrlb(~is_target_slr(:,2),2) = 0;
 
+% slr_lbmax の算定（名目梁単位で算出し全subに格納）
+slr_lbmax = zeros(nmg, 1);
+for ing = 1:nng
+  isubs = ignominal(ing,:);
+  isubs(isubs==0) = [];
+  i0 = isubs(1);
+  if has_lbmax_entry(i0)
+    % 入力指定あり → 入力値を使用
+    lbmax_nom = lbmax(i0);
+  else
+    % 入力指定なし → 名目梁内の全subのlbの最大値
+    lbmax_nom = max(max(lb(isubs, :)));
+  end
+  slr_lbmax(isubs) = lbmax_nom;
+end
+
 % 通し梁の中央節点の検索
-idcnode = [member_column.idnode1 member_column.idnode2];
-idgnode = [member_girder.idnode1 member_girder.idnode2];
 is_dummy_node = false(1,nnode);
-for i=1:size(ignominal,1)
+for i = 1:nng
   idgs = ignominal(i,:);
   idgs(idgs==0) = [];
   nnn = idgnode(idgs,:)';
@@ -128,24 +159,22 @@ for i=1:size(ignominal,1)
 end
 
 % 他に柱梁が接続されてなければ非対象
-idcnode_ = unique(idcnode(:));
-for ig=1:nmg
-  for j=1:2
+for ig = 1:nmg
+  for j = 1:2
     exist_column = any(idcnode_==idgnode(ig,j));
     exist_girder1 = idgnode(:,1)==idgnode(ig,j);
     exist_girder2 = idgnode(:,2)==idgnode(ig,j);
     exist_girder1(ig) = false;
     exist_girder2(ig) = false;
     exist_girder = any([exist_girder1; exist_girder2]);
-    if  ~exist_column && ~exist_girder ...
-      && ~any(is_dummy_node==idgnode(ig,j))
+    if ~exist_column && ~exist_girder && ~any(is_dummy_node==idgnode(ig,j))
       is_target_slr(ig,j) = false;
     end
   end
 end
 
 % 通し梁の接合条件
-for i=1:size(ignominal,1)
+for i = 1:nng
   idgs = ignominal(i,:);
   idgs(idgs==0) = [];
 
@@ -153,34 +182,48 @@ for i=1:size(ignominal,1)
   if member_girder.section_type(idgs(1))==PRM.RCRS
     continue
   end
-  
+
   % 接合条件の確認
   if gjoint(idgs(1),1)==PRM.PIN && gjoint(idgs(end),2)==PRM.PIN
     % 両端ピン
     is_target_slr(idgs,:) = false;
-    % 必要補剛間隔はすべて0
     slrlb(idgs,1) = 0;
     slrlb(idgs,2) = 0;
   elseif gjoint(idgs(1),1)==PRM.PIN && gjoint(idgs(end),2)~=PRM.PIN
     % 左端ピン
     is_target_slr(idgs,1) = false;
     is_target_slr(idgs(1:end-1),2) = false;
-    % 必要補剛間隔は右端のみ残す
     slrlb(idgs,1) = 0;
     slrlb(idgs(1:end-1),2) = 0;
   elseif gjoint(idgs(1),1)~=PRM.PIN && gjoint(idgs(end),2)==PRM.PIN
     % 右端ピン
     is_target_slr(idgs,1) = false;
     is_target_slr(idgs(1:end-1),2) = false;
-    % 必要補剛間隔は左端のみ残す
     slrlb(idgs(2:end),1) = 0;
     slrlb(idgs,2) = 0;
   end
 end
 
+% 名目梁単位の補剛区間数（stiffening_lbの累積）
+nstiff_nom = zeros(nng, 1);
+for ing = 1:nng
+  isubs = ignominal(ing,:);
+  isubs(isubs==0) = [];
+  lnom = lgmn(isubs(1));
+  cum = cumsum(lbn(ing, :));
+  nint = find(cum >= lnom - 0.5, 1, 'first');
+  if isempty(nint)
+    nint = numel(cum) + ceil((lnom - cum(end)) / max(lbn(ing, :)));
+  end
+  nstiff_nom(ing) = nint;
+end
+
 % 結果保存
-member_girder.stiffening_lb = lb;
-member_girder.stiffening_xc = xc;
+nominal_girder.nstiff = nstiff_nom;
+nominal_girder.stiffening_lb = lbn;
 member_girder.slr_is_target = is_target_slr;
 member_girder.slr_lb = slrlb;
+member_girder.slr_lbmax = slr_lbmax;
+
+return
 end

@@ -1,6 +1,5 @@
 function [x, fval, exitflag, com] = call_lsr(com, options)
 % --- common ---
-lm = com.member.property.lm;
 secmgr = com.secmgr;
 section = com.section;
 member = com.member;
@@ -13,6 +12,11 @@ max_idphase = min(options.maxphase,2);
 % 上下限値
 lb = secmgr.lb;
 ub = secmgr.ub;
+
+% 初期断面での部材長を算出
+secdim0 = secmgr.findNearestSection(ub, options);
+[~, ~, lm] = update_geometry_z(secdim0, baseline, node, ...
+  story, floor, section, member, options);
 
 % 履歴準備
 trials = [];

@@ -6,7 +6,6 @@ function [nominal_girder, idnominal] = countup_nominal_girder(com)
 idconnected_girder = com.member.girder.idconnected_girder;
 idx_girder = com.member.girder.idx;
 idy_girder = com.member.girder.idy;
-lgm = com.member.property.lm(com.member.girder.idme);
 girder = com.member.girder;
 issgas = com.exclusion.is_section_girder_allowable_stress;
 
@@ -85,30 +84,12 @@ for i=1:nnmg
   idmeg(i,1:ncol) = idmeg(i,idsort);
 end
 
-% 部材長
-l_nominal_girder = zeros(nnmg, mcol);
-for i=1:nnmg
+% 左右中央部材（中央は parse_frame_data で確定）
+idsub = zeros(nnmg, 3);
+for i = 1:nnmg
   ncol = nnz(idmeg(i,:));
-  l_nominal_girder(i,1:ncol) = lgm(idmeg(i,1:ncol));
-end
-
-% 左右中央部材
-idsub = zeros(nnmg,3);
-for i=1:nnmg
-  ncol = nnz(idmeg(i,:));
-  % iddd = id_nominal_girder(i,1:ncol);
-  % idlrc(i,1) = iddd(1);
-  % idlrc(i,2) = iddd(end);
   idsub(i,1) = 1;
   idsub(i,2) = ncol;
-  lgm = sum(l_nominal_girder(i))/2;
-  for j=1:ncol
-    if l_nominal_girder(i,j)>=lgm
-      % idlrc(i,3) = iddd(j);
-      idsub(i,3) = j;
-      break
-    end
-  end
 end
 
 % 向き

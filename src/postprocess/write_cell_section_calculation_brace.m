@@ -303,7 +303,7 @@ return
 
       % ケース名・検定比
       scbbody{irow, 19} = ...
-        PRM.load_case_name(c_ilc_);
+        PRM.load_case_combo_name(c_ilc_);
       if Ta_kN_ > 0
         scbbody{irow, 20} = sprintf( ...
           '%.2f', ceil(ratio_ * 100) / 100);
@@ -474,7 +474,7 @@ return
         calc_ratios_steel( ...
         im_, A_mm2_, F_, Lfc_, is_tonly_);
       scbbody{irow, 20} = ...
-        PRM.load_case_name(c_ilc_);
+        PRM.load_case_combo_name(c_ilc_);
       scbbody{irow, 21} = sprintf( ...
         '%.2f ', ceil(rt_ * 100) / 100);
       if ~is_tonly_ && rc_ > 0

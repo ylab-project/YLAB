@@ -1,10 +1,8 @@
-function [msprop, secdim, dvec, dnode, felement,...
-  stn, stcn, Mc, C, vix, viy, ...
-  rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, state, sw, ...
-  lf, lr, lm, lm_weight, lnm, lbnm, ...
-  Iy0, Iz0, gphiI, gphiN, cphiI, cbs, baseline, ...
-  node, story, floor] = ...
-  analysis_frame(xvar, com, options)
+function [msprop, secdim, dvec, dnode, felement, stn, stcn, ...
+  Mc, C, vix, viy, rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, ...
+  state, sw, lf, lr, lm, lm_weight, lnm, lbnm, Iy0, Iz0, ...
+  gphiI, gphiN, cphiI, cbs, baseline, node, story, floor, ...
+  Cn, nomgc] = analysis_frame(xvar, com, options)
 
 % 共通定数
 nbw = com.nbw;
@@ -65,10 +63,7 @@ floor = com.floor;
 jdof = com.node.dof;
 % Lb = com.member.girder.Lb;
 is_through_girder = com.member.girder.isthrough;
-lbng = com.member.girder.stiffening_lb;
-lxcg = com.member.girder.stiffening_xc;
-% lm = com.member.property.lm;
-% lgm_through = com.member.girder.lm_through;
+lbng = com.nominal.girder.stiffening_lb;
 lcdir = com.loadcase.dir;
 material = com.material;
 section = com.section;
@@ -110,6 +105,7 @@ sprop.F = secmgr.extractSectionMaterialF(secdim, matF);
 msprop = sprop(idm2s,:);
 msdim = secdim(idm2s,:);
 A = msprop.A;
+Asc = msprop.Asc;
 Asy = msprop.Asy;
 Asz = msprop.Asz;
 Aw = msprop.Aw;
@@ -159,13 +155,13 @@ sec_stress_factor = secmgr.getSectionStressFactor(ids2slist);
 stress_factor = sec_stress_factor(idm2s);
 
 % 床による梁剛性の考慮（合成梁）
-[Igm, gphiI] = calc_composite_girder_Iy(...
-  member_girder, msdim, msprop, idmg2m, options);
+[Igm, gphiI] = calc_composite_girder_Iy(member_girder, ...
+  msdim, msprop, idmg2m, options);
 Iy(idmg2m) = Igm;
 
 % 床による軸断面積の増大率（出力用）
-[~, gphiN] = calc_composite_girder_Asy(...
-  member_girder, msdim, msprop, idmg2m);
+[~, gphiN] = calc_composite_girder_Asy(member_girder, ...
+  msdim, msprop, idmg2m);
 
 % 柱の剛度増減率
 cphiI = member_column.phiI;
@@ -176,13 +172,13 @@ Iz(mtype==PRM.COLUMN) = Iz(mtype==PRM.COLUMN).*cphiI(:,2);
 Zy = msprop.Zy;
 Zz = msprop.Zz;
 Zyf = msprop.Zyf;
-Zys = msprop.Zys;
+Zysc = msprop.Zysc;
 JJ = msprop.JJ;
 
 %% 柱脚剛性の計算
 Dcb = secdim(idsc2s(column_base.idsecc),1);
-cbs = calc_column_base_section(...
-  Dcb, cbstiff, column_base, column_base_list);
+cbs = calc_column_base_section(Dcb, cbstiff, column_base, ...
+  column_base_list);
 cbstiff = cbs.stiff;
 
 %% 形状の更新
@@ -212,25 +208,25 @@ Iz(isrigid_ym) = Iz(isrigid_ym)*PRM.RIGID_SCALE;
 
 % 通し部材の部材長（構造階高ベース）
 lnm = lm;
+idmeg = nominal_girder.idmeg;
 
 % 通し梁長さ
-lnm(mtype==PRM.GIRDER) = ...
-  calc_nominal_girder_length(...
-  nominal_girder, lm(mtype==PRM.GIRDER));
+lnm(mtype==PRM.GIRDER) = calc_nominal_girder_length( ...
+  idmeg, lm(mtype==PRM.GIRDER));
 
-% 通し柱長さ（全合算、設計応力用）
-lnm(mtype==PRM.COLUMN) = ...
-  calc_nominal_column_length(...
+% 通し柱長さ
+lnm(mtype==PRM.COLUMN) = calc_nominal_column_length( ...
   nominal_column, lm(mtype==PRM.COLUMN));
 
-% 横補剛間隔の更新
-lbng = update_lb_nominal_girder(...
-  lm(mtype==PRM.GIRDER), lbng);
-lbnc = update_lb_nominal_column(...
-  lm(mtype==PRM.COLUMN), ...
+% 名目梁4検定位置のlb/xc/sub情報を算定
+lfg = lf.girder;
+nomgc = calc_nominal_girder_check_interval(lbng, lm(mtype==PRM.GIRDER), ...
+  lfg, idmeg);
+lbnc = update_lb_nominal_column(lm(mtype==PRM.COLUMN), ...
   lnm(mtype==PRM.COLUMN), nominal_column);
-lbnm = zeros(nme,3);
-lbnm(mtype==PRM.GIRDER,1:3) = lbng;
+idg2ng = member_girder.idnominal(:,1);
+lbnm = zeros(nme,4);
+lbnm(mtype==PRM.GIRDER,:) = nomgc.lb(idg2ng, :);
 lbnm(mtype==PRM.COLUMN,1:3) = lbnc;
 
 % 等価外力（要素荷重）の更新
@@ -247,9 +243,9 @@ mejoint(idmc2m,:) = cjoint;
 
 %% 荷重計算用の部材長を算出（自重計算の有無にかかわらず常に計算）
 stype_sec = com.section.property.type;
-lm_column_weight = calc_column_weight_length( ...
-  member_column, member_girder, floor, com.node, stype_sec, ...
-  com.section.column.idsec, com.section.girder.idsec, secdim);
+lm_column_weight = calc_column_weight_length(member_column, ...
+  member_girder, floor, com.node, stype_sec, com.section.column.idsec, ...
+  com.section.girder.idsec, secdim);
 
 %% 基礎柱面寸法の配列（統一断面ID→Df）
 Df_foundation = zeros(size(secdim, 1), 1);
@@ -260,9 +256,9 @@ for icb = 1:length(column_base.idsecc)
   end
 end
 
-[lm_girder_weight, face_deduct] = calc_girder_weight_length( ...
-  member_girder, com.node, stype_sec, ...
-  com.section.girder.idsec, secdim, Df_foundation);
+[lm_girder_weight, face_deduct] = ...
+  calc_girder_weight_length(member_girder, com.node, ...
+  stype_sec, com.section.girder.idsec, secdim, Df_foundation);
 
 %% 柱・梁を結合して全部材の荷重計算用部材長を作成
 lm_weight = lm;  % 初期値は構造階高ベースの部材長
@@ -270,8 +266,8 @@ lm_weight(mtype==PRM.COLUMN) = lm_column_weight;
 lm_weight(mtype==PRM.GIRDER) = lm_girder_weight;
 
 %% BRB単位重量の取得
-brace_unit_weight = calc_brb_unit_weight( ...
-  com.section.brace, com.member.brace, com.secmgr, secdim);
+brace_unit_weight = calc_brb_unit_weight(com.section.brace, ...
+  com.member.brace, com.secmgr, secdim);
 
 %% RC密度の計算（Fc依存: SS7マニュアル表2.1）
 idmat_sec = com.section.property.idmaterial;
@@ -283,10 +279,9 @@ rho_rc_member = rho_rc_sec(idm2s);
 
 %% 自重の計算
 if options.consider_self_weight && options.consider_finishing_material
-  sw = comp_self_weight(A, lm_weight, lm, ...
-    member_property, msdim, slab, idn2df, ndf, ...
-    mejoint, face_deduct, options, member_column, ...
-    brace_unit_weight, Df_foundation, idsup2n, ...
+  sw = comp_self_weight(A, lm_weight, lm, member_property, ...
+    msdim, slab, idn2df, ndf, mejoint, face_deduct, options, ...
+    member_column, brace_unit_weight, Df_foundation, idsup2n, ...
     rho_rc_member);
   fvec(:,1) = fvec(:,1)-sw.f;
   ar(:,:,1) = ar(:,:,1)+sw.ar;
@@ -308,10 +303,10 @@ flag = struct("consider_shear_deformation", ...
 [fvec, ar] = modify_force_for_pinjoint(fvec, ar, mejoint);
 
 %% 剛性行列の作成
-ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
-  cxl, cyl, lm, Em, prm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
-  idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ...
-  ndf, nbw, flag);
+ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, ...
+  cyl, lm, Em, prm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
+  idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
+  nbw, flag);
 
 %% λeによる引張のみブレース判定
 is_steel_brace = (mtype == PRM.BRACE) ...
@@ -338,11 +333,9 @@ is_tension_hb = com.member.property.is_tension_only_hb;
 is_tension = is_tension | is_tension_hb;
 
 %% 引張ブレースの判定（TB + λe判定鋼材 + 水平ブレース引張のみ）
-has_tension_brace = any(stype(idm2s) == PRM.TB) ...
-  || any(is_tension);
+has_tension_brace = any(stype(idm2s) == PRM.TB) || any(is_tension);
 
-if options.consider_foundation_uplift ...
-    || has_tension_brace
+if options.consider_foundation_uplift || has_tension_brace
   iter_max = 30;
 else
   iter_max = 1;
@@ -351,10 +344,9 @@ end
 %% 引張ブレース剛性の事前計算
 tb_stif = struct([]);
 if has_tension_brace
-  tb_stif = precompute_tension_brace_stiffness( ...
-    A, Iy, Iz, JJ, cxl, cyl, lm, Em, prm, ...
-    xr, yr, idn2df, idm2n1, idm2n2, ...
-    mtype, stype, idm2s, flag, is_tension);
+  tb_stif = precompute_tension_brace_stiffness(A, Iy, Iz, ...
+    JJ, cxl, cyl, lm, Em, prm, xr, yr, idn2df, idm2n1, ...
+    idm2n2, mtype, stype, idm2s, flag, is_tension);
   ntb = length(tb_stif);
 end
 
@@ -371,8 +363,7 @@ frvec = zeros(ndf, nlc);
 rvec = zeros(ns6, nlc);
 
 %% 解析ループ
-if ~options.consider_foundation_uplift ...
-    && ~has_tension_brace
+if ~options.consider_foundation_uplift && ~has_tension_brace
   %% Fast path: 浮き上がり・引張ブレースなし
   ilcset_ = 1:nlc;
   isuplifted_ = false(nsup, 1);
@@ -381,8 +372,8 @@ if ~options.consider_foundation_uplift ...
   dvec = eqsoln(ksmat, fvec, nbw, ndf);
   sks = repmat(sks, 1, nlc);
   dnode = trans_dvec2dnode(ilcset_, dnode, dvec);
-  rvec = reaction_force(ilcset_, dnode, frvec, ...
-    rvec, sks, xr, yr, idn2df, idsup2n, isfixedsup);
+  rvec = reaction_force(ilcset_, dnode, frvec, rvec, ...
+    sks, xr, yr, idn2df, idsup2n, isfixedsup);
 else
   %% === 統合収束ループ（G+P + 地震） ===
   for ilc = 1:nlc
@@ -395,8 +386,8 @@ else
         ksmat = ksmat0;
       end
       % 支点剛性（共通）
-      [ksmat, sks(:,ilc)] = add_sup_stif(ksmat, ...
-        xr, yr, idsup2n, isfixedsup, isuplifted(:,ilc), idn2df);
+      [ksmat, sks(:,ilc)] = add_sup_stif(ksmat, xr, ...
+        yr, idsup2n, isfixedsup, isuplifted(:,ilc), idn2df);
       % 外力ベクトル（G+P/地震で分岐）
       if ilc == 1
         frvec_ilc_ = fvec(:, 1);
@@ -462,18 +453,18 @@ else
 
   %% 全ケース完了後: frvec, dnode, rvec確定
   if options.consider_foundation_uplift
-    frvec = uplift_force(idn2df, idm2n1, idsup2n, ...
-      isfixedsup, rvec, fvec, isuplifted);
+    frvec = uplift_force(idn2df, idm2n1, idsup2n, isfixedsup, ...
+      rvec, fvec, isuplifted);
   end
   dnode = trans_dvec2dnode(2:nlc, dnode, dvec);
-  rvec = reaction_force(2:nlc, dnode, frvec, ...
-    rvec, sks, xr, yr, idn2df, idsup2n, isfixedsup);
+  rvec = reaction_force(2:nlc, dnode, frvec, rvec, sks, ...
+    xr, yr, idn2df, idsup2n, isfixedsup);
 end
 
 % 応力計算
-[rs, Mc] = calc_member_force(1:nlc, dvec, [], ...
-  frvec, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, prm, ...
-  lm, lrxm, lrym, flag, member_property, node, material, ...
+[rs, Mc] = calc_member_force(1:nlc, dvec, [], frvec, ...
+  sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, prm, lm, ...
+  lrxm, lrym, flag, member_property, node, material, ...
   cbstiff, idm2mat, idm2scb, mejoint, tb_stif);
 rs0 = rs; Mc0 = Mc; rvec0 = rvec;
 
@@ -497,8 +488,8 @@ if has_tension_brace
 end
 
 %% 荷重ケースの重ね合わせ
-[rs, Mc, rvec, cgsrn] = superpose_analysis_case(...
-  rs0, Mc0, rvec0, lcdir, idmc2m, idmg2m, lm, lf, stress_factor);
+[rs, Mc, rvec, cgsrn] = superpose_analysis_case(rs0, ...
+  Mc0, rvec0, lcdir, idmc2m, idmg2m, lm, lf, stress_factor);
 
 %% state 構造体の構築
 state.sup.islifted = isuplifted;
@@ -510,14 +501,35 @@ end
 state.tb.is_tension = is_tension;
 
 %% 設計応力の計算
-dfm0 = calc_face_moment(rs0, lcdir, idmc2m, idmg2m, lm, lf, nominal_column);
-dfn0 = calc_design_force(...
-  dfm0, Mc0, rvec0, lcdir, idmc2m, idmg2m, lnm, lf, nominal_property);
+dfm0 = calc_face_moment(rs0, lcdir, idmc2m, ...
+  idmg2m, lm, lf, nominal_column);
+dfn0 = calc_design_force(dfm0, Mc0, rvec0, ...
+  lcdir, idmc2m, idmg2m, lnm, lf, ...
+  nominal_property);
 dfn = superpose_design_force(dfn0, lcdir);
 
+% 名目部材レベルの中央M（ケース別→重ね合わせ）
+% M0 は L287 で sw.M0 加算済み
+idnmg2nm = nominal_girder.idnominal;
+Mcn0 = calc_nominal_Mc(rs0, M0, ...
+  Mc0(idnm2m(:,1), :), idmeg, idmg2m, ...
+  idnmg2nm, lm, lf);
+Mcn = superpose_design_force(Mcn0, lcdir);
+nomgc.Mcn = squeeze(Mcn);
+nomgc.Mcn0 = squeeze(Mcn0);
+
+% 名目部材レベルの中央N（ケース別→重ね合わせ）
+nnm = size(idnm2m, 1);
+Ncn0 = calc_nominal_Nc(rs0, idmeg, idmg2m, idnmg2nm, nnm, lm, lf);
+Ncn = superpose_design_force(Ncn0, lcdir);
+nomgc.Ncn = squeeze(Ncn);
+
 %% 許容応力度計算用の係数算定
-C = calc_modified_C(...
-  rs, Mc, M0, lm, lbng, lxcg, idm2mg, is_through_girder);
+[C, Mc_nom] = calc_modified_C(rs, M0, lm, ...
+  lbng, nomgc.xc, idm2mg, ...
+  is_through_girder, idmeg, Mc);
+Cn = calc_modified_Cn(rs, M0, lm, nomgc, ...
+  idm2mg, is_through_girder, idmeg);
 
 %% 柱梁耐力比算定用の軸力による全塑性曲げモーメント低下率の算定
 [vix, viy] = reduction_rate(mtype, cgsrn, A, Fm, lcdir);
@@ -529,18 +541,20 @@ else
   Zyc = Zyf;
 end
 
-%% 材端部の断面係数（WFSのみにZys/Zyfを適用）
+%% 材端部の断面係数（WFSのみにZysc/Zyfを適用）
 mstype = stype(idm2s);
 Zyij = Zy;  % デフォルトはZy（非ゼロ）
 if options.consider_web_at_girder_end
-  Zyij(mstype==PRM.WFS) = Zys(mstype==PRM.WFS);
+  Zyij(mstype==PRM.WFS) = Zysc(mstype==PRM.WFS);
 else
   Zyij(mstype==PRM.WFS) = Zyf(mstype==PRM.WFS);
 end
 % An = Aw+Af;
 % [st, stc] = stress(rs, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, mtype);
-[stn, stcn] = calc_nominal_stress(...
-  dfn, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, mtype, idnm2m);
+
+[stn, stcn] = calc_nominal_stress(dfn, Mcn, ...
+  Asc, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, ...
+  mtype, idnm2m);
 % -------------------------------------------------------------------------
   function dnode = trans_dvec2dnode(ilcset, dnode, dvec)
     % 剛床を考慮した節点変位への変換
@@ -671,8 +685,8 @@ return
 end
 
 % -------------------------------------------------------------------------
-function ksmat = subtract_brace_stiffness( ...
-  ksmat0, tb_stif, iscompressed_ilc)
+function ksmat = subtract_brace_stiffness(ksmat0, tb_stif, ...
+  iscompressed_ilc)
 %subtract_brace_stiffness - 圧縮ブレースの剛性を減算
 %
 %   ksmat = subtract_brace_stiffness( ...
@@ -702,8 +716,7 @@ for itb = 1:ntb
       kk = ndi_(jj) - ndi_(ii);
       if kk >= 0
         kk = kk + 1;
-        ksmat(ndi_(ii), kk) = ...
-          ksmat(ndi_(ii), kk) - ke_(ii, jj);
+        ksmat(ndi_(ii), kk) = ksmat(ndi_(ii), kk) - ke_(ii, jj);
       end
     end
   end

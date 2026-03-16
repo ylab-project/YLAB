@@ -172,6 +172,9 @@ classdef CommonOption
     % --- 出力制御用パラメータ ---
     output_girder_list_label = [];
     output_column_list_label = [];
+
+    % 断面算定表で全部材を出力するか（false=代表1部材）
+    section_calc_all_members (1,1) logical = false
   end
 
   methods

@@ -1,5 +1,5 @@
 function [conslr, slratio] = calc_girder_stiffening(...
-  sdimg, Ag, Izg, Zyg, Zpyg, lbg, lmg, Fg, slr)
+  sdimg, Ag, Izg, Zyg, Zpyg, ~, lmg, Fg, slr)
 
 % 計算の準備
 ng = length(Ag);
@@ -10,7 +10,7 @@ lam_y = lmg./iy;
 ppp = zeros(ng,1); ppp(Fg==235) = 170; ppp(Fg==325) = 130;
 nreq = max(ceil((lam_y-ppp)/20),0);
 lbreq1 = (ppp+20*nreq).*iy./(nreq+1);
-lbmax = lbg(:,3);
+lbmax = slr.lbmax;
 
 % 非対象部材を除外
 istarget = all(slr.istarget,2);
@@ -79,6 +79,7 @@ if nargout==2
   slratio.n = zeros(ng,1);
   slratio.lg = lmg;
   slratio.lb = slr.lb;
+  slratio.lbmax = slr.lbmax;
   slratio.lambda = lam_y;
   slratio.nreq = nreq;
   slratio.lbreq1 = lbreq1;

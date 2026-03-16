@@ -25,16 +25,12 @@ section = com.section;
 member = com.member;
 baseline = com.baseline;
 node = com.node;
-lm = com.member.property.lm;
-
 % 解析
 story = com.story;
 floor = com.floor;
 [fval, fdetail] = objective_lsr(xvar, secmgr, baseline, node, ...
   section, member, story, floor, options);
 [cvec, result] = analysis_constraint(xvar, com, options);
-% lm = com.member.property.lm;
-% lm = result.lm;
 % TODO: とりあえず
 com.baseline = result.baseline;
 com.node = result.node;

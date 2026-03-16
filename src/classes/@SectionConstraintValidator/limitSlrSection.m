@@ -1,21 +1,14 @@
-function limitSlrSection(obj, member, options, secmgr)
-%limitSlrSection 細長比制限チェック
-%   limitSlrSection(obj, member, options, secmgr) は、保有耐力横補剛を
-%   満たすH形断面のみを有効とします。細長比（Slenderness Ratio）と
-%   横補剛の条件をチェックします。
+function limitSlrSection(obj, member, nominal, lm, secmgr, options)
+%limitSlrSection - 保有耐力横補剛の断面制約チェック
 %
 %   入力引数:
-%     member - 部材情報構造体
-%     options - オプション構造体（girder_scallop_size等を含む）
-%     secmgr - SectionManagerインスタンス（断面性能計算用）
-%
-%   処理内容:
-%     1. 各H形鋼断面リストについて細長比と横補剛の判定を実行
-%     2. 条件を満たさない断面を無効化
-%     3. 全て無効になった場合はエラー
+%     member  - 部材情報構造体
+%     nominal - 名目部材情報構造体
+%     options - オプション構造体
+%     secmgr  - SectionManagerインスタンス
 %
 %   参考:
-%     SectionConstraintValidator, limitJbsSection, limitWtRatioSection
+%     SectionConstraintValidator, limitJbsSection
 
 % 定数
 idphase = 999;
@@ -38,10 +31,13 @@ idmwfs2m = member.girder.idme(member.girder.section_type == PRM.WFS);
 idm2mwfs = zeros(1, nme);
 idm2mwfs(member.property.section_type == PRM.WFS) = 1:nmwfs;
 slr = genslr(member.girder);
-lbg = member.girder.stiffening_lb;
-lgm_nominal = member.girder.lm_nominal;
-lm_nominal(idmg2m) = lgm_nominal;
-lbwfs = lbg(idmwfs2m, :);
+idg2ng = member.girder.idnominal(:,1);
+lbn = nominal.girder.stiffening_lb;
+iwfs = member.girder.section_type == PRM.WFS;
+lbwfs = lbn(idg2ng(iwfs), :);
+idmeg = nominal.girder.idmeg;
+lgmn = calc_nominal_girder_length(idmeg, lm(member.girder.idme));
+lm_nominal(idmg2m) = lgmn;
 lmwfs = lm_nominal(idmwfs2m);
 slist_type = obj.secList_.section_type;
 
@@ -87,15 +83,14 @@ for idsList = 1:nlist_
       lmi = lmwfs(imwfs) * ones(n, 1);
       slri.istarget = repmat(slr.istarget(imwfs, :), n, 1);
       slri.lb = repmat(slr.lb(imwfs, :), n, 1);
-      
-      conjbs_ = calc_girder_stiffening( ...
-        sdimlist, Alist, Izlist, Zylist, Zpylist, ...
-        lbi, lmi, Flist, slri);
+      slri.lbmax = repmat(slr.lbmax(imwfs), n, 1);
+
+      conjbs_ = calc_girder_stiffening(sdimlist, Alist, ...
+        Izlist, Zylist, Zpylist, lbi, lmi, Flist, slri);
       isvalid_ = isvalid_ & (conjbs_ <= 0)';
     end
     
-    isvalid(idsec2wfs_(isec), :) = ...
-      isvalid(idsec2wfs_(isec), :) & isvalid_;
+    isvalid(idsec2wfs_(isec), :) = isvalid(idsec2wfs_(isec), :) & isvalid_;
   end
   
   % 条件を満たさないH形断面の除外

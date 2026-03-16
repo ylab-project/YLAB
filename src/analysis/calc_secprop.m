@@ -8,15 +8,17 @@ end
 
 % 計算の準備
 n = size(secdim,1);
-section_property = zeros(n,15);
+section_property = zeros(n,17);
 if isscalar(stype)
   stype = stype*ones(1,n);
 end
 
 % H形鋼（梁柱 WFS + ブレース BWFS）
 iw = stype==PRM.WFS | stype==PRM.BWFS;
-section_property(iw,1:14) = ...
-  calc_prop_wfs(secdim(iw,:), scallop);
+props_wfs = calc_prop_wfs(secdim(iw,:), scallop);
+section_property(iw,1:14) = props_wfs(:,1:14);
+section_property(iw,16) = props_wfs(:,15);  % Iyr
+section_property(iw,17) = props_wfs(:,16);  % Asc
 
 % 角形鋼管（梁柱 HSS + ブレース BHSS）
 ih = stype==PRM.HSS | stype==PRM.BHSS;
@@ -57,10 +59,15 @@ if any(stype==PRM.TB)
   section_property(stype==PRM.TB,12) = sdim(:,3); % Ae
 end
 
+% 非WFS断面のAsはAと同値（スカラップなし）
+noAs = section_property(:,17)==0 & section_property(:,1)>0;
+section_property(noAs,17) = section_property(noAs,1);
+
 section_property = array2table(section_property, ...
   'VariableNames', {...
   'A', 'Asy', 'Asz', 'Iy', 'Iz', ...
   'Zy', 'Zz', 'Zyf', 'Zpy', 'Zpz', ...
-  'JJ', 'Aw', 'Af', 'Zys', 'Lkmax'});
+  'JJ', 'Aw', 'Af', 'Zysc', 'Lkmax', ...
+  'Iyr', 'Asc'});
 end
 

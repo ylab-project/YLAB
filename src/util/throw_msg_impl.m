@@ -22,6 +22,12 @@ fullID = sprintf('YLAB:%s:%s', cat, id);
 % ファイル出力（登録されている場合）
 if ~isempty(errfile)
   write_to_file(errfile, severity, fullID, msg);
+  % 旧カテゴリの互換出力
+  legacyCat = legacy_category_map(id);
+  if ~isempty(legacyCat)
+    legacyID = sprintf('YLAB:%s:%s', legacyCat, id);
+    write_to_file(errfile, 'deprecated', legacyID, msg);
+  end
 end
 
 % severityに応じてエラーまたは警告を発行
@@ -44,6 +50,37 @@ fid = fopen(errfile, 'a');
 if fid ~= -1
   fprintf(fid, '[%s][%s] %s\n', upper(severity), fullID, msg);
   fclose(fid);
+end
+
+return
+end
+
+function legacyCat = legacy_category_map(id)
+%legacy_category_map - 旧カテゴリを返す（互換出力用）
+%
+%   legacyCat = legacy_category_map(id) は、
+%   エラーIDに対応する旧カテゴリ文字列を返す。
+%   対応がない場合は空文字列を返す。
+%
+%   入力引数:
+%     id - エラーID (char)
+%
+%   出力引数:
+%     legacyCat - 旧カテゴリ文字列 (char)
+map = {
+  'SectionListNotFound', 'SectionList'; ...
+  'EmptyAfterFilter',    'SectionList'; ...
+  'limit_jbs_section',   'Parse'; ...
+  'limit_slr_section',   'Parse'; ...
+  'NoWfsCandidate',      'Search'; ...
+  'NoHssCandidate',      'Search'; ...
+  'NodeNotFound',        'read_frame_data'; ...
+  'ParpoolFailed',       'Parallel'};
+idx = find(strcmp(map(:,1), id), 1);
+if isempty(idx)
+  legacyCat = '';
+else
+  legacyCat = map{idx, 2};
 end
 
 return

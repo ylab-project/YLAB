@@ -17,7 +17,8 @@ function [com, options] = read_frame_data(input, options)
 %   c_g -> member.property.type
 %   compEffect -> member.girder.comp_effect
 %   cxl -> member.property(column,girder).cyl : 局所x軸（材軸）の方向余弦
-%   cyl -> member.property(column,girder).cyl : 局所y軸（断面強軸）の方向余弦
+%   cyl -> member.property(column,girder).cyl :
+%     局所y軸（断面強軸）の方向余弦
 %   dirBeam -> member.girder.idir
 %   E -> material.E;
 %   F -> material.F;
@@ -70,7 +71,8 @@ labels = {...
   '鉛直ブレース断面（引張ブレース）', ...
   '水平ブレース断面'...
   'S梁断面(仮定)', 'S柱断面(仮定)', ...
-  '鉛直ブレース断面（鋼材）(仮定)', '鉛直ブレース断面（メーカー製品）(仮定)', ...
+  '鉛直ブレース断面（鋼材）(仮定)', ...
+  '鉛直ブレース断面（メーカー製品）(仮定)', ...
   '大梁配置', '柱配置', '鉛直ブレース配置', '水平ブレース配置', ...
   '梁の結合状態', '柱の結合状態', '柱の剛域', '梁の横補剛', ...
   '通し柱', '通し梁', ...
@@ -222,8 +224,8 @@ node.type(flex_diaphragm.idnode) = PRM.NODE_FLEX_DIAPHRAGM;
 com.node = node;
 
 %% S断面(梁)
-[section_girder, variable] = ...
-  set_section_steel_girder_block(dbc, com, options);
+[section_girder, variable] = set_section_steel_girder_block( ...
+  dbc, com, options);
 design.variable = variable;
 com.design = design;
 com.nvar = max((variable.idvar));
@@ -280,11 +282,9 @@ if ~isempty(section_brace_steel)
 end
 
 % 引張ブレース断面
-section_brace_tension = ...
-  set_section_vertical_brace_tension_block(dbc, com);
+section_brace_tension = set_section_vertical_brace_tension_block(dbc, com);
 if ~isempty(section_brace_tension)
-  section_brace = ...
-    [section_brace; section_brace_tension];
+  section_brace = [section_brace; section_brace_tension];
 end
 section.brace = section_brace;
 
@@ -329,7 +329,8 @@ section.initial = initial;
 com.section = section;
 
 % 鉛直ブレース断面（鋼材）(仮定)から初期値を設定
-[section.brace, initial_section_brace_steel] = set_initial_section_brace_steel_block(dbc, com);
+[section.brace, initial_section_brace_steel] = ...
+  set_initial_section_brace_steel_block(dbc, com);
 % initial.braceにHSR断面も含める
 if ~isempty(initial_section_brace_steel)
   if isempty(initial.brace)
@@ -355,8 +356,8 @@ member.brace = member_brace;
 com.member = member;
 com.baseline = baseline;
 com.node = node;
-member_horizontal_brace = ...
-  set_member_horizontal_brace_block(dbc, com, options);
+member_horizontal_brace = set_member_horizontal_brace_block( ...
+  dbc, com, options);
 member.horizontal_brace = member_horizontal_brace;
 com.member = member;
 [gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl]  = ...
@@ -457,7 +458,8 @@ member.column = member_column;
 com.member = member;
 
 %% 柱脚断面
-[section_column_base, idme2seccb] = set_section_column_base_block(dbc, com);
+[section_column_base, idme2seccb] = ...
+  set_section_column_base_block(dbc, com);
 member_property.idseccb = idme2seccb;
 member.property = member_property;
 com.member = member;
@@ -510,8 +512,7 @@ idexclusion = set_exclusion_girder_smooth_block(dbc, com);
 com.exclusion.girder_smooth.idme = idexclusion;
 
 %% 名目梁（set_girder_force_blockで使用）
-[nominal_girder, idnominal_girder] = ...
-  countup_nominal_girder(com);
+[nominal_girder, idnominal_girder] = countup_nominal_girder(com);
 com.nominal.girder = nominal_girder;
 com.member.girder.idnominal = idnominal_girder;
 
@@ -758,11 +759,8 @@ for i=1:n
   material_name__ = material_name_{i};
   if ~ismissing(material_name__)
     if ~strcmp(material_name__, '-')
-      idmaterial_(i) = ...
-        iddd(matches(com.material.name, ...
-          material_name_{i}));
-      isSN_(i) = ...
-        com.material.isSN(idmaterial_(i));
+      idmaterial_(i) = iddd(matches(com.material.name, material_name_{i}));
+      isSN_(i) = com.material.isSN(idmaterial_(i));
     end
   end
 end
@@ -817,12 +815,11 @@ for i=1:nulist
 end
 
 % 結果の保存
-section_list = section_list.registerList(...
-  section_type, section_type_name, nlist, ...
-  section_list_name, material_name, ...
-  file_name, idmaterial, cost_factor, ...
-  cost_constant, design_stress_factor, ...
-  isSN, idphase, type_name);
+section_list = section_list.registerList(section_type, ...
+  section_type_name, nlist, section_list_name, ...
+  material_name, file_name, idmaterial, cost_factor, ...
+  cost_constant, design_stress_factor, isSN, idphase, ...
+  type_name);
 return
 end
 
@@ -1360,7 +1357,8 @@ for i=1:n
 end
 
 % 結果の保存
-support = table(xname, yname, story_name, isfixed, idx, idy, idstory, idnode);
+support = table(xname, yname, story_name, isfixed, ...
+  idx, idy, idstory, idnode);
 return
 end
 
@@ -1414,7 +1412,8 @@ idx = idx(idvalid);
 idy = idy(idvalid);
 idstory = idstory(idvalid);
 idnode = idnode (idvalid);
-flex_diaphragm = table(xname, yname, story_name, isflex, idx, idy, idstory, idnode);
+flex_diaphragm = table(xname, yname, story_name, ...
+  isflex, idx, idy, idstory, idnode);
 return
 end
 
@@ -1485,7 +1484,8 @@ for i=1:n
     id_section_list(i) = idsl(1);
   else
     throw_err('IO', 'SectionListNotFound', ...
-      section_list_name{i}, 'S梁断面', ['層: ' story_name{i} ', 符号: ' name{i}]);
+      section_list_name{i}, 'S梁断面', ...
+      ['層: ' story_name{i} ', 符号: ' name{i}]);
   end
 
   % 同一の鉄骨形状のみ複数リスト指定可
@@ -1839,7 +1839,8 @@ return
 end
 
 %--------------------------------------------------------------------------
-function [column_base, idme2seccb] = set_section_column_base_block(dbc, com)
+function [column_base, idme2seccb] = ...
+  set_section_column_base_block(dbc, com)
 data = dbc.get_data_block('メーカー製柱脚断面');
 n = size(data,1);
 
@@ -1920,8 +1921,10 @@ idm2ctype(com.member.column.idme) = idmc2ctype;
 for i=1:n
   idsc = idsecc(i);
   idme2seccb(idm2sc==idsc&idm2story==2&idm2ctype==PRM.COLUMN_STANDARD) = i;
-  idme2seccb(idm2sc==idsc&idm2story==2&idm2ctype==PRM.COLUMN_FOR_BRACE_BODY) = i;
-  % idme2seccb(idm2sc==idsc&idm2story==2&idm2ctype==PRM.COLUMN_FOR_BRACE) = i;
+  idme2seccb(idm2sc==idsc & idm2story==2 ...
+    & idm2ctype==PRM.COLUMN_FOR_BRACE_BODY) = i;
+  % idme2seccb(idm2sc==idsc & idm2story==2 ...
+  %   & idm2ctype==PRM.COLUMN_FOR_BRACE) = i;
   % idme2seccb(idm2sc==idsc&idm2z==1) = i;
 end
 
@@ -1991,8 +1994,8 @@ section_brace = table(name, type_name, type, A, E, unit_weight, dimension);
 return
 end
 %--------------------------------------------------------------------------
-function [member_property, idmec2mem, idmeg2mem, idmeb2mem, idmehb2mem] = ...
-  set_member_property(com)
+function [member_property, idmec2mem, idmeg2mem, ...
+  idmeb2mem, idmehb2mem] = set_member_property(com)
 % 共通定数
 nme = com.nme;
 nmec = com.nmec;
@@ -2086,10 +2089,6 @@ idnode2(type==PRM.BRACE) = com.member.brace.idnode2;
 idnode1(type==PRM.HORIZONTAL_BRACE) = com.member.horizontal_brace.idnode1;
 idnode2(type==PRM.HORIZONTAL_BRACE) = com.member.horizontal_brace.idnode2;
 
-% 部材長さ
-lm = sqrt((x(idnode2)-x(idnode1)).^2 ...
-  +(y(idnode2)-y(idnode1)).^2+(z(idnode2)-z(idnode1)).^2);
-
 % 変数番号
 mvar = PRM.MAX_NSVAR;
 idvar = zeros(nme,mvar);
@@ -2110,9 +2109,10 @@ if nmehb > 0
 end
 
 % 結果の保存
-member_property = table(type, idir, idmeg, idmec, idmeb, idmehb, ...
-  section_type, idsec, idsecc, idsecg, idsecb, idsechb, ...
-  idnode1, idnode2, idstory, lm, idvar, is_tension_only_hb);
+member_property = table(type, idir, idmeg, idmec, ...
+  idmeb, idmehb, section_type, idsec, idsecc, idsecg, ...
+  idsecb, idsechb, idnode1, idnode2, idstory, idvar, ...
+  is_tension_only_hb);
 return
 end
 
@@ -2201,7 +2201,8 @@ dimension = zeros(nsec,mvar);
 dimension(mtype==PRM.GIRDER,:) = section_girder.dimension;
 dimension(mtype==PRM.COLUMN,:) = section_column.dimension;
 dimension(mtype==PRM.BRACE,:) = section_brace.dimension;
-dimension(mtype==PRM.HORIZONTAL_BRACE,:) = section_horizontal_brace.dimension;
+dimension(mtype==PRM.HORIZONTAL_BRACE,:) = ...
+  section_horizontal_brace.dimension;
 
 % 結果の保存
 section_property = table(idsecg, idsecc, idsecb, idsechb, ...
@@ -2263,7 +2264,8 @@ return
 end
 
 %--------------------------------------------------------------------------
-function initial_section_column = set_initial_section_column_block(dbc, com)
+function initial_section_column = ...
+  set_initial_section_column_block(dbc, com)
 data = dbc.get_data_block('S柱断面(仮定)');
 n = size(data,1);
 
@@ -2436,12 +2438,12 @@ for i=1:n
 end
 
 % 横補剛間隔
-Lb = zeros(n,1);
+Lb = nan(n,1);
 for i=1:n
   val = data{i,8};
-  % if ~ismissing(val)
-  Lb(i) = val;
-  % end
+  if ~ismissing(val)
+    Lb(i) = val;
+  end
 end
 
 % 反転配置
@@ -2720,7 +2722,8 @@ end
 % 梁部材番号
 [idx, idy, idz, idir] = find_idxyz_girder(...
   story_name, frame_name, coord_name, baseline);
-idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder);
+idmeg = find_idgirder_from_idxyz(...
+  idx, idy, idz, member_girder, [], baseline);
 
 % 結合状態
 joint = PRM.FIX*ones(nmeg,4);
@@ -2780,7 +2783,8 @@ end
 joint = PRM.FIX*ones(nmec,4);
 
 for i=1:n
-  idmec = find_idcolumn_from_idxyz(idx_search(i,:), idy_search(i,:), idz_search(i,:), member_column);
+  idmec = find_idcolumn_from_idxyz(idx_search(i,:), ...
+    idy_search(i,:), idz_search(i,:), member_column);
 
   if isempty(idmec)
     continue  % 部材が見つからない場合はスキップ
@@ -2811,7 +2815,8 @@ end
 joint = joint(:,[2 1 4 3]);
 
 return
-end%--------------------------------------------------------------------------
+end
+%---------------------------------------------------------------------
 function girder_stiffening = set_member_girder_stiffening_block(dbc, com)
 data = dbc.get_data_block('梁の横補剛');
 n = size(data,1);
@@ -2835,7 +2840,7 @@ end
 [idx, idy, idz, idir] = find_idxyz_girder(...
   story_name, frame_name, coord_name, baseline);
 idmeg = find_idgirder_from_idxyz(...
-  idx, idy, idz, member_girder);
+  idx, idy, idz, member_girder, [], baseline);
 
 % % 結合状態
 % stiffening.Lb = nan(nmeg,3);
@@ -2901,7 +2906,8 @@ end
   story_name, frame_name, coord_name, baseline);
 
 % 梁部材番号
-idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder);
+idmeg = find_idgirder_from_idxyz(...
+  idx, idy, idz, member_girder, [], baseline);
 
 % レベル調整値
 girder_level = zeros(nmg,1);
@@ -2948,7 +2954,8 @@ end
   story_name, frame_name, coord_name, baseline);
 
 % 梁部材番号
-idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder);
+idmeg = find_idgirder_from_idxyz(...
+  idx, idy, idz, member_girder, [], baseline);
 
 % スラブ協力幅・スラブ厚・材料・デッキ高さ
 slab_width = zeros(nmg,2);
@@ -2972,8 +2979,7 @@ for i=1:n
 
   % 材料
   material_name = data{i,9};
-  idmaterial = iddd(...
-    matches(material.name, material_name));
+  idmaterial = iddd(matches(material.name, material_name));
   slab_E(ids) = material.E(idmaterial);
 
   % デッキ高さ
@@ -3023,7 +3029,8 @@ girder_phi = nan(nmeg,1);
 for i=1:n
   % 梁部材番号
   idmeg = find_idgirder_from_idxyz(...
-    idx(i,:), idy(i,:), idz(i,:), member_girder, idir(i));
+    idx(i,:), idy(i,:), idz(i,:), ...
+    member_girder, idir(i), baseline);
 
   % 存在しないときはスキップ
   ids = idmeg(idmeg > 0);

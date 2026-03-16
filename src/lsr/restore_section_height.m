@@ -1,5 +1,5 @@
 function [xlist, isfailed] = restore_section_height(...
-  xlist, st, stc, C, com, options)
+  xlist, st, stc, C, lm, com, options)
 
 % 共通配列
 member = com.member;
@@ -8,8 +8,8 @@ Fs = com.material.F(com.section.property.idmaterial);
 secmgr = com.secmgr;
 
 % 対象変数のチェック
-istarget = check_restoration_height(...
-  xlist, st, stc, C, member, Es, Fs, secmgr, options);
+istarget = check_restoration_height(xlist, st, stc, C, ...
+  member, Es, Fs, lm, secmgr, options);
 
 % 計算の準備
 [nlist, nx] = size(xlist);
@@ -24,13 +24,13 @@ else
 end
 if do_parallel
   parfor id=1:nlist
-    [xlist(id,:), isfailed(id,:)] = restore_each(...
-      xlist0(id,:), istarget(id,:), secmgr, options);
+    [xlist(id,:), isfailed(id,:)] = restore_each(xlist0(id,:), ...
+      istarget(id,:), secmgr, options);
   end
 else
   for id=1:nlist
-  [xlist(id,:), isfailed(id,:)] = restore_each(...
-    xlist0(id,:), istarget(id,:), secmgr, options);
+  [xlist(id,:), isfailed(id,:)] = restore_each(xlist0(id,:), ...
+    istarget(id,:), secmgr, options);
   end
 end
 

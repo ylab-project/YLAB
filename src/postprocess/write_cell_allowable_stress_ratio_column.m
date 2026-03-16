@@ -20,7 +20,8 @@ csi_all = result.csi;
 csj_all = result.csj;
 
 % --- ヘッダ ---
-asrchead = {'階', '符号', 'M', '', 'Q'	, ''; ...
+asrchead = {'階', '符号', 'M', '', ...
+  'Q', ''; ...
   '', '', '柱頭', '柱脚', '柱頭', '柱脚'};
 
 % --- S柱断面算定表 ---
@@ -68,14 +69,14 @@ for i = 1:nstory
     csi_ = ceil(csi_*100)/100;
     csj_ = ceil(csj_*100)/100;
 
-    % 書き出し
+    % 書き出し（柱頭=i端, 柱脚=j端）
     asrcbody{irow,1} = secc.floor_name{isc};
     asrcbody{irow,2} = sprintf('%s', ...
       [secc.subindex{isc} secc.name{isc}]);
-    asrcbody{irow,3} = sprintf('%.2f', crj_);
-    asrcbody{irow,4} = sprintf('%.2f', cri_);
-    asrcbody{irow,5} = sprintf('%.2f', csj_);
-    asrcbody{irow,6} = sprintf('%.2f', csi_);
+    asrcbody{irow,3} = sprintf('%.2f', cri_);
+    asrcbody{irow,4} = sprintf('%.2f', crj_);
+    asrcbody{irow,5} = sprintf('%.2f', csi_);
+    asrcbody{irow,6} = sprintf('%.2f', csj_);
   end
 end
 return

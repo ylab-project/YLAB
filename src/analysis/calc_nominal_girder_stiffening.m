@@ -29,7 +29,7 @@ lamy = lng./iy;
 ppp = zeros(ng,1); ppp(Fg==235) = 170; ppp(Fg==325) = 130;
 nreq = max(ceil((lamy-ppp)/20),0);
 lbreq1 = (ppp+20*nreq).*iy./(nreq+1);
-lbmax = lbng(:,3);
+lbmax = max(lbng, [], 2);
 
 % 非対象部材を除外
 % istarget = all(slr.istarget,2);

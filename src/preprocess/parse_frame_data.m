@@ -150,20 +150,13 @@ design.variable.idsrep = idvar2srep;
 com.design = design;
 
 %% 通し梁
-if ~isfield(com, 'nominal') ...
-    || ~isfield(com.nominal, 'girder') ...
+if ~isfield(com, 'nominal') || ~isfield(com.nominal, 'girder') ...
     || isempty(com.nominal.girder)
-  [nominal_girder_, idnominal_girder_] = ...
-    countup_nominal_girder(com);
+  [nominal_girder_, idnominal_girder_] = countup_nominal_girder(com);
   com.nominal.girder = nominal_girder_;
   com.member.girder.idnominal = idnominal_girder_;
 end
 nominal_girder = com.nominal.girder;
-lgm = com.member.property.lm(com.member.girder.idme);
-lgm_nominal = calc_nominal_girder_length(...
-  nominal_girder, lgm);
-com.member.girder.lm = lgm;
-com.member.girder.lm_nominal = lgm_nominal;
 com.num.nominal_girder = size(nominal_girder, 1);
 
 %% 名目ブレース
@@ -184,10 +177,6 @@ com.nominal.column = nominal_column;
 nominal_brace.idnominal = idnominal_brace;
 com.nominal.brace = nominal_brace;
 com.member.property.idnominal = idnominal;
-
-%% 補剛数
-com.member.girder = countup_girder_stiffening(com);
-com.member.girder = countup_girder_stiffening_direct(com);
 
 % TODO:とりあえず
 Hp = design.variable.idvar(design.variable.type==PRM.WFS_H);
@@ -220,8 +209,7 @@ com.member.column.idmeg_face2x = idmec2meg2x;
 com.member.column.idmeg_face2y = idmec2meg2y;
 
 %% ブレース端点の柱・梁部材番号の数え上げ
-[idmecb1, idmecb2, idmegb1, idmegb2] = ...
-  countup_brace_to_column_girder(com);
+[idmecb1, idmecb2, idmegb1, idmegb2] = countup_brace_to_column_girder(com);
 com.member.brace.idmec1 = idmecb1;
 com.member.brace.idmec2 = idmecb2;
 com.member.brace.idmeg1 = idmegb1;
@@ -263,9 +251,8 @@ com.cgsr = cgsr;
 com.ncgsr = length(cgsr_idnode);
 
 %% 断面オブジェクト
-secmgr = create_section_manager(...
-  Hp, Bp, twp, tfp, Dp, tp, HsrDp, Hsrtp, brb1p, brb2p, ...
-  com, secList, options);
+secmgr = create_section_manager(Hp, Bp, twp, tfp, Dp, ...
+  tp, HsrDp, Hsrtp, brb1p, brb2p, com, secList, options);
 % column_base_listはcreateConstraintValidator経由で設定済み
 com.secmgr = secmgr;
 
@@ -293,14 +280,16 @@ com.exclusion.is_joint_bearing_strength = is_joint_bearing_strength;
 
 % 形状の更新
 secdim = secmgr.findNearestSection(xini, options);
-[zcoord, nodez, ~] = ...
-  update_geometry_z(secdim, com.baseline, com.node, com.story, ...
-  com.floor, com.section, com.member, options);
+[zcoord, nodez, lm] = update_geometry_z(secdim, com.baseline, ...
+  com.node, com.story, com.floor, com.section, com.member, ...
+  options);
 com.baseline.z.coord = zcoord;
 com.node.z = nodez;
-% 注: com.member.property.lm は上書きしない。
-% 部材心距離（構造階高更新前の節点座標による部材長）を
-% 座屈長の基準として保持する。
+
+% 補剛数（post-geometry lm で算定）
+com.member.girder = countup_girder_stiffening(com, lm);
+[com.member.girder, com.nominal.girder] = ...
+  countup_girder_stiffening_direct(com, lm);
 
 % 要素数
 com.num.member.girder = com.nmeg;
@@ -314,18 +303,22 @@ com.num.member.girder = com.nmeg;
 % com.support = table2struct(com.support,"ToScalar",true);
 % com.section.column = table2struct(com.section.column,"ToScalar",true);
 % com.section.girder = table2struct(com.section.girder,"ToScalar",true);
-% com.section.property = table2struct(com.section.property,"ToScalar",true);
-% com.section.representative = table2struct(com.section.representative,"ToScalar",true);
+% com.section.property = table2struct(...
+%   com.section.property,"ToScalar",true);
+% com.section.representative = table2struct(...
+%   com.section.representative,"ToScalar",true);
 % com.member.column = table2struct(com.member.column,"ToScalar",true);
 % com.member.girder = table2struct(com.member.girder,"ToScalar",true);
-% com.section.column_base = table2struct(com.section.column_base,"ToScalar",true);
+% com.section.column_base = table2struct(...
+%   com.section.column_base,"ToScalar",true);
 % com.member.property = table2struct(com.member.property,"ToScalar",true);
 % com.loadcase = table2struct(com.loadcase,"ToScalar",true);
 % com.gapjoint = table2struct(com.gapjoint,"ToScalar",true);
 com.Dgap = table2struct(com.Dgap,"ToScalar",true);
 % com.nominal.column = table2struct(com.nominal.column,"ToScalar",true);
 % com.nominal.girder = table2struct(com.nominal.girder,"ToScalar",true);
-% com.nominal.property = table2struct(com.nominal.property,"ToScalar",true);
+% com.nominal.property = table2struct(...
+%   com.nominal.property,"ToScalar",true);
 return
 end
 
@@ -477,8 +470,7 @@ ids2dim = com.section.property.dimension;
 ids2list = com.section.property.id_section_list;
 
 % 代表断面の抜き出し
-[~, idsrep2sec, ~] = ...
-  unique([ids2var ids2dim ids2list],'rows','stable');
+[~, idsrep2sec, ~] = unique([ids2var ids2dim ids2list], 'rows', 'stable');
 % nsrep = length(idsrep);
 
 % 代表断面番号 -> 変数番号
@@ -493,9 +485,9 @@ idsrep2stype = ids2stype(idsrep2sec);
 % 代表断面番号 -> 指定寸法
 ids2dim = ids2dim(idsrep2sec,:);
 
-section_representative = table(...
-  idsrep2sec, idsrep2stype, idsrep2var, ids2dim, ...
-  'VariableNames', {'idsec', 'section_type', 'idvar', 'dimension'});
+section_representative = table(idsrep2sec, idsrep2stype, idsrep2var, ...
+  ids2dim, 'VariableNames', {'idsec', 'section_type', 'idvar', ...
+  'dimension'});
 return
 end
 
@@ -654,8 +646,8 @@ ids2dim = com.section.property.dimension;
 ids2list = com.section.property.id_section_list;
 
 % 代表断面の抜き出し
-[idsrep, idsrep2sec, idsec2srep] = ...
-  unique([ids2var ids2dim, ids2list],'rows','stable');
+[idsrep, idsrep2sec, idsec2srep] = unique([ids2var ids2dim, ids2list], ...
+  'rows', 'stable');
 
 % 変数番号 -> 代表断面番号の変換
 idvar2srep = cell(length(nvar),1);

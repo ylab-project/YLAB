@@ -1,5 +1,5 @@
-function [xlist, isfailed, istarget] = restore_section_thickness(...
-  xlist, st, stc, C, com, options)
+function [xlist, isfailed, istarget] = restore_section_thickness( ...
+  xlist, st, stc, C, lm, com, options)
 
 % 共通配列
 member = com.member;
@@ -10,8 +10,8 @@ matF = com.material.F;
 secmgr = com.secmgr;
 
 % 対象変数のチェック
-[xlist, istarget] = check_restoration_thickness(...
-  xlist, st, stc, C, member, matE, matF, secmgr, options);
+[xlist, istarget] = check_restoration_thickness(xlist, ...
+  st, stc, C, member, matE, matF, lm, secmgr, options);
 
 % 計算の準備
 [nlist, nx] = size(xlist);
@@ -69,7 +69,8 @@ for idvar=idvars
     %     isfailed(idvar) = true;
     %   end
     case PRM.WFS_TW
-      [~, xup, ~, idvartarget] = secmgr.enumerateNeighborTw(xvar, idvar, options);
+      [~, xup, ~, idvartarget] = secmgr.enumerateNeighborTw( ...
+        xvar, idvar, options);
       if ~isempty(xup)
         if size(idvartarget,1)==1
           xvar(idvartarget(3:4)) = xup(idvartarget(3:4));
@@ -80,7 +81,8 @@ for idvar=idvars
         isfailed(idvar) = true;
       end
     case PRM.WFS_TF
-      [~, xup, ~, idvartarget] = secmgr.enumerateNeighborTf(xvar, idvar, options);
+      [~, xup, ~, idvartarget] = secmgr.enumerateNeighborTf( ...
+        xvar, idvar, options);
       if ~isempty(xup)
         if size(idvartarget,1)==1
           xvar(idvartarget(3:4)) = xup(idvartarget(3:4));
@@ -100,7 +102,7 @@ end
 return
 end
 
-% %--------------------------------------------------------------------------
+% %---------------------------------------------------------------------
 % function xvar = restore_wtratio(xvar, conwtg, conwtc, secmgr, options)
 %
 % % 共通配列
@@ -163,13 +165,15 @@ end
 % % % H形鋼の幅厚比制約違反からの復元操作
 % % for ig=1:nsecg
 % %   if isviotw(ig)
-% %     upsec = secmgr.findUpDownWfsThick(secwfs(ig,1:4), 'tw', secglist, options);
+% %     upsec = secmgr.findUpDownWfsThick( ...
+% %       secwfs(ig,1:4), 'tw', secglist, options);
 % %     if ~isempty(upsec)
 % %       xvar(idsg2v(ig,3)) = upsec(1,3);
 % %     end
 % %   end
 % %   if isviotf(ig)
-% %     upsec = secmgr.findUpDownWfsThick(secwfs(ig,1:4), 'tf', secglist, options);
+% %     upsec = secmgr.findUpDownWfsThick( ...
+% %       secwfs(ig,1:4), 'tf', secglist, options);
 % %     if ~isempty(upsec)
 % %       xvar(idsg2v(ig,4)) = upsec(1,4);
 % %     end
@@ -179,7 +183,8 @@ end
 % % % 角形鋼管の幅厚比制約違反からの復元操作
 % % for ic=1:nsecc
 % %   if isviot(ic)
-% %     upsec = secmgr.findUpDownHssThick(sechss(ic,1:2), secclist, options);
+% %     upsec = secmgr.findUpDownHssThick( ...
+% %       sechss(ic,1:2), secclist, options);
 % %     if ~isempty(upsec)
 % %       xvar(idsc2v(ic,2)) = upsec(1,2);
 % %     end
@@ -188,7 +193,7 @@ end
 % return
 % end
 %
-% %--------------------------------------------------------------------------
+% %---------------------------------------------------------------------
 % function xvar = restore_slenderness_ratio(xvar, consr, secmgr, options)
 %
 % % 共通配列
@@ -219,7 +224,7 @@ end
 % return
 % end
 %
-% %--------------------------------------------------------------------------
+% %---------------------------------------------------------------------
 % function xvar = restore_stress_ratio(...
 %   xvar, gr, gs, cr, cs, gapj, secmgr, options)
 %
@@ -279,7 +284,8 @@ end
 % %   ivH = unique(idmeg2v(im,1));
 % %   jddd = randperm(length(ivH));
 % %   for jd = jddd
-% %     [~, xvarnew] = secmgr.enumerateNeighborH(xvar, ivH(jd), gapj, options);
+% %     [~, xvarnew] = secmgr.enumerateNeighborH( ...
+% %       xvar, ivH(jd), gapj, options);
 % %     if ~isempty(xvarnew)
 % %       isRestored = true;
 % %       xvar = xvarnew;

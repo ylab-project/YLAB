@@ -1,9 +1,7 @@
-function [zcoord, nodez, lm, ...
-  member_girder_level, story_delta_height, floor_height] = ...
-  update_geometry_z(secdim, baseline, node, story, floor, ...
-  section, member, options)
-%UPDATE_GEOMETRY この関数の概要をここに記述
-%   詳細説明をここに記述
+function [zcoord, nodez, lm, member_girder_level, story_delta_height, ...
+  floor_height] = update_geometry_z(secdim, baseline, ...
+  node, story, floor, section, member, options)
+%update_geometry_z - Z方向座標・梁レベル・階高の更新
 
 %---
 % 定数
@@ -43,19 +41,19 @@ member_girder_level = mglevel;
 
 % 構造階高の更新
 if options.do_autoupdate_floor_height
-  [flh, stdh] = calc_floor_height(...
-    secdim, story, floor, idmg2st, idmg2sg, idsg2s, ...
-    idm2s, idmg2m, stype, mglevel);
-  [zcoord, nodez, lm] = update_zcoord(flh, idfl2z, idm2n, baseline, node);
+  [flh, stdh] = calc_floor_height(secdim, story, floor, idmg2st, ...
+    idmg2sg, idsg2s, idm2s, idmg2m, stype, mglevel);
 else
-  nodez = node.z;
   flh = floor.height;
   stdh = story.girder_level;
   story.delta_height = stdh;
 end
+[zcoord, nodez, lm] = update_zcoord(flh, idfl2z, idm2n, baseline, node);
 
 % 結果の保存
 floor_height = flh;
 story_delta_height = stdh;
+
+return
 end
 

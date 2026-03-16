@@ -328,7 +328,8 @@ scgbody = write_cell_section_calculation_girder(com, result, options);
 write_table(fout, 'S梁断面算定表', [], scgbody);
 
 %% S柱断面算定表
-sccbody = write_cell_section_calculation_column(com, result);
+sccbody = write_cell_section_calculation_column( ...
+  com, result, options);
 write_table(fout, 'S柱断面算定表', [], sccbody);
 
 %% 鉛直ブレース断面算定表

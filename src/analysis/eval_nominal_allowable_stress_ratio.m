@@ -1,11 +1,11 @@
 function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, ...
-  bnij, fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ...
-  ration, bkinfo, lnm_bk] = ...
+  bnij, fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ration, ...
+  bkinfo, lnm_bk, id_center_sel] = ...
   eval_nominal_allowable_stress_ratio(msdim, stn, stcn, ...
   A, Iy, Iz, C, mtype, stype, dir_girder, Em, Fm, ...
   idm2n, lb, lm, lnm, lr, mejoint, nominal, ...
   isgmirrored, idmg2ng, idmc2nc, options, beta, lcdir, ...
-  col_idstory, onfg_x, onfg_y)
+  col_idstory, onfg_x, onfg_y, Cn, nomgc)
 %eval_nominal_allowable_stress_ratio - 許容応力度比の算定
 %
 %   方向別に calc_buckling_length を2回呼び出し、
@@ -47,22 +47,20 @@ ilc_x = lcdir==PRM.EXP | lcdir==PRM.EXN;
 ilc_y = lcdir==PRM.EYP | lcdir==PRM.EYN;
 
 % X方向の座屈長さ係数
-[lk_x, kcx, bkinfox] = calc_buckling_length(Iy, ...
-  mtype, idm2n1, idm2n2, is_gx, lnm, lm, lr.columnx, ...
-  Em, mejoint(:,[1 2]), nominal, idmc2nc, options, ...
-  beta, ilc_x, col_idstory, onfg_x);
+[lk_x, kcx, bkinfox] = calc_buckling_length(Iy, mtype, ...
+  idm2n1, idm2n2, is_gx, lnm, lm, lr.columnx, Em, mejoint(:,[1 2]), ...
+  nominal, idmc2nc, options, beta, ilc_x, col_idstory, onfg_x);
 
 % Y方向の座屈長さ係数
-[lk_y, kcy, bkinfoy] = calc_buckling_length(Iy, ...
-  mtype, idm2n1, idm2n2, is_gy, lnm, lm, lr.columny, ...
-  Em, mejoint(:,[3 4]), nominal, idmc2nc, options, ...
-  beta, ilc_y, col_idstory, onfg_y);
+[lk_y, kcy, bkinfoy] = calc_buckling_length(Iy, mtype, ...
+  idm2n1, idm2n2, is_gy, lnm, lm, lr.columny, Em, mejoint(:,[3 4]), ...
+  nominal, idmc2nc, options, beta, ilc_y, col_idstory, onfg_y);
 
 % 座屈長さの組み立て
 lkx = lk_x;
 lky = zeros(nme, 3);
 lky(:,1) = lk_y;
-lky(mtype==PRM.GIRDER,:) = lb(mtype==PRM.GIRDER,:);
+lky(mtype==PRM.GIRDER,:) = lb(mtype==PRM.GIRDER,1:3);
 
 % bkinfo のマージ（既存フィールド名を保持）
 bkinfo.IcLc = bkinfox.IcLc;
@@ -88,7 +86,7 @@ fc = calc_fc(A, Iy, Iz, clam, mtype, stype, Fm, lkx, lky);
 
 % 曲げ許容応力度の算定
 mewfs = msdim(stype==PRM.WFS,:);
-fb = calc_fb(mewfs, C, clam, ft, mtype, stype, lb, options);
+fb = calc_fb(mewfs, C, clam, ft, mtype, stype, lb(:,1:3), options);
 
 % 移し替え
 ftn = ft(idnm2m(:,1),:);
@@ -96,9 +94,42 @@ fcn = fc(idnm2m(:,1),:,:);
 fbn = fb(idnm2m(:,1),:,:);
 fsn = fs(idnm2m(:,1),:);
 
+% 名目梁のfb/fcを4位置から算定し3位置に集約
+iggg = find(nmtype==PRM.GIRDER);
+img1 = idnm2m(iggg, 1);
+fbn4 = calc_nominal_fb(msdim(img1, :), Cn, clam(img1), ...
+  ft(img1, :), stype(img1), nomgc.lb, options);
+fcn4 = calc_nominal_fc(A(img1), Iy(img1), Iz(img1), ...
+  clam(img1), Fm(img1), lkx(img1), nomgc.lb);
+nlc_ = size(fbn4, 3);
+nng_ = length(iggg);
+id_center_sel = 3*ones(nng_, nlc_);
+tol_ratio = 1e-4;
+for ilc = 1:nlc_
+  fb4_ = fbn4(:, :, ilc);
+  fc4_ = fcn4(:, :, ilc);
+  fbn(iggg, 1, ilc) = fb4_(:, 1);
+  fbn(iggg, 2, ilc) = fb4_(:, 2);
+  fcn(iggg, 1, ilc) = fc4_(:, 1);
+  fcn(iggg, 2, ilc) = fc4_(:, 2);
+
+  % 中央: 検定比で列3/列4を選択（ベクトル化）
+  Mc_vec = abs(stcn(iggg, ilc));
+  Nc_vec = abs(stn(iggg, 1, ilc));
+  r3 = Mc_vec./fb4_(:,3) + Nc_vec./fc4_(:,3);
+  r4 = Mc_vec./fb4_(:,4) + Nc_vec./fc4_(:,4);
+  sel = 3*ones(nng_, 1);
+  sel(abs(r3 - r4) >= tol_ratio & r3 < r4) = 4;
+  id_center_sel(:, ilc) = sel;
+  idx_ = sub2ind(size(fb4_), (1:nng_)', sel);
+  fbn(iggg, 3, ilc) = fb4_(idx_);
+  fcn(iggg, 3, ilc) = fc4_(idx_);
+end
+
 % 許容応力度比の算定
-[ration, fcn] = calc_nominal_allowable_stress_ratio(...
-  stn, stcn, ftn, fcn, fbn, fsn, nmtype);
+[ration, fcn, fbn] = calc_nominal_allowable_stress_ratio(...
+  stn, stcn, ftn, fcn, fbn, fsn, nmtype, ...
+  nomgc.Ncn, A);
 
 % TB応力比の上書き（N/Ta）
 ration = calc_nominal_allowable_stress_ratio_tension_brace(...

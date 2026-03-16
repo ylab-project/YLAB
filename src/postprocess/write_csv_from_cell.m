@@ -44,6 +44,7 @@ end
 % 各行を出力
 for i=1:n
   if lastcol(i) == 0
+    fprintf(fid, '\n');
     continue
   end
   for j=1:lastcol(i)

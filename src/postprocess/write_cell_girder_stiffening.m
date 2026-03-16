@@ -90,7 +90,7 @@ return
     if slratio.lb(ig,2)~=slratio.lg(ig)
       body{irow,11} = sprintf('%.0f', slratio.lb(ig,2));
     end
-    body{irow,12} = sprintf('%.0f', slratio.lb(ig,3));
+    body{irow,12} = sprintf('%.0f', slratio.lbmax(ig));
     % body{irow,12} = slratio.lb(ig);
     % if (slratio.n(ig)>0)
     body{irow,13} = sprintf('%.0f', slratio.lambda(ig));

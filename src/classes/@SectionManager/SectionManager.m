@@ -23,8 +23,10 @@ classdef SectionManager < handle
   
   % properties節は削除（idphaseはDependentに移動）
   properties(Access=private)
-    propertyCalculator_     % SectionPropertyCalculatorインスタンス（内部用）
-    constraintValidator_    % SectionConstraintValidatorインスタンス（内部用）
+    % SectionPropertyCalculatorインスタンス（内部用）
+    propertyCalculator_
+    % SectionConstraintValidatorインスタンス（内部用）
+    constraintValidator_
     standardAccessor_       % SectionStandardAccessorインスタンス（内部用）
     idMapper_               % IdMapperインスタンス（内部用）
     neighborSearcher_       % SectionNeighborSearcherインスタンス（内部用）
@@ -115,8 +117,7 @@ classdef SectionManager < handle
         secwfs, twortf, seclist, options);
     end
     
-    function [upsec, dwsec] = findUpDownHssThick(sechss, ...
-      seclist, options)
+    function [upsec, dwsec] = findUpDownHssThick(sechss, seclist, options)
       % HSS断面の板厚増減を探索（SectionNeighborSearcherに委譲）
       [upsec, dwsec] = SectionNeighborSearcher.findUpDownHssThick(...
         sechss, seclist, options);
@@ -124,8 +125,7 @@ classdef SectionManager < handle
     
     function idsec2slist = getSectionListMapping(secdim)
       % 断面リストID/断面IDマッピングを取得（委譲）
-      idsec2slist = ...
-        SectionNeighborSearcher.getSectionListMapping(secdim);
+      idsec2slist = SectionNeighborSearcher.getSectionListMapping(secdim);
     end
   end
   methods
@@ -617,7 +617,8 @@ classdef SectionManager < handle
     
     % 断面リストの材料情報取得
     function idmat = getIdSecList2Material(secmgr, idslist)
-      idmat = secmgr.propertyCalculator.extractSectionListMaterialId(idslist);
+      idmat = secmgr.propertyCalculator ...
+        .extractSectionListMaterialId(idslist);
     end
     function F = getIdSecList2F(secmgr, idslist)
       F = secmgr.propertyCalculator.extractSectionListMaterialF(idslist);
@@ -628,29 +629,38 @@ classdef SectionManager < handle
     end
     
     % コスト係数・応力係数取得
-    function sectionCostFactor = getSectionCostFactor(secmgr, idsec2slist, options)
+    function sectionCostFactor = getSectionCostFactor( ...
+        secmgr, idsec2slist, options)
     %getSectionCostFactor 断面コスト係数を取得
-    %   sectionCostFactor = getSectionCostFactor(secmgr, idsec2slist, options)
+    %   sectionCostFactor = getSectionCostFactor( ...
+    %     secmgr, idsec2slist, options)
     %   は、断面リストIDと断面IDのペアから各断面のコスト係数を取得します。
     %
     %   参考:
     %     SectionPropertyCalculator.getSectionCostFactor
       
-      sectionCostFactor = secmgr.propertyCalculator.getSectionCostFactor(idsec2slist, options);
+      sectionCostFactor = ...
+        secmgr.propertyCalculator.getSectionCostFactor( ...
+        idsec2slist, options);
     end
     
-    function memberCostFactor = getMemberCostFactor(secmgr, idsec2slist, options)
+    function memberCostFactor = getMemberCostFactor( ...
+        secmgr, idsec2slist, options)
     %getMemberCostFactor 部材コスト係数を取得
-    %   memberCostFactor = getMemberCostFactor(secmgr, idsec2slist, options)
+    %   memberCostFactor = getMemberCostFactor( ...
+    %     secmgr, idsec2slist, options)
     %   は、断面リストIDと断面IDのペアから各部材のコスト係数を取得します。
     %
     %   参考:
     %     SectionPropertyCalculator.getMemberCostFactor
       
-      memberCostFactor = secmgr.propertyCalculator.getMemberCostFactor(idsec2slist, options);
+      memberCostFactor = ...
+        secmgr.propertyCalculator.getMemberCostFactor( ...
+        idsec2slist, options);
     end
 
-    function memberCostConstant = getMemberCostConstant(secmgr, idsec2slist)
+    function memberCostConstant = getMemberCostConstant( ...
+        secmgr, idsec2slist)
     %getMemberCostConstant 部材コスト定数を取得
     %   memberCostConstant = getMemberCostConstant(secmgr, idsec2slist)
     %   は、断面リストIDと断面IDのペアから各部材のコスト定数を取得します。
@@ -658,10 +668,13 @@ classdef SectionManager < handle
     %   参考:
     %     SectionPropertyCalculator.getMemberCostConstant
 
-      memberCostConstant = secmgr.propertyCalculator.getMemberCostConstant(idsec2slist);
+      memberCostConstant = ...
+        secmgr.propertyCalculator.getMemberCostConstant( ...
+        idsec2slist);
     end
 
-    function sectionStressFactor = getSectionStressFactor(secmgr, idsec2slist)
+    function sectionStressFactor = getSectionStressFactor( ...
+        secmgr, idsec2slist)
     %getSectionStressFactor 断面応力係数を取得
     %   sectionStressFactor = getSectionStressFactor(secmgr, idsec2slist)
     %   は、断面リストIDと断面IDのペアから各断面の応力係数を取得します。
@@ -669,21 +682,26 @@ classdef SectionManager < handle
     %   参考:
     %     SectionPropertyCalculator.getSectionStressFactor
       
-      sectionStressFactor = secmgr.propertyCalculator.getSectionStressFactor(idsec2slist);
+      sectionStressFactor = ...
+        secmgr.propertyCalculator.getSectionStressFactor( ...
+        idsec2slist);
     end
     
     % 断面・部材の材料情報抽出
     function F = extractSectionMaterialF(secmgr, secdim, matF)
       F = secmgr.propertyCalculator.extractSectionMaterialF(secdim, matF);
     end
-    function idMemberToMaterial = getIdMemberToMaterial(secmgr, idsec2slist)
-      idMemberToMaterial = secmgr.propertyCalculator.extractMemberMaterialId(idsec2slist);
+    function idMemberToMaterial = getIdMemberToMaterial( ...
+        secmgr, idsec2slist)
+      idMemberToMaterial = secmgr.propertyCalculator ...
+        .extractMemberMaterialId(idsec2slist);
     end
 
     function idMemberToSubList = getIdMemberToSubList(secmgr, idsec2slist)
       % 部材→サブリストマッピングを取得（動的計算）
       % idsec2slistは動的に変化するため、IdMapperへ委譲して計算
-      idMemberToSubList = secmgr.idMapper.mapIdMemberToSubList(idsec2slist);
+      idMemberToSubList = ...
+        secmgr.idMapper.mapIdMemberToSubList(idsec2slist);
     end
 
     function F = extractMemberMaterialF(secmgr, secdim, matF)
@@ -702,8 +720,8 @@ classdef SectionManager < handle
     end
     
     %% 近傍探索系メソッド（委譲のみ）
-    function [xlist, idvlist] = ...
-      generateNeighborhoodSet(secmgr, xvar, isvar, options)
+    function [xlist, idvlist] = generateNeighborhoodSet( ...
+        secmgr, xvar, isvar, options)
     %generateNeighborhoodSet 近傍断面集合の生成
     %   [xlist, idvlist] = generateNeighborhoodSet(secmgr, xvar, isvar,
     %     options) は、指定された変数値から近傍断面の集合を生成します。
@@ -717,8 +735,8 @@ classdef SectionManager < handle
     %     SectionNeighborSearcher.generateNeighborhoodSet
       
       % SectionNeighborSearcherに委譲
-      [xlist, idvlist] = ...
-        secmgr.neighborSearcher.generateNeighborhoodSet(xvar, isvar, options);
+      [xlist, idvlist] = secmgr.neighborSearcher ...
+        .generateNeighborhoodSet(xvar, isvar, options);
     end
     
     function secdim = findNearestSection(secmgr, xvar, options)
@@ -733,8 +751,8 @@ classdef SectionManager < handle
       secdim = secmgr.neighborSearcher.findNearestSection(xvar, options);
     end
     
-    function [wfsec, repwfs, id] = ...
-      findNearestSectionWfs(secmgr, xvar, idslist, options)
+    function [wfsec, repwfs, id] = findNearestSectionWfs( ...
+        secmgr, xvar, idslist, options)
     %findNearestSectionWfs WFS断面の最近傍選択
     %   [wfsec, repwfs, id] = findNearestSectionWfs(secmgr, xvar,
     %     idslist, options) は、WFS断面の最近傍を選択します。
@@ -747,8 +765,8 @@ classdef SectionManager < handle
           xvar, idslist, options);
     end
     
-    function [hssec, rephss, id] = ...
-      findNearestSectionHss(secmgr, xvar, idslist, options)
+    function [hssec, rephss, id] = findNearestSectionHss( ...
+        secmgr, xvar, idslist, options)
     %findNearestSectionHss HSS断面の最近傍選択
     %   [hssec, rephss, id] = findNearestSectionHss(secmgr, xvar,
     %     idslist, options) は、HSS断面の最近傍を選択します。
@@ -761,8 +779,8 @@ classdef SectionManager < handle
           xvar, idslist, options);
     end
     
-    function [brbsec, repbrbs, id] = ...
-      findNearestSectionBrb(secmgr, xvar, idslist, options)
+    function [brbsec, repbrbs, id] = findNearestSectionBrb( ...
+        secmgr, xvar, idslist, options)
     %findNearestSectionBrb BRB断面の最近傍選択
     %   [brbsec, repbrbs, id] = findNearestSectionBrb(secmgr, xvar,
     %     idslist, options) は、BRB断面の最近傍を選択します。
@@ -839,8 +857,8 @@ classdef SectionManager < handle
     end
     
     %% 近傍探索系メソッド（委譲のみ）
-    function [xlist, xup, xdw, idvlist] = ...
-      enumerateNeighborH(secmgr, xvar, idvar, options, delta)
+    function [xlist, xup, xdw, idvlist] = enumerateNeighborH( ...
+        secmgr, xvar, idvar, options, delta)
     %enumerateNeighborH 梁せいHの近傍断面を列挙
     %   [xlist, xup, xdw, idvlist] = enumerateNeighborH(secmgr, xvar, 
     %     idvar, options, delta) は、梁せいHの近傍断面を列挙します。
@@ -864,8 +882,8 @@ classdef SectionManager < handle
           xvar, idvar, options, delta);
     end
     
-    function [xlist, xup, xdw, idvlist] = ...
-      enumerateNeighborB(secmgr, xvar, idvar, options)
+    function [xlist, xup, xdw, idvlist] = enumerateNeighborB( ...
+        secmgr, xvar, idvar, options)
     %enumerateNeighborB フランジ幅Bの近傍断面を列挙
     %   [xlist, xup, xdw, idvlist] = enumerateNeighborB(secmgr, xvar,
     %     idvar, options) は、フランジ幅Bの近傍断面を列挙します。
@@ -879,8 +897,8 @@ classdef SectionManager < handle
           xvar, idvar, options);
     end
     
-    function [xlist, xup, xdw, idvlist] = ...
-      enumerateNeighborD(secmgr, xvar, idvar, options)
+    function [xlist, xup, xdw, idvlist] = enumerateNeighborD( ...
+        secmgr, xvar, idvar, options)
     %enumerateNeighborD 径Dの近傍断面を列挙
     %   [xlist, xup, xdw, idvlist] = enumerateNeighborD(secmgr, xvar,
     %     idvar, options) は、径Dの近傍断面を列挙します。
@@ -913,7 +931,8 @@ classdef SectionManager < handle
       enumerateNeighborTw(secmgr, xvar, idvar, options)
     %enumerateNeighborTw ウェブ厚twの近傍断面を列挙
     %   [xlist, xup, xdw, idvartarget, idvlist] = enumerateNeighborTw(
-    %     secmgr, xvar, idvar, options) は、ウェブ厚twの近傍断面を列挙します。
+    %     secmgr, xvar, idvar, options) は、
+    %     ウェブ厚twの近傍断面を列挙します。
     %
     %   参考:
     %     SectionNeighborSearcher.enumerateNeighborTw
@@ -928,7 +947,8 @@ classdef SectionManager < handle
       enumerateNeighborTf(secmgr, xvar, idvar, options)
     %enumerateNeighborTf フランジ厚tfの近傍断面を列挙
     %   [xlist, xup, xdw, idvartarget, idvlist] = enumerateNeighborTf(
-    %     secmgr, xvar, idvar, options) は、フランジ厚tfの近傍断面を列挙します。
+    %     secmgr, xvar, idvar, options) は、
+    %     フランジ厚tfの近傍断面を列挙します。
     %
     %   参考:
     %     SectionNeighborSearcher.enumerateNeighborTf
@@ -956,7 +976,8 @@ classdef SectionManager < handle
       if nargin == 2
         dimension = secmgr.standardAccessor.getSectionDimension(idList);
       else
-        dimension = secmgr.standardAccessor.getSectionDimension(idList, idphase);
+        dimension = secmgr.standardAccessor ...
+          .getSectionDimension(idList, idphase);
       end
     end
     
@@ -1030,7 +1051,8 @@ classdef SectionManager < handle
         idphase = secmgr.idphase;
       end
       
-      isvalid = secmgr.constraintValidator.extractValidSectionFlags(idslist, idphase);
+      isvalid = secmgr.constraintValidator ...
+        .extractValidSectionFlags(idslist, idphase);
     end
     
     function limit_jbs_section(secmgr, isjbs, member, options)
@@ -1047,23 +1069,16 @@ classdef SectionManager < handle
     %     SectionConstraintValidator.limitJbsSection
 
       % constraintValidatorへ委譲
-      secmgr.constraintValidator.limitJbsSection(isjbs, member, options, secmgr);
+      secmgr.constraintValidator.limitJbsSection(isjbs, ...
+        member, options, secmgr);
     end
     
-    function limit_slr_section(secmgr, member, options)
+    function limit_slr_section(secmgr, member, nominal, lm, options)
     %limit_slr_section 細長比制限チェック
-    %   limit_slr_section(secmgr, member, options) は、
-    %   細長比の制限チェックを実行します。
-    %
-    %   入力引数:
-    %     member  - 部材情報構造体
-    %     options - オプション構造体
-    %
-    %   参考:
-    %     SectionConstraintValidator.limitSlrSection
-      
+
       % constraintValidatorへ委譲
-      secmgr.constraintValidator.limitSlrSection(member, options, secmgr);
+      secmgr.constraintValidator.limitSlrSection(member, ...
+        nominal, lm, secmgr, options);
     end
     
     function limit_wtratio_section(secmgr, section, options)
@@ -1079,7 +1094,8 @@ classdef SectionManager < handle
     %     SectionConstraintValidator.limitWtRatioSection
 
       % constraintValidatorへ委譲
-      secmgr.constraintValidator.limitWtRatioSection(section, options, secmgr);
+      secmgr.constraintValidator.limitWtRatioSection( ...
+        section, options, secmgr);
     end
 
     %% ユーティリティメソッド
@@ -1098,9 +1114,8 @@ classdef SectionManager < handle
     %     x - 設計変数ベクトル [1×nxvar]
 
       % generate_random_initial_solution関数を呼び出し
-      x = generate_random_initial_solution(...
-        secmgr.standardAccessor_, secmgr.idMapper_, secmgr.secList, ...
-        seed, lm, options);
+      x = generate_random_initial_solution(secmgr.standardAccessor_, ...
+        secmgr.idMapper_, secmgr.secList, seed, lm, options);
     end
   end
 end

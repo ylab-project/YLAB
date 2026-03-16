@@ -22,7 +22,6 @@ cgsr = com.cgsr;
 Dgap = com.Dgap;
 % Fm = com.material.F(com.section.property.idmaterial(com.member.property.idsec));
 matF = com.material.F;
-lm = com.member.property.lm;
 mdir = com.member.property.idir;
 mtype = com.member.property.type;
 secmgr = com.secmgr;

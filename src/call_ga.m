@@ -1,11 +1,15 @@
 function [x, fval, com] = call_ga(com, options)
 % --- common ---
-lm = com.member.property.lm;
 secmgr = com.secmgr;
 member = com.member;
 node = com.node;
 story = com.story;
 floor = com.floor;
+
+% 初期断面での部材長を算出
+secdim0 = secmgr.findNearestSection(secmgr.ub, options);
+[~, ~, lm] = update_geometry_z(secdim0, com.baseline, ...
+  node, story, floor, com.section, member, options);
 
 % 初期解
 if ~isempty(options.x0)
@@ -96,8 +100,8 @@ return
     end
     fval = zeros(npop,1);
     parfor i=1:npop
-      fval(i) = objective_lsr(xmat(i,:), ...
-        lm, secmgr, node, member, story, floor, options);
+      fval(i) = objective_lsr(xmat(i,:), lm, secmgr, ...
+        node, member, story, floor, options);
     end
     return
   end

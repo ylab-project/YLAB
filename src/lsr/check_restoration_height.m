@@ -1,5 +1,5 @@
-function istarget = check_restoration_height(...
-  xlist, st, stc, C, member, Es, Fs, secmgr, options)
+function istarget = check_restoration_height(xlist, ...
+  st, stc, C, member, Es, Fs, lm, secmgr, options)
 
 % 計算の準備
 [nlist, nx] = size(xlist);
@@ -12,21 +12,21 @@ end
 
 if do_parallel
   parfor id=1:nlist
-    istarget(id,:) = check_each(...
-      xlist(id,:), st, stc, C, Es, Fs, member, secmgr, options);
+    istarget(id,:) = check_each(xlist(id,:), st, stc, ...
+      C, Es, Fs, member, lm, secmgr, options);
   end
 else
   for id=1:nlist
-    istarget(id,:) = check_each(...
-      xlist(id,:), st, stc, C, Es, Fs, member, secmgr, options);
+    istarget(id,:) = check_each(xlist(id,:), st, stc, ...
+      C, Es, Fs, member, lm, secmgr, options);
   end
 end
 return
 end
 
 %--------------------------------------------------------------------------
-function istarget = check_each(...
-  xvar, st, stc, C, Es, Fs, member, secmgr, options)
+function istarget = check_each(xvar, st, stc, C, Es, ...
+  Fs, member, lm, secmgr, options)
 
 % 共通配列(ID変換)
 idm2s = secmgr.idme2sec;
@@ -42,7 +42,6 @@ mtype = secmgr.idme2mtype;
 mstype = secmgr.idme2stype;
 gdir = member.girder.idir;
 Lb = member.girder.Lb;
-lm = member.property.lm;
 
 % 共通定数
 scallop = options.girder_scallop_size;
@@ -75,9 +74,8 @@ Fm = Fs(idm2s);
 mwfs = secdim(idm2s,:);
 mwfs = mwfs(mstype==PRM.WFS,:);
 % [gri, grj, grc, cri, crj, gsi, gsj, csi, csj] = ...
-[gri, grj, grc] = ...
-  allowable_stress_ratio(mwfs, st, stc, A, Iy, Iz, C, mtype, gdir, ...
-  Em, Fm, idm2n, Lb, lm, options);
+[gri, grj, grc] = allowable_stress_ratio(mwfs, st, stc, ...
+  A, Iy, Iz, C, mtype, gdir, Em, Fm, idm2n, Lb, lm, options);
 gr = max([reshape([gri grj grc],nmg,[])],[],2);
 % gs = max([reshape([gsi; gsj],nmg,[])],[],2);
 % cr = max([reshape([cri; crj],nmc,[])],[],2);
@@ -99,13 +97,13 @@ tol = options.tolRestoreSr;
 
 % % H形鋼のせん断許容応力度比制約違反からの復元対象
 % idgs = unique(idmeg2v(gs>tol,3))';
-% 
+%
 % H形鋼の曲げ許容応力度比制約違反からの復元対象
 idgr = unique(idmeg2v(gr>tol,[1 4]));
 
 % % 角形鋼管の許容応力度比制約違反からの復元対象
 % idc = unique(idmec2v(cr>=tol|cs>tol,2))';
-% 
+%
 % 変数の整理
 % idvar = unique([idH_up idtw_up idtf_up idt_up ]);
 % idvar = unique([idgs idgr idc]);

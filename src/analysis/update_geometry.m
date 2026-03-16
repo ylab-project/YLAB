@@ -1,7 +1,7 @@
 function [mglevel, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
   update_geometry(secdim, baseline, node, story, floor, ...
   section, member, cbs, options, idsup2n)
-%update_geometry 構造モデルの幾何学的特性を更新
+%update_geometry - 構造モデルの幾何学的特性を更新
 %   [mglevel, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
 %   update_geometry(secdim, baseline, node, story, floor, ...
 %   section, member, cbs, options, idsup2n) は、部材レベル、座標、
@@ -90,7 +90,7 @@ for ist = 1:nstory
   if any(istarget)
     ggg = mglevel(istarget);
     ggg(ggg==0) = story.girder_level(ist);
-  elseif ist == 1 
+  elseif ist == 1
     % 基礎なしモデル
     continue
   else
@@ -106,20 +106,21 @@ member_girder.level = mglevel;
 %---
 % 構造階高の更新
 if options.do_autoupdate_floor_height
-  [flh, stdh] = calc_floor_height(...
-    secdim, story, floor, idmg2st, idmg2sg, idsg2s, ...
-    idm2s, idmg2m, stype, mglevel);
+  [flh, stdh] = calc_floor_height(secdim, story, floor, ...
+    idmg2st, idmg2sg, idsg2s, idm2s, idmg2m, stype, ...
+    mglevel);
   floor.height = flh;
   story.delta_height = stdh;
-  [zcoord, nodez, lm] = update_zcoord(flh, idfl2z, idm2n, baseline, node);
-  node.z = nodez;
-  % 注: 分割節点のz座標はglv込みで前処理時に設定済み。
-  %      update_zcoordは分割節点のidz(フロア外)を更新しないため、
-  %      前処理値がそのまま保持される。追加補正は不要。
 else
+  flh = floor.height;
   stdh = story.girder_level;
   story.delta_height = stdh;
 end
+[zcoord, nodez, lm] = update_zcoord(flh, idfl2z, idm2n, baseline, node);
+node.z = nodez;
+% 注: 分割節点のz座標はglv込みで前処理時に設定済み。
+%      update_zcoordは分割節点のidz(フロア外)を更新しないため、
+%      前処理値がそのまま保持される。追加補正は不要。
 
 % 方向余弦を現在の node 座標から常に計算
 [gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl] = ...
@@ -138,8 +139,7 @@ cyl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcyl;
 
 if options.do_autoupdate_floor_height
   % ブレース長の算出（SS7 3.8.1）
-  lm_brace = calc_brace_length(...
-    member_brace, member_girder, node);
+  lm_brace = calc_brace_length(member_brace, member_girder, node);
   lm(mtype==PRM.BRACE) = lm_brace;
 end
 
@@ -152,9 +152,8 @@ idmg2n = [member_girder.idnode1 member_girder.idnode2];
 if options.consider_allowable_stress_at_face
   gcxl = cxl(mtype==PRM.GIRDER,:);
   gcyl = cyl(mtype==PRM.GIRDER,:);
-  lf.girder = comp_face_length_girder(...
-    secdim, idmg2sfl, idmg2sfr, idscb2s, cbs.Df, gcxl, gcyl, ...
-    idmg2n, idsup2n);
+  lf.girder = comp_face_length_girder(secdim, idmg2sfl, ...
+    idmg2sfr, idscb2s, cbs.Df, gcxl, gcyl, idmg2n, idsup2n);
   ccxl = cxl(mtype==PRM.COLUMN,:);
   ccyl = cyl(mtype==PRM.COLUMN,:);
   [lf.columnx, lf.columny] = comp_face_length_column(...
@@ -178,10 +177,10 @@ if options.consider_rigid_zone
   % 柱の方向余弦を取得（斜め柱の投影補正用）
   ccxl = cxl(mtype==PRM.COLUMN,:);
   ccyl = cyl(mtype==PRM.COLUMN,:);
-  [lr.columnx, lr.columny] = calc_rigid_zone_column(...
-    secdim, stdh, member_girder.level, mgstype, ...
-    idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, idmc2st, idmg2sg, idsg2s, ...
-    mcstype, idmc2s, ccxl, ccyl);
+  [lr.columnx, lr.columny] = calc_rigid_zone_column( ...
+    secdim, stdh, member_girder.level, mgstype, idmc2mf1x, idmc2mf2x, ...
+    idmc2mf1y, idmc2mf2y, idmc2st, idmg2sg, idsg2s, mcstype, idmc2s, ...
+    ccxl, ccyl);
   % 柱剛域（直接入力値で上書き）
   if isfield(member, 'column_rigid_zone_direct')
     rzd = member.column_rigid_zone_direct;
@@ -193,10 +192,11 @@ if options.consider_rigid_zone
     lr.columny(mask_y) = rzd.y(mask_y);
   end
   % 梁剛域
-  lr.girder = calc_rigid_zone_girder(...
-    mgstype, idmg2sfl, idmg2sfr, idscb2s, cbs.Df, sdimgm, ...
-    secdim, stype, gdir, idmg2n, idsup2n);
+  lr.girder = calc_rigid_zone_girder(mgstype, idmg2sfl, ...
+    idmg2sfr, idscb2s, cbs.Df, sdimgm, secdim, stype, ...
+    gdir, idmg2n, idsup2n);
 end
 
+return
 end
 

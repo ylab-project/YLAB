@@ -1,5 +1,6 @@
-function [xlist, istarget, isexact] = check_restoration_thickness(...
-  xlist, st, stc, C, member, matE, matF, secmgr, options)
+function [xlist, istarget, isexact] = ...
+  check_restoration_thickness(xlist, st, stc, C, member, ...
+  matE, matF, lm, secmgr, options)
 
 % 計算の準備
 [nlist, nx] = size(xlist);
@@ -17,13 +18,15 @@ do_parallel = false;
 
 if do_parallel
   parfor id=1:nlist
-    [istarget_exact(id,:), istarget_approx(id,:)] = check_thickness_individual(...
-      xlist(id,:), st, stc, C, matE, matF, member, secmgr, options, id);
+    [istarget_exact(id,:), istarget_approx(id,:)] = ...
+      check_thickness_individual(xlist(id,:), st, stc, ...
+      C, matE, matF, member, lm, secmgr, options, id);
   end
 else
   for id=1:nlist
-    [istarget_exact(id,:), istarget_approx(id,:)] = check_thickness_individual(...
-      xlist(id,:), st, stc, C, matE, matF, member, secmgr, options, id);
+    [istarget_exact(id,:), istarget_approx(id,:)] = ...
+      check_thickness_individual(xlist(id,:), st, stc, ...
+      C, matE, matF, member, lm, secmgr, options, id);
   end
 end
 
@@ -47,12 +50,14 @@ return
 end
 
 %--------------------------------------------------------------------------
-function [istarget_exact, istarget_approx]  = check_thickness_individual(...
-  xvar, st, stc, C, matE, matF, member, secmgr, options, id)
+function [istarget_exact, istarget_approx] = ...
+  check_thickness_individual(xvar, st, stc, C, matE, ...
+  matF, member, lm, secmgr, options, id)
 
 % 共通配列(ID変換)
 idm2s = secmgr.idme2sec;
-% idm2n = [member.property.idnode1 member.property.idnode2];
+% idm2n = [member.property.idnode1 ...
+%   member.property.idnode2];
 % idmg2m = member.girder.idme;
 idmg2m = member.girder.idme(member.girder.section_type==PRM.WFS);
 % idsrep2s = secmgr.idsrep2sec;
@@ -65,7 +70,6 @@ mtype = secmgr.idme2mtype;
 % mstype = secmgr.idme2stype;
 % gdir = member.girder.idir;
 Lb = member.girder.Lb;
-lm = member.property.lm;
 
 % 共通定数
 scallop = options.girder_scallop_size;
@@ -99,26 +103,32 @@ lmg = lm(idmg2m);
 Fg = Fm(idmg2m);
 
 % % 幅厚比に関する復元操作が必要な変数のチェック
-% [conwtg, conwtc] = calc_wtratio(secdim, Fs, idsrep2s, idsrep2stype, options);
+% [conwtg, conwtc] = calc_wtratio(secdim, Fs, ...
+%   idsrep2s, idsrep2stype, options);
 % idvar_wt = check_wtratio(conwtg, conwtc, secmgr);
 
 % 細長比に関する復元操作が必要な変数のチェック
-% consr = calc_slenderness_ratio(Ag, Izg, Lbg, lmg, Fg);
-% idvar_slr = check_slenderness_ratio(consr, secmgr);
+% consr = calc_slenderness_ratio( ...
+%   Ag, Izg, Lbg, lmg, Fg);
+% idvar_slr = check_slenderness_ratio( ...
+%   consr, secmgr);
 
 idvar_asr = [];
 % if options.do_restration_asr && id==1
 %   % 許容応力度に関する復元操作が必要な変数のチェック
 %   mwfs = secdim(idm2s,:);
 %   mwfs = mwfs(mstype==PRM.WFS,:);
-%   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj] = ...
-%     allowable_stress_ratio(mwfs, st, stc, A, Iy, Iz, C, mtype, gdir, ...
+%   [gri, grj, grc, cri, crj, ...
+%     gsi, gsj, csi, csj] = ...
+%     allowable_stress_ratio(mwfs, st, stc, ...
+%     A, Iy, Iz, C, mtype, gdir, ...
 %     Em, Fm, idm2n, Lb, lm, options);
 %   gr = max([reshape([gri grj grc],nmg,[])],[],2);
 %   gs = max([reshape([gsi; gsj],nmg,[])],[],2);
 %   cr = max([reshape([cri; crj],nmc,[])],[],2);
 %   cs = max([reshape([csi; csj],nmc,[])],[],2);
-%   idvar_asr = check_allowable_stress_ratio(gr, gs, cr, cs, secmgr, options);
+%   idvar_asr = check_allowable_stress_ratio( ...
+%     gr, gs, cr, cs, secmgr, options);
 % else
 %   idvar_asr = [];
 % end
@@ -185,7 +195,8 @@ return
 end
 
 %--------------------------------------------------------------------------
-function idvar = check_allowable_stress_ratio(gr, gs, cr, cs, secmgr, options)
+function idvar = check_allowable_stress_ratio(gr, gs, ...
+  cr, cs, secmgr, options)
 
 % 共通配列
 idmec2v = secmgr.idme2var(secmgr.idme2stype==PRM.HSS,:);
@@ -204,7 +215,7 @@ idgr = unique(idmeg2v(gr>tol,4));
 idc = unique(idmec2v(cr>=tol|cs>tol,2))';
 
 % 変数の整理
-% idvar = unique([idH_up idtw_up idtf_up idt_up ]);
+% idvar = unique([idH_up idtw_up idtf_up idt_up]);
 idvar = unique([idgs idgr idc]);
 return
 end

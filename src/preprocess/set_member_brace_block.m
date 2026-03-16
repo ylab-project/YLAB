@@ -219,7 +219,7 @@ for i = 1:n
   % 端点1側（下端）の接続梁を検索
   idg_ = find_idgirder_from_idxyz(...
     idx(i,:), idy(i,:), ...
-    idz(i,[1 1]), member_girder);
+    idz(i,[1 1]), member_girder, [], baseline);
   idg_ = idg_(idg_ > 0);
   for k = 1:length(idg_)
     if member_girder.isfg(idg_(k))
@@ -229,7 +229,7 @@ for i = 1:n
   % 端点2側（上端）の接続梁を検索
   idg_ = find_idgirder_from_idxyz(...
     idx(i,:), idy(i,:), ...
-    idz(i,[2 2]), member_girder);
+    idz(i,[2 2]), member_girder, [], baseline);
   idg_ = idg_(idg_ > 0);
   for k = 1:length(idg_)
     if member_girder.isfg(idg_(k))
@@ -325,8 +325,10 @@ return
 
     % 基礎梁の取得と成（梁天端位置計算用）
     idfg = find_idgirder_from_idxyz(...
-      idx(id_target_brace,:), idy(id_target_brace,:), ...
-      idz(id_target_brace,[1 1]), member_girder);
+      idx(id_target_brace,:), ...
+      idy(id_target_brace,:), ...
+      idz(id_target_brace,[1 1]), ...
+      member_girder, [], baseline);
     idsfg = member_girder.idsecg(idfg);
     Dtarget = section_girder.dimension(idsfg,2);
 
@@ -477,7 +479,7 @@ return
       end
       idg(ia) = find_idgirder_from_idxyz(...
         idx(tid,:), idy(tid,:), idz_girder, ...
-        member_girder);
+        member_girder, [], baseline);
       girder_idir(ia) = member_girder.idir(idg(ia));
     end
 
@@ -522,6 +524,9 @@ return
         baseline.x.isdummy(nx) = true;
         baseline.x.name(nx) = ...
           strcat(baseline.x.name(idx(tid,1)),'-KBRACE-MID');
+        baseline.x.coord(nx) = ...
+          (baseline.x.coord(idx(tid,1)) ...
+          + baseline.x.coord(idx(tid,2))) / 2;
         addnode.idx(iu) = nx;
         addnode.xname(iu) = baseline.x.name(nx);
 
@@ -538,6 +543,9 @@ return
         baseline.y.isdummy(ny) = true;
         baseline.y.name(ny) = ...
           strcat(baseline.y.name(idy(tid,1)),'-KBRACE-MID');
+        baseline.y.coord(ny) = ...
+          (baseline.y.coord(idy(tid,1)) ...
+          + baseline.y.coord(idy(tid,2))) / 2;
         addnode.idy(iu) = ny;
         addnode.yname(iu) = baseline.y.name(ny);
       end

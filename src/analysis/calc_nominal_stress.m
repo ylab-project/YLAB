@@ -1,6 +1,7 @@
 function [stn, stcn] = calc_nominal_stress(...
-  dfn, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, mtype, idnm2m)
-% 応力から応力度を計算する
+  dfn, Mc, Asc, Asy, Asz, Aw, Zy, Zz, ...
+  Zyij, Zyc, mtype, idnm2m)
+%calc_nominal_stress - 応力から応力度を計算する
 
 % 計算の準備
 [nmn, ~, nlc] = size(dfn);
@@ -9,10 +10,9 @@ function [stn, stcn] = calc_nominal_stress(...
 Asz(mtype==PRM.GIRDER) = Aw(mtype==PRM.GIRDER);
 Zz(mtype==PRM.BRACE) = 1.d-6;
 
-% 移し替え
+% 移し替え（Mc は既に nnm 空間）
 idnm2m = idnm2m(:,1);
-Mc = Mc(idnm2m,:);
-A = A(idnm2m);
+Asc = Asc(idnm2m);
 Asy = Asy(idnm2m);
 Asz = Asz(idnm2m);
 Zy = Zy(idnm2m);
@@ -25,11 +25,11 @@ mtype = mtype(idnm2m);
 stn = zeros(nmn,12,nlc);
 stcn = zeros(nmn,nlc);
 for ilc = 1:nlc
-  stn(:,1,ilc) = dfn(:,1,ilc)./A;
+  stn(:,1,ilc) = dfn(:,1,ilc)./Asc;   % σc i端（スカラップ考慮）
   stn(:,2,ilc) = dfn(:,2,ilc)./Asy;
   stn(:,3,ilc) = dfn(:,3,ilc)./Asz;
   stn(:,6,ilc) = dfn(:,6,ilc)./Zz;
-  stn(:,7,ilc) = dfn(:,7,ilc)./A;
+  stn(:,7,ilc) = dfn(:,7,ilc)./Asc;   % σc j端（スカラップ考慮）
   stn(:,8,ilc) = dfn(:,8,ilc)./Asy;
   stn(:,9,ilc) = dfn(:,9,ilc)./Asz;
   stn(:,12,ilc) = dfn(:,12,ilc)./Zz;

@@ -282,55 +282,36 @@ classdef PRM
     
     %% load_case_name
     function lcname = load_case_name(idlc)
-      % 荷重ケースIDから荷重ケース名を取得
-      %
-      % Inputs:
-      %   idlc - 荷重ケースID (PRM.LT, PRM.EXP, etc.)
-      %
-      % Outputs:
-      %   lcname - 荷重ケース名文字列
-      %
-      % Example:
-      %   name = PRM.load_case_name(PRM.LT)  % returns 'G+P'
+    %load_case_name - 荷重ケース短縮名を取得
+    %
+    %   組合せ前テーブル（設計応力表）用の短縮名。
+    %
+    %   Example:
+    %     PRM.load_case_name(PRM.EXP)  % 'EX+'
       switch idlc
-        case PRM.LT
-          lcname = 'G+P';
-        case PRM.EXP
-          lcname = 'L+Ex';
-        case PRM.EXN
-          lcname = 'L-Ex';
-        case PRM.EYP
-          lcname = 'L+Ey';
-        case PRM.EYN
-          lcname = 'L-Ey';
+        case PRM.LT,  lcname = 'G+P';
+        case PRM.EXP, lcname = 'EX+';
+        case PRM.EXN, lcname = 'EX-';
+        case PRM.EYP, lcname = 'EY+';
+        case PRM.EYN, lcname = 'EY-';
       end
       return
     end
-    
-    %% load_case_short_name
-    function lcname = load_case_short_name(idlc)
-      %load_case_short_name - 荷重ケース短縮名を取得
-      %
-      % Inputs:
-      %   idlc - 荷重ケースID
-      %
-      % Outputs:
-      %   lcname - 短縮名（組合せ前テーブル用）
-      %
-      % Example:
-      %   PRM.load_case_short_name(PRM.EXP)
-      %   % returns 'EX+'
+
+    %% load_case_combo_name
+    function lcname = load_case_combo_name(idlc)
+    %load_case_combo_name - 荷重組合せケース名を取得
+    %
+    %   断面算定表（S梁/S柱/ブレース）用の組合せ名。
+    %
+    %   Example:
+    %     PRM.load_case_combo_name(PRM.EXP)  % 'L+Ex'
       switch idlc
-        case PRM.LT
-          lcname = 'G+P';
-        case PRM.EXP
-          lcname = 'EX+';
-        case PRM.EXN
-          lcname = 'EX-';
-        case PRM.EYP
-          lcname = 'EY+';
-        case PRM.EYN
-          lcname = 'EY-';
+        case PRM.LT,  lcname = 'L';
+        case PRM.EXP, lcname = 'L+Ex';
+        case PRM.EXN, lcname = 'L-Ex';
+        case PRM.EYP, lcname = 'L+Ey';
+        case PRM.EYN, lcname = 'L-Ey';
       end
       return
     end

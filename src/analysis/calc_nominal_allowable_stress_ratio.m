@@ -1,12 +1,12 @@
-function [ration, fcn] = calc_nominal_allowable_stress_ratio(...
-  st, stc, ftn, fcn, fbn, fsn, nmtype)
-% Calculation of stress ratio
+function [ration, fcn, fbn] = calc_nominal_allowable_stress_ratio(...
+  st, stc, ftn, fcn, fbn, fsn, nmtype, Ncn, A)
+%calc_nominal_allowable_stress_ratio - 公称許容応力度比の算定
 
 % 定数
 [nnm, ~, nlc] = size(st);
 
 % 初期化
-ration = zeros(nnm,13,nlc);
+ration = zeros(nnm,14,nlc);
 
 for ilc = 1:nlc
   if (ilc==1)
@@ -20,14 +20,16 @@ for ilc = 1:nlc
   % 梁
   for inm = 1:nnm
 
-    % Ni：引張／圧縮判定
-    if st(inm,1,ilc)<=0
+    % Ni：引張時は fc,fb ともに ft に置換
+    if st(inm,1,ilc) <= 0
       fcn(inm,1,ilc) = ftn(inm,ilc_);
+      fbn(inm,1,ilc) = ftn(inm,ilc_);
     end
 
-    % Nj：引張／圧縮判定
-    if st(inm,7,ilc)>=0
+    % Nj：引張時は fc,fb ともに ft に置換
+    if st(inm,7,ilc) >= 0
       fcn(inm,2,ilc) = ftn(inm,ilc_);
+      fbn(inm,2,ilc) = ftn(inm,ilc_);
     end
 
     % 軸力度
@@ -35,7 +37,7 @@ for ilc = 1:nlc
     ration(inm,7,ilc) = st(inm,7,ilc)/fcn(inm,2,ilc);
 
     % ブレース省略
-    if nmtype(inm)==PRM.BRACE
+    if nmtype(inm) == PRM.BRACE
       continue
     end
 
@@ -56,9 +58,22 @@ for ilc = 1:nlc
     switch nmtype(inm)
       case PRM.COLUMN
       case PRM.GIRDER
-        ration(inm,13,ilc) = stc(inm,ilc)/fbn(inm,3,ilc);
+        % 中央σb/fb — 引張時はfb=ft
+        if Ncn(inm,ilc) <= 0
+          fbn(inm,3,ilc) = ftn(inm,ilc_);
+        end
+        ration(inm,13,ilc) = stc(inm,ilc) / fbn(inm,3,ilc);
+        % 中央N/fc
+        stcn_N = Ncn(inm,ilc) / A(inm);
+        if stcn_N <= 0
+          fcn(inm,3,ilc) = ftn(inm,ilc_);
+          ration(inm,14,ilc) = stcn_N / ftn(inm,ilc_);
+        else
+          ration(inm,14,ilc) = stcn_N / fcn(inm,3,ilc);
+        end
     end
   end
 end
+
 return
 end

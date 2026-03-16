@@ -1,10 +1,11 @@
 function slr = genslr(member_girder)
-%GENSLR この関数の概要をここに記述
-%   詳細説明をここに記述
+%genslr - 保有耐力横補剛チェック用の構造体を生成
 
 slr.istarget = member_girder.slr_is_target;
 slr.lb = member_girder.slr_lb;
-slr.istarget(member_girder.section_type==PRM.RCRS,:) = [];
-slr.lb(member_girder.section_type==PRM.RCRS,:) = [];
+slr.lbmax = member_girder.slr_lbmax;
+isrc = member_girder.section_type==PRM.RCRS;
+slr.istarget(isrc,:) = [];
+slr.lb(isrc,:) = [];
+slr.lbmax(isrc) = [];
 end
-

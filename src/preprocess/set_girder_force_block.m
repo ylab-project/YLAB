@@ -13,12 +13,11 @@ function [felement, ar, M0] = set_girder_force_block(dbc, com)
 %   出力引数:
 %     felement - 全体座標系の等価節点力 [ndf×nlc]
 %     ar       - 要素座標系の等価節点力 [nm×12×nlc]
-%     M0       - ねじれモーメント [nm×nlc]
+%     M0       - 単純梁中央モーメント [nm×nlc]
 %
 %   備考:
 %     分割梁の処理:
 %       継続列あり → SS7が計算した各分割梁のCMQを直接適用
-%       継続列なし → 分割梁のCMQを長さ比で按分（従来処理）
 data = dbc.get_data_block('梁要素荷重');
 n = size(data,1);
 
@@ -35,7 +34,6 @@ je = com.member.girder.idnode2;
 loadcase = com.loadcase;
 node = com.node;
 story = com.story;
-lm = com.member.property.lm;
 cxl = member_girder.cxl;
 cyl = member_girder.cyl;
 idmg2m = member_girder.idme;
@@ -73,12 +71,12 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz] = find_idxyz_girder(...
-  story_name, frame_name, coord_name, baseline);
+[idx, idy, idz] = find_idxyz_girder(story_name, frame_name, ...
+  coord_name, baseline);
 
 % 個別梁検索
-idmgs = find_idgirder_from_idxyz(...
-  idx, idy, idz, member_girder);
+idmgs = find_idgirder_from_idxyz(idx, idy, idz, member_girder, ...
+  [], baseline);
 
 % 分割梁判定: idsplit連結ありの部材を含むか
 % （通し梁はidsplit=0なので除外される。
@@ -86,20 +84,15 @@ idmgs = find_idgirder_from_idxyz(...
 %   idsplit の有無で分割梁を判定する）
 % 分割梁なしのモデルではidsplitフィールドが存在しない
 is_split = false(n, 1);
-if ismember('idsplit', ...
-    member_girder.Properties.VariableNames)
+if ismember('idsplit', member_girder.Properties.VariableNames)
   idsplit = member_girder.idsplit;
   for i = 1:n
     ids = idmgs(i, 1:nnz(idmgs(i,:)));
-    if length(ids) > 1 ...
-        && any(idsplit(ids) > 0)
+    if length(ids) > 1 && any(idsplit(ids) > 0)
       is_split(i) = true;
     end
   end
 end
-
-is_continued = validate_continuation_split(...
-  is_continued, is_split, n);
 
 % 部材にかかる中間荷重の等価節点力の総和
 ar = zeros(nm,12,nlc);
@@ -123,42 +116,32 @@ for i = 1:n
   if is_continued(i) && is_split(i)
     % 継続行あり: SS7のCMQを各分割梁に直接適用
     % 按分せず、SS7が計算した各分割梁のCMQをそのまま使用
-    idmeg_all = build_split_group(...
-      idmgs(i,:), idsplit);
-    assert(length(idmeg_all) == 2, ...
-      '継続行ペア処理は2分割梁のみ対応');
+    idmeg_all = build_split_group(idmgs(i,:), idsplit);
+    assert(length(idmeg_all) == 2, '継続行ペア処理は2分割梁のみ対応');
 
     % 1行目 → 1番目の分割梁（i端側）
-    [felement, ar, M0] = apply_single_girder_force(...
-      idmeg_all(1), arunit, data{i, 18}, ...
-      ilc, felement, ar, M0, idmg2m, ...
-      cxl, cyl, czl, js, je, node, story);
+    [felement, ar, M0] = apply_single_girder_force( ...
+      idmeg_all(1), arunit, data{i, 18}, ilc, felement, ...
+      ar, M0, idmg2m, cxl, cyl, czl, js, je, node, story);
 
     % 2行目 → 2番目の分割梁（j端側）
     arunit_2nd = cell2mat(data(i+1, 6:17));
-    [felement, ar, M0] = apply_single_girder_force(...
-      idmeg_all(2), arunit_2nd, ...
-      data{i+1, 18}, ilc, felement, ar, ...
-      M0, idmg2m, cxl, cyl, czl, ...
-      js, je, node, story);
+    [felement, ar, M0] = apply_single_girder_force( ...
+      idmeg_all(2), arunit_2nd, data{i+1, 18}, ilc, ...
+      felement, ar, M0, idmg2m, cxl, cyl, czl, js, je, ...
+      node, story);
 
   elseif is_split(i)
-    % 分割梁: 長さ比で按分（継続列なしの従来処理）
-    idmeg_all = build_split_group(...
-      idmgs(i,:), idsplit);
-    [felement, ar, M0] = apply_split_girder_force(...
-      idmeg_all, arunit, data{i, 18}, ilc, ...
-      felement, ar, M0, idmg2m, lm, ...
-      cxl, cyl, czl, js, je, node, story);
+    % 分割梁だが継続列なし: 未対応
+    error('分割梁に継続列がありません（行%d）', i);
 
   else
     % 通常梁: 1部材に直接適用
     idmg = idmgs(i,1);
     if idmg == 0, continue, end
-    [felement, ar, M0] = apply_single_girder_force(...
-      idmg, arunit, data{i, 18}, ilc, ...
-      felement, ar, M0, idmg2m, ...
-      cxl, cyl, czl, js, je, node, story);
+    [felement, ar, M0] = apply_single_girder_force( ...
+      idmg, arunit, data{i, 18}, ilc, felement, ar, ...
+      M0, idmg2m, cxl, cyl, czl, js, je, node, story);
   end
 end
 
@@ -166,8 +149,7 @@ return
 end
 
 
-function [is_continued, data] = ...
-  read_continuation_flag(data, n)
+function [is_continued, data] = read_continuation_flag(data, n)
 %read_continuation_flag - 継続フラグの読み取りと基本検証
 %
 %   [is_continued, data] = read_continuation_flag(data, n) は、
@@ -199,8 +181,7 @@ for i = 1:n
   end
   % 継続行の列1-5は空欄が仕様。非空なら警告
   if any(~ismissing(string(data(i+1, 1:5))))
-    throw_warn('Input', ...
-      'GirderForceContRowNotEmpty', i+1);
+    throw_warn('Input', 'GirderForceContRowNotEmpty', i+1);
   end
 end
 
@@ -208,35 +189,6 @@ end
 for i = 1:n
   if is_continued(i)
     data(i+1, 1:5) = data(i, 1:5);
-  end
-end
-
-return
-end
-
-
-function is_continued = validate_continuation_split(...
-  is_continued, is_split, n)
-%validate_continuation_split - 継続フラグの分割梁検証
-%
-%   is_continued = validate_continuation_split(
-%     is_continued, is_split, n) は、
-%   継続フラグが分割梁に対応するか検証し、
-%   不整合時はfalseにリセットする。
-%
-%   入力引数:
-%     is_continued - 継続フラグ [n×1 logical]
-%     is_split     - 分割梁フラグ [n×1 logical]
-%     n            - データ行数
-%
-%   出力引数:
-%     is_continued - 検証後の継続フラグ [n×1 logical]
-
-for i = 1:n
-  if ~is_continued(i), continue, end
-  if ~is_split(i)
-    throw_warn('Input', 'GirderForceContNotSplit', i);
-    is_continued(i) = false;
   end
 end
 
@@ -268,87 +220,8 @@ return
 end
 
 
-function [felement, ar, M0] = apply_split_girder_force(...
-  idmeg_all, arunit, M0_val, ilc, ...
-  felement, ar, M0, idmg2m, lm, ...
-  cxl, cyl, czl, js, je, node, story)
-%apply_split_girder_force - 分割梁に長さ比で按分して適用
-%
-%   [felement, ar, M0] = apply_split_girder_force(
-%     idmeg_all, arunit, M0_val, ilc, felement, ar, M0,
-%     idmg2m, lm, cxl, cyl, czl, js, je, node, story) は、
-%   名目梁のCMQを構成部材に長さ比で按分し、
-%   felementは名目梁の両端節点にのみ適用する。
-%
-%   入力引数:
-%     idmeg_all - 構成部材の梁番号配列 [1×nsplit]
-%     arunit    - 名目梁の要素座標系CMQ [1×12]
-%     M0_val    - ねじれモーメント（スカラー）
-%     ilc       - 荷重ケース番号
-%     felement  - 全体座標系の等価節点力 [ndf×nlc]
-%     ar        - 要素座標系の等価節点力 [nm×12×nlc]
-%     M0        - ねじれモーメント [nm×nlc]
-%     idmg2m    - 梁番号→全体部材番号の変換配列
-%     lm        - 部材長さ配列 [nm×1]
-%     cxl,cyl,czl - 部材座標系の方向余弦
-%     js,je     - 部材のi端・j端節点番号
-%     node      - 節点情報構造体
-%     story     - 層情報構造体
-%
-%   出力引数:
-%     felement - 更新後の全体座標系等価節点力
-%     ar       - 更新後の要素座標系等価節点力
-%     M0       - 更新後のねじれモーメント
-
-ig_first = idmeg_all(1);
-ig_last = idmeg_all(end);
-
-% felement: 名目梁の両端に適用
-tt = [cxl(ig_first,:)' cyl(ig_first,:)' ...
-  czl(ig_first,:)'];
-% i端 → 最初の部材のi端節点
-nn = node.dof(js(ig_first),:);
-fi = tt * arunit(1:3)';
-felement(nn, ilc) = felement(nn, ilc) ...
-  + [fi; tt*arunit(4:6)'];
-felement = add_rigid_eccentric_moment(felement, ...
-  js(ig_first), fi(1), fi(2), ilc, node, story);
-% j端 → 最後の部材のj端節点
-nn = node.dof(je(ig_last),:);
-fj = tt * arunit(7:9)';
-felement(nn, ilc) = felement(nn, ilc) ...
-  + [fj; tt*arunit(10:12)'];
-felement = add_rigid_eccentric_moment(felement, ...
-  je(ig_last), fj(1), fj(2), ilc, node, story);
-
-% ar: 構成部材に長さ比で按分
-Lf = sum(lm(idmg2m(idmeg_all)));
-for k = 1:length(idmeg_all)
-  idm_k = idmg2m(idmeg_all(k));
-  r = lm(idm_k) / Lf;
-  ar_k = arunit;
-  % 力成分: 長さ比
-  ar_k([1:3 7:9]) = arunit([1:3 7:9]) * r;
-  % モーメント成分: 長さ比の2乗
-  ar_k([4:6 10:12]) = arunit([4:6 10:12]) * r^2;
-  ar(idm_k,:,ilc) = ar(idm_k,:,ilc) + ar_k;
-end
-
-% M0: 同様に按分
-for k = 1:length(idmeg_all)
-  idm_k = idmg2m(idmeg_all(k));
-  r = lm(idm_k) / Lf;
-  M0(idm_k, ilc) = M0(idm_k, ilc) + M0_val * r;
-end
-
-return
-end
-
-
-
-function [felement, ar, M0] = ...
-  apply_single_girder_force(ig, arunit, M0_val, ...
-  ilc, felement, ar, M0, idmg2m, ...
+function [felement, ar, M0] = apply_single_girder_force( ...
+  ig, arunit, M0_val, ilc, felement, ar, M0, idmg2m, ...
   cxl, cyl, czl, js, je, node, story)
 %apply_single_girder_force - 1部材に梁要素荷重を適用
 %
@@ -361,11 +234,11 @@ function [felement, ar, M0] = ...
 %   入力引数:
 %     ig      - 梁部材番号（梁インデックス）
 %     arunit  - 要素座標系CMQ [1×12]
-%     M0_val  - ねじれモーメント（スカラー）
+%     M0_val  - 単純梁中央モーメント（スカラー）
 %     ilc     - 荷重ケース番号
 %     felement - 全体座標系の等価節点力 [ndf×nlc]
 %     ar      - 要素座標系の等価節点力 [nm×12×nlc]
-%     M0      - ねじれモーメント [nm×nlc]
+%     M0      - 単純梁中央モーメント [nm×nlc]
 %     idmg2m  - 梁番号→全体部材番号の変換配列
 %     cxl,cyl,czl - 部材座標系の方向余弦
 %     js,je   - 部材のi端・j端節点番号
@@ -375,7 +248,7 @@ function [felement, ar, M0] = ...
 %   出力引数:
 %     felement - 更新後の全体座標系等価節点力
 %     ar       - 更新後の要素座標系等価節点力
-%     M0       - 更新後のねじれモーメント
+%     M0       - 更新後の単純梁中央モーメント
 
 idm = idmg2m(ig);
 ar(idm,:,ilc) = ar(idm,:,ilc) + arunit;
@@ -386,18 +259,16 @@ tt = [cxl(ig,:)' cyl(ig,:)' czl(ig,:)'];
 % felement: i端
 nn = node.dof(js(ig),:);
 fi = tt * arunit(1:3)';
-felement(nn, ilc) = felement(nn, ilc) ...
-  + [fi; tt*arunit(4:6)'];
-felement = add_rigid_eccentric_moment(felement, ...
-  js(ig), fi(1), fi(2), ilc, node, story);
+felement(nn, ilc) = felement(nn, ilc) + [fi; tt*arunit(4:6)'];
+felement = add_rigid_eccentric_moment(felement, js(ig), ...
+  fi(1), fi(2), ilc, node, story);
 
 % felement: j端
 nn = node.dof(je(ig),:);
 fj = tt * arunit(7:9)';
-felement(nn, ilc) = felement(nn, ilc) ...
-  + [fj; tt*arunit(10:12)'];
-felement = add_rigid_eccentric_moment(felement, ...
-  je(ig), fj(1), fj(2), ilc, node, story);
+felement(nn, ilc) = felement(nn, ilc) + [fj; tt*arunit(10:12)'];
+felement = add_rigid_eccentric_moment(felement, je(ig), ...
+  fj(1), fj(2), ilc, node, story);
 
 return
 end
