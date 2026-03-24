@@ -12,11 +12,12 @@ function [exitflag, result, com] = YLAB(varargin)
 %     exemode      - 実行モード（デフォルト: 'OPT'）
 %         'OPT'      - 最適化実行
 %         'CHECK'    - 断面検定のみ（最適化なし）
-%     uimode       - ユーザーインターフェースモード（デフォルト: 'CUI'）
+%         'CONVERT'  - SS7形式への荷重データ変換
+%     uimode       - UIモード（デフォルト: 'CUI'）
 %         'GUI'      - 設定ダイアログを表示
 %         'CUI'      - コマンドライン引数で実行
-%     solutionfile - 初期解として使用する断面リスト（CSV/MAT）
-%     optionfile   - 最適化オプションを記述したCSVファイル
+%     solutionfile - 初期解の断面リスト（CSV/MAT）
+%     optionfile   - オプションを記述したCSVファイル
 %     matfile      - 計算履歴ファイル（中断再開用）
 %     trial        - 試行番号（履歴管理用）
 %     phase        - 開始フェーズ番号
@@ -27,6 +28,8 @@ function [exitflag, result, com] = YLAB(varargin)
 %   オプションフラグ:
 %     -pdf         - PDFレポートを作成
 %     -nopdf       - PDFレポートの作成をスキップ（デフォルト）
+%     -legacy      - SS7互換の旧フォーマットで出力
+%     -dev         - 開発者モード（GUIで起動）
 %     -version     - バージョン情報を表示して終了
 %
 %   出力引数:
@@ -46,12 +49,17 @@ function [exitflag, result, com] = YLAB(varargin)
 %
 %     % 結果確認のみ
 %     YLAB('exemode', 'CHECK', ...
-%          'inputfile', 'data/S4.csv', ...
-%          'outputfile', 'out/S4_check.csv')
+%       'inputfile', 'data/S4.csv', ...
+%       'outputfile', 'out/S4_check.csv')
 %
 %     % 最適化を実行してPDFレポートを作成
 %     YLAB('inputfile', 'data/T1R.csv', ...
-%          'outputfile', 'out/T1R_opt.csv', '-pdf')
+%       'outputfile', 'out/T1R_opt.csv', '-pdf')
+%
+%     % SS7互換フォーマットで出力
+%     YLAB('exemode', 'CHECK', ...
+%       'inputfile', 'data/S4.csv', ...
+%       'outputfile', 'out/S4_check.csv', '-legacy')
 %
 %   バージョン確認:
 %     YLAB('-version')
@@ -62,7 +70,7 @@ function [exitflag, result, com] = YLAB(varargin)
 %   Copyright (c) Yamakawa Laboratory, Tokyo University of Science.
 
 % このファイルはヘルプ表示専用です。
-% 実際の処理は YLAB.p（Pコード）が実行されます。
+% 実際の処理はYLAB.p（Pコード）が実行されます。
 error('YLAB:helpOnly', ...
   'This file is for help display only. Use YLAB.p for execution.');
 
