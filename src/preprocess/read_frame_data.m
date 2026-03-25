@@ -360,15 +360,15 @@ member_horizontal_brace = set_member_horizontal_brace_block( ...
   dbc, com, options);
 member.horizontal_brace = member_horizontal_brace;
 com.member = member;
-[gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl]  = ...
+[gcxl, gcyl, ccxl, ccyl, ~, ~, hbcxl, hbcyl]  = ...
   update_member_cosine(member_girder, member_column, ...
   member_brace, member_horizontal_brace, node);
 member_girder.cxl = gcxl;
 member_girder.cyl = gcyl;
 member_column.cxl = ccxl;
 member_column.cyl = ccyl;
-member_brace.cxl = bcxl;
-member_brace.cyl = bcyl;
+% brace cxl/cylはグローバルcxl配列で管理。
+% member_braceには格納しない（古い値の誤用防止）。
 member_horizontal_brace.cxl = hbcxl;
 member_horizontal_brace.cyl = hbcyl;
 member.girder = member_girder;

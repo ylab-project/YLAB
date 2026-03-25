@@ -71,7 +71,7 @@ member = com.member;
 member_column = com.member.column;
 % member_column = table2struct(com.member.column,"ToScalar",true);
 member_girder = table2struct(com.member.girder,"ToScalar",true);
-% member_brace = table2struct(com.member.brace,"ToScalar",true);
+member_brace = table2struct(com.member.brace,"ToScalar",true);
 member_property = com.member.property;
 mtype = com.member.property.type;
 % mstype = com.member.property.section_type;
@@ -486,6 +486,10 @@ if has_tension_brace
     end
   end
 end
+
+%% Kブレース分割梁のせん断力補正
+rs0 = correct_kbrace_shear(rs0, node.type, ...
+  member_girder, member_brace, cxl, idm2n1, idm2n2);
 
 %% 荷重ケースの重ね合わせ
 [rs, Mc, rvec, cgsrn] = superpose_analysis_case(rs0, ...
