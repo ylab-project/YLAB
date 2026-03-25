@@ -1,4 +1,5 @@
 function write_csv_constraint_problem(result, options, cvec, fout)
+%write_csv_constraint_problem - 制約条件の違反量・関数値をCSV出力
 
 % 準備
 % nvar = com.nvar;
@@ -43,9 +44,8 @@ for ic = 1:mcon
 end
 
 % 制約違反量
-fprintf(fout, 'name=制約違反量\n');
+fprintf(fout, '\n\nname=制約違反量\n');
 write_csv_from_cell(fout, head, body);
-fprintf(fout, ',\n,\n');
 
 % 制約関数値
 mcell = 20;
@@ -60,9 +60,9 @@ for i=1:ncell
     body{i,j} = cvec(id);
   end
 end
-  
-fprintf(fout, 'name=制約関数値\n');
-write_csv_from_cell(fout, [], body);
-fprintf(fout, ',\n,\n');
 
+fprintf(fout, '\n\nname=制約関数値\n');
+write_csv_from_cell(fout, [], body);
+
+return
 end
