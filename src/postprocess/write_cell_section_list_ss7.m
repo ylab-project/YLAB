@@ -1,11 +1,9 @@
-function [gshead, gsbody, cshead, csbody, ...
-  cbshead, cbsbody] = ...
+function [gshead, gsbody, cshead, csbody, cbshead, cbsbody] = ...
   write_cell_section_list_ss7(secdim, com, result, options)
 %write_cell_section_list_ss7 - SS7形式の断面リストセル配列を生成
 %
 %   [gshead, gsbody, cshead, csbody, cbshead, cbsbody] =
-%     write_cell_section_list_ss7(secdim, com,
-%     result, options)
+%     write_cell_section_list_ss7(secdim, com, result, options)
 %   は、SS7形式の梁・柱・柱脚断面リストを生成する。
 %
 %   入力引数:
@@ -44,13 +42,11 @@ end
 ngr = length(iddd);
 
 % 出力準備
-gshead = { ...
-  '層', '梁符号', '添字', 'ハンチ', '', '鉄骨形状', ...
-  '鉄骨登録形状', '', '', '', '', ''; ...
-  '', '', '', '左端', '右端', '', ...
-  '左端', 'タイプ左', '中央', 'タイプ中', '右端', 'タイプ右'};
-gsbody = cell(ngr*nstory,12);
-isemptyrow = true(1,nstory);
+gshead = {'層', '梁符号', '添字', 'ハンチ', '', '鉄骨形状', ...
+  '鉄骨登録形状', '', '', '', '', '', '材料', '', ''; ...
+  '', '', '', '左端', '右端', '', '左端', 'タイプ左', '中央', ...
+  'タイプ中', '右端', 'タイプ右', '左端', '中央', '右端'};
+gsbody = cell(ngr*nstory,15);
 
 % 出力
 irow = 0;
@@ -96,11 +92,15 @@ for i = 1:nstory
       gsbody{irow,10} = secglist.type{il};
       gsbody{irow,11} = sdim;
       gsbody{irow,12} = secglist.type{il};
-      isemptyrow(irow) = false;
+      % 材料名
+      idsl = secdim(is, 6);
+      mat = secmgr.secList.material_name{idsl, 1};
+      gsbody{irow,13} = mat;
+      gsbody{irow,14} = mat;
+      gsbody{irow,15} = mat;
     end
   end
 end
-gsbody(isemptyrow,:) = [];
 
 % 柱断面リスト出力
 nc = length(secc.name);
@@ -113,11 +113,9 @@ end
 ncr = length(iddd);
 % ncr = length(iddd);
 % nc = size(secc,1);
-cshead = {...
-  '階', '柱符号', '添字', '鉄骨形状', '鉄骨断面', '', ''; ...
+cshead = {'階', '柱符号', '添字', '鉄骨形状', '鉄骨断面', '', ''; ...
   '', '', '', '', '登録形状', 'タイプX', '鉄骨材料'};
 csbody = cell(ncr*nstory, 7);
-isemptyrow = true(1,ncr*nstory);
 irow = 0;
 for i = 1:nstory
   ist = nstory-i+1;
@@ -156,11 +154,9 @@ for i = 1:nstory
       idmaterial = secmgr.secList.idmaterial{idslist}(idsection);
       material_name = material.name{idmaterial};
       csbody{irow,7} = material_name;
-      isemptyrow(irow) = false;
     end
   end
 end
-csbody(isemptyrow,:) = [];
 
 % メーカー製柱脚断面リスト出力
 cbshead = cell(3,7);
