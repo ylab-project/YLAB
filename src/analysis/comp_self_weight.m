@@ -79,14 +79,17 @@ idme2ig(mtype==PRM.GIRDER) = 1:sum(mtype==PRM.GIRDER);
 % 重複スラブの考慮（SS7 計算編 式4.3準拠）
 % 梁断面の左右それぞれB/2の範囲でスラブと重複する
 % 体積を控除する。スラブ幅が0の側は控除しない。
+% 二重スラブは上下の床のVsをそれぞれ差し引く。
 has_slab = slab.width > 0;
 t1 = slab.thickness(:,1) .* has_slab(:,1);
 t2 = slab.thickness(:,2) .* has_slab(:,2);
-slab_t = t1 + t2;
+has_slab_l = slab.width_lower > 0;
+t1_l = slab.thickness_lower(:,1) .* has_slab_l(:,1);
+t2_l = slab.thickness_lower(:,2) .* has_slab_l(:,2);
+slab_t = t1 + t2 + t1_l + t2_l;
 slab_t(gstype~=PRM.RCRS) = 0;
 b = msdim(mtype==PRM.GIRDER,1);
-A(mtype==PRM.GIRDER) = A(mtype==PRM.GIRDER) ...
-  - b/2 .* slab_t;
+A(mtype==PRM.GIRDER) = A(mtype==PRM.GIRDER) - b/2 .* slab_t;
 
 % 計算の準備
 ar = zeros(nme,12);
@@ -134,8 +137,8 @@ if options.consider_finishing_material
   wf(mtype==PRM.COLUMN&stype==PRM.RCRS) = wfrcc;
   % RC梁(両側仕上)
   rcg = msdim(mtype==PRM.GIRDER&stype==PRM.RCRS,1:2);
-  % rcgt = slab_thickness(gstype==PRM.RCRS);
-  rcgt = slab.thickness(gstype==PRM.RCRS);
+  rcgt = slab.thickness(gstype==PRM.RCRS) ...
+    + slab.thickness_lower(gstype==PRM.RCRS);
   wfrcg = (rcg(:,1)+rcg(:,2)*2-rcgt)*options.finishing_material_rc_girder;
   wf(mtype==PRM.GIRDER&stype==PRM.RCRS) = wfrcg;
 end

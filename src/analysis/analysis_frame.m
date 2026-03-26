@@ -82,6 +82,10 @@ scallop = com.girder_scallop_size;
 secmgr = com.secmgr;
 slab.width = com.member.girder.slab_width;
 slab.thickness = com.member.girder.slab_thickness;
+slab.width_lower = ...
+  com.member.girder.slab_width_lower;
+slab.thickness_lower = ...
+  com.member.girder.slab_thickness_lower;
 story = com.story;
 stype = com.section.property.type;
 % stress_factor = com.sectionList.design_stress_factor(idmc2slist);

@@ -30,9 +30,13 @@ isrc = (mgstype == PRM.RCRS);
 
 ba = member_girder.slab_width;      % [nmg×2]
 t = member_girder.slab_thickness;   % [nmg×2]
+ba_l = member_girder.slab_width_lower;
+t_l = member_girder.slab_thickness_lower;
 
-% スラブ部分のAs = ba*t/kappa（左右それぞれ）
-Asy_slab = (ba(:,1).*t(:,1) + ba(:,2).*t(:,2)) / kappa;
+% スラブ部分のAs = ba*t/kappa（上面+下面）
+Asy_slab = (ba(:,1).*t(:,1) + ba(:,2).*t(:,2) ...
+  + ba_l(:,1).*t_l(:,1) ...
+  + ba_l(:,2).*t_l(:,2)) / kappa;
 
 % φQ = (Asy0 + Asy_slab) / Asy0
 valid = isrc & Asy0 > 0;
