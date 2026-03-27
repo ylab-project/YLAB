@@ -13,7 +13,7 @@ function val = getStandardV1(obj, idsList)
 
 if obj.secList_.section_type(idsList) == PRM.BRB
   secdim = obj.secList_.getDimension(idsList, obj.idPhase_);
-  val = unique(secdim(:,PRM.SECDIM_BRB_V1))';
+  val = unique(secdim(:,PRM.SECLIST_BRB_NY))';
 else
   val = [];
 end

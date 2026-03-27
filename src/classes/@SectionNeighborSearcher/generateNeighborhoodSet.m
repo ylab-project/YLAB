@@ -1,5 +1,5 @@
-function [xlist, idvlist] = ...
-  generateNeighborhoodSet(obj, xvar, isvar, options)
+function [xlist, idvlist] = generateNeighborhoodSet( ...
+  obj, xvar, isvar, options)
 %generateNeighborhoodSet 近傍断面集合の生成
 %   [xlist, idvlist] = generateNeighborhoodSet(obj, xvar, isvar, options)
 %   は、指定された変数値から近傍断面の集合を生成します。
@@ -48,12 +48,12 @@ if do_parallel
     switch vtype(idvar)
       case PRM.WFS_H
         % H形鋼 -> Hの近傍断面
-        [xlist_, ~, ~, idvlist_(idvar)] = ...
-          obj.enumerateNeighborH(xvar, idvar, options);
+        [xlist_, ~, ~, idvlist_(idvar)] = obj.enumerateNeighborH( ...
+          xvar, idvar, options);
       case PRM.WFS_B
         % H形鋼 -> Bの近傍断面
-        [xlist_, ~, ~, idvlist_(idvar)] = ...
-          obj.enumerateNeighborB(xvar, idvar, options);
+        [xlist_, ~, ~, idvlist_(idvar)] = obj.enumerateNeighborB( ...
+          xvar, idvar, options);
       case PRM.WFS_TW
         % H形鋼 -> twの近傍断面
         [xlist_, ~, ~, ~, idvlist_(idvar)] = ...
@@ -64,12 +64,20 @@ if do_parallel
           obj.enumerateNeighborTf(xvar, idvar, options);
       case PRM.HSS_D
         % 角形鋼管 -> Dの近傍断面
-        [xlist_, ~, ~, idvlist_(idvar)] = ...
-          obj.enumerateNeighborD(xvar, idvar, options);
+        [xlist_, ~, ~, idvlist_(idvar)] = obj.enumerateNeighborD( ...
+          xvar, idvar, options);
       case PRM.HSS_T
         % 角形鋼管 -> tの近傍断面
         [xlist_, ~, ~, ~, idvlist_(idvar)] = ...
           obj.enumerateNeighborT(xvar, idvar, options);
+      case PRM.BRB_V1
+        % BRB -> V1の近傍断面
+        [xlist_, ~, ~, idvlist_(idvar)] = obj.enumerateBrbV1( ...
+          xvar, idvar, options);
+      case PRM.BRB_V2
+        % BRB -> V2の近傍断面
+        [xlist_, ~, ~, idvlist_(idvar)] = obj.enumerateBrbV2( ...
+          xvar, idvar, options);
     end
     xcell{idvar} = xlist_;
   end
@@ -81,17 +89,17 @@ else
       xcell{idvar} = xlist_;
       continue
     end
-    
+
     % 変数タイプに応じて適切なenumerateNeighborメソッドを呼び出し
     switch vtype(idvar)
       case PRM.WFS_H
         % H形鋼 -> Hの近傍断面
-        [xlist_, ~, ~, idvlist_(idvar)] = ...
-          obj.enumerateNeighborH(xvar, idvar, options);
+        [xlist_, ~, ~, idvlist_(idvar)] = obj.enumerateNeighborH( ...
+          xvar, idvar, options);
       case PRM.WFS_B
         % H形鋼 -> Bの近傍断面
-        [xlist_, ~, ~, idvlist_(idvar)] = ...
-          obj.enumerateNeighborB(xvar, idvar, options);
+        [xlist_, ~, ~, idvlist_(idvar)] = obj.enumerateNeighborB( ...
+          xvar, idvar, options);
       case PRM.WFS_TW
         % H形鋼 -> twの近傍断面
         [xlist_, ~, ~, ~, idvlist_(idvar)] = ...
@@ -102,12 +110,20 @@ else
           obj.enumerateNeighborTf(xvar, idvar, options);
       case PRM.HSS_D
         % 角形鋼管 -> Dの近傍断面
-        [xlist_, ~, ~, idvlist_(idvar)] = ...
-          obj.enumerateNeighborD(xvar, idvar, options);
+        [xlist_, ~, ~, idvlist_(idvar)] = obj.enumerateNeighborD( ...
+          xvar, idvar, options);
       case PRM.HSS_T
         % 角形鋼管 -> tの近傍断面
         [xlist_, ~, ~, ~, idvlist_(idvar)] = ...
           obj.enumerateNeighborT(xvar, idvar, options);
+      case PRM.BRB_V1
+        % BRB -> V1の近傍断面
+        [xlist_, ~, ~, idvlist_(idvar)] = obj.enumerateBrbV1( ...
+          xvar, idvar, options);
+      case PRM.BRB_V2
+        % BRB -> V2の近傍断面
+        [xlist_, ~, ~, idvlist_(idvar)] = obj.enumerateBrbV2( ...
+          xvar, idvar, options);
     end
     xcell{idvar} = xlist_;
   end
