@@ -241,8 +241,10 @@ end
 %% 保有耐力接合（仕口）制約
 if coptions.consider_joint_bearing_strength
   isjbs = com.exclusion.is_joint_bearing_strength;
+  Fcol_ = Fm(com.member.column.idme);
+  sigu_col = calc_sigu_col(com.member, Fcol_);
   [conjbs, jbsratio] = calc_joint_bearing_strength( ...
-    msdimwfs, Zpyg, Fg, isjbs, options);
+    msdimwfs, Zpyg, Fg, sigu_col, isjbs, options);
 else
   conjbs = [];
   jbsratio = [];

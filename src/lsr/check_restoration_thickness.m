@@ -78,7 +78,7 @@ nmg = sum(member.property.type==PRM.GIRDER);
 
 % 断面計算
 secdim = secmgr.findNearestSection(xvar, options);
-sprop = calc_secprop(secdim, stype, scallop);
+sprop = calc_secprop(secdim, stype, scallop, secmgr);
 mprop = sprop(idm2s,:);
 A = mprop.A;
 Iy = mprop.Iy;

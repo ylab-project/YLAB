@@ -50,7 +50,7 @@ vtype = secmgr.idvar2vtype;
 
 % 断面性能の計算
 % secdim = secmgr.findNearestSection(xvar, options);
-sprop = calc_secprop(secdim, stype);
+sprop = calc_secprop(secdim, stype, [], secmgr);
 Zpym = sprop.Zpy(idm2s);
 
 % 材料定数

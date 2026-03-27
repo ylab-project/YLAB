@@ -270,6 +270,7 @@ for iter = start_iter+1:max_iter
     compute_pflist(@pffun, xlist, com, options, cache);
   save_cache()
   nexec = nexec+sum(isexec);
+
   [xvar, pfval, idpfval] = select_minpf(xlist, pflist);
   vio = vlist(idpfval,:);
   cvec = clist(idpfval,:);

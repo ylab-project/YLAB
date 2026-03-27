@@ -1,22 +1,20 @@
-function limitJbsSection(obj, isjbs, member, options, secmgr)
+function limitJbsSection(obj, isjbs, member, ...
+  options, secmgr)
 %limitJbsSection 保有耐力接合(JBS)制限チェック
-%   limitJbsSection(obj, isjbs, member, options, secmgr) は、保有耐力接合の
-%   条件を満たす断面のみを有効とします。H形鋼断面に対して接合部の
-%   耐力をチェックし、条件を満たさない断面を無効化します。
+%   保有耐力接合の条件を満たす断面のみを有効とする。
+%   H形鋼断面に対して接合部の耐力をチェックし、
+%   条件を満たさない断面を無効化する。
+%   柱σuは考慮しない（梁σuのみで判定）。
+%   OK候補を除外しないための意図的な設計。
 %
 %   入力引数:
-%     isjbs - JBS判定対象フラグ配列 [nwfs_girder×2] (部材ベース)
-%     member - 部材情報構造体
-%     options - オプション構造体（girder_scallop_size等を含む）
-%     secmgr - SectionManagerインスタンス（断面性能計算用）
-%
-%   処理内容:
-%     1. 各H形鋼断面リストについて保有耐力接合の判定を実行
-%     2. 条件を満たさない断面を無効化
-%     3. 全て無効になった場合はエラー
+%     isjbs   - JBS判定対象フラグ [nwfs×2]
+%     member  - 部材情報構造体
+%     options - オプション構造体
+%     secmgr  - SectionManagerインスタンス
 %
 %   参考:
-%     SectionConstraintValidator, limitSlrSection, limitWtRatioSection
+%     SectionConstraintValidator, limitSlrSection
 
 % 定数
 idphase = 999;
@@ -60,14 +58,13 @@ for idsList = 1:nlist_
   isec_targets = isec_targets( ...
     idsec2slist_' == idsList & idsec2stype_' == PRM.WFS);
 
-  % OKか判定
-  conjbs_ = calc_joint_bearing_strength( ...
-    sdimlist, Zpylist, Flist, [], options);
+  % OKか判定（柱σuは考慮せず梁σuのみ）
+  conjbs_ = calc_joint_bearing_strength(sdimlist, Zpylist, ...
+    Flist, [], [], options);
   isvalid_ = (conjbs_ < 0)';
 
   for isec = isec_targets
-    isvalid(idsec2wfs_(isec), :) = ...
-      isvalid(idsec2wfs_(isec), :) & isvalid_;
+    isvalid(idsec2wfs_(isec), :) = isvalid(idsec2wfs_(isec), :) & isvalid_;
   end
 
   % 条件を満たさないH形断面の除外

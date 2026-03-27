@@ -68,7 +68,7 @@ xlist = [];
 % 断面計算
 secdim = secmgr.findNearestSection(xvar, options);
 msdim = secdim(idm2s,1:4);
-sprop = calc_secprop(secdim, stype, scallop);
+sprop = calc_secprop(secdim, stype, scallop, secmgr);
 msprop = sprop(idm2s,:);
 
 % 部材の諸元
@@ -115,6 +115,7 @@ nstarget = length(istarget);
 % slr_lb = slr.lb(idmwfs2m,:);
 slr_target = slr.istarget;
 slr_lb = slr.lb;
+slr_lbmax = slr.lbmax;
 secdim_res = secdim;
 immm = 1:nme;
 for i=1:nstarget
@@ -123,7 +124,7 @@ for i=1:nstarget
   sdim_ = secdim(isg,1:4);
 
   % リストの断面性能計算
-  idslist_ = ids2slist(isg,1);
+  idslist_ = secdim(isg, 6);
   sdimlist = secmgr.getDimension(idslist_);
   n = size(sdimlist,1);
   sdimlist = [sdimlist(:,1:5) idslist_*ones(n,1) (1:n)'];
@@ -143,6 +144,7 @@ for i=1:nstarget
     Fi = Fg(iwfs)*ones(n,1);
     slri.istarget = repmat(slr_target(iwfs,:),n,1);
     slri.lb = repmat(slr_lb(iwfs,:),n,1);
+    slri.lbmax = repmat(slr_lbmax(iwfs,:),n,1);
     consr_ = calc_girder_stiffening(...
       sdimlist, Alist, Izlist, Zylist, Zpylist, lbi, lmi, Fi, slri);
     isok(:,j) = consr_<0;
