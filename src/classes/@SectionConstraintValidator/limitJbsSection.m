@@ -1,5 +1,5 @@
 function limitJbsSection(obj, isjbs, member, ...
-  options, secmgr)
+  options, secmgr, nominal_girder) %#ok<INUSD>
 %limitJbsSection 保有耐力接合(JBS)制限チェック
 %   保有耐力接合の条件を満たす断面のみを有効とする。
 %   H形鋼断面に対して接合部の耐力をチェックし、
@@ -8,10 +8,11 @@ function limitJbsSection(obj, isjbs, member, ...
 %   OK候補を除外しないための意図的な設計。
 %
 %   入力引数:
-%     isjbs   - JBS判定対象フラグ [nwfs×2]
-%     member  - 部材情報構造体
-%     options - オプション構造体
-%     secmgr  - SectionManagerインスタンス
+%     isjbs          - JBS判定対象フラグ [nng×2]
+%     member         - 部材情報構造体
+%     options        - オプション構造体
+%     secmgr         - SectionManagerインスタンス
+%     nominal_girder - 名目梁構造体（将来使用）
 %
 %   参考:
 %     SectionConstraintValidator, limitSlrSection

@@ -98,6 +98,7 @@ is_output_best_point = true;
 
 % --- ペナルティ関数評価 ---
 penalty_method = options.penalty_method;
+pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
 [pfval, vio] = pffun(fval, cvec);
 xold = xvar;
 pfvalold = pfval;
@@ -267,7 +268,7 @@ for iter = start_iter+1:max_iter
 
   % 設計解の評価
   [pflist, flist, clist, vlist, isexec] = ...
-    compute_pflist(@pffun, xlist, com, options, cache);
+    compute_pflist(pffun, xlist, com, options, cache);
   save_cache()
   nexec = nexec+sum(isexec);
 
@@ -336,6 +337,7 @@ for iter = start_iter+1:max_iter
 
     % ペナルティ係数更新法その１
     muvec = update_muvec(muvec, r, vio, tau);
+    pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
 
     % % ペナルティ係数更新法その２
     % if isupdatedmu
@@ -413,26 +415,6 @@ return
   function fval = objfun(xvar)
     fval = objective_lsr(xvar, secmgr, baseline, node, section, member, story, floor, options);
     return
-  end
-%--------------------------------------------------------------------------
-  function [pfval, vio] = pffun(fval, cvec)
-    vio = cvec;
-    % ---
-    % idc2 = cumsum(ncon);
-    % idc1 = [1 idc2(1:nvio-1)+1];
-    % vio = zeros(nvio,1);
-    % for i=1:nvio
-    %   vio(i) = max(cvec(idc1(i):idc2(i)));
-    % end
-    vio(vio<tau) = 0;
-    switch penalty_method
-      case PRM.PENALTY_SUM_TOTAL
-        pfval = fval+sum(vio(:).*muvec(:));
-      case PRM.PENALTY_MAXIMUM
-        % pfval = fval+sum(muvec)*max(vio);
-        vvv = sum(vio.^ppp,2)^(1/ppp);
-        pfval = fval+max(muvec)*vvv;
-    end
   end
 %--------------------------------------------------------------------------
 % function muvec = initialize_muvec(mu)
@@ -543,4 +525,21 @@ return
     history.iter = history.iter(1:iter);
   end
 %--------------------------------------------------------------------------
+end
+
+%==========================================================================
+function [pfval, vio] = calc_penalty(fval, cvec, ...
+  muvec, tau, penalty_method, ppp)
+%calc_penalty - ペナルティ関数の評価
+vio = cvec;
+vio(vio<tau) = 0;
+switch penalty_method
+  case PRM.PENALTY_SUM_TOTAL
+    pfval = fval+sum(vio(:).*muvec(:));
+  case PRM.PENALTY_MAXIMUM
+    vvv = sum(vio.^ppp,2)^(1/ppp);
+    pfval = fval+max(muvec)*vvv;
+end
+
+return
 end

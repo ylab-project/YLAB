@@ -45,8 +45,8 @@ if nargin < 10
 end
 
 % 定数
-nmec = size(member.column,1);
-nmeg = size(member.girder,1);
+nmec = length(member.column.idnode1);
+nmeg = length(member.girder.idnode1);
 nstory = size(story,1);
 
 % 計算の準備

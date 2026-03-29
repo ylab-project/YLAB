@@ -1056,23 +1056,25 @@ classdef SectionManager < handle
     end
     
     function limit_jbs_section(secmgr, isjbs, ...
-        member, options)
+        member, options, nominal_girder)
     %limit_jbs_section 保有耐力接合(JBS)制限チェック
     %   limit_jbs_section(secmgr, isjbs, member,
-    %   options) は、保有耐力接合の制限チェックを
-    %   実行します。
+    %   options, nominal_girder) は、保有耐力接合の
+    %   制限チェックを実行します。
     %
     %   入力引数:
-    %     isjbs   - JBS判定対象フラグ [nwfs×2]
-    %     member  - 部材情報構造体
-    %     options - オプション構造体
+    %     isjbs          - JBS判定対象フラグ [nng×2]
+    %     member         - 部材情報構造体
+    %     options        - オプション構造体
+    %     nominal_girder - 名目梁構造体
     %
     %   参考:
     %     SectionConstraintValidator.limitJbsSection
 
       % constraintValidatorへ委譲
       secmgr.constraintValidator.limitJbsSection(...
-        isjbs, member, options, secmgr);
+        isjbs, member, options, secmgr, ...
+        nominal_girder);
     end
     
     function limit_slr_section(secmgr, member, nominal, lm, options)
