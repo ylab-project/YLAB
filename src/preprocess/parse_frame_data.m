@@ -299,16 +299,16 @@ com.num.member.girder = com.nmeg;
 % com.material = table2struct(com.material,"ToScalar",true);
 % com.story = table2struct(com.story,"ToScalar",true);
 % com.floor = table2struct(com.floor,"ToScalar",true);
-% com.node = table2struct(com.node,"ToScalar",true);
+com.node = table2struct(com.node,"ToScalar",true);
 % com.support = table2struct(com.support,"ToScalar",true);
-% com.section.column = table2struct(com.section.column,"ToScalar",true);
-% com.section.girder = table2struct(com.section.girder,"ToScalar",true);
+com.section.column = table2struct(com.section.column,"ToScalar",true);
+com.section.girder = table2struct(com.section.girder,"ToScalar",true);
 % com.section.property = table2struct(...
 %   com.section.property,"ToScalar",true);
 % com.section.representative = table2struct(...
 %   com.section.representative,"ToScalar",true);
-% com.member.column = table2struct(com.member.column,"ToScalar",true);
-% com.member.girder = table2struct(com.member.girder,"ToScalar",true);
+com.member.column = table2struct(com.member.column,"ToScalar",true);
+com.member.girder = table2struct(com.member.girder,"ToScalar",true);
 % com.section.column_base = table2struct(...
 %   com.section.column_base,"ToScalar",true);
 % com.member.property = table2struct(com.member.property,"ToScalar",true);

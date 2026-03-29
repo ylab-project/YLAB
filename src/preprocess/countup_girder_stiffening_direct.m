@@ -25,8 +25,8 @@ gjoint = com.member.girder.joint;
 
 % 定数
 idme = member_girder.idme;
-nmg = size(member_girder,1);
-nnode = size(com.node,1);
+nmg = com.nmeg;
+nnode = com.nnode;
 nng = size(ignominal, 1);
 
 % 補剛間隔

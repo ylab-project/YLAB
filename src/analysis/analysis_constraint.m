@@ -102,18 +102,11 @@ Fs = Fm(ids2m);                              % 断面の基準強度
 isSNsec = isSNmem(ids2m);                    % SN材判定フラグ（断面）
 grank = com.section.girder.rank;             % 梁断面ランク
 
-% フェイス長の計算（梁端部剛域を除く）
-lmf = lm;
-lmf(idmwfs2m) = lm(idmwfs2m)-sum(lf.girder(mstype==PRM.WFS,:),2);
-
 % H形梁の断面諸元を取得
 Ag = A(idmwfs2m);                            % 断面積
-Iyg = Iy(idmwfs2m);                          % 断面二次モーメント（Y軸）
 Izg = Iz(idmwfs2m);                          % 断面二次モーメント（Z軸）
 Zyg = Zy(idmwfs2m);                          % 弾性断面係数（Y軸）
 Zpyg = Zpy(idmwfs2m);                        % 塑性断面係数（Y軸）
-lg = lmf(idmwfs2m);                          % フェイス長
-Eg = Em(idmwfs2m);                           % ヤング率
 Fg = Fm(idmwfs2m);                           % 基準強度
 
 % 梁たわみ計算用のモーメント
@@ -201,12 +194,10 @@ if coptions.consider_girder_deflection
   gstype_ = com.member.girder.section_type;
   Iyr = msprop.Iyr;
   Iyr(idmg2m) = Iyr(idmg2m) .* gphiI;
-  [congdef, gdef_angle] = ...
-    calc_nominal_girder_deflection( ...
-    idmeg_, idmg2m, gstype_, lm, lf, ...
-    rs, M0sw, Em, Iyr, gdmax);
-  congdef = congdef ...
-    + coptions.alfa_girder_deflection;
+  [congdef, gdef_angle] = calc_nominal_girder_deflection( ...
+    idmeg_, idmg2m, gstype_, lm, lf, rs, M0sw, Em, Iyr, ...
+    gdmax);
+  congdef = congdef + coptions.alfa_girder_deflection;
 else
   congdef = [];
   gdef_angle = [];
@@ -238,13 +229,31 @@ else
   slratio = [];
 end
 
-%% 保有耐力接合（仕口）制約
+%% 保有耐力接合（仕口）制約（名目梁単位）
 if coptions.consider_joint_bearing_strength
   isjbs = com.exclusion.is_joint_bearing_strength;
-  Fcol_ = Fm(com.member.column.idme);
-  sigu_col = calc_sigu_col(com.member, Fcol_);
-  [conjbs, jbsratio] = calc_joint_bearing_strength( ...
-    msdimwfs, Zpyg, Fg, sigu_col, isjbs, options);
+  Fcol_ = Fm(idmc2m);
+  % 名目梁の端部節点を取得
+  idmeg_ = nominal.girder.idmeg;
+  girder_ = com.member.girder;
+  [ng_node1_, ng_node2_] = ...
+    get_nominal_girder_end_nodes(girder_, idmeg_);
+  % 名目梁の代表部材から断面諸量を取得
+  idm_ng_ = girder_.idme(idmeg_(:, 1));
+  sdimg_ng = secdim(idm2s(idm_ng_), 1:4);
+  Zpyg_ng = Zpy(idm_ng_);
+  Fg_ng = Fm(idm_ng_);
+  if options.jbs_mu_formula == PRM.JBS_AIJ
+    secdim_col = secdim(idm2s(idmc2m), :);
+    m_num_col = calc_col_dim_jbs(com.member, secdim_col, ...
+      Fcol_, ng_node1_, ng_node2_);
+    [conjbs, jbsratio] = calc_joint_bearing_strength_aij( ...
+      sdimg_ng, Zpyg_ng, Fg_ng, m_num_col, isjbs, options);
+  else
+    sigu_col = calc_sigu_col(com.member, Fcol_, ng_node1_, ng_node2_);
+    [conjbs, jbsratio] = calc_joint_bearing_strength_std( ...
+      sdimg_ng, Zpyg_ng, Fg_ng, sigu_col, isjbs, options);
+  end
 else
   conjbs = [];
   jbsratio = [];

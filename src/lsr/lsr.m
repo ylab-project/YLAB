@@ -126,6 +126,14 @@ print_status(start_iter);
 save_history();
 exitflag = PRM.EXITFLAG_MAXITER;
 
+% --- 並列プール共有データの事前生成 ---
+pool = gcp('nocreate');
+if ~isempty(pool)
+  com_constant = parallel.pool.Constant(com);
+else
+  com_constant = com;
+end
+
 % ---　局所探索スタート ---
 for iter = start_iter+1:max_iter
   options.iter = iter;
@@ -206,8 +214,10 @@ for iter = start_iter+1:max_iter
     
     % % 仕口の保有耐力接合の修正
     if consider_joint_bearing_strength && ~options.do_limit_jbs_section
-      xlist_jbs = restore_joint_bearing_strength(...
-        xvar, member, matF, restoration, secmgr, options);
+      isjbs_ = com.exclusion.is_joint_bearing_strength;
+      xlist_jbs = restore_joint_bearing_strength( ...
+        xvar, member, matF, secmgr, options, ...
+        isjbs_, com.nominal.girder);
     else
       xlist_jbs = [];
     end
@@ -268,7 +278,7 @@ for iter = start_iter+1:max_iter
 
   % 設計解の評価
   [pflist, flist, clist, vlist, isexec] = ...
-    compute_pflist(pffun, xlist, com, options, cache);
+    compute_pflist(pffun, xlist, com_constant, options, cache);
   save_cache()
   nexec = nexec+sum(isexec);
 

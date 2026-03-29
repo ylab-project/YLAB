@@ -14,7 +14,11 @@ function idmec = find_idcolumn_from_idxyz(idx, idy, idz, member_column)
 %       idmec - 合致する柱部材のIDリスト
 
 % 計算の準備
-nmec = size(member_column,1);
+if istable(member_column)
+  nmec = size(member_column,1);
+else
+  nmec = length(member_column.idsecc);
+end
 n = size(idx,1);
 idmec = [];
 

@@ -169,6 +169,10 @@ classdef PRM
     STIFFNING_EVENLY_DISTRIBUTTION = 1  % 等間隔配置
     STIFFNING_END_DISTRIBUTTION = 2     % 端部配置
 
+    %% 保有耐力接合（仕口）
+    JBS_STANDARD = 1  % 基準解説書式
+    JBS_AIJ      = 2  % 鋼構造接合部設計指針式
+
     %% 節点種類
     NODE_STANDARD = 0         % 標準節点
     NODE_FLEX_DIAPHRAGM = 10  % 柔床節点

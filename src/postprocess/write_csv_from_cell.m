@@ -21,7 +21,7 @@ return
 end
 
 function write_csv_from_cell_(fid, tab)
-%write_csv_from_cell_ - セル配列を1行ずつCSV出力する内部関数
+%write_csv_from_cell_ - セル配列をCSV出力する内部関数
 %
 % RFC 4180準拠のエスケープ処理を行う:
 %   - カンマ、ダブルクォート、改行を含む値はダブルクォートで囲む
@@ -29,45 +29,55 @@ function write_csv_from_cell_(fid, tab)
 %   - 値内のダブルクォートは "" にエスケープ
 %   - 入力(SS7→YLAB)・出力(YLAB→SS7)とも本ルールを適用する
 
-[n,m] = size(tab);
+if isempty(tab)
+  return
+end
+[n, ~] = size(tab);
 
-% 各行の最終非空列を計算 (末尾カンマ除去+空行判定)
+% 全セルを文字列化
+str = cellfun(@cell2str, tab, 'UniformOutput', false);
+
+% RFC 4180クォート処理（一括）
+needs_q = cellfun(@(v) ~isempty(v) ...
+  & contains(v, {',', '"', newline, char(13), ' '}), str);
+str(needs_q) = cellfun(@(v) ['"' strrep(v, '"', '""') '"'], ...
+  str(needs_q), 'UniformOutput', false);
+
+% 各行の最終非空列を計算
+notempty = ~cellfun('isempty', str);
 lastcol = zeros(1, n);
-for i=1:n
-  for j=1:m
-    if ~isempty(tab{i,j})
-      lastcol(i) = j;
-    end
+for i = 1:n
+  j = find(notempty(i,:), 1, 'last');
+  if ~isempty(j)
+    lastcol(i) = j;
   end
 end
 
-% 各行を出力
-for i=1:n
+% 行ごとにjoinして一括出力
+lines = cell(n, 1);
+for i = 1:n
   if lastcol(i) == 0
-    fprintf(fid, '\n');
-    continue
+    lines{i} = '';
+  else
+    lines{i} = strjoin(str(i, 1:lastcol(i)), ',');
   end
-  for j=1:lastcol(i)
-    % 最終列以外はカンマ区切り
-    if j == lastcol(i)
-      delimeter = '';
-    else
-      delimeter = ',';
-    end
-    if isnumeric(tab{i,j})
-      fprintf(fid, ['%g' delimeter], tab{i,j});
-    else
-      val = tab{i,j};
-      % カンマ、ダブルクォート、改行、空白を含む場合はクォートで囲む
-      if contains(val, {',', '"', newline, char(13), ' '})
-        val = ['"' strrep(val, '"', '""') '"'];
-      end
-      fprintf(fid, ['%s' delimeter], val);
-    end
-  end
-  fprintf(fid, '\n');
+end
+fprintf(fid, '%s\n', lines{:});
+
+return
 end
 
+function s = cell2str(v)
+%cell2str - セル値を文字列に変換
+if isempty(v)
+  s = '';
+elseif isnumeric(v) || islogical(v)
+  s = sprintf('%g', v);
+elseif ischar(v)
+  s = v;
+else
+  s = char(v);
+end
 return
 end
 

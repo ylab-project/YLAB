@@ -18,13 +18,11 @@ D = secdim_col(is_hss, 1);
 t = secdim_col(is_hss, 2);
 m_num(is_hss) = 4 .* t .* sqrt((D - 2.*t) .* Fcol(is_hss));
 
-% 節点→m_num 最小値のマッピング
+% 節点→m_num マッピング（柱上端のみ：梁は下の柱に取り付く）
 nn = max([col.idnode1; col.idnode2; girder.idnode1; girder.idnode2]);
 m_num_node = inf(nn, 1);
 for ic = 1:nc
-  n1 = col.idnode1(ic);
   n2 = col.idnode2(ic);
-  m_num_node(n1) = min(m_num_node(n1), m_num(ic));
   m_num_node(n2) = min(m_num_node(n2), m_num(ic));
 end
 

@@ -1,14 +1,16 @@
 function [pflist, flist, clist, vlist, isexec] = ...
-  compute_pflist(pffun, xlist, com, options, cache)
+  compute_pflist(pffun, xlist, com_or_constant, options, cache)
 %COMPUTE_PFLIST 候補断面を並列評価
 % 概要: 複数の候補断面を並列実行戦略を用いて効率的に評価。
 %       戦略はタスク数とワーカー数に基づいて自動選択される。
 % 構文: [pflist, flist, clist, vlist, isexec] = ...
-%        compute_pflist(pffun, xlist, com, options, cache)
+%        compute_pflist(pffun, xlist, com_or_constant,
+%        options, cache)
 % 入力:
-%   pffun   - ペナルティ関数ハンドル
-%   xlist   - 候補断面配列 [lsize×nvar]
-%   com     - 共通構造体（部材、節点、層、断面等の情報）
+%   pffun          - ペナルティ関数ハンドル
+%   xlist          - 候補断面配列 [lsize×nvar]
+%   com_or_constant - parallel.pool.Constant または
+%                     共通構造体（com）
 %   options - オプション構造体（並列戦略、表示設定等）
 %   cache   - キャッシュ構造体（既計算結果の再利用）
 % 出力:
@@ -20,6 +22,15 @@ function [pflist, flist, clist, vlist, isexec] = ...
 % 備考: 並列戦略は sequential, parfor, parfeval から自動選択
 % See also: compute_individual, analysis_constraint, objective_lsr
 
+% com と com_constant の取得
+if isa(com_or_constant, 'parallel.pool.Constant')
+  com_constant = com_or_constant;
+  com = com_constant.Value;
+else
+  com = com_or_constant;
+  com_constant = [];
+end
+
 % パラメータの取得
 numc = options.numc;                          % 制約関数の数（スカラー）
 numvio = options.numvio;                      % 制約違反の数（スカラー）
@@ -27,7 +38,7 @@ lsize = size(xlist, 1);                       % 評価する断面候補の数
 
 % 出力配列を事前割当（メモリ効率化）
 flist = zeros(lsize, 1);                      % 目的関数値 [lsize×1]
-pflist = zeros(lsize, 1);                     % ペナルティ付き目的関数値 [lsize×1]
+pflist = zeros(lsize, 1);             % ペナルティ付き [lsize×1]
 clist = zeros(lsize, numc);                   % 制約関数値 [lsize×numc]
 vlist = zeros(lsize, numvio);                 % 制約違反量 [lsize×numvio]
 isexec = false(lsize, 1);                     % 実行フラグ [lsize×1]
@@ -115,7 +126,7 @@ return
     nworkers = pool.NumWorkers;
   end
   if nworkers > 0
-    % fprintf('  strategy=parfor: lsize=%d workers=%d tasks/worker=%.2f\n', ...
+    % fprintf('  parfor: lsize=%d workers=%d tasks/w=%.2f\n', ...
     %   lsize, nworkers, lsize / nworkers);
   else
     % fprintf('  strategy=parfor: lsize=%d workers=%d\n', lsize, nworkers);
@@ -165,30 +176,26 @@ return
   end
 
   % 共有データを並列プール全体で共有（データ転送を最小化）
-  if isfield(options, 'com_constant') && ...
-      isa(options.com_constant, 'parallel.pool.Constant') && ...
-      isvalid(options.com_constant)
-    com_constant = options.com_constant;       % 事前生成済みConstant
-  else
-    com_constant = parallel.pool.Constant(com); % 新規生成
+  if isempty(com_constant)
+    com_constant = parallel.pool.Constant(com);
   end
-  stream_constant = ...
-    parallel.pool.Constant(@() RandStream('Threefry')); % 乱数ストリーム
+  stream_constant = parallel.pool.Constant(@() RandStream('Threefry'));
 
   % 並列タスク管理用の配列を準備
   futures = parallel.FevalFuture.empty(num_blocks, 0); % Future配列
   start_times = cell(num_blocks, 1);                   % 開始時刻
   durations = zeros(num_blocks, 1);                    % 実行時間
-  block_sizes = cellfun(@numel, blocks);               % 各ブロックサイズ
-  % fprintf('  strategy=parfeval: lsize=%d blocks=%d size=[%d..%d] range=%d\n', ...
-  %   lsize, num_blocks, min(block_sizes), max(block_sizes), ...
-  %   max(block_sizes) - min(block_sizes));
+  % block_sizes = cellfun(@numel, blocks);
+  % fprintf('  parfeval: lsize=%d blk=%d sz=[%d..%d] rng=%d\n', ...
+  %   lsize, num_blocks, min(block_sizes), ...
+  %   max(block_sizes), max(block_sizes) - min(block_sizes));
 
   % 各ブロックをワーカーに非同期投入
   for iw = 1:num_blocks
     start_times{iw} = tic;
-    futures(iw) = parfeval(pool, @evaluate_block, 5, blocks{iw}, ...
-      xlist, pffun, com_constant, stream_constant, options, cache);
+    futures(iw) = parfeval(pool, @evaluate_block, 5, ...
+      blocks{iw}, xlist(blocks{iw}, :), pffun, ...
+      com_constant, stream_constant, options, cache);
   end
 
   % 実行時間計測開始
@@ -298,7 +305,7 @@ return
     otherwise
       % 不明な戦略はエラー
       error('compute_pflist:InvalidStrategy', ...
-        '不明な並列戦略: %s（使用可能: auto, sequential, parfor, parfeval）', ...
+        '不明な並列戦略: %s（auto/sequential/parfor/parfeval）', ...
         requested);
   end
 
@@ -457,9 +464,10 @@ for k = 1:block_size
   stream.Substream = idx;
 
   % 個別評価関数を呼び出し
-  [flist_block(k), clist_block(k, :), pflist_block(k), ...
-    vlist_block(k, :), isexec_block(k)] = ...
-    compute_individual(xlist(idx, :), pffun, com, options, cache);
+  [flist_block(k), clist_block(k, :), ...
+    pflist_block(k), vlist_block(k, :), isexec_block(k)] = ...
+    compute_individual(xlist(k, :), pffun, com, ...
+    options, cache);
 end
 
 % 元の乱数ストリームに戻す

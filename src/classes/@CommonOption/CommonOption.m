@@ -50,6 +50,11 @@ classdef CommonOption
     do_limit_slr_section(1,1) logical = true
     do_limit_jbs_section(1,1) logical = true
 
+    % 保有耐力接合（仕口）の算定式・安全率α
+    % PRM.JBS_STANDARD（基準解説書式）または PRM.JBS_AIJ（指針式）
+    jbs_mu_formula (1,1) double = PRM.JBS_AIJ
+    jbs_alpha_type (1,1) double = PRM.JBS_AIJ
+
     % --- 計算機能 ---
     % 自重計算
     consider_self_weight (1,1) logical = true

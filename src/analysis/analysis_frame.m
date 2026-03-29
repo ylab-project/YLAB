@@ -70,8 +70,16 @@ section = com.section;
 member = com.member;
 member_column = com.member.column;
 % member_column = table2struct(com.member.column,"ToScalar",true);
-member_girder = table2struct(com.member.girder,"ToScalar",true);
-member_brace = table2struct(com.member.brace,"ToScalar",true);
+if istable(com.member.girder)
+  member_girder = table2struct(com.member.girder,"ToScalar",true);
+else
+  member_girder = com.member.girder;
+end
+if istable(com.member.brace)
+  member_brace = table2struct(com.member.brace,"ToScalar",true);
+else
+  member_brace = com.member.brace;
+end
 member_property = com.member.property;
 mtype = com.member.property.type;
 % mstype = com.member.property.section_type;

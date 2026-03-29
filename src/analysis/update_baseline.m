@@ -30,7 +30,11 @@ function [acdx, acdy] = count_alignment_column(baseline, member_column)
 nx = size(baseline.x,1);
 ny = size(baseline.y,1);
 % nz = size(baseline.z,1);
-nc = size(member_column,1);
+if istable(member_column)
+  nc = size(member_column,1);
+else
+  nc = length(member_column.idme);
+end
 
 % 共通配列
 mcidx = member_column.idx(:,2);

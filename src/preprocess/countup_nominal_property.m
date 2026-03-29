@@ -13,10 +13,10 @@ idmc2m = com.member.column.idme;
 idmb2m = com.member.brace.idme;
 
 % 定数
-nm = size(com.member.property,1);
-nmg = size(girder,1);
-nmc = size(column,1);
-nmb = size(brace,1);
+nm = com.nme;
+nmg = com.nmeg;
+nmc = com.nmec;
+nmb = com.nmeb;
 nnmg = size(nominal_girder,1);
 nnmc = size(nominal_column,1);
 nbr = size(nominal_brace,1);

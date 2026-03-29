@@ -106,6 +106,15 @@ for i=1:size(data,1)
       options.do_limit_slr_section = (data{i,2}=='Y');
     case '保有耐力接合（仕口）の事前処理'
       options.do_limit_jbs_section = (data{i,2}=='Y');
+    case '保有耐力接合（仕口）の検討'
+      p2 = data{i,2};
+      if ~ismissing(p2)
+        options.jbs_mu_formula = p2;
+      end
+      p3 = data{i,3};
+      if ~ismissing(p3)
+        options.jbs_alpha_type = p3;
+      end
     case '幅厚比の事前処理'
       options.do_limit_wtratio_section = (data{i,2}=='Y');
   end

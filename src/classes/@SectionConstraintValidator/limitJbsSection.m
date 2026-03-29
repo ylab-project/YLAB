@@ -59,9 +59,14 @@ for idsList = 1:nlist_
   isec_targets = isec_targets( ...
     idsec2slist_' == idsList & idsec2stype_' == PRM.WFS);
 
-  % OKか判定（柱σuは考慮せず梁σuのみ）
-  conjbs_ = calc_joint_bearing_strength(sdimlist, Zpylist, ...
-    Flist, [], [], options);
+  % OKか判定（柱σuは考慮せず保守的に判定）
+  if options.jbs_mu_formula == PRM.JBS_AIJ
+    conjbs_ = calc_joint_bearing_strength_aij( ...
+      sdimlist, Zpylist, Flist, [], [], options);
+  else
+    conjbs_ = calc_joint_bearing_strength_std( ...
+      sdimlist, Zpylist, Flist, [], [], options);
+  end
   isvalid_ = (conjbs_ < 0)';
 
   for isec = isec_targets

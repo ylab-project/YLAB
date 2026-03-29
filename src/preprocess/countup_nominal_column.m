@@ -4,7 +4,11 @@ function [idnominal, isprimary, idsecc, nominal_column] = ...
 %   詳細説明をここに記述
 
 % 計算の準備
-nmc = size(member_column,1);
+if istable(member_column)
+  nmc = size(member_column,1);
+else
+  nmc = length(member_column.idsecc);
+end
 idconnected = member_column.idconnected;
 isthrough = member_column.isthrough;
 idnominal = zeros(nmc,2);

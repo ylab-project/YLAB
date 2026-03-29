@@ -37,7 +37,7 @@ end
 
 % 梁断面リスト出力
 ngr = length(iddd);
-ng = size(secg,1);
+ng = com.nsecg;
 gshead = cell(1, ngr+1); gshead{1,1} = '層';
 gsbody = cell(nstory, ngr+1);
 isemptyrow = true(1,nstory);
@@ -95,7 +95,7 @@ if isempty(options.output_column_list_label)
 end
 
 ncr = length(iddd);
-nc = size(secc,1);
+nc = com.nsecc;
 cshead = cell(1, ncr+1); cshead{1,1} = '階';
 csbody = cell(nstory, ncr+1);
 isemptyrow = true(1,nstory);

@@ -84,7 +84,9 @@ idmgs = find_idgirder_from_idxyz(idx, idy, idz, member_girder, ...
 %   idsplit の有無で分割梁を判定する）
 % 分割梁なしのモデルではidsplitフィールドが存在しない
 is_split = false(n, 1);
-if ismember('idsplit', member_girder.Properties.VariableNames)
+if isfield(member_girder, 'idsplit') || ...
+    (istable(member_girder) && ...
+    ismember('idsplit', member_girder.Properties.VariableNames))
   idsplit = member_girder.idsplit;
   for i = 1:n
     ids = idmgs(i, 1:nnz(idmgs(i,:)));

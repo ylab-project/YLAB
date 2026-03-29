@@ -1,32 +1,43 @@
-function is_joint_bearing_strength = exclude_joint_bearing_strength(com)
-%EXCLUDE_GIRDER_STRESS 保有耐力接合（仕口）の除外指定
-%   詳細説明をここに記述
+function isjbs = exclude_joint_bearing_strength(com)
+%exclude_joint_bearing_strength - 保有耐力接合（仕口）の除外指定
+%   名目梁単位で判定。戻り値は [nng×2]。
+%   WFS梁端が剛接合かつHSS柱に接合する場合のみ対象。
 
-% H形部材の端部結合条件の判定
-gjoint = com.member.girder.joint;
-gtype = com.member.girder.section_type;
-gnode = [com.member.girder.idnode1 com.member.girder.idnode2];
-wfsnode = gnode(gtype==PRM.WFS,1:2);
-wfsjoint = gjoint(gtype==PRM.WFS,1:2);
-cnode = sort([com.member.column.idnode1; com.member.column.idnode2]);
+girder = com.member.girder;
+nominal_girder = com.nominal.girder;
+idmeg = nominal_girder.idmeg;
+nng = size(idmeg, 1);
 
-% 剛接合を対象
-is_joint_bearing_strength = (wfsjoint==PRM.FIX);
+% 名目梁の端部節点を取得
+[ng_node1, ng_node2] = ...
+  get_nominal_girder_end_nodes(girder, idmeg);
 
-% 柱に接合しない接合部は除外
-nwfs = sum(gtype==PRM.WFS);
-
-for iwfs=1:nwfs
-  for ij=1:2
-    if ~is_joint_bearing_strength(iwfs,ij)
-      continue
-    end
-    if all(wfsnode(iwfs,ij)~=cnode)
-      is_joint_bearing_strength(iwfs,ij) = false;
-    end
-  end
+% 名目梁の端部結合条件（最初の部材のi端、最後の部材のj端）
+ng_joint1 = girder.joint(idmeg(:, 1), 1);
+ng_joint2 = zeros(nng, 1);
+for ing = 1:nng
+  ids = nonzeros(idmeg(ing, :));
+  ng_joint2(ing) = girder.joint(ids(end), 2);
 end
+
+% 名目梁の断面タイプ（代表部材から）
+ng_stype = girder.section_type(idmeg(:, 1));
+
+% HSS柱の節点集合
+col = com.member.column;
+ctype = com.member.property.section_type(col.idme);
+hss = (ctype == PRM.HSS);
+cnode = sort([col.idnode1(hss); col.idnode2(hss)]);
+
+% 判定: WFS梁 かつ 剛接合 かつ HSS柱に接合
+isjbs = false(nng, 2);
+is_wfs = (ng_stype == PRM.WFS);
+isjbs(is_wfs, 1) = (ng_joint1(is_wfs) == PRM.FIX);
+isjbs(is_wfs, 2) = (ng_joint2(is_wfs) == PRM.FIX);
+
+% HSS柱に接合しない端部は除外
+isjbs(:,1) = isjbs(:,1) & ismember(ng_node1, cnode);
+isjbs(:,2) = isjbs(:,2) & ismember(ng_node2, cnode);
 
 return
 end
-

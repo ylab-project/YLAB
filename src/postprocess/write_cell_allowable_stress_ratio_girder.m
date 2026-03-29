@@ -22,6 +22,9 @@ grc_all = result.grc;
 gsi_all = result.gsi;
 gsj_all = result.gsj;
 
+% 保有耐力接合（仕口）比率 [nng×2]
+jbsratio = result.jbsratio;
+
 % --- ヘッダ ---
 head = cell(4, ncol);
 head(1, :) = {'層', '符号', 'M', '', '', '', '', 'Q', ...
@@ -87,6 +90,17 @@ for i = 1:nstory
     % Q: 仕口左(8)=空, 左端(9), 右端(10), 仕口右(11)=空
     body{irow, 9} = sprintf('%.2f', gsi_);
     body{irow, 10} = sprintf('%.2f', gsj_);
+    % 保有耐力接合(仕口): 左端M(12), 左端Q(13)=空, 右端M(14), 右端Q(15)=空
+    if ~isempty(jbsratio)
+      jbs_i = ceil(max(jbsratio(ing, 1)) * 100) / 100;
+      jbs_j = ceil(max(jbsratio(ing, 2)) * 100) / 100;
+      if jbs_i > 0
+        body{irow, 12} = sprintf('%.2f', jbs_i);
+      end
+      if jbs_j > 0
+        body{irow, 14} = sprintf('%.2f', jbs_j);
+      end
+    end
   end
 end
 body = body(1:irow, :);
