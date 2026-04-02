@@ -43,23 +43,16 @@ needs_q = cellfun(@(v) ~isempty(v) ...
 str(needs_q) = cellfun(@(v) ['"' strrep(v, '"', '""') '"'], ...
   str(needs_q), 'UniformOutput', false);
 
-% 各行の最終非空列を計算
+% 空行判定（全セルが空の行はスキップ）
 notempty = ~cellfun('isempty', str);
-lastcol = zeros(1, n);
-for i = 1:n
-  j = find(notempty(i,:), 1, 'last');
-  if ~isempty(j)
-    lastcol(i) = j;
-  end
-end
 
 % 行ごとにjoinして一括出力
 lines = cell(n, 1);
 for i = 1:n
-  if lastcol(i) == 0
+  if ~any(notempty(i, :))
     lines{i} = '';
   else
-    lines{i} = strjoin(str(i, 1:lastcol(i)), ',');
+    lines{i} = strjoin(str(i, :), ',');
   end
 end
 fprintf(fid, '%s\n', lines{:});
