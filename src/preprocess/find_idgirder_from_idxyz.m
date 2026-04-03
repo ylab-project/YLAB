@@ -30,7 +30,6 @@ idxlist = member_girder.idx;
 idylist = member_girder.idy;
 idzlist = member_girder.idz;
 idirlist = member_girder.idir;
-iddd = (1:length(member_girder.idme))';
 ncol = 1;
 for i=1:n
   % 各次元の検索条件
@@ -46,9 +45,9 @@ for i=1:n
   zm = range_match(idz(i,:), idzlist);
 
   if MODE_DIR
-    id = iddd(xm & ym & zm & idir(i) == idirlist);
+    id = find(xm & ym & zm & idir(i) == idirlist);
   else
-    id = iddd(xm & ym & zm);
+    id = find(xm & ym & zm);
   end
   if ~isempty(id)
     ncol = max(ncol,length(id));
@@ -58,8 +57,8 @@ end
 
 % 分割梁兄弟の追加（idsplitをたどる）
 if isfield(member_girder, 'idsplit') || ...
-    (istable(member_girder) && ...
-    ismember('idsplit', member_girder.Properties.VariableNames))
+    (istable(member_girder) && ismember('idsplit', ...
+    member_girder.Properties.VariableNames))
   idsplit = member_girder.idsplit;
   for i = 1:n
     jmax = nnz(idmeg(i,:));
