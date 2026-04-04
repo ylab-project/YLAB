@@ -100,7 +100,10 @@ ids2m = ones(nsec,1);
 ids2m(uidm2s) = uidmem;
 Fs = Fm(ids2m);                              % 断面の基準強度
 isSNsec = isSNmem(ids2m);                    % SN材判定フラグ（断面）
-grank = com.section.girder.rank;             % 梁断面ランク
+grank = com.section.girder.rank;             % 梁断面ランク（制約用）
+% 柱断面ランクを全断面ベクトルに展開（idhssrepが全断面IDのため）
+crank = zeros(nsec, 1);
+crank(com.section.column.idsec) = com.section.column.rank;
 
 % H形梁の断面諸元を取得
 Ag = A(idmwfs2m);                            % 断面積
@@ -206,7 +209,7 @@ end
 %% 幅厚比制約
 if coptions.consider_section_wt_ratio
   [conwtg, conwtc, wtratio] = calc_wtratio(secdim, Fs, ...
-    idsrep2s, idsrep2stype, grank, isSNsec, options);
+    idsrep2s, idsrep2stype, grank, crank, isSNsec, options);
   conwtg = conwtg+coptions.alfa_section_wt_ratio;
   conwtc = conwtc+coptions.alfa_section_wt_ratio;
 else
@@ -236,8 +239,7 @@ if coptions.consider_joint_bearing_strength
   % 名目梁の端部節点を取得
   idmeg_ = nominal.girder.idmeg;
   girder_ = com.member.girder;
-  [ng_node1_, ng_node2_] = ...
-    get_nominal_girder_end_nodes(girder_, idmeg_);
+  [ng_node1_, ng_node2_] = get_nominal_girder_end_nodes(girder_, idmeg_);
   % 名目梁の代表部材から断面諸量を取得
   idm_ng_ = girder_.idme(idmeg_(:, 1));
   sdimg_ng = secdim(idm2s(idm_ng_), 1:4);
@@ -372,6 +374,9 @@ result.drift.dx = drift_dx;
 result.drift.dy = drift_dy;
 result.deflection_angle = gdef_angle;
 result.wtratio = wtratio;
+if ~isempty(wtratio)
+  result.rank.section = wtratio.drank_sec;
+end
 % result.idRpsNode = cgsr;
 result.standardGap_gc = congapstd;
 result.Hgapval = conhgapvar;

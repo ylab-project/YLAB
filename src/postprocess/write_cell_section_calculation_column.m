@@ -73,14 +73,8 @@ idnm2mc = nominal_column.idmec;
 idnmc2nm = nominal_column.idnominal;
 idmc2m = column.idme;
 
-% ランク文字列マッピング
-rank_str = {'FA', 'FB', 'FC', 'FD'};
-rk_col = options.coptions.rank_column;
-if rk_col >= 1 && rk_col <= 4
-  rk_s = rank_str{rk_col};
-else
-  rk_s = '';
-end
+% 判定ランク
+has_drank = isfield(result, 'rank') && isfield(result.rank, 'section');
 
 % 出力順序マッピング（出力制御の符号順）
 ocl_ = options.output_column_list_label;
@@ -207,6 +201,17 @@ for i = 1:nstory
     sl_ = secmgr.secList.list{idsl_};
     sym_ = sl_.symbol{idsec_};
     secname_ = format_steel_cost_dim(stype_, dim_, sym_);
+    if has_drank
+      is_r = idsecc2sec(isc_);
+      rk_v = result.rank.section(is_r);
+      if rk_v >= 1 && rk_v <= numel(PRM.MEMBER_RANK_NAME)
+        rk_s = PRM.MEMBER_RANK_NAME{rk_v};
+      else
+        rk_s = '';
+      end
+    else
+      rk_s = '';
+    end
     sccbody{irow, 1} = sprintf('%s [%s]', secname_, rk_s);
     sccbody{irow, 10} = '<X>柱頭';
     sccbody{irow, 11} = sprintf('%.0f', lfcx(ic2, 2));

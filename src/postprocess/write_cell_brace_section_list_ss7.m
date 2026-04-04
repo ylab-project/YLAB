@@ -1,6 +1,6 @@
 function [head, body] = ...
   write_cell_brace_section_list_ss7(...
-  secb, stype, secdim, secmgr)
+  secb, ~, secdim, secmgr)
 %write_cell_brace_section_list_ss7 - 鉛直ブレース断面リスト（SS7形式）
 %
 %   [head, body] = ...
@@ -21,10 +21,11 @@ function [head, body] = ...
 %     head - ヘッダーセル配列 [2×ncol]
 %     body - 本体セル配列 [n×ncol]
 
-%% ブレースタイプの判定
-is_tb = (stype == PRM.TB);
-is_steel = (stype == PRM.BWFS) ...
-  | (stype == PRM.BHSS) | (stype == PRM.BHSR);
+%% ブレースタイプの判定（secbベース）
+btype = secb.type;
+is_tb = (btype == PRM.TB);
+is_steel = (btype == PRM.BWFS) ...
+  | (btype == PRM.BHSS) | (btype == PRM.BHSR);
 has_tb = any(is_tb);
 has_steel = any(is_steel);
 ntb = sum(is_tb);
@@ -60,11 +61,11 @@ if has_steel
   idx_sl = find(secb.type == PRM.BWFS ...
     | secb.type == PRM.BHSS ...
     | secb.type == PRM.BHSR);
-  secdim_sl = secdim(is_steel, :);
   for i = 1:nsl
     irow = irow + 1;
     isb = idx_sl(i);
-    dim = secdim_sl(i, :);
+    idsec = secb.idsec(isb);
+    dim = secdim(idsec, :);
     idsl = secb.id_section_list(isb);
     body{irow, cmap(CNAME)} = secb.name{isb};
     body{irow, cmap(CSHAPE)} = ...
@@ -80,13 +81,14 @@ end
 if has_tb
   idx_tb = find(...
     secb.tctype == PRM.BRACE_TENSION);
+  idsec_tb = secb.idsec(idx_tb);
   secblist = getListRecord(...
-    secmgr, secdim(is_tb, :));
+    secmgr, secdim(idsec_tb, :));
   for i = 1:ntb
     irow = irow + 1;
     isb = idx_tb(i);
     body{irow, cmap(CNAME)} = secb.name{isb};
-    body{irow, cmap(CSHAPE)} = secblist.type{i};
+    body{irow, cmap(CSHAPE)} = secblist.label{i};
     body{irow, cmap(CAREA)} = ...
       sprintf('%.3f', secblist.A(i));
     body{irow, cmap(CEAREA)} = ...

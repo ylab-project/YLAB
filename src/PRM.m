@@ -199,6 +199,10 @@ classdef PRM
     GIRDER_RANK_FC = 3        % 梁FCランク
     GIRDER_RANK_FD = 4        % 梁FDランク
 
+    % 部材種別名称
+    RANK_NONE = 0             % ランク対象外（RC等）
+    MEMBER_RANK_NAME = {'FA', 'FB', 'FC', 'FD'}
+
     %% ブレース配置タイプ
     BRACE_MEMBER_TYPE_X = 1        % X型配置
     BRACE_MEMBER_TYPE_K_UPPER = 2  % K上形

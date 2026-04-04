@@ -79,8 +79,8 @@ idnm2mg = nominal_girder.idmeg;
 idnmg2nm = nominal_girder.idnominal;
 idmg2m = girder.idme;
 
-% ランク文字列マッピング
-rank_str = {'FA', 'FB', 'FC', 'FD'};
+% 判定ランク
+has_drank = isfield(result, 'rank') && isfield(result.rank, 'section');
 
 % 出力順序マッピング（出力制御の符号順）
 ogl_ = options.output_girder_list_label;
@@ -190,9 +190,14 @@ for i = 1:nstory
       stype_ = stype(is_);
       dim_ = secdim(is_, :);
       secname_ = format_steel_cost_dim(stype_, dim_, sym_);
-      rk_ = secg.rank(isg);
-      if rk_ >= 1 && rk_ <= 4
-        rk_s = rank_str{rk_};
+      if has_drank
+        is_r = idsecg2sec(isg);
+        rk_v = result.rank.section(is_r);
+        if rk_v >= 1 && rk_v <= numel(PRM.MEMBER_RANK_NAME)
+          rk_s = PRM.MEMBER_RANK_NAME{rk_v};
+        else
+          rk_s = '';
+        end
       else
         rk_s = '';
       end

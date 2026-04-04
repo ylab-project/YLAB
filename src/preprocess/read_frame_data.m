@@ -52,33 +52,35 @@ function [com, options] = read_frame_data(input, options)
 %   idm2g = (1:nme); idm2g = idm2g(member.property.idmeg>0);
 
 %% ブロック区切り
-labels = {...
-  '基本事項', ...
+labels = {'基本事項', ...
   '構造計算条件', '最適化条件', '制約条件', '出力制御', ...
-  '材料', '断面リスト', '柱脚リスト',  ...
-  '軸X', '軸Y', '層', ...
-  'スパンX方向', 'スパンY方向', '階', ...
-  '標準階高と梁心の差', ...
-  '剛床仮定の解除', ...
+  '材料', '断面リスト', '柱脚リスト', ...
+  '軸X', '軸Y', '層', 'スパンX方向', 'スパンY方向', ...
+  '階', '標準階高と梁心の差', '剛床仮定の解除', ...
   '節点', '支点', ...
   '部材の寄り', '柱の寄り', '大梁の寄り', ...
   '軸振れ', 'セットバック', ...
   '大梁のレベル調整', '節点の同一化', ...
-  '設計変数', ...
-  '梁せい分布除外', ...
-  'S梁断面', 'S柱断面', 'RC梁断面', 'RC柱断面', 'メーカー製柱脚断面', ...
-  '鉛直ブレース断面（鋼材）', '鉛直ブレース断面（メーカー製品）', ...
+  '設計変数', '梁せい分布除外', ...
+  'S梁断面', 'S柱断面', 'RC梁断面', 'RC柱断面', ...
+  'メーカー製柱脚断面', ...
+  '鉛直ブレース断面（鋼材）', ...
+  '鉛直ブレース断面（メーカー製品）', ...
   '鉛直ブレース断面（引張ブレース）', ...
-  '水平ブレース断面'...
+  '水平ブレース断面', ...
   'S梁断面(仮定)', 'S柱断面(仮定)', ...
   '鉛直ブレース断面（鋼材）(仮定)', ...
   '鉛直ブレース断面（メーカー製品）(仮定)', ...
-  '大梁配置', '柱配置', '鉛直ブレース配置', '水平ブレース配置', ...
-  '梁の結合状態', '柱の結合状態', '柱の剛域', '梁の横補剛', ...
-  '通し柱', '通し梁', ...
-  'スラブ協力幅', '柱の剛度増減率', '梁の剛度増減率'...
-  '断面算定の省略（梁符号毎）', '断面算定の省略（柱符号毎）', ...
-  '荷重ケース', '節点荷重', '追加節点荷重', '梁要素荷重'};
+  '大梁配置', '柱配置', ...
+  '鉛直ブレース配置', '水平ブレース配置', ...
+  '梁の結合状態', '柱の結合状態', ...
+  '柱の剛域', '梁の横補剛', '通し柱', '通し梁', ...
+  'スラブ協力幅', '柱の剛度増減率', ...
+  '梁の剛度増減率', ...
+  '断面算定の省略（梁符号毎）', ...
+  '断面算定の省略（柱符号毎）', ...
+  '荷重ケース', '節点荷重', '追加節点荷重', ...
+  '梁要素荷重'};
 dbc = data_block_class;
 dbc.readCsvFile(input, labels);
 
@@ -124,6 +126,23 @@ com.nma = size(material,1);
 section_list = set_section_list_block(dbc, input, com);
 com.sectionList = section_list;
 com.nsectionList = section_list.nlist;
+
+% TB断面リストのデフォルト材料補完
+TB_DEFAULT_MATERIAL = 'SN400B';
+for i = 1:section_list.nlist
+  if section_list.section_type(i) == PRM.TB ...
+      && all(section_list.idmaterial{i} == 0)
+    idm = find(matches(com.material.name, TB_DEFAULT_MATERIAL), 1);
+    if isempty(idm)
+      idm = com.nma + 1;
+      com.material = [com.material; table(idm, ...
+        {TB_DEFAULT_MATERIAL}, 205000, 0.3, 235.0, true, ...
+        'VariableNames', com.material.Properties.VariableNames)];
+      com.nma = idm;
+    end
+    section_list.idmaterial{i}(:) = idm;
+  end
+end
 
 %% 柱脚リスト
 column_base_list = set_column_base_list_block(dbc, input, com);
@@ -232,7 +251,7 @@ com.nvar = max((variable.idvar));
 section.girder = section_girder;
 
 %% S断面(柱)
-[section_column, variable] = set_section_column_block(dbc, com);
+[section_column, variable] = set_section_column_block(dbc, com, options);
 nvrows = sum(~isnan(variable.isvar));
 variable = variable(1:nvrows,:);
 design.variable = variable;
@@ -458,8 +477,8 @@ member.column = member_column;
 com.member = member;
 
 %% 柱脚断面
-[section_column_base, idme2seccb] = ...
-  set_section_column_base_block(dbc, com);
+[section_column_base, idme2seccb] = set_section_column_base_block( ...
+  dbc, com);
 member_property.idseccb = idme2seccb;
 member.property = member_property;
 com.member = member;
@@ -816,10 +835,9 @@ end
 
 % 結果の保存
 section_list = section_list.registerList(section_type, ...
-  section_type_name, nlist, section_list_name, ...
-  material_name, file_name, idmaterial, cost_factor, ...
-  cost_constant, design_stress_factor, isSN, idphase, ...
-  type_name);
+  section_type_name, nlist, section_list_name, material_name, ...
+  file_name, idmaterial, cost_factor, cost_constant, ...
+  design_stress_factor, isSN, idphase, type_name);
 return
 end
 
@@ -829,9 +847,9 @@ data = dbc.get_data_block('柱脚リスト');
 n = size(data,1);
 
 % 符号・材料・リストファイル名
-column_base_list(1:n) = struct(...
-  'D', [], 'kbs', [], 'Df', [], 'type', [], 'name', [],...
-  'list_name', [], 'list_dir', [], 'file_name', []);
+column_base_list(1:n) = struct('D', [], 'kbs', [], 'Df', [], ...
+  'type', [], 'name', [], 'list_name', [], ...
+  'list_dir', [], 'file_name', []);
 
 % list_name = cell(n,1);
 % file_name = cell(n,1);
@@ -1158,8 +1176,8 @@ for i=1:n
 end
 
 % 通り番号の検索
-[idx, idy, idz] = find_idxy_floor_coord(...
-  story_name, xcoord_name, ycoord_name, com.baseline, com.floor);
+[idx, idy, idz] = find_idxy_floor_coord(story_name, ...
+  xcoord_name, ycoord_name, com.baseline, com.floor);
 
 % 結果の保存
 column = table(idx, idy, idz, dx, dy);
@@ -1261,8 +1279,8 @@ for i=1:n
 end
 
 % 結果の保存
-baseline_setback = table(...
-  story_name, xname, yname, dx, dy, idstory, idx, idy);
+baseline_setback = table(story_name, xname, yname, ...
+  dx, dy, idstory, idx, idy);
 return
 end
 
@@ -1351,14 +1369,14 @@ end
 idnode = zeros(n,1);
 iddn = 1:com.nnode;
 for i=1:n
-  idnode(i) = iddn(com.node.idx==idx(i) & ...
-    com.node.idy==idy(i) & ...
-    com.node.idstory==idstory(i));
+  idnode(i) = iddn(com.node.idx==idx(i) ...
+    & com.node.idy==idy(i) ...
+    & com.node.idstory==idstory(i));
 end
 
 % 結果の保存
-support = table(xname, yname, story_name, isfixed, ...
-  idx, idy, idstory, idnode);
+support = table(xname, yname, story_name, ...
+  isfixed, idx, idy, idstory, idnode);
 return
 end
 
@@ -1394,9 +1412,9 @@ end
 idnode = zeros(n,1);
 iddn = 1:com.nnode;
 for i=1:n
-  idn_ = iddn(com.node.idx==idx(i) & ...
-    com.node.idy==idy(i) & ...
-    com.node.idstory==idstory(i));
+  idn_ = iddn(com.node.idx==idx(i) ...
+    & com.node.idy==idy(i) ...
+    & com.node.idstory==idstory(i));
   if ~isempty(idn_)
     idnode(i) = idn_;
   end
@@ -1412,146 +1430,8 @@ idx = idx(idvalid);
 idy = idy(idvalid);
 idstory = idstory(idvalid);
 idnode = idnode (idvalid);
-flex_diaphragm = table(xname, yname, story_name, ...
-  isflex, idx, idy, idstory, idnode);
-return
-end
-
-%--------------------------------------------------------------------------
-function [section_girder, design_variable] = ...
-  set_section_steel_girder_block(dbc, com, options)
-% idvar <- (Hn,Bn,twn,tfm)
-
-data = dbc.get_data_block('S梁断面');
-n = size(data,1);
-design_variable = com.design.variable;
-
-% % 有効行のチェック
-% istarget = true(1,n);
-% for i=1:n
-%   if ismissing(data{i,4})
-%     istarget(i) = false;
-%   end
-% end
-
-% 層名
-story_name = cell(n,1);
-for i=1:n
-  story_name{i} = tochar(data{i,1});
-end
-
-% 層・Z通り番号
-idstory = zeros(n,1); idds = 1:com.nstory;
-idz = zeros(n,1); iddz = com.story.idz;
-for i=1:n
-  idstory(i) = idds(matches(com.story.name, story_name{i}));
-  idz(i) = iddz(matches(com.story.name, story_name{i}));
-end
-idznominal = com.baseline.z.idnominal(idz);
-
-% 符号
-name = cell(n,1);
-for i=1:n
-  name{i} = tochar(data{i,2});
-end
-
-% 添字
-subindex = cell(n,1);
-for i=1:n
-  subindex{i} = data{i,3};
-  if subindex{i}=='-'
-    subindex{i} = num2str(idstory(i));
-  end
-  if isnumeric(subindex{i})
-    subindex{i} = num2str(subindex{i});
-  end
-end
-
-% 断面リスト
-section_list_name = cell(n,1);
-full_name = cell(n,1);
-id_section_list = zeros(n,1); iddd = 1:com.nsectionList;
-idmaterial = zeros(n,1);
-type = zeros(n,1);
-type_name = cell(n,1);
-for i=1:n
-  section_list_name{i} = tochar(data{i,4});
-  full_name{i} = [subindex{i} name{i}];
-  % fprintf('%d:%s\n',i,section_list_name{i})
-  issl = strcmp(com.sectionList.name, section_list_name{i});
-  if any(issl)
-    idsl = iddd(issl);
-    id_section_list(i) = idsl(1);
-  else
-    throw_err('IO', 'SectionListNotFound', ...
-      section_list_name{i}, 'S梁断面', ...
-      ['層: ' story_name{i} ', 符号: ' name{i}]);
-  end
-
-  % 同一の鉄骨形状のみ複数リスト指定可
-  type_ = unique(com.sectionList.section_type(idsl));
-  if length(type_)~=1
-    error('同一断面リストに対する鉄骨形状は同一としてください')
-  end
-  type(i) = com.sectionList.section_type(idsl(1));
-  type_name(i) = com.sectionList.section_type_name(idsl(1));
-end
-
-% 設計変数番号
-mvar = PRM.MAX_NSVAR;
-variable = cell(n,mvar);
-idvar = zeros(n,mvar);
-iddd = 1:PRM.MAX_NVAR;
-nvar = com.nvar;
-nvrows = sum(~isnan(design_variable.isvar));
-for i=1:n
-  ndvar = PRM.nvar_of_section_type(type(i));
-  cdata = data(i,5:(4+ndvar));
-  variable(i,1:ndvar) = tochar(cdata);
-  for j=1:ndvar
-    idvar_ = iddd(matches(design_variable.name, variable{i,j}));
-    if isempty(idvar_)
-      % 変数追加
-      nvrows = nvrows+1;
-      nvar = nvar+1;
-      design_variable.name{nvrows} = variable{i,j};
-      design_variable.isvar(nvrows) = true;
-      design_variable.idvar(nvrows) = nvar;
-      idvar_ = nvar;
-    end
-    idvar(i,j) = idvar_(1);
-  end
-end
-
-% 寸法指定
-dimension = zeros(n,mvar);
-
-% 部材種別
-rank = options.coptions.rank_girder*ones(n,1);
-for i=1:n
-  cdata = data{i,9};
-  if ~ismissing(cdata)
-    cdata = tochar(cdata);
-    switch cdata
-      case 'FA'
-        rank(i) = PRM.GIRDER_RANK_FA;
-      case 'FB'
-        rank(i) = PRM.GIRDER_RANK_FB;
-      case 'FC'
-        rank(i) = PRM.GIRDER_RANK_FC;
-      case 'FD'
-        rank(i) = PRM.GIRDER_RANK_FD;
-    end
-  end
-end
-
-% 結果の保存
-section_girder = table(name, subindex , story_name, full_name, ...
-  id_section_list, type_name, idstory, type, idmaterial, ...
-  idz, idznominal, ...
-  idvar, rank, dimension);
-% section_girder = table(name, subindex , story_name, full_name, ...
-%   id_section_list, type_name, idstory, type, idz, idvar, dimension);
+flex_diaphragm = table(xname, yname, story_name, isflex, ...
+  idx, idy, idstory, idnode);
 return
 end
 
@@ -1630,217 +1510,15 @@ end
 rank = zeros(n,1);
 
 % 結果の保存
-section_girder = table(name, subindex , story_name, full_name, ...
+section_girder = table(name, subindex, story_name, full_name, ...
   id_section_list, type_name, idstory, type, idmaterial, ...
-  idz, idznominal, ...
-  idvar, dimension, rank);
+  idz, idznominal, idvar, dimension, rank);
 return
 end
 
 %--------------------------------------------------------------------------
-function section_column = set_section_column_rc_block(dbc, com)
-% RC柱断面データの読み込み（set_section_rc_girder_blockを参考）
-
-data = dbc.get_data_block('RC柱断面');
-if isempty(data)
-  % RC柱断面がない場合は空のテーブルを返す
-  section_column = table();
-  return;
-end
-
-n = size(data,1);
-
-% 階名
-floor_name = cell(n,1);
-for i=1:n
-  floor_name{i} = tochar(data{i,1});
-end
-
-% 層番号（S柱断面と同じ方法）
-idstory = zeros(n,1);
-iddd = 1:com.nstory;
-for i=1:n
-  idx = strcmp(com.story.floor_name, floor_name{i});
-  if any(idx)
-    idstory(i) = iddd(idx);
-  else
-    error('階 %s が見つかりません (RC柱断面)', floor_name{i});
-  end
-end
-idznominal = com.baseline.z.idnominal(idstory);
-
-% 符号
-name = cell(n,1);
-for i=1:n
-  name{i} = tochar(data{i,2});
-end
-
-% 添字
-subindex = cell(n,1);
-for i=1:n
-  subindex{i} = data{i,3};
-  if isnumeric(subindex{i})
-    subindex{i} = num2str(subindex{i});
-  elseif subindex{i} =='-'
-    subindex{i} ='';
-  end
-end
-
-% 断面リスト
-full_name = cell(n,1);
-idmaterial = zeros(n,1);
-id_section_list = zeros(n,1);  % 最適化対象外
-type = zeros(n,1);
-type_name = cell(n,1);
-iddd = 1:com.nma;
-for i=1:n
-  full_name{i} = [subindex{i} name{i}];
-  idmaterial(i) = iddd(matches(com.material.name, data{i,7}));
-  type(i) = PRM.RCRS;  % RC矩形断面
-  type_name{i} = 'RCRS';
-end
-
-% 設計変数番号（最適化対象外のため0）
-mvar = PRM.MAX_NSVAR;
-idvar = zeros(n,mvar);
-
-% 寸法指定
-dimension = zeros(n,mvar);
-for i=1:n
-  % Dx×Dy（形状は□なので正方形または矩形）
-  dimension(i,1:2) = [data{i,5} data{i,6}];
-  % 荷重剛性用Dx×Dy
-  dimension(i,3:4) = dimension(i,1:2);
-  if ~ismissing(data{i,8}) && data{i,8}>0
-    dimension(i,3) = data{i,8};
-  end
-  if ~ismissing(data{i,9}) && data{i,9}>0
-    dimension(i,4) = data{i,9};
-  end
-end
-
-% 部材種別
-rank = zeros(n,1);
-
-% 結果の保存（S柱断面と同じテーブル構造）
-section_column = table(name, subindex, full_name, floor_name, ...
-  id_section_list, type_name, idstory, type, idmaterial, ...
-  idznominal, idvar, dimension);
-
-return
-end
-
-%--------------------------------------------------------------------------
-function [section_column, design_variable] = ...
-  set_section_column_block(dbc, com)
-
-data = dbc.get_data_block('S柱断面');
-n = size(data,1);
-design_variable = com.design.variable;
-
-% 階名
-% TODO: 要確認
-floor_name = cell(n,1);
-for i=1:n
-  if ~ischar(data{i,1})
-    val = tochar(data{i,1});
-  else
-    val = data{i,1};
-  end
-  floor_name{i} = tochar(val);
-end
-
-% 層番号
-idstory = zeros(n,1); iddd = 1:com.nstory;
-for i=1:n
-  idstory(i) = iddd(matches(com.story.floor_name, floor_name{i}));
-end
-idznominal = com.baseline.z.idnominal(idstory);
-
-% 符号
-name = cell(n,1);
-for i=1:n
-  name{i} = tochar(data{i,2});
-end
-
-% 添字
-subindex = cell(n,1);
-for i=1:n
-  subindex{i} = data{i,3};
-  if isnumeric(subindex{i})
-    subindex{i} = num2str(subindex{i});
-  end
-end
-
-% 断面リスト
-section_list_name = cell(n,1);
-full_name = cell(n,1);
-id_section_list = zeros(n,1); iddd = 1:com.nsectionList;
-idmaterial = zeros(n,1);
-type = zeros(n,1);
-type_name = cell(n,1);
-for i=1:n
-  full_name{i} = [subindex{i} name{i}];
-  section_list_name{i} = tochar(data{i,4});
-  idx = strcmp(com.sectionList.name, section_list_name{i});
-  if any(idx)
-    idsl = iddd(idx);
-    id_section_list(i) = idsl(1);
-  else
-    throw_err('IO', 'SectionListNotFound', ...
-      section_list_name{i}, 'S柱断面', ['符号: ' full_name{i}]);
-  end
-
-  % 同一の鉄骨形状のみ複数リスト指定可
-  type_ = unique(com.sectionList.section_type(idsl));
-  if length(type_)~=1
-    error('同一断面リストに対する鉄骨形状は同一としてください')
-  end
-  type(i) = com.sectionList.section_type(idsl(1));
-  type_name(i) = com.sectionList.section_type_name(idsl(1));
-end
-
-% 設計変数番号
-mvar = PRM.MAX_NSVAR;
-variable = cell(n,mvar);
-idvar = zeros(n,mvar);
-iddd = 1:PRM.MAX_NVAR;
-nvar = com.nvar;
-nvrows = sum(~isnan(design_variable.isvar));
-for i=1:n
-  ndvar = PRM.nvar_of_section_type(type(i));
-  cdata = data(i,5:(4+ndvar));
-  variable(i,1:ndvar) = tochar(cdata);
-  for j=1:ndvar
-    idvar_ = iddd(matches(design_variable.name, variable{i,j}));
-    if isempty(idvar_)
-      % 変数追加
-      nvrows = nvrows+1;
-      nvar = nvar+1;
-      design_variable.name{nvrows} = variable{i,j};
-      design_variable.isvar(nvrows) = true;
-      design_variable.idvar(nvrows) = nvar;
-      idvar_ = nvar;
-    end
-    idvar(i,j) = idvar_(1);
-  end
-end
-
-% 寸法指定（断面リストから取得するためゼロで初期化）
-dimension = zeros(n,mvar);
-
-% 結果の保存
-section_column = table(name, subindex, full_name, floor_name,  ...
-  id_section_list, type_name, idstory, type, idmaterial, ...
-  idznominal, idvar, dimension);
-% section_column = table(name, subindex, full_name, floor_name,  ...
-%   id_section_list, type_name, idstory, type, idvar);
-return
-end
-
-%--------------------------------------------------------------------------
-function [column_base, idme2seccb] = ...
-  set_section_column_base_block(dbc, com)
+function [column_base, idme2seccb] = set_section_column_base_block( ...
+  dbc, com)
 data = dbc.get_data_block('メーカー製柱脚断面');
 n = size(data,1);
 
@@ -1931,8 +1609,8 @@ end
 % 結果の保存
 % column_base = table(floor_name, coord_name, section_name, ...
 %   type, property, idlist, idstory, idx, idy, idz, idsecc, idmec, idme);
-column_base = table(floor_name, section_name, ...
-  type, property, idlist, idstory, idsecc);
+column_base = table(floor_name, section_name, type, ...
+  property, idlist, idstory, idsecc);
 return
 end
 
@@ -1994,8 +1672,8 @@ section_brace = table(name, type_name, type, A, E, unit_weight, dimension);
 return
 end
 %--------------------------------------------------------------------------
-function [member_property, idmec2mem, idmeg2mem, ...
-  idmeb2mem, idmehb2mem] = set_member_property(com)
+function [member_property, idmec2mem, idmeg2mem, idmeb2mem, ...
+  idmehb2mem] = set_member_property(com)
 % 共通定数
 nme = com.nme;
 nmec = com.nmec;
@@ -2012,10 +1690,6 @@ section_column = com.section.column;
 section_girder = com.section.girder;
 section_brace = com.section.brace;
 section_horizontal_brace = com.section.horizontal_brace;
-x = com.node.x;
-y = com.node.y;
-z = com.node.z;
-
 % 部材種別
 type = [repmat(PRM.GIRDER,nmeg,1); repmat(PRM.COLUMN,nmec,1); ...
   repmat(PRM.BRACE,nmeb,1); repmat(PRM.HORIZONTAL_BRACE,nmehb,1)];
@@ -2109,10 +1783,9 @@ if nmehb > 0
 end
 
 % 結果の保存
-member_property = table(type, idir, idmeg, idmec, ...
-  idmeb, idmehb, section_type, idsec, idsecc, idsecg, ...
-  idsecb, idsechb, idnode1, idnode2, idstory, idvar, ...
-  is_tension_only_hb);
+member_property = table(type, idir, idmeg, idmec, idmeb, ...
+  idmehb, section_type, idsec, idsecc, idsecg, idsecb, ...
+  idsechb, idnode1, idnode2, idstory, idvar, is_tension_only_hb);
 return
 end
 
@@ -2264,8 +1937,8 @@ return
 end
 
 %--------------------------------------------------------------------------
-function initial_section_column = ...
-  set_initial_section_column_block(dbc, com)
+function initial_section_column = set_initial_section_column_block( ...
+  dbc, com)
 data = dbc.get_data_block('S柱断面(仮定)');
 n = size(data,1);
 
@@ -2465,8 +2138,8 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz, idir, idzn] = find_idxyz_girder(...
-  story_name, frame_name, coord_name, com.baseline);
+[idx, idy, idz, idir, idzn] = find_idxyz_girder(story_name, ...
+  frame_name, coord_name, com.baseline);
 
 % 断面番号
 idsecg = zeros(n,1); iddd = 1:com.nsecg;
@@ -2517,9 +2190,8 @@ member_girder.idir(is_45deg) = PRM.XY;
 
 % 基礎梁フラグ（両端が支点節点なら基礎梁）
 idsup2n = com.support.idnode;
-member_girder.isfg = ...
-  ismember(idnode1, idsup2n) & ...
-  ismember(idnode2, idsup2n);
+member_girder.isfg = ismember(idnode1, idsup2n) ...
+  & ismember(idnode2, idsup2n);
 
 % WFS部材番号の設定
 nmeg = size(member_girder,1);
@@ -2533,7 +2205,7 @@ end
 
 %--------------------------------------------------------------------------
 function member_horizontal_brace = ...
-  set_member_horizontal_brace_block(dbc, com, options)
+  set_member_horizontal_brace_block(dbc, com, ~)
 data = dbc.get_data_block('水平ブレース配置');
 n = size(data,1);
 
@@ -2599,8 +2271,8 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz] = find_idxy_story_coord(...
-  story_name, xcoord_name, ycoord_name, com.baseline, com.story);
+[idx, idy, idz] = find_idxy_story_coord(story_name, ...
+  xcoord_name, ycoord_name, com.baseline, com.story);
 
 % 断面番号
 idsechb = zeros(n,1); iddd = 1:com.nsechb;
@@ -2626,10 +2298,9 @@ an = zeros(n,1);
   x(idnode2), y(idnode2), z(idnode2), an);
 
 % 結果の保存
-member_horizontal_brace = table(story_name, xcoord_name, ycoord_name, ...
-  section_name, section_type, idpair, tctype, ...
-  idstory, idx, idy, idz, idsechb, idnode1, idnode2, ...
-  cxl, cyl);
+member_horizontal_brace = table(story_name, xcoord_name, ...
+  ycoord_name, section_name, section_type, idpair, tctype, ...
+  idstory, idx, idy, idz, idsechb, idnode1, idnode2, cxl, cyl);
 
 return
 end
@@ -2720,10 +2391,10 @@ for i=1:n
 end
 
 % 梁部材番号
-[idx, idy, idz, idir] = find_idxyz_girder(...
-  story_name, frame_name, coord_name, baseline);
-idmeg = find_idgirder_from_idxyz(...
-  idx, idy, idz, member_girder, [], baseline);
+[idx, idy, idz, ~] = find_idxyz_girder(story_name, ...
+  frame_name, coord_name, baseline);
+idmeg = find_idgirder_from_idxyz(idx, idy, idz, ...
+  member_girder, [], baseline);
 
 % 結合状態
 joint = PRM.FIX*ones(nmeg,4);
@@ -2824,7 +2495,6 @@ n = size(data,1);
 % 共通配列
 baseline = com.baseline;
 member_girder = com.member.girder;
-nmeg = com.nmeg;
 
 % 層名・通り名
 story_name = cell(n,1);
@@ -2837,10 +2507,10 @@ for i=1:n
 end
 
 % 梁部材番号
-[idx, idy, idz, idir] = find_idxyz_girder(...
-  story_name, frame_name, coord_name, baseline);
-idmeg = find_idgirder_from_idxyz(...
-  idx, idy, idz, member_girder, [], baseline);
+[idx, idy, idz, ~] = find_idxyz_girder(story_name, ...
+  frame_name, coord_name, baseline);
+idmeg = find_idgirder_from_idxyz(idx, idy, idz, ...
+  member_girder, [], baseline);
 
 % % 結合状態
 % stiffening.Lb = nan(nmeg,3);
@@ -2902,12 +2572,12 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz, idir] = find_idxyz_girder(...
-  story_name, frame_name, coord_name, baseline);
+[idx, idy, idz, ~] = find_idxyz_girder(story_name, ...
+  frame_name, coord_name, baseline);
 
 % 梁部材番号
-idmeg = find_idgirder_from_idxyz(...
-  idx, idy, idz, member_girder, [], baseline);
+idmeg = find_idgirder_from_idxyz(idx, idy, idz, ...
+  member_girder, [], baseline);
 
 % レベル調整値
 girder_level = zeros(nmg,1);
@@ -2941,17 +2611,16 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz, idir] = find_idxyz_girder(...
-  story_name, frame_name, coord_name, baseline);
+[idx, idy, idz, idir] = find_idxyz_girder(story_name, ...
+  frame_name, coord_name, baseline);
 
 % 柱の剛度増減率
 nmeg = size(member_girder,1);
 girder_phi = nan(nmeg,1);
 for i=1:n
   % 梁部材番号
-  idmeg = find_idgirder_from_idxyz(...
-    idx(i,:), idy(i,:), idz(i,:), ...
-    member_girder, idir(i), baseline);
+  idmeg = find_idgirder_from_idxyz(idx(i,:), idy(i,:), ...
+    idz(i,:), member_girder, idir(i), baseline);
 
   % 存在しないときはスキップ
   ids = idmeg(idmeg > 0);
@@ -2993,8 +2662,8 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz] = find_idxyz_column(...
-  floor_name, xcoord_name, ycoord_name, baseline, story);
+[idx, idy, idz] = find_idxyz_column(floor_name, ...
+  xcoord_name, ycoord_name, baseline, story);
 
 % 柱の剛度増減率
 nmec = size(member_column,1);
@@ -3017,8 +2686,8 @@ for i=1:n
   end
 
   % 柱部材番号
-  idmec = find_idcolumn_from_idxyz(...
-    idx(i,:), idy(i,:), idz(i,:), member_column);
+  idmec = find_idcolumn_from_idxyz(idx(i,:), ...
+    idy(i,:), idz(i,:), member_column);
 
   % 値のセット
   val = data{i,8};
@@ -3057,7 +2726,7 @@ return
 end
 
 %--------------------------------------------------------------------------
-function istarget = set_exclusion_column_stress_block(dbc, com)
+function istarget = set_exclusion_column_stress_block(~, com)
 % 柱の許容応力度検定除外設定（RC柱の自動除外）
 
 % 共通配列
@@ -3107,8 +2776,8 @@ for i=1:n
 end
 
 % 通り番号の検索
-[idx, idy, idz] = find_idxyz_coord(...
-  story_name, xcoord_name, ycoord_name, baseline);
+[idx, idy, idz] = find_idxyz_coord(story_name, ...
+  xcoord_name, ycoord_name, baseline);
 
 % 除外節点の検索
 isexcluded = false(nmeg,1);

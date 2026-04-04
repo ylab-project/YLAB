@@ -22,12 +22,20 @@ lcdir = com.loadcase.dir;
 
 % 加力方向の判定
 switch lcdir(ilc)
-  case {PRM.EXP, PRM.EXN}
-    idir_eq = 1;  % X方向 → Y通りで集計
+  case PRM.EXP
+    idir_eq = 1; sign_dir = -1;
     nframe = com.nbly;
     frame_names = com.baseline.y.name;
-  case {PRM.EYP, PRM.EYN}
-    idir_eq = 2;  % Y方向 → X通りで集計
+  case PRM.EXN
+    idir_eq = 1; sign_dir = 1;
+    nframe = com.nbly;
+    frame_names = com.baseline.y.name;
+  case PRM.EYP
+    idir_eq = 2; sign_dir = -1;
+    nframe = com.nblx;
+    frame_names = com.baseline.x.name;
+  case PRM.EYN
+    idir_eq = 2; sign_dir = 1;
     nframe = com.nblx;
     frame_names = com.baseline.x.name;
   otherwise
@@ -114,7 +122,7 @@ irow = 0;
 
 for i = 1:nstory
   ist = nstory - i + 1;
-  story_name = com.story.name{ist};
+  story_name = com.story.floor_name{ist};
 
   % フレームごとのQc, Qw
   Qc_frame = zeros(nframe, 1);
@@ -155,13 +163,13 @@ for i = 1:nstory
       body{irow, 1} = '';
     end
     body{irow, 2} = frame_names{ifr};
-    % 出力時のみFEM符号を反転（+0で-0除去）
+    % 加力方向に応じた符号変換（+0で-0除去）
     body{irow, 3} = sprintf('%.1f', ...
-      -Qc_frame(ifr) + 0);
+      sign_dir * Qc_frame(ifr) + 0);
     body{irow, 4} = sprintf('%.1f', ...
-      -Qw_frame(ifr) + 0);
+      sign_dir * Qw_frame(ifr) + 0);
     body{irow, 5} = sprintf('%.1f', ...
-      -Qcw_fr + 0);
+      sign_dir * Qcw_fr + 0);
     body{irow, 6} = '0.0';   % QR
     body{irow, 7} = '0.0';   % QG
     body{irow, 8} = '0.0';   % QS
@@ -195,10 +203,12 @@ for i = 1:nstory
   irow = irow + 1;
   body{irow, 1} = '';
   body{irow, 2} = '合計';
-  body{irow, 3} = sprintf('%.1f', -Qc_total + 0);
-  body{irow, 4} = sprintf('%.1f', -Qw_total + 0);
+  body{irow, 3} = sprintf('%.1f', ...
+    sign_dir * Qc_total + 0);
+  body{irow, 4} = sprintf('%.1f', ...
+    sign_dir * Qw_total + 0);
   body{irow, 5} = sprintf('%.1f', ...
-    -Qcw_total + 0);
+    sign_dir * Qcw_total + 0);
   body{irow, 6} = '0.0';
   body{irow, 7} = '0.0';
   body{irow, 8} = '0.0';
