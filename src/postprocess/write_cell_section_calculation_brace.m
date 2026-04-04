@@ -203,7 +203,7 @@ return
     scbbody{irow, 7} = 'TYPE';
     scbbody{irow, 8} = sprintf( ...
       '%s [ %s  %s  %s ]', ...
-      get_type_label(ib1_), ...
+      get_type_label(ib1_, stype(idsec_)), ...
       type_name_, HTB_str_, GP_str_);
 
     % 配置・列ラベル行
@@ -339,7 +339,7 @@ return
     scbbody{irow, 7} = 'TYPE';
     scbbody{irow, 8} = sprintf( ...
       '%s [ %s ]', ...
-      get_type_label_steel(ib1_, im1_), ...
+      get_type_label(ib1_, stype_), ...
       format_shape_name( ...
       stype_, secdim(idsec_, :)));
 
@@ -444,7 +444,7 @@ return
         calc_fc_steel(lambda_, Lambda_, F_);
 
       % 引張のみ判定
-      is_tonly_ = is_tension(im_);
+      is_tonly_ = is_tension(ib_);
 
       % Lfc, Lft, sfc, sft
       if ~is_tonly_
@@ -490,34 +490,11 @@ return
     flag = all(rs_all(im_, 1, :) == 0);
   end
 
-  function label_ = get_type_label(ib_)
-  %get_type_label - TB用のTYPEラベル生成
-    switch brace.type(ib_)
-      case PRM.BRACE_MEMBER_TYPE_X
-        if ismember(brace.pair(ib_), ...
-            [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
-             PRM.BRACE_MEMBER_PAIR_BOTH_R])
-          label_ = 'X形(引張のみ)';
-        elseif ismember(brace.pair(ib_), ...
-            PRM.BRACE_MEMBER_PAIR_L)
-          label_ = '／形(引張のみ)';
-        else
-          label_ = '＼形(引張のみ)';
-        end
-      case PRM.BRACE_MEMBER_TYPE_K_UPPER
-        label_ = 'K上形(引張のみ)';
-      case PRM.BRACE_MEMBER_TYPE_K_LOWER
-        label_ = 'K下形(引張のみ)';
-      otherwise
-        label_ = '(引張のみ)';
-    end
-  end
-
-  function label_ = get_type_label_steel( ...
-    ib_, im_)
-  %get_type_label_steel - 鋼材用のTYPEラベル生成
-    is_tonly_ = is_tension(im_);
-    if is_tonly_
+  function label_ = get_type_label(ib_, stype_)
+  %get_type_label - TYPEラベル生成
+    if stype_ == PRM.TB
+      tc_str_ = '引張のみ';
+    elseif is_tension(ib_)
       tc_str_ = '引張のみ';
     else
       tc_str_ = '引張・圧縮有効';
@@ -527,8 +504,7 @@ return
         if ismember(brace.pair(ib_), ...
             [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
              PRM.BRACE_MEMBER_PAIR_BOTH_R])
-          label_ = sprintf( ...
-            'X形(%s)', tc_str_);
+          label_ = sprintf('X形(%s)', tc_str_);
         elseif ismember(brace.pair(ib_), ...
             PRM.BRACE_MEMBER_PAIR_L)
           label_ = sprintf( ...
@@ -538,11 +514,9 @@ return
             'X形(＼)(%s)', tc_str_);
         end
       case PRM.BRACE_MEMBER_TYPE_K_UPPER
-        label_ = sprintf( ...
-          'K上形(%s)', tc_str_);
+        label_ = sprintf('K上形(%s)', tc_str_);
       case PRM.BRACE_MEMBER_TYPE_K_LOWER
-        label_ = sprintf( ...
-          'K下形(%s)', tc_str_);
+        label_ = sprintf('K下形(%s)', tc_str_);
       otherwise
         label_ = sprintf('(%s)', tc_str_);
     end

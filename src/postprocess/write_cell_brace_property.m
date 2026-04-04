@@ -139,14 +139,14 @@ return
       end
 
       if ipos == 1
-        write_left_columns(idm, idsb);
+        write_left_columns(ib, idm, idsb);
       else
-        write_right_columns(idm, idsb);
+        write_right_columns(ib, idm, idsb);
       end
     end
   end
 
-  function write_left_columns(idm_, idsb_)
+  function write_left_columns(ib_, idm_, idsb_)
     stype_ = secb.type(idsb_);
     bpbody{irow,9} = sprintf('%.3f', 1);
     bpbody{irow,10} = sprintf('%.2f', msprop.A(idm_)*1.d-2);
@@ -156,7 +156,7 @@ return
     elseif stype_ == PRM.BRB
       bpbody{irow,11} = '引圧';
       % λe 空白（座屈を考慮しない）
-    elseif is_tension(idm_)
+    elseif is_tension(ib_)
       bpbody{irow,11} = '引張';
       bpbody{irow,12} = sprintf('%.1f', lam_e(idm_));
     else
@@ -167,7 +167,7 @@ return
     bpbody{irow,14} = sprintf('%.0f', lm(idm_));
   end
 
-  function write_right_columns(idm_, idsb_)
+  function write_right_columns(ib_, idm_, idsb_)
     stype_ = secb.type(idsb_);
     bpbody{irow,15} = sprintf('%.3f', 1);
     bpbody{irow,16} = sprintf('%.2f', msprop.A(idm_)*1.d-2);
@@ -177,7 +177,7 @@ return
     elseif stype_ == PRM.BRB
       bpbody{irow,17} = '引圧';
       % λe 空白（座屈を考慮しない）
-    elseif is_tension(idm_)
+    elseif is_tension(ib_)
       bpbody{irow,17} = '引張';
       bpbody{irow,18} = sprintf('%.1f', lam_e(idm_));
     else

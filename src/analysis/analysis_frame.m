@@ -514,7 +514,7 @@ if has_tension_brace
 else
   state.tb.iscompressed = [];
 end
-state.tb.is_tension = is_tension;
+state.tb.is_tension = is_tension(com.member.brace.idme);
 
 %% 設計応力の計算
 df0 = calc_design_force(rs0, lcdir, idmc2m, ...
