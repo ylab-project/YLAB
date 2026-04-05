@@ -1,6 +1,19 @@
 function [dciflhead, dciflbody] = ...
   write_cell_design_column_init_force_list(com, result)
-%writeSectionProperties - Write section properties
+%write_cell_design_column_init_force_list - 柱設計用初期応力一覧表を生成
+%
+%   [dciflhead, dciflbody] = ...
+%     write_cell_design_column_init_force_list(com, result) は、
+%   柱の初期応力（軸力・曲げ・せん断）を階・通り・符号ごとに
+%   整理したセル配列を生成する。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 解析結果構造体
+%
+%   出力引数:
+%     dciflhead - ヘッダ行セル配列 [3×20]
+%     dciflbody - データ行セル配列 [nrow×20]
 
 % 定数
 nc = com.nmec;
@@ -29,21 +42,17 @@ idmc2m = column.idme;
 
 % --- 柱設計応力表 ---
 dciflhead = cell(3,20);
-dciflhead(1,1:18) = { ...
-'階', 'X軸', 'Y軸', '符号', 'ケース', ...
-'部材長', '軸力', '', '曲げx', '', ...
-'', 'せん断x', '', '', '曲げy', ...
-'', '', 'せん断y'};
+dciflhead(1,1:18) = {'階', 'X軸', 'Y軸', '符号', ...
+  'ケース', '部材長', '軸力', '', '曲げx', '', '', ...
+  'せん断x', '', '', '曲げy', '', '', 'せん断y'};
 
-dciflhead(2,6:20) = { ...
-'', '柱頭', '柱脚', '柱頭', '中央' ...
-'柱脚', '柱頭', '中央', '柱脚', '柱頭' ...
-'中央', '柱脚', '柱頭', '中央', '柱脚'};
+dciflhead(2,6:20) = {'', '柱頭', '柱脚', '柱頭', ...
+  '中央', '柱脚', '柱頭', '中央', '柱脚', '柱頭', ...
+  '中央', '柱脚', '柱頭', '中央', '柱脚'};
 
-dciflhead(3,6:20) = { ...
-'mm', 'kN', 'kN', 'kNm', 'kNm' ...
-'kNm', 'kN', 'kN', 'kN', 'kNm' ...
-'kNm', 'kNm', 'kN', 'kN', 'kN'};
+dciflhead(3,6:20) = {'mm', 'kN', 'kN', 'kNm', 'kNm', ...
+  'kNm', 'kN', 'kN', 'kN', 'kNm', 'kNm', 'kNm', ...
+  'kN', 'kN', 'kN'};
 
 ncol = size(dciflhead,2);
 dciflbody = cell(0,ncol);
@@ -60,8 +69,8 @@ for i = 1:nstory
     for ix = 1:nblx
       for iz = 1:nblz
         % --- 該当ID検索 ---
-        inc = iccc(idnmc2story==ist ...
-          & idnmc2x(:,1)==ix & idnmc2y(:,1)==iy & idnmc2z(:,1)==iz);
+        inc = iccc(idnmc2story==ist & idnmc2x(:,1)==ix ...
+          & idnmc2y(:,1)==iy & idnmc2z(:,1)==iz);
         if isempty(inc)
           continue
         end
@@ -70,7 +79,6 @@ for i = 1:nstory
         % --- 箇所ごとの部材番号 ---
         idsub = nominal_column.idsub(inc,:);
         ic1 = idnmc2mc(inc,idsub(1)); im1 = idmc2m(ic1);
-        ic2 = idnmc2mc(inc,idsub(2)); im2 = idmc2m(ic2);
 
         % --- 表書き出し ---
         for ilc=1:nlc
@@ -85,7 +93,7 @@ for i = 1:nstory
           end
           dciflbody{irow,5} = PRM.load_case_name(ilc);
           % 軸力
-          dciflbody{irow,7} = sprintf('%.2f', dfn0(inm,1,ilc)*1.d-3);
+          dciflbody{irow,7} = sprintf('%.2f', -dfn0(inm,1,ilc)*1.d-3);
           dciflbody{irow,8} = sprintf('%.2f', -dfn0(inm,7,ilc)*1.d-3);
           % 曲げx
           dciflbody{irow,9} = sprintf('%.2f', dfn0(inm,11,ilc)*1.d-6);
