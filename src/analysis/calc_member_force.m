@@ -1,22 +1,51 @@
-function [rs, Mc, rvec] = calc_member_force(ilcset, dvec, rs, ...
-  frvec, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, prm, ...
-  lm, lrxm, lrym, flag, ...
-  member_property, node, material, cbstiff, idm2mat, idm2scb, joint, ...
-  tb_stif)
+function [rs, Mc, rvec] = calc_member_force(ilcset, ...
+  dvec, rs, ~, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, ...
+  Em, prm, lm, lrxm, lrym, flag, member_property, node, ...
+  ~, cbstiff, ~, idm2scb, joint, br_stif)
 %calc_member_force - 部材応力の計算
 %
-%   [rs, Mc, rvec] = calc_member_force(ilcset, dvec, rs, ...
-%     frvec, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, prm, ...
-%     lm, lrxm, lrym, flag, ...
-%     member_property, node, material, ...
-%     cbstiff, idm2mat, idm2scb, joint, tb_stif) は、
-%   各部材の応力を計算する。
+%   [rs, Mc, rvec] = calc_member_force( ...
+%     ilcset, dvec, rs, ~, sks, M0, ar, ...
+%     A, Asy, Asz, Iy, Iz, JJ, Em, prm, lm, ...
+%     lrxm, lrym, flag, member_property, ...
+%     node, ~, cbstiff, ~, idm2scb, ...
+%     joint, br_stif) は、
+%   各部材の変位から部材端応力を計算する。
+%   通常部材は梁要素剛性行列、ブレースはトラス変換で処理する。
 %
 %   入力引数:
 %     ilcset - 荷重ケース番号 [1×nlc]
-%     dvec - 変位ベクトル [ndf×nlc]
-%     rs - 応力配列（空の場合は内部で初期化）
-%     tb_stif - 引張ブレース構造体配列（空可）
+%     dvec   - 変位ベクトル [ndf×nlc]
+%     rs     - 応力配列 [nme×12×nlc]（空可、内部で初期化）
+%     ~      - （未使用、旧frvec）
+%     sks    - 全体剛性行列格納配列 [ns6×帯幅]
+%     M0     - 固定端モーメント [nme×nlc]
+%     ar     - 固定端力 [nme×12×nlc]
+%     A      - 断面積 [nme×1]
+%     Asy    - せん断断面積Y [nme×1]
+%     Asz    - せん断断面積Z [nme×1]
+%     Iy     - 断面二次モーメントY [nme×1]
+%     Iz     - 断面二次モーメントZ [nme×1]
+%     JJ     - ねじり定数 [nme×1]
+%     Em     - ヤング係数 [nme×1]
+%     prm    - ポアソン比 [nme×1]
+%     lm     - 部材長 [nme×1]
+%     lrxm   - 剛域長X [nme×2]
+%     lrym   - 剛域長Y [nme×2]
+%     flag   - 剛性行列計算フラグ
+%     member_property - 部材プロパティ構造体
+%     node     - 節点構造体
+%     ~        - （未使用、旧material）
+%     cbstiff  - 複合梁剛性配列
+%     ~        - （未使用、旧idm2mat）
+%     idm2scb  - 部材→複合梁マッピング [nme×1]
+%     joint    - 接合条件 [nme×4]
+%     br_stif  - ブレース剛性構造体配列（空可）
+%
+%   出力引数:
+%     rs   - 部材端応力 [nme×12×nlc]
+%     Mc   - 反曲点モーメント [nme×nlc]
+%     rvec - 復元力ベクトル [ns6×nlc]
 
 % 共通配列
 idme2j1 = member_property.idnode1;
@@ -26,8 +55,6 @@ cyl = member_property.cyl;
 xr = node.xr;
 yr = node.yr;
 idnode2jf = node.dof;
-% E = material.E;
-% pr = material.pr;
 mtype = member_property.type;
 
 % 共通定数
@@ -35,10 +62,10 @@ nme = size(member_property,1);
 ns6 = size(sks,1);
 nlc = length(ilcset);
 
-% TB除外対象の構築
-if ~isempty(tb_stif)
-  tb_im = [tb_stif(:).im];
-  targetset = setdiff(1:nme, tb_im);
+% ブレース除外対象の構築
+if ~isempty(br_stif)
+  br_im = [br_stif(:).im];
+  targetset = setdiff(1:nme, br_im);
 else
   targetset = 1:nme;
 end
@@ -138,14 +165,16 @@ for ilc = ilcset(:)'
   end
 end
 
-% TB: 共通関数で軸力を計算し rs に格納
-ntb = length(tb_stif);
-for idx = 1:ntb
-  im = tb_stif(idx).im;
+% 全ブレース: トラス変換行列で軸力を計算
+nbr = length(br_stif);
+for idx = 1:nbr
+  im = br_stif(idx).im;
+  tt_ = br_stif(idx).tt;
+  kn_ = br_stif(idx).kn;
+  ndi_ = br_stif(idx).ndi;
   for ilc = ilcset(:)'
-    N = calc_tb_axial_force( ...
-      tb_stif(idx).tmat, tb_stif(idx).kn, ...
-      tb_stif(idx).ndi, dvec(:, ilc));
+    d_ = tt_ * dvec(ndi_, ilc);
+    N = kn_ * (d_(2) - d_(1));
     rs(im, 1, ilc) = -N;
     rs(im, 7, ilc) = N;
     Mc(im, ilc) = M0(im, ilc);

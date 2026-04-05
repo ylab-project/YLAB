@@ -1,17 +1,18 @@
-function f = calc_tb_gp_force( ...
-  tb_stif, dvec_gp, ...
+function f = calc_tb_gp_force(br_stif, id_tb, dvec_gp, ...
   iscompressed_ilc, iscompressed_gp)
 %calc_tb_gp_force - 圧縮TBのG+P外力計算
 %
-%   f = calc_tb_gp_force(tb_stif, dvec_gp,
-%     iscompressed_ilc, iscompressed_gp) は、
+%   f = calc_tb_gp_force(br_stif, id_tb,
+%     dvec_gp, iscompressed_ilc,
+%     iscompressed_gp) は、
 %   地震ケースで圧縮除去されたブレースの
 %   G+P節点力を外力として返す。
 %
 %   入力引数:
-%     tb_stif - 引張ブレース構造体配列
+%     br_stif - ブレース構造体配列
+%     id_tb - TBインデックス [1×ntb]
 %     dvec_gp - G+P変位ベクトル [ndf×1]
-%     iscompressed_ilc - 当該ケース圧縮状態
+%     iscompressed_ilc - 当該ケース圧縮状態 [ntb×1]
 %     iscompressed_gp - G+P圧縮状態 [ntb×1]
 %
 %   出力引数:
@@ -24,18 +25,18 @@ function f = calc_tb_gp_force( ...
 
 ndf = length(dvec_gp);
 f = zeros(ndf, 1);
-ntb = length(tb_stif);
+ntb_ = length(id_tb);
 
-for idx = 1:ntb
-  if ~iscompressed_ilc(idx)
+for itb = 1:ntb_
+  if ~iscompressed_ilc(itb)
     continue
   end
-  if iscompressed_gp(idx)
+  if iscompressed_gp(itb)
     continue
   end
-  ndi = tb_stif(idx).ndi;
-  f(ndi) = f(ndi) ...
-    + tb_stif(idx).ke * dvec_gp(ndi);
+  idx_ = id_tb(itb);
+  ndi_ = br_stif(idx_).ndi;
+  f(ndi_) = f(ndi_) + br_stif(idx_).ke * dvec_gp(ndi_);
 end
 
 return

@@ -314,22 +314,17 @@ flag = struct("consider_shear_deformation", ...
 %% ピン節点の外力解除
 [fvec, ar] = modify_force_for_pinjoint(fvec, ar, mejoint);
 
-%% 剛性行列の作成
-ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, ...
-  cyl, lm, Em, prm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
-  idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
-  nbw, flag);
-
 %% λeによる引張のみブレース判定
 is_steel_brace = (mtype == PRM.BRACE) ...
-  & (stype(idm2s) == PRM.BHSR | stype(idm2s) == PRM.BHSS ...
-  | stype(idm2s) == PRM.BWFS);
+  & (stype(idm2s) == PRM.BHSR ...
+  | stype(idm2s) == PRM.BHSS | stype(idm2s) == PRM.BWFS);
 is_tension = false(nme, 1);
 if any(is_steel_brace)
   % 座屈長で λe を算定（SS7 3.8.1）
-  lk_brace = calc_brace_buckling_length(member.brace, ...
-    com.member.girder, node, stype, com.section.girder.idsec, ...
-    secdim, options.position_brace_foundation_girder);
+  lk_brace = calc_brace_buckling_length( ...
+    member.brace, com.member.girder, node, stype, ...
+    com.section.girder.idsec, secdim, ...
+    options.position_brace_foundation_girder);
   lk_all = lm;
   lk_all(mtype==PRM.BRACE) = lk_brace;
   iy_ = sqrt(Iy(is_steel_brace) ./ A(is_steel_brace));
@@ -345,7 +340,8 @@ is_tension_hb = com.member.property.is_tension_only_hb;
 is_tension = is_tension | is_tension_hb;
 
 %% 引張ブレースの判定（TB + λe判定鋼材 + 水平ブレース引張のみ）
-has_tension_brace = any(stype(idm2s) == PRM.TB) || any(is_tension);
+has_tension_brace = any(stype(idm2s) == PRM.TB) ...
+  || any(is_tension);
 
 if options.consider_foundation_uplift || has_tension_brace
   iter_max = 30;
@@ -353,14 +349,20 @@ else
   iter_max = 1;
 end
 
-%% 引張ブレース剛性の事前計算
-tb_stif = struct([]);
+%% ブレース剛性の事前計算
+br_stif = precompute_brace_stiffness(A, cxl, cyl, ...
+  lm, Em, JJ, prm, xr, yr, idn2df, idm2n1, ...
+  idm2n2, mtype, stype, idm2s, is_tension);
 if has_tension_brace
-  tb_stif = precompute_tension_brace_stiffness(A, Iy, Iz, ...
-    JJ, cxl, cyl, lm, Em, prm, xr, yr, idn2df, idm2n1, ...
-    idm2n2, mtype, stype, idm2s, flag, is_tension);
-  ntb = length(tb_stif);
+  id_tb = find([br_stif.is_tb]);
+  ntb = length(id_tb);
 end
+
+%% 剛性行列の作成
+ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
+  cxl, cyl, lm, Em, prm, xr, yr, lrxm, lrym, ...
+  cbstiff, mtype, idn2df, idf2n, idm2n1, idm2n2, ...
+  idm2scb, mejoint, ndf, nbw, flag, br_stif);
 
 %% 初期化
 isuplifted = false(nsup, nlc);
@@ -392,8 +394,8 @@ else
     for iter = 1:iter_max
       % TB剛性減算（共通）
       if has_tension_brace && any(iscompressed(:, ilc))
-        ksmat = subtract_brace_stiffness(ksmat0, tb_stif, ...
-          iscompressed(:, ilc));
+        ksmat = subtract_brace_stiffness( ...
+          ksmat0, br_stif, id_tb, iscompressed(:, ilc));
       else
         ksmat = ksmat0;
       end
@@ -413,8 +415,8 @@ else
         % G+P外力補正
         if has_tension_brace && any(iscompressed(:, ilc))
           frvec_ilc_ = frvec_ilc_ + calc_tb_gp_force( ...
-            tb_stif, dvec(:, 1), iscompressed(:, ilc), ...
-            iscompressed(:, 1));
+            br_stif, id_tb, dvec(:, 1), ...
+            iscompressed(:, ilc), iscompressed(:, 1));
         end
       end
       % 変位計算
@@ -425,12 +427,14 @@ else
       if has_tension_brace
         iscompressed_prev_ = iscompressed(:, ilc);
         if ilc == 1
-          iscompressed(:, 1) = check_brace_compression_case( ...
-            tb_stif, dvec, 1, iscompressed(:, 1), []);
+          iscompressed(:, 1) = ...
+            check_brace_compression_case( ...
+            br_stif, id_tb, dvec, 1, iscompressed(:, 1), []);
         else
-          iscompressed(:, ilc) = check_brace_compression_case( ...
-            tb_stif, dvec, ilc, iscompressed(:, ilc), ...
-            iscompressed(:, 1));
+          iscompressed(:, ilc) = ...
+            check_brace_compression_case( ...
+            br_stif, id_tb, dvec, ilc, ...
+            iscompressed(:, ilc), iscompressed(:, 1));
         end
         if ~all(iscompressed(:, ilc) == iscompressed_prev_)
           converged_ = false;
@@ -477,7 +481,7 @@ end
 [rs, Mc] = calc_member_force(1:nlc, dvec, [], frvec, ...
   sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, prm, lm, ...
   lrxm, lrym, flag, member_property, node, material, ...
-  cbstiff, idm2mat, idm2scb, mejoint, tb_stif);
+  cbstiff, idm2mat, idm2scb, mejoint, br_stif);
 rs0 = rs; Mc0 = Mc; rvec0 = rvec;
 
 %% 圧縮除去ブレースの応力処理（重ね合わせ前）
@@ -486,7 +490,7 @@ rs0 = rs; Mc0 = Mc; rvec0 = rvec;
 % G+P圧縮: ゼロクリア（G+P力なし）
 if has_tension_brace
   for itb = 1:ntb
-    im = tb_stif(itb).im;
+    im = br_stif(id_tb(itb)).im;
     for ilc = 1:nlc
       if iscompressed(itb, ilc)
         if iscompressed(itb, 1)
@@ -540,9 +544,8 @@ Ncn = superpose_design_force(Ncn0, lcdir);
 nomgc.Ncn = squeeze(Ncn);
 
 %% 許容応力度計算用の係数算定
-[C, Mc_nom] = calc_modified_C(rs, M0, lm, ...
-  lbng, nomgc.xc, idm2mg, ...
-  is_through_girder, idmeg, Mc);
+[C, ~] = calc_modified_C(rs, M0, lm, lbng, ...
+  nomgc.xc, idm2mg, is_through_girder, idmeg, Mc);
 Cn = calc_modified_Cn(rs, M0, lm, nomgc, ...
   idm2mg, is_through_girder, idmeg);
 
@@ -700,32 +703,35 @@ return
 end
 
 % -------------------------------------------------------------------------
-function ksmat = subtract_brace_stiffness(ksmat0, tb_stif, ...
-  iscompressed_ilc)
+function ksmat = subtract_brace_stiffness(ksmat0, ...
+  br_stif, id_tb, iscompressed_ilc)
 %subtract_brace_stiffness - 圧縮ブレースの剛性を減算
 %
 %   ksmat = subtract_brace_stiffness( ...
-%     ksmat0, tb_stif, iscompressed_ilc) は、
+%     ksmat0, br_stif, id_tb, ...
+%     iscompressed_ilc) は、
 %   基本剛性マトリクスから圧縮ブレースの寄与を
 %   減算した剛性マトリクスを返す。
 %
 %   入力引数:
 %     ksmat0 - 基本剛性マトリクス [ndf×nbw]
-%     tb_stif - 引張ブレース構造体配列
+%     br_stif - ブレース構造体配列
+%     id_tb - TBインデックス [1×ntb]
 %     iscompressed_ilc - 圧縮状態 [ntb×1]
 %
 %   出力引数:
 %     ksmat - 減算後の剛性マトリクス [ndf×nbw]
 
 ksmat = ksmat0;
-ntb = length(tb_stif);
+ntb_ = length(id_tb);
 
-for itb = 1:ntb
+for itb = 1:ntb_
   if ~iscompressed_ilc(itb)
     continue
   end
-  ke_ = tb_stif(itb).ke;
-  ndi_ = tb_stif(itb).ndi;
+  idx_ = id_tb(itb);
+  ke_ = br_stif(idx_).ke;
+  ndi_ = br_stif(idx_).ndi;
   for ii = 1:12
     for jj = 1:12
       kk = ndi_(jj) - ndi_(ii);
