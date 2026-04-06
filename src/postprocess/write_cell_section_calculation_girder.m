@@ -44,6 +44,9 @@ F = result.msprop.F;
 slratio = result.slratio;
 has_slr = isstruct(slratio);
 dangle = result.deflection_angle;
+if isempty(dangle)
+  dangle = zeros(nng, 1);  % 梁たわみ検討オフ時
+end
 nstiff_nom = com.nominal.girder.nstiff;
 ration = abs(result.ration);
 gri_all = result.gri;
