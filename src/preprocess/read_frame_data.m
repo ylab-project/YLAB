@@ -2726,8 +2726,10 @@ return
 end
 
 %--------------------------------------------------------------------------
-function istarget = set_exclusion_column_stress_block(~, com)
-% 柱の許容応力度検定除外設定（RC柱の自動除外）
+function istarget = set_exclusion_column_stress_block(dbc, com)
+% 柱の許容応力度検定除外設定
+% - RC柱（RCRS断面）は自動的に除外
+% - YLABIn.csv「断面算定の省略（柱符号毎）」で F 指定された柱符号も除外
 
 % 共通配列
 nsecc = com.nsecc;
@@ -2738,11 +2740,23 @@ istarget = true(nsecc,1);
 % RC柱（RCRS断面）は自動的に除外
 istarget(com.section.column.type == PRM.RCRS) = false;
 
-% 将来的に手動除外が必要な場合はここに追加
-% data = dbc.get_data_block('断面算定の省略（柱符号毎）');
-% if size(data,1) > 0
-%   % 手動除外処理
-% end
+% YLABIn.csv「断面算定の省略（柱符号毎）」による手動除外
+data = dbc.get_data_block('断面算定の省略（柱符号毎）');
+n = size(data,1);
+
+section_name = cell(n,1);
+TF = cell(n,1);
+for i=1:n
+  section_name{i} = tochar(data{i,1});
+  TF{i} = tochar(data{i,2});
+end
+
+for i=1:n
+  istarget_ = matches(com.section.column.name, section_name{i});
+  if TF{i}=='F'
+    istarget(istarget_) = false;
+  end
+end
 
 return
 end
