@@ -1,7 +1,7 @@
 function [exitflag, result, com] = YLAB(varargin)
 %YLAB 鋼構造骨組の最適設計プログラム
 %
-%   局所探索法に基づき、建築基準法に準拠した経済的な断面設計を行う。
+%   局所探索法に基づき建物の断面設計を行う。
 %
 %   構文:
 %     [exitflag, result, com] = YLAB('param1', value1, ...)

@@ -1,40 +1,67 @@
-function limitJbsSection(obj, isjbs, member, ...
-  options, secmgr, nominal_girder) %#ok<INUSD>
-%limitJbsSection 保有耐力接合(JBS)制限チェック
-%   保有耐力接合の条件を満たす断面のみを有効とする。
-%   H形鋼断面に対して接合部の耐力をチェックし、
-%   条件を満たさない断面を無効化する。
-%   柱σuは考慮しない（梁σuのみで判定）。
-%   OK候補を除外しないための意図的な設計。
+function limitJbsSection(obj, isjbs, nominal_girder, ...
+  section_girder, section_column, secmgr, options)
+%limitJbsSection - 保有耐力接合(JBS)制限チェック
+%
+%   limitJbsSection(obj, isjbs, nominal_girder,
+%     section_girder, section_column, secmgr,
+%     options) は、保有耐力接合の条件を満たす断面
+%   のみを有効とする。H形鋼断面に対して接合部の
+%   耐力をチェックし、条件を満たさない断面を無効化
+%   する。最も有利な柱（最大値）でもNGとなる梁断面
+%   を除外する。
 %
 %   入力引数:
+%     obj            - SectionConstraintValidatorオブジェクト
 %     isjbs          - JBS判定対象フラグ [nng×2]
-%     member         - 部材情報構造体
-%     options        - オプション構造体
+%     nominal_girder - 名目梁テーブル
+%     section_girder - 梁断面構造体
+%     section_column - 柱断面構造体
 %     secmgr         - SectionManagerインスタンス
-%     nominal_girder - 名目梁構造体（将来使用）
+%     options        - オプション構造体
 %
 %   参考:
 %     SectionConstraintValidator, limitSlrSection
 
 % 定数
 idphase = 999;
-nsec = length(obj.idsec2stype);
 nwfs_ = obj.nwfs;
 nlist_ = obj.nlist;
 scallop = options.girder_scallop_size;
 
 % 計算の準備
-idsec2slist_ = obj.idsec2slist;
-idsec2stype_ = obj.idsec2stype;
-idsec2wfs_ = obj.idsec2wfs;
 slist_type = obj.secList_.section_type;
 
-% 部材関連のデータ準備（limitSlrSectionと同様のパターン）
-idmwfs2m = member.girder.idme(member.girder.section_type == PRM.WFS);
-idme2sec = secmgr.idme2sec;
-idmwfs2sec = idme2sec(idmwfs2m);  % WFS大梁部材 → 断面ID
-idmwfs2wfs = idsec2wfs_(idmwfs2sec);  % WFS大梁部材 → WFS断面番号
+% WFS断面番号のマッピング
+wfs_mask = section_girder.type == PRM.WFS;
+idsecg2wfs = zeros(length(wfs_mask), 1);
+idsecg2wfs(wfs_mask) = 1:nwfs_;
+wfs_slist = obj.idsec2slist(find(wfs_mask));
+
+% 名目梁 → WFS断面番号
+ng_wfs = idsecg2wfs(nominal_girder.idsecg);
+
+% HSS柱候補の最大値を計算（最大柱でもNGなら除外）
+% HSS柱がない場合は柱側制約なしとして [] を渡す
+hss_secc = section_column.type == PRM.HSS;
+hss_lists = unique(obj.idsec2slist(section_column.idsec(hss_secc)));
+has_hss_col = ~isempty(hss_lists);
+max_sigu = 0;
+max_m_num = 0;
+for ii = 1:length(hss_lists)
+  il_ = hss_lists(ii);
+  sdim_ = secmgr.getDimension(il_, idphase);
+  D_ = sdim_(:, 1);
+  t_ = sdim_(:, 2);
+  Fc_ = secmgr.getIdSecList2F(il_);
+  % STD式用: F値からσuを導出
+  sigu_ = zeros(size(Fc_));
+  sigu_(Fc_ == 235 | Fc_ == 295) = 400;
+  sigu_(Fc_ == 325) = 490;
+  max_sigu = max(max_sigu, max(sigu_));
+  % AIJ式用: m_num = 4*t*sqrt((D-2t)*F)
+  m_num_ = 4 * t_ .* sqrt((D_ - 2*t_) .* Fc_);
+  max_m_num = max(max_m_num, max(m_num_));
+end
 
 % 断面リストごとに保有耐力接合(仕口)を満たす断面だけに限定
 isvalid_wfs = false(1, nwfs_);
@@ -53,24 +80,33 @@ for idsList = 1:nlist_
   Zpylist = sproplist.Zpy;
   Flist = secmgr.getIdSecList2F(idsList);
 
-  % リストに対応する断面の抽出と判定
+  % リストに対応するWFS断面の抽出と判定
   isvalid = obj.validSectionFlagCell_{idsList};
-  isec_targets = 1:nsec;
-  isec_targets = isec_targets( ...
-    idsec2slist_' == idsList & idsec2stype_' == PRM.WFS);
+  iwfs_targets = find(wfs_slist == idsList);
 
-  % OKか判定（柱σuは考慮せず保守的に判定）
+  % OKか判定（最大柱でもNGなら除外。HSS柱なしは[]で柱制約なし）
+  nsec_ = size(sdimlist, 1);
   if options.jbs_mu_formula == PRM.JBS_AIJ
-    conjbs_ = calc_joint_bearing_strength_aij( ...
-      sdimlist, Zpylist, Flist, [], [], options);
+    if has_hss_col
+      col_arg = max_m_num * ones(nsec_, 2);
+    else
+      col_arg = [];
+    end
+    conjbs_ = calc_joint_bearing_strength_aij(sdimlist, ...
+      Zpylist, Flist, col_arg, [], options);
   else
-    conjbs_ = calc_joint_bearing_strength_std( ...
-      sdimlist, Zpylist, Flist, [], [], options);
+    if has_hss_col
+      col_arg = max_sigu * ones(nsec_, 2);
+    else
+      col_arg = [];
+    end
+    conjbs_ = calc_joint_bearing_strength_std(sdimlist, ...
+      Zpylist, Flist, col_arg, [], options);
   end
   isvalid_ = (conjbs_ < 0)';
 
-  for isec = isec_targets
-    isvalid(idsec2wfs_(isec), :) = isvalid(idsec2wfs_(isec), :) & isvalid_;
+  for iwfs = iwfs_targets'
+    isvalid(iwfs, :) = isvalid(iwfs, :) & isvalid_;
   end
 
   % 条件を満たさないH形断面の除外
@@ -81,20 +117,13 @@ for idsList = 1:nlist_
   isvalid_wfs(tmp) = tmp(tmp);
 end
 
-% 検討対象外の部材に対応するWFS断面はOKとする
-% (部材ベースから断面ベースへの変換)
-for iwfs = 1:nwfs_
-  % このWFS断面を使用するWFS大梁部材を検索
-  mwfs_indices = find(idmwfs2wfs == iwfs);
-
-  if isempty(mwfs_indices)
-    % このWFS断面を使用するWFS大梁部材がない
-    isvalid_wfs(iwfs) = true;
-  elseif all(~any(isjbs(mwfs_indices, :), 2))
-    % このWFS断面を使用する全部材がJBS対象外
-    isvalid_wfs(iwfs) = true;
-  end
-end
+% JBS非対象/未使用の名目梁に対応するWFS断面はOKとする
+valid_ng = ng_wfs > 0;
+used_wfs = false(1, nwfs_);
+used_wfs(ng_wfs(valid_ng)) = true;
+nojbs = valid_ng & ~any(isjbs, 2);
+isvalid_wfs(ng_wfs(nojbs)) = true;
+isvalid_wfs(~used_wfs) = true;
 
 % 条件を満たす断面が存在しない
 if ~all(isvalid_wfs)

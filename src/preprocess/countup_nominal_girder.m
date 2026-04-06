@@ -146,18 +146,16 @@ for i = 1:nnmg
   end
 end
 
+% 断面グループ（代表部材から取得）
+idsecg = girder.idsecg(idmeg(:, 1));
+
 % 許容応力度制約除外判定
-is_allowable_stress = true(nnmg,1);
-for ig=1:nnmg
-  idmeg_ = idmeg(ig,1);
-  idsecg = girder.idsecg(idmeg_);
-  is_allowable_stress(ig) = issgas(idsecg);
-end
+is_allowable_stress = issgas(idsecg);
 
 % 結果の保存
 nominal_girder = table(idmeg, idsub, story_name, frame_name, ...
   coord_name, idstory, idir, idx, idy, idz, idzn, ...
-  isthrough, is_allowable_stress);
+  idsecg, isthrough, is_allowable_stress);
 return
 end
 
