@@ -1,13 +1,30 @@
 function [section_column, design_variable] = ...
   set_section_column_block(dbc, com, options)
 %set_section_column_block - S柱断面ブロックの読み込み
+%
+%   [section_column, design_variable] = ...
+%     set_section_column_block(dbc, com, options) は、入力データの
+%   「S柱断面」ブロックを読み込み、S柱の断面情報テーブルと更新後の
+%   設計変数構造体を返す。
+%
+%   入力引数:
+%     dbc     - データブロックコンテナ
+%     com     - 共通オブジェクト (story/baseline/sectionList 等)
+%     options - 実行オプション (coptions.rank_column 等)
+%
+%   出力引数:
+%     section_column  - S柱断面テーブル [n×13]
+%     design_variable - 更新された設計変数構造体
+%
+%   備考:
+%     - 部材種別（ランク）は列9を正とし、空の場合のみ列7を互換
+%       フォールバックとして参照する（次期バージョンで廃止予定）。
 
 data = dbc.get_data_block('S柱断面');
 n = size(data,1);
 design_variable = com.design.variable;
 
 % 階名
-% TODO: 要確認
 floor_name = cell(n,1);
 for i=1:n
   if ~ischar(data{i,1})
@@ -55,9 +72,8 @@ for i=1:n
     idsl = iddd(idx);
     id_section_list(i) = idsl(1);
   else
-    throw_err('IO', 'SectionListNotFound', ...
-      section_list_name{i}, 'S柱断面', ...
-      ['符号: ' full_name{i}]);
+    throw_err('IO', 'SectionListNotFound', section_list_name{i}, ...
+      'S柱断面', ['符号: ' full_name{i}]);
   end
 
   % 同一の鉄骨形状のみ複数リスト指定可
@@ -98,22 +114,39 @@ end
 % 寸法指定（断面リストから取得するためゼロで初期化）
 dimension = zeros(n,mvar);
 
-% 部材種別（列9固定、梁と同様）
-icol_rank = 9;
+% 部材種別（列9を正とし、空なら列7を互換フォールバック）
+% 旧仕様は列7指定。当面許容するが次期バージョンで廃止予定
+icol_rank_new = 9;
+icol_rank_old = 7;
 rank = options.coptions.rank_column * ones(n, 1);
+warned_old = false;
+ncol = size(data, 2);
 for i = 1:n
-  if size(data, 2) >= icol_rank ...
-      && ~ismissing(data{i, icol_rank})
-    idx = find(strcmp(PRM.MEMBER_RANK_NAME, ...
-      tochar(data{i, icol_rank})), 1);
+  raw = '';
+  if ncol >= icol_rank_new && ~all(ismissing(data{i, icol_rank_new}))
+    raw = tochar(data{i, icol_rank_new});
+  elseif ncol >= icol_rank_old && ~all(ismissing(data{i, icol_rank_old}))
+    cand = tochar(data{i, icol_rank_old});
+    % ランク名として解釈できる場合のみ旧仕様として採用
+    % WFSの列7=twは数値のため完全一致で誤検出しない
+    if any(strcmp(PRM.MEMBER_RANK_NAME, cand))
+      raw = cand;
+      if ~warned_old
+        throw_warn('Input', 'DeprecatedColumnRankColumn');
+        warned_old = true;
+      end
+    end
+  end
+  if ~isempty(raw)
+    idx = find(strcmp(PRM.MEMBER_RANK_NAME, raw), 1);
     if ~isempty(idx), rank(i) = idx; end
   end
 end
 
 % 結果の保存
-section_column = table(name, subindex, full_name, ...
-  floor_name, id_section_list, type_name, idstory, ...
-  type, idmaterial, idznominal, idvar, rank, dimension);
+section_column = table(name, subindex, full_name, floor_name, ...
+  id_section_list, type_name, idstory, type, idmaterial, ...
+  idznominal, idvar, rank, dimension);
 
 return
 end
