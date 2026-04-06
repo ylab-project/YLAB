@@ -110,7 +110,7 @@ dimension = zeros(n,mvar);
 % 部材種別（列9固定）
 rank = options.coptions.rank_girder*ones(n,1);
 for i = 1:n
-  if size(data, 2) >= 9 && ~ismissing(data{i, 9})
+  if size(data, 2) >= 9 && ~all(ismissing(data{i, 9}))
     idx = find(strcmp(PRM.MEMBER_RANK_NAME, ...
       tochar(data{i, 9})), 1);
     if ~isempty(idx), rank(i) = idx; end
