@@ -17,11 +17,10 @@ function [bt, conwt, drank] = wtratioBox(D, t, F, rank)
     rank = rank * ones(n, 1);
   end
 
-  % 制約用幅厚比制限値（表12.1 角形鋼管柱）
-  % r_tab(irank): D/t制限係数
-  r_tab = [33 37 48 100];
+  % 制約用幅厚比制限値（表12.1/12.3 角形鋼管、FA/FB/FCのみ。FDは制約なし）
+  r_tab = [33 37 48];
   r = zeros(n, 1);
-  for irank = 1:4
+  for irank = 1:3
     target = rank == irank;
     r(target) = r_tab(irank) * sqF(target);
   end
@@ -29,6 +28,7 @@ function [bt, conwt, drank] = wtratioBox(D, t, F, rank)
   % 幅厚比
   bt = D./t;
   conwt = bt./r - 1;
+  conwt(rank == PRM.COLUMN_RANK_FD) = -1;  % FDは制約なし
 
   % 判定ランク（表12.1 角形鋼管柱）
   drank = PRM.COLUMN_RANK_FD * ones(n, 1);

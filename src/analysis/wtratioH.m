@@ -26,13 +26,12 @@ function [btf, dtw, conwt, drank] = wtratioH(H, B, tw, tf, F, rank, isSNH)
   end
   sqF = sqrt(235./F);
 
-  % 炭素鋼の幅厚比制限値（表12.3）
-  % rf_tab(irank): フランジ係数、rw_tab(irank): ウェブ係数
-  rf_tab = [9 11 15.5 100];
-  rw_tab = [60 65 71 100];
+  % 炭素鋼の幅厚比制限値（表12.3、FA/FB/FCのみ。FDは制約なし）
+  rf_tab = [9 11 15.5];
+  rw_tab = [60 65 71];
   rf = zeros(n,1);
   rw = zeros(n,1);
-  for irank = 1:4
+  for irank = 1:3
     target = rank == irank;
     rf(target) = rf_tab(irank) * sqF(target);
     rw(target) = rw_tab(irank) * sqF(target);
@@ -41,8 +40,8 @@ function [btf, dtw, conwt, drank] = wtratioH(H, B, tw, tf, F, rank, isSNH)
   % 幅厚比
   btf = B/2./tf;
   dtw = (H-2*tf)./tw;
-  conwt = [btf./rf-1 dtw./rw-1];
-  conwt = max(conwt,[],2);
+  conwt = max([btf./rf-1 dtw./rw-1], [], 2);
+  conwt(rank == PRM.GIRDER_RANK_FD) = -1;  % FDは制約なし（表12.3）
 
   % 判定ランク（炭素鋼梁、表12.3）
   drank = PRM.GIRDER_RANK_FD * ones(n, 1);
@@ -67,13 +66,15 @@ function [btf, dtw, conwt, drank] = wtratioH(H, B, tw, tf, F, rank, isSNH)
     kc(target) = kc_(target);
   end
 
-  % 相関関係を考慮した幅厚比制限値（制約用）
+  % 相関関係を考慮した幅厚比制限値（制約用、FA/FB/FCのみ）
+  % FD行は先に conwt = -1 で充足済みのため上書きしない
   sqF98 = sqrt(F/98);
   conwt2 = [btf.^2./kf.^2.*(F/98) ...
     + dtw.^2./kw.^2.*(F/98) - 1 ...
     dtw - kc./sqF98];
   conwt2 = max(conwt2,[],2);
-  conwt(isSNH) = conwt2(isSNH);
+  applySnh = isSNH(:) & (rank ~= PRM.GIRDER_RANK_FD);
+  conwt(applySnh) = conwt2(applySnh);
 
   % SN材の判定ランク（表12.4、式12.10）
   drank_sn = PRM.GIRDER_RANK_FD * ones(n, 1);
