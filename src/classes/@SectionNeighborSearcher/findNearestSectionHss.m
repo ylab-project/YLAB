@@ -49,11 +49,16 @@ idrephss2var = obj.idMapper_.idrephss2var;
 secdimlist_all = obj.standardAccessor_.getSectionDimension(idslist);
 % idPhaseはstandardAccessorから取得
 idPhase = obj.standardAccessor_.idPhase;
-isvalid = obj.constraintValidator_.extractValidSectionFlags(idslist, idPhase);
+isvalid = obj.constraintValidator_.extractValidSectionFlags( ...
+  idslist, idPhase);
 
 % 有効な断面のみ抽出（ループ外で一度だけ）
 secdimlist = secdimlist_all(isvalid, :);
 valid_indices = find(isvalid);
+if isempty(valid_indices)
+  throw_err('List', 'NoHssCandidate', idslist);
+  return
+end
 
 % D値と板厚比の事前計算（ループ外で一度だけ）
 D_values = secdimlist(:, PRM.SECDIM_HSS_D);
