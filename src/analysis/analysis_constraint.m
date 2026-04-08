@@ -249,16 +249,17 @@ if coptions.consider_joint_bearing_strength
     secdim_col = secdim(idm2s(idmc2m), :);
     m_num_col = calc_col_dim_jbs(com.member, secdim_col, ...
       Fcol_, ng_node1_, ng_node2_);
-    [conjbs, jbsratio] = calc_joint_bearing_strength_aij( ...
+    [conjbs, jbsratio, idjbs] = calc_joint_bearing_strength_aij( ...
       sdimg_ng, Zpyg_ng, Fg_ng, m_num_col, isjbs, options);
   else
     sigu_col = calc_sigu_col(com.member, Fcol_, ng_node1_, ng_node2_);
-    [conjbs, jbsratio] = calc_joint_bearing_strength_std( ...
+    [conjbs, jbsratio, idjbs] = calc_joint_bearing_strength_std( ...
       sdimg_ng, Zpyg_ng, Fg_ng, sigu_col, isjbs, options);
   end
 else
   conjbs = [];
   jbsratio = [];
+  idjbs = [];
 end
 
 %% 柱梁耐力比制約
@@ -435,6 +436,7 @@ result.story = story;
 result.slratio = slratio;
 result.conslr = conslr;
 result.jbsratio = jbsratio;
+result.idjbs = idjbs;
 result.cxl = cxl;
 result.cyl = cyl;
 result.felement = felement;

@@ -1,9 +1,13 @@
-function [conjbs, jbsratio] = calc_joint_bearing_strength_std(...
+function [conjbs, jbsratio, idjbs] = ...
+  calc_joint_bearing_strength_std(...
   sdimg, Zpyg, Fg, sigu_col, isjbs, options)
 %calc_joint_bearing_strength_std - 保有耐力接合（仕口）制約計算（基準式）
 %   SS7マニュアル式6.60〜6.64に基づく。
 %   入力は名目梁単位 [nng×...]。
-%   jbsratio [nng×2]（左右端別）、conjbs [nng×1]。
+%   conjbs [n_target×1]（isjbs対象のみに圧縮）、
+%   jbsratio [nng×2]（左右端別、対象外は0）、
+%   idjbs [n_target×1] = find(any(isjbs,2))。
+%   isjbsが空のときは conjbs[nng×1], idjbs=[] を返す（早期return）。
 
 % 計算の準備
 ng = size(sdimg,1);
@@ -47,14 +51,15 @@ ratio = [aMp./Mu(:,1), aMp./Mu(:,2)];
 if isempty(isjbs)
   jbsratio = ratio;
   conjbs = max(ratio, [], 2) - 1 + ajbs;
+  idjbs = [];
   return
 end
 ratio(~isjbs) = 0;
 jbsratio = ratio;
-conjbs = max(ratio, [], 2) - 1 + ajbs;
+jbsratio(~any(isjbs, 2), :) = 0;
 istarget = any(isjbs, 2);
-conjbs(~istarget) = -1;
-jbsratio(~istarget, :) = 0;
+idjbs = find(istarget);
+conjbs = max(ratio(istarget, :), [], 2) - 1 + ajbs;
 
 return
 end

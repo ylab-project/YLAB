@@ -51,13 +51,13 @@ else
     for id = 1:nlist0
       xcell{id} = restore_individual_std( ...
         xlist0(id,:), member, matF, secmgr, ...
-        options, sigu_col, nominal_girder);
+        options, sigu_col, isjbs, nominal_girder);
     end
   else
     parfor id = 1:nlist0
       xcell{id} = restore_individual_std( ...
         xlist0(id,:), member, matF, secmgr, ...
-        options, sigu_col, nominal_girder);
+        options, sigu_col, isjbs, nominal_girder);
     end
   end
 end
@@ -78,7 +78,7 @@ end
 
 %----------------------------------------------------------
 function xlist = restore_individual_std(xvar, member, ...
-  matF, secmgr, options, sigu_col, nominal_girder)
+  matF, secmgr, options, sigu_col, isjbs, nominal_girder)
 
 % 共通配列(ID変換)
 girder = member.girder;
@@ -112,15 +112,15 @@ Zpyg_ng = Zpy(idm_ng);
 Fg_ng = F(idm_ng);
 sdimg_ng = msdim(idm_ng, :);
 
-% 仕口の保有耐力接合制約の計算（名目梁単位）
-conjbs = calc_joint_bearing_strength_std(sdimg_ng, Zpyg_ng, ...
-  Fg_ng, sigu_col, [], options);
+% 仕口の保有耐力接合制約の計算（名目梁単位、isjbs対象に圧縮）
+[conjbs, ~, idjbs] = calc_joint_bearing_strength_std( ...
+  sdimg_ng, Zpyg_ng, Fg_ng, sigu_col, isjbs, options);
 if all(conjbs <= 0)
   return
 end
 
-% 復元操作が必要な名目梁のチェック
-ing_target = find(conjbs > 0);
+% 復元操作が必要な名目梁のチェック（idjbsで全梁indexに復元）
+ing_target = idjbs(conjbs > 0);
 isec_targets = unique(idm2s(idm_ng(ing_target)));
 nstarget = length(isec_targets);
 
@@ -182,7 +182,6 @@ col = member.column;
 girder = member.girder;
 idm2s = secmgr.idme2sec;
 idmeg = nominal_girder.idmeg;
-nng = size(idmeg, 1);
 nc = length(col.idme);
 scallop = options.girder_scallop_size;
 idsec2var_ = secmgr.idsec2var;
@@ -219,23 +218,25 @@ end
 m_num_col = calc_col_dim_jbs(member, secdim_col, Fcol_, ...
   ng_node1, ng_node2);
 
-% JBS制約計算（名目梁単位）
+% JBS制約計算（名目梁単位、isjbs対象に圧縮）
 sdimg_ng = msdim(idm_ng, :);
-conjbs = calc_joint_bearing_strength_aij(sdimg_ng, Zpyg_ng, ...
-  Fg_ng, m_num_col, isjbs, options);
+[conjbs, ~, idjbs] = calc_joint_bearing_strength_aij( ...
+  sdimg_ng, Zpyg_ng, Fg_ng, m_num_col, isjbs, options);
 if all(conjbs <= 0)
   return
 end
 
 % NG名目梁ごとに候補生成 + 集約候補
 nx = length(xvar);
-xlist = zeros(nng*5+1, nx);
+n_target = length(idjbs);
+xlist = zeros(n_target*5+1, nx);
 nlist = 0;
 xvar_agg = xvar;
-for ing = 1:nng
-  if conjbs(ing) <= 0
+for it = 1:n_target
+  if conjbs(it) <= 0
     continue
   end
+  ing = idjbs(it);
   ime = idm_ng(ing);
   isec_beam = idm2s(ime);
   sdim_beam_cur = secdim(isec_beam, 1:4);
