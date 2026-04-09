@@ -10,17 +10,11 @@ ppp = 3;
 
 % ID配列
 idmc2m = com.member.column.idme;
-% idmg2m = com.member.girder.idme;
-idm2var = com.member.property.idvar;
-idmc2sc = com.member.column.idsecc;
-idmg2sg = com.member.girder.idsecg;
 idm2n = [com.member.property.idnode1 com.member.property.idnode2];
-% idncgsr = com.cgsr.idnode;
 
 % 共通配列
 cgsr = com.cgsr;
 Dgap = com.Dgap;
-% Fm = com.material.F(com.section.property.idmaterial(com.member.property.idsec));
 matF = com.material.F;
 mdir = com.member.property.idir;
 mtype = com.member.property.type;
@@ -204,16 +198,19 @@ for iter = start_iter+1:max_iter
     % xlist_2 = restore_section_height(xvar, st, stc, C, com, options);
     % xlist_2 = restore_section_height(xlist, st, stc, C, com, options);
 
-    % % 細長比・幅厚比の修正
+    % 細長比・幅厚比の修正
     if consider_slenderness_ratio && ~options.do_limit_slr_section
       xlist_slr = restore_girder_slratio(...
         xvar, member, matF, restoration, secmgr, options);
     else
-      xlist_slr = [];
+      xlist_slr = xvar;
     end
     
-    % % 仕口の保有耐力接合の修正
-    if consider_joint_bearing_strength && ~options.do_limit_jbs_section
+    % 仕口の保有耐力接合の修正
+    % do_limit_jbs_section は保守的な section 事前フィルタであり、
+    % 実行時の violation を完全に排除できないため restore は常に
+    % 走らせる。
+    if consider_joint_bearing_strength
       isjbs_ = com.exclusion.is_joint_bearing_strength;
       xlist_jbs = restore_joint_bearing_strength( ...
         xvar, member, matF, secmgr, options, ...
@@ -235,13 +232,23 @@ for iter = start_iter+1:max_iter
     % % ----
 
     % 柱梁耐力比 -> B,Dの修正
-    % xlist_cgsr = restore_cgstrength_ratio(xvar, sdlist, vix, viy, ...
-    %   cgsr, idm2n, idmc2m, idm2var, idmc2sc, idmg2sg, ...
-    %   mdir, mtype, matF, secmgr, options);
-
-    xlist_cgsr = restore_cgstrength_ratio(xlist_slr, sdlist, vix, viy, ...
-      cgsr, idm2n, idmc2m, idm2var, idmc2sc, idmg2sg, ...
-      mdir, mtype, matF, cxl, secmgr, options);
+    % xlist_slr は slr スキップ時でも xvar を含むため常に非空。
+    n_cgsr_in = size(xlist_slr, 1);
+    cgsr_sdlist = zeros(size(secdim,1), size(secdim,2), n_cgsr_in);
+    if options.do_parallel
+      parfor il = 1:n_cgsr_in
+        cgsr_sdlist(:,:,il) = ...
+          secmgr.findNearestSection(xlist_slr(il,:), options);
+      end
+    else
+      for il = 1:n_cgsr_in
+        cgsr_sdlist(:,:,il) = ...
+          secmgr.findNearestSection(xlist_slr(il,:), options);
+      end
+    end
+    xlist_cgsr = restore_cgstrength_ratio(xlist_slr, cgsr_sdlist, ...
+      vix, viy, cgsr, idm2n, idmc2m, mdir, mtype, matF, cxl, ...
+      secmgr, options);
 
     % % --- 確認用 ---
     % fval_ = objfun(xlist_cgsr);
@@ -259,8 +266,8 @@ for iter = start_iter+1:max_iter
     xlist  = [xlist; ...
       xlist_ggap; xlist_gsm; xlist_cgap; xlist_2;  ...
       xlist_slr; xlist_jbs; xlist_cgsr];
-    [xlist, ia, ic] = unique(xlist, 'rows', 'stable');
-    
+    xlist = unique(xlist, 'rows', 'stable');
+
     % if iter<=inf
     %   xlist_ = restore_section_thickness(xlist, st, stc, C, com, options);
     %   xlist  = [xlist; xlist_];

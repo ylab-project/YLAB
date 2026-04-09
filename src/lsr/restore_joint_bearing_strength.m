@@ -427,11 +427,12 @@ for it = 1:n_target
   end
 end
 
-% 集約候補を先頭に挿入
-if any(xvar_agg(:)' ~= xvar(:)')
-  xlist = [xvar_agg(:)'; xlist(1:nlist, :)];
-else
-  xlist = xlist(1:nlist, :);
+% 集約候補で xlist を構成
+% ON のときだけ共通ヘルパーに委譲し集約候補 1 行に置換する。
+% OFF のときは個別候補のみ返す（仕様 cgsr_aggregation_spec.md §4.0）。
+xlist = xlist(1:nlist, :);
+if options.do_aggregated_restore
+  xlist = select_aggregated_or_individual(xlist, xvar, xvar_agg);
 end
 
 return

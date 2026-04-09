@@ -26,6 +26,8 @@ classdef CommonOption
     do_limit_initial_girder_height(1,1) logical = false
     do_restration(1,1) logical = true
     do_restration_asr(1,1) logical = true
+    % cgsr/jbs 集約復元（フェーズ1a: 単純 max/min 集約）
+    do_aggregated_restore(1,1) logical = true
     % do_restration(1,1) logical = false
     % do_cache(1,1) logical = true
     do_cache(1,1) logical = false

@@ -1,6 +1,5 @@
 function xlist = restore_cgstrength_ratio(xlist0, secdim0, vix, viy, ...
-  cgsr, idm2n, idmc2m, idm2var, idmc2sc, idmg2sg, ...
-  mdir, mtype, matF, cxl, secmgr, options)
+  cgsr, idm2n, idmc2m, mdir, mtype, matF, cxl, secmgr, options)
 
 % 計算の準備
 [nlist0, nx] = size(xlist0);
@@ -14,13 +13,15 @@ else
 end
 if do_parallel
   parfor id=1:nlist0
-    xcell{id} = restore_individual(xlist0(id,:), secdim0(:,:,id), vix, viy, ...
-      cgsr, idm2n, idmc2m, mdir, mtype, matF, cxl, secmgr, options);
+    xcell{id} = restore_individual(xlist0(id,:), secdim0(:,:,id), ...
+      vix, viy, cgsr, idm2n, idmc2m, mdir, mtype, matF, cxl, ...
+      secmgr, options);
   end
 else
   for id=1:nlist0
-    xcell{id} = restore_individual(xlist0(id,:), secdim0(:,:,id), vix, viy, ...
-      cgsr, idm2n, idmc2m, mdir, mtype, matF, cxl, secmgr, options);
+    xcell{id} = restore_individual(xlist0(id,:), secdim0(:,:,id), ...
+      vix, viy, cgsr, idm2n, idmc2m, mdir, mtype, matF, cxl, ...
+      secmgr, options);
   end
 end
 
@@ -49,7 +50,6 @@ idn_cgsr = cgsr.idnode;
 vtype = secmgr.idvar2vtype;
 
 % 断面性能の計算
-% secdim = secmgr.findNearestSection(xvar, options);
 sprop = calc_secprop(secdim, stype, [], secmgr);
 Zpym = sprop.Zpy(idm2s);
 
@@ -57,8 +57,8 @@ Zpym = sprop.Zpy(idm2s);
 Fm = secmgr.extractMemberMaterialF(secdim, matF);
 
 % 柱梁耐力比の算定
-concgsr = calc_cgstrength_ratio(Zpym, vix, viy, ...
-  idn_cgsr, idm2n, idmc2m, mdir, mtype, Fm, cxl);
+concgsr = calc_cgstrength_ratio(Zpym, vix, viy, idn_cgsr, idm2n, ...
+  idmc2m, mdir, mtype, Fm, cxl);
 concgsr = reshape(concgsr,[],4);
 concgsr = [max(concgsr(:,1:2),[],2) max(concgsr(:,3:4),[],2)];
 is_target = concgsr>tol;
@@ -85,7 +85,6 @@ for icg=1:ncg
       continue
     end
     % 対象変数の特定
-    % in = idn_cgsr(icg);
     idvofH = idvofH_cgsr{icg,idir};
     idvofB = idvofB_cgsr{icg,idir};
     idvoftw = idvoftw_cgsr{icg,idir};
@@ -110,37 +109,42 @@ for icg = 1:ncg
   xup = []; xdw = [];
 
   % 柱サイズアップ
-  switch vtype(idcgset(icg,1))
+  idvc1 = idcgset(icg,1);
+  switch vtype(idvc1)
     case PRM.HSS_D
-      [~, xup, ~] = secmgr.enumerateNeighborD(xvar, idcgset(icg,1), options);
+      [~, xup, ~] = secmgr.enumerateNeighborD(xvar, idvc1, options);
     case PRM.HSS_T
-      [~, xup, ~] = secmgr.enumerateNeighborT(xvar, idcgset(icg,1), options);
+      [~, xup, ~] = secmgr.enumerateNeighborT(xvar, idvc1, options);
   end
   if ~isempty(xup)
     xvar = xup;
-    % xvar(xvar0~=xup) = xup(xvar0~=xup);
   end
-      
+
   % 梁サイズダウン
-  switch vtype(idcgset(icg,2))
+  idvg2 = idcgset(icg,2);
+  switch vtype(idvg2)
     case PRM.WFS_H
-      [~, ~, xdw] = secmgr.enumerateNeighborH(xvar, idcgset(icg,2), options);
+      [~, ~, xdw] = secmgr.enumerateNeighborH(xvar, idvg2, options);
     case PRM.WFS_B
-      [~, ~, xdw] = secmgr.enumerateNeighborB(xvar, idcgset(icg,2), options);
+      [~, ~, xdw] = secmgr.enumerateNeighborB(xvar, idvg2, options);
     case PRM.WFS_TW
-      [~, ~, xdw] = secmgr.enumerateNeighborTw(xvar, idcgset(icg,2), options);
+      [~, ~, xdw] = secmgr.enumerateNeighborTw(xvar, idvg2, options);
     case PRM.WFS_TF
-      [~, ~, xdw] = secmgr.enumerateNeighborTf(xvar, idcgset(icg,2), options);
+      [~, ~, xdw] = secmgr.enumerateNeighborTf(xvar, idvg2, options);
   end
   if ~isempty(xdw)
     xdw = xdw(1,:);
     xvar = xdw;
-    % xvar(xvar0~=xdw) = xdw(xvar0~=xdw);
   end
   xlist(icg,:) = xvar;
 end
+
+% 集約復元候補の追加（フェーズ1a: 単純 max/min 集約）
+xlist = append_aggregated_candidate(xlist, xvar0, vtype, ...
+  options.do_aggregated_restore);
 return
 end
+
 
 % % 計算の準備
 % ncg = length(idn_cgsr);
@@ -187,12 +191,14 @@ end
 %   nBD = size(idBDset,1);
 %   for iBD = 1:nBD
 %     icount = icount+1;
-%     [~, ~, xvarnew] = secmgr.enumerateNeighborB(xvar, idBDset(iBD,1), options);
+%     [~, ~, xvarnew] = secmgr.enumerateNeighborB(xvar, ...
+%       idBDset(iBD,1), options);
 %     if ~isempty(xvarnew)
 %       xvar = xvarnew;
 %     else
 %     end
-%     [~, xvarnew, ~] = secmgr.enumerateNeighborD(xvar, idBDset(iBD,2), options);
+%     [~, xvarnew, ~] = secmgr.enumerateNeighborD(xvar, ...
+%       idBDset(iBD,2), options);
 %     if ~isempty(xvarnew)
 %       xvar = xvarnew;
 %     end
