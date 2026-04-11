@@ -1,6 +1,27 @@
 function [C, Mc_nom] = calc_modified_C(rs, M0, lm, lb, lxc, idg2m, ...
   is_through_girder, idmeg, Mc)
 %calc_modified_C - 修正係数Cと名目梁中央Mcの算定
+%
+%   [C, Mc_nom] = calc_modified_C(rs, M0, lm, lb, lxc, idg2m,
+%   is_through_girder, idmeg, Mc) は、名目梁単位で横補剛区間3区画
+%   （左端・右端・中央）の修正係数Cを算定するとともに、名目梁
+%   中央位置の曲げモーメントMc_nomを区分的放物線評価で算定する。
+%   通し梁区間は計算対象外とし、C=1のまま据え置く。
+%
+%   入力引数:
+%     rs                - 部材端応力 [nme×12×nlc]
+%     M0                - 付加曲げモーメント [nme×1]
+%     lm                - 部材長 [nme×1]
+%     lb                - 横補剛間隔 [nng×2]
+%     lxc               - 中央座屈区間端点座標 [nng×2]
+%     idg2m             - 梁→部材インデックス [nmeg×1]
+%     is_through_girder - 通し梁フラグ [nmeg×2]
+%     idmeg             - 名目梁→sub梁 [nng×nsub]
+%     Mc                - 名目梁中央Mc初期値 [nmeg×nlc]
+%
+%   出力引数:
+%     C      - 修正係数C [nmeg×3×nlc]
+%     Mc_nom - 名目梁中央M [nmeg×nlc]
 
 % 計算の準備
 nlc = size(rs, 3);
@@ -34,7 +55,13 @@ for ilc = 1:nlc
 
     % 名目梁中央Mc（区分的放物線評価）
     if nsub > 1
-      Mc_nom(ig0, ilc) = calcMx_pw(l/2);
+      x_ = l/2;
+      ksub_ = find(sub_x0 <= x_, 1, 'last');
+      t_ = x_ - sub_x0(ksub_);
+      lk_ = sub_lm(ksub_);
+      Mc_nom(ig0, ilc) = 4*sub_M0(ksub_)*t_^2/lk_^2 ...
+        + (sub_Mr(ksub_) - sub_Ml(ksub_) ...
+        - 4*sub_M0(ksub_))*t_/lk_ + sub_Ml(ksub_);
     end
 
     % 横補剛区間（名目部材単位）
@@ -73,13 +100,39 @@ for ilc = 1:nlc
       if is_thr(j), continue; end
       switch j
         case 1
-          M12 = [Ml_nom calcMx_pw(lb1)];
+          % M(lb1)を区分的放物線で直接評価
+          x_ = lb1;
+          ksub_ = find(sub_x0 <= x_, 1, 'last');
+          t_ = x_ - sub_x0(ksub_);
+          lk_ = sub_lm(ksub_);
+          Mx_ = 4*sub_M0(ksub_)*t_^2/lk_^2 ...
+            + (sub_Mr(ksub_) - sub_Ml(ksub_) - 4*sub_M0(ksub_)) ...
+            *t_/lk_ + sub_Ml(ksub_);
+          M12 = [Ml_nom Mx_];
           x12 = [0 lb1];
         case 2
-          M12 = [calcMx_pw(l - lb2) Mr_nom];
+          % M(l-lb2)を区分的放物線で直接評価
+          x_ = l - lb2;
+          ksub_ = find(sub_x0 <= x_, 1, 'last');
+          t_ = x_ - sub_x0(ksub_);
+          lk_ = sub_lm(ksub_);
+          Mx_ = 4*sub_M0(ksub_)*t_^2/lk_^2 ...
+            + (sub_Mr(ksub_) - sub_Ml(ksub_) - 4*sub_M0(ksub_)) ...
+            *t_/lk_ + sub_Ml(ksub_);
+          M12 = [Mx_ Mr_nom];
           x12 = [l - lb2 l];
         case 3
-          M12 = calcMx_pw(lxc12);
+          % M(lxc12)を区分的放物線で直接評価（2要素）
+          M12 = zeros(1, 2);
+          for ix_ = 1:2
+            x_ = lxc12(ix_);
+            ksub_ = find(sub_x0 <= x_, 1, 'last');
+            t_ = x_ - sub_x0(ksub_);
+            lk_ = sub_lm(ksub_);
+            M12(ix_) = 4*sub_M0(ksub_)*t_^2/lk_^2 ...
+              + (sub_Mr(ksub_) - sub_Ml(ksub_) - 4*sub_M0(ksub_)) ...
+              *t_/lk_ + sub_Ml(ksub_);
+          end
           x12 = lxc12;
       end
 
@@ -89,7 +142,11 @@ for ilc = 1:nlc
       end
 
       % 逆称変形モード
-      [M1, M2] = sortM12(M12);
+      if abs(M12(1)) >= abs(M12(2))
+        M1 = M12(1); M2 = M12(2);
+      else
+        M1 = M12(2); M2 = M12(1);
+      end
       Cval = 1.75 - 1.05*(M2/M1) + 0.3*(M2/M1)^2;
 
       % 全分割部材に同じC値を設定
@@ -116,32 +173,4 @@ for ilc = 1:nlc
 end
 
 return
-%------------------------------------------------------------------
-  function Mx = calcMx_pw(x)
-    % 区分的放物線評価（名目部材座標xに対応する
-    % 分割部材の放物線でM(x)を返す）
-    Mx = zeros(size(x));
-    for ix = 1:numel(x)
-      ksub = find(sub_x0 <= x(ix), 1, 'last');
-      t_ = x(ix) - sub_x0(ksub);
-      lk_ = sub_lm(ksub);
-      Mlk_ = sub_Ml(ksub);
-      Mrk_ = sub_Mr(ksub);
-      M0k_ = sub_M0(ksub);
-      Mx(ix) = 4*M0k_*t_^2/lk_^2 + (Mrk_ - Mlk_ - 4*M0k_)*t_/lk_ + Mlk_;
-    end
-
-    return
-  end
-  function [M1, M2] = sortM12(M12)
-    if abs(M12(1)) >= abs(M12(2))
-      M1 = M12(1);
-      M2 = M12(2);
-    else
-      M1 = M12(2);
-      M2 = M12(1);
-    end
-
-    return
-  end
 end

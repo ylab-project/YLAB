@@ -2,22 +2,24 @@ function Cn = calc_modified_Cn(rs, M0, lm, nomgc, idg2m, ...
   is_through_girder, idmeg)
 %calc_modified_Cn - 名目梁4検定位置の修正係数Cnを算定
 %
-%   名目梁の4検定位置（左端、右端、中央L、中央R）
-%   ごとに、その位置が属する座屈区間のC値を算定する。
+%   Cn = calc_modified_Cn(rs, M0, lm, nomgc, idg2m,
+%   is_through_girder, idmeg) は、名目梁の4検定位置（左端、右端、
+%   中央L、中央R）ごとに、その位置が属する座屈区間のC値を算定
+%   する。通し梁区間は C=1 のまま据え置く。
 %
 %   入力引数:
-%     rs        [nme×12×nlc] - 部材応力
-%     M0        [nme×1] - 付加曲げモーメント
-%     lm        [nme×1] - 部材長
-%     nomgc     構造体 - 4検定位置情報
-%       .lb   [nng×4] - 横補剛間隔
-%       .xc   [nng×3] - 中央座屈区間の絶対座標
-%     idg2m     [nmeg×1] - 梁→部材インデックス
-%     is_through_girder [nmeg×2] - 通し梁フラグ
-%     idmeg     [nng×nsub] - 名目梁→sub梁
+%     rs                - 部材応力 [nme×12×nlc]
+%     M0                - 付加曲げモーメント [nme×1]
+%     lm                - 部材長 [nme×1]
+%     nomgc             - 4検定位置情報構造体
+%                         .lb [nng×4] 横補剛間隔
+%                         .xc [nng×3] 中央座屈区間の絶対座標
+%     idg2m             - 梁→部材インデックス [nmeg×1]
+%     is_through_girder - 通し梁フラグ [nmeg×2]
+%     idmeg             - 名目梁→sub梁 [nng×nsub]
 %
 %   出力引数:
-%     Cn [nng×4×nlc] - 名目梁4位置のC
+%     Cn - 名目梁4位置のC [nng×4×nlc]
 
 % 計算の準備
 nlc = size(rs, 3);
@@ -115,16 +117,26 @@ for ilc = 1:nlc
         end
       end
 
-      % M値の取得
+      % M値の取得（区分的放物線で直接評価）
       if abs(xa) < 1e-10
         Ma = Ml_nom;
       else
-        Ma = calcMx_pw(xa);
+        ksub_ = find(sub_x0 <= xa, 1, 'last');
+        t_ = xa - sub_x0(ksub_);
+        lk_ = sub_lm(ksub_);
+        Ma = 4*sub_M0(ksub_)*t_^2/lk_^2 ...
+          + (sub_Mr(ksub_) - sub_Ml(ksub_) - 4*sub_M0(ksub_)) ...
+          *t_/lk_ + sub_Ml(ksub_);
       end
       if abs(xb - l) < 1e-10
         Mb = Mr_nom;
       else
-        Mb = calcMx_pw(xb);
+        ksub_ = find(sub_x0 <= xb, 1, 'last');
+        t_ = xb - sub_x0(ksub_);
+        lk_ = sub_lm(ksub_);
+        Mb = 4*sub_M0(ksub_)*t_^2/lk_^2 ...
+          + (sub_Mr(ksub_) - sub_Ml(ksub_) - 4*sub_M0(ksub_)) ...
+          *t_/lk_ + sub_Ml(ksub_);
       end
 
       % 対称変形モード
@@ -133,7 +145,11 @@ for ilc = 1:nlc
       end
 
       % 逆称変形モード
-      [M1, M2] = sortM12([Ma Mb]);
+      if abs(Ma) >= abs(Mb)
+        M1 = Ma; M2 = Mb;
+      else
+        M1 = Mb; M2 = Ma;
+      end
       Cval = 1.75 - 1.05*(M2/M1) + 0.3*(M2/M1)^2;
       Cn(ing, jcol, ilc) = Cval;
     end
@@ -144,31 +160,4 @@ end
 Cn(Cn >= 2.3) = 2.3;
 
 return
-%---------------------------------------------------------------
-  function Mx = calcMx_pw(x)
-    % 区分的放物線評価
-    Mx = zeros(size(x));
-    for ix = 1:numel(x)
-      ksub_ = find(sub_x0 <= x(ix), 1, 'last');
-      t_ = x(ix) - sub_x0(ksub_);
-      lk_ = sub_lm(ksub_);
-      Mlk_ = sub_Ml(ksub_);
-      Mrk_ = sub_Mr(ksub_);
-      M0k_ = sub_M0(ksub_);
-      Mx(ix) = 4*M0k_.*t_.^2./lk_.^2 + (Mrk_-Mlk_-4*M0k_).*t_./lk_ + Mlk_;
-    end
-
-    return
-  end
-  function [M1, M2] = sortM12(M12)
-    if abs(M12(1)) >= abs(M12(2))
-      M1 = M12(1);
-      M2 = M12(2);
-    else
-      M1 = M12(2);
-      M2 = M12(1);
-    end
-
-    return
-  end
 end
