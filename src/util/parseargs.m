@@ -6,6 +6,12 @@ function options = parseargs(options, varargin)
 %   入力:
 %     options  - CommonOption オブジェクト
 %     varargin - コマンドライン引数ペア
+%   フラグ引数:
+%     '-pdf'        - PDF出力を有効化
+%     '-nopdf'      - PDF出力を無効化
+%     '-dev'        - 開発者モード（GUI強制）
+%     '-legacy'     - レガシー出力形式を使用
+%     '-sequential' - 並列計算を無効化（プロファイリング用）
 
 n = length(varargin);
 tf = true(1,n);
@@ -23,6 +29,9 @@ for i=1:n
     case '-legacy'
       tf(i) = false;
       options.do_legacy_output = true;
+    case '-sequential'
+      tf(i) = false;
+      options.do_parallel = false;
   end
 end
 varargin = varargin(tf);
