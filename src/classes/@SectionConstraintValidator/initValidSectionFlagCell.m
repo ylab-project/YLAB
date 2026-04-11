@@ -16,12 +16,9 @@ if obj.isSecListEmpty()
     'secListが空です');
 end
 
-% nwfsを内部で計算
+% 断面数を取得
 nwfs_ = obj.nwfs;
-if nwfs_ < 1
-  % WFS断面が存在しない場合も処理を継続
-  nwfs_ = 1;
-end
+nhss_ = obj.nhss;
 
 % 初期化
 nlist_ = obj.nlist;
@@ -35,17 +32,17 @@ obj.validSectionFlagCell_ = cell(nlist_, 1);
 for i = 1:nlist_
   switch sectionType(i)
     case PRM.WFS
-      % WFS断面: 2次元配列 (nwfs x nsecOfList)
+      % WFS断面: nwfs×nsecOfList
       obj.validSectionFlagCell_{i} = ...
         true(nwfs_, nsecOfList(i));
-      
+
     case PRM.HSS
-      % HSS断面: 1次元配列 (1 x nsecOfList)
+      % HSS断面: nhss×nsecOfList
       obj.validSectionFlagCell_{i} = ...
-        true(1, nsecOfList(i));
-      
+        true(nhss_, nsecOfList(i));
+
     case PRM.BRB
-      % BRB断面: 1次元配列 (1 x nsecOfList)
+      % BRB断面: 1×nsecOfList
       obj.validSectionFlagCell_{i} = ...
         true(1, nsecOfList(i));
 

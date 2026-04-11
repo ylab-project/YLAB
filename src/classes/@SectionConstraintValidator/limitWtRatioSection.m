@@ -1,29 +1,32 @@
 function limitWtRatioSection(obj, section, options, secmgr)
-%limitWtRatioSection 幅厚比制限チェック
-%   limitWtRatioSection(obj, section, options, secmgr) は、幅厚比を
-%   満たす断面のみを有効とします。WFS断面とHSS断面に対して幅厚比
-%   チェックを実行します。
+%limitWtRatioSection - 幅厚比制限チェック
+%
+%   limitWtRatioSection(obj, section, options, secmgr) は、WFS断面
+%   およびHSS断面について幅厚比の判定を行い、条件を満たさない断面
+%   を無効化する（obj.validSectionFlagCell_ を更新）。
 %
 %   入力引数:
+%     obj     - SectionConstraintValidator インスタンス
 %     section - 断面情報構造体
 %     options - オプション構造体
-%     secmgr - SectionManagerインスタンス（断面性能計算用）
+%     secmgr  - SectionManager インスタンス（断面性能計算用）
 %
-%   処理内容:
-%     1. 各断面リストについて幅厚比の判定を実行
-%     2. 条件を満たさない断面を無効化
-%
-%   参考:
-%     SectionConstraintValidator, limitJbsSection, limitSlrSection
+%   備考:
+%     関連: SectionConstraintValidator, limitJbsSection,
+%           limitSlrSection
 
 % 定数
 idphase = 999;
 nwfs_ = obj.nwfs;
+nhss_ = obj.nhss;
 
 % 計算の準備
 girder_rank = section.girder.rank(section.girder.type == PRM.WFS);
-girder_idslist = section.girder.id_section_list( ...
-  section.girder.type == PRM.WFS);
+girder_idslist = ...
+  section.girder.id_section_list(section.girder.type == PRM.WFS);
+column_rank = section.column.rank(section.column.type == PRM.HSS);
+column_idslist = ...
+  section.column.id_section_list(section.column.type == PRM.HSS);
 
 % 断面リストごとに幅厚比を満たす断面だけに限定
 for idsList = 1:obj.nlist
@@ -49,24 +52,32 @@ for idsList = 1:obj.nlist
       
       conwt = ones(n, nwfs_);
       for irank = 1:4
-        [~, ~, conwt_] = wtratioH(H, B, tw, tf, F, irank, isSNH);
-        for i = 1:nwfs_
-          if girder_rank(i) == irank && girder_idslist(i) == idsList
-            conwt(:, i) = conwt_;
-          end
+        match = (girder_rank == irank) & (girder_idslist == idsList);
+        if ~any(match)
+          continue
         end
+        [~, ~, conwt_] = wtratioH(H, B, tw, tf, F, irank, isSNH);
+        conwt(:, match) = repmat(conwt_, 1, nnz(match));
       end
       isvalid_ = conwt' <= 0;
       obj.validSectionFlagCell_{idsList} = isvalid & isvalid_;
-      
+
     case PRM.HSS
       % --- HSS ---
       F = secmgr.getIdSecList2F(idsList);
       D = sdimlist(:, 1);
       t = sdimlist(:, 2);
-      
-      % 幅厚比を満たさない断面の除外
-      [~, conwt] = wtratioBox(D, t, F, options.coptions.rank_column);
+
+      % 断面ごとのランクで幅厚比を判定
+      conwt = ones(n, nhss_);
+      for irank = 1:4
+        match = (column_rank == irank) & (column_idslist == idsList);
+        if ~any(match)
+          continue
+        end
+        [~, conwt_] = wtratioBox(D, t, F, irank);
+        conwt(:, match) = repmat(conwt_, 1, nnz(match));
+      end
       isvalid_ = conwt' <= 0;
       obj.validSectionFlagCell_{idsList} = isvalid & isvalid_;
   end

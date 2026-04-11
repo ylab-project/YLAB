@@ -46,6 +46,7 @@ classdef SectionConstraintValidator < handle
   properties (Dependent)
     nlist                   % 断面リスト数
     nwfs                    % WFS断面数
+    nhss                    % HSS断面数
     nxvar                   % 変数総数
     validSectionFlagCell    % 有効断面フラグ全体 {nlist×1} cell配列
     % IdMapperへの委譲プロパティ
@@ -105,6 +106,12 @@ classdef SectionConstraintValidator < handle
     function nwfs_ = get.nwfs(obj)
       % WFS断面数を取得
       nwfs_ = obj.idMapper_.nwfs;
+    end
+
+    %% get.nhss
+    function nhss_ = get.nhss(obj)
+      % HSS断面数を取得
+      nhss_ = obj.idMapper_.nhss;
     end
 
     %% get.nxvar
@@ -173,22 +180,28 @@ classdef SectionConstraintValidator < handle
       %
       % 全断面リストに対して有効フラグを初期化する。
       % 初期状態では全ての断面を有効とする。
-      % WFS断面: nwfs×nsecOfList、HSS/BRB断面: 1×nsecOfList の配列
-      
+      % WFS断面: nwfs×nsecOfList、HSS断面: nhss×nsecOfList の配列
+
       nlist_ = obj.nlist;
       obj.validSectionFlagCell_ = cell(nlist_, 1);
       nwfs_ = obj.nwfs;  % 0でも許容（0行の行列を作る）
+      nhss_ = obj.nhss;
       nsecOfList = obj.secList_.nsecOfList;
       sectionType = obj.secList_.section_type;
-      
+
       for idsList = 1:nlist_
         % 断面タイプに応じたサイズで初期化
         switch sectionType(idsList)
           case PRM.WFS
             % WFS断面: nwfs×nsecOfList
-            obj.validSectionFlagCell_{idsList} = true(nwfs_, nsecOfList(idsList));
-          case {PRM.HSS, PRM.HSR, PRM.BRB}
-            % HSS/HSR/BRB断面: 1×nsecOfList
+            obj.validSectionFlagCell_{idsList} = ...
+              true(nwfs_, nsecOfList(idsList));
+          case PRM.HSS
+            % HSS断面: nhss×nsecOfList
+            obj.validSectionFlagCell_{idsList} = ...
+              true(nhss_, nsecOfList(idsList));
+          case {PRM.HSR, PRM.BRB}
+            % HSR/BRB断面: 1×nsecOfList
             obj.validSectionFlagCell_{idsList} = ...
               true(1, nsecOfList(idsList));
           case {PRM.BWFS, PRM.BHSS, PRM.BHSR, ...
