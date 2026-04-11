@@ -35,16 +35,6 @@ methods (Static)
   [upsec, dwsec] = findUpDownWfsThick(secwfs, twortf, seclist, options)
   [upsec, dwsec] = findUpDownHssThick(sechss, seclist, options)
   idsec2slist = getSectionListMapping(secdim)
-  
-  % 並列処理用の静的メソッド
-  secdim = findNearestSectionStatic(xvar, options, ...
-    idMapper, standardAccessor, dimension, secListAll)
-  xvar = findNearestXvarStatic(secdim, options, idMapper)
-  
-  % 修正版の静的メソッド
-  secdim = findNearestSectionStatic_fixed(xvar, options, ...
-    idMapper, standardAccessor, dimension, secListAll, ...
-    constraintValidator)
 end
 
 methods
