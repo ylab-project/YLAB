@@ -482,6 +482,10 @@ end
   sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, prm, lm, ...
   lrxm, lrym, flag, member_property, node, material, ...
   cbstiff, idm2mat, idm2scb, mejoint, br_stif);
+
+% 斜め柱応力を全体系XY方向に変換（SS7互換）
+rs = trans_column_force_global_xy(rs, cxl, cyl, idmc2m);
+
 rs0 = rs; Mc0 = Mc; rvec0 = rvec;
 
 %% 圧縮除去ブレースの応力処理（重ね合わせ前）

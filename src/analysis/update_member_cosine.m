@@ -30,9 +30,8 @@ angle = member_column.angle;
 
 % 方向余弦の計算
 an = deg2rad(angle);
-iscolumn = true;
 [ccyl, ccxl] = ystar(x(idnode1), y(idnode1), z(idnode1), ...
-  x(idnode2), y(idnode2), z(idnode2), an, iscolumn);
+  x(idnode2), y(idnode2), z(idnode2), an);
 
 % --- ブレース ---
 % 節点番号
