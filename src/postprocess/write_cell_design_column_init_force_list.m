@@ -92,9 +92,9 @@ for i = 1:nstory
             dciflbody{irow,6} = sprintf('%.0f', lm_nominal(im1));
           end
           dciflbody{irow,5} = PRM.load_case_name(ilc);
-          % 軸力
-          dciflbody{irow,7} = sprintf('%.2f', -dfn0(inm,1,ilc)*1.d-3);
-          dciflbody{irow,8} = sprintf('%.2f', -dfn0(inm,7,ilc)*1.d-3);
+          % 軸力（7:柱頭, 1:柱脚）
+          dciflbody{irow,7} = sprintf('%.2f', -dfn0(inm,7,ilc)*1.d-3);
+          dciflbody{irow,8} = sprintf('%.2f', -dfn0(inm,1,ilc)*1.d-3);
           % 曲げx
           dciflbody{irow,9} = sprintf('%.2f', dfn0(inm,11,ilc)*1.d-6);
           dciflbody{irow,10} = '';

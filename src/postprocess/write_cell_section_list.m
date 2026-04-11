@@ -73,8 +73,6 @@ for igr = 1:ngr
             sdim = sprintf('%s-%gx%gx%gx%g', ...
               symbol, secdim(is,1:4));
           else
-            % sdim = sprintf('%s-%g×%g×%g×%g×%g', ...
-            %   secg.type_name{ig}, secdim(is,1:5));
             sdim = sprintf('%s-%gx%gx%gx%gx%g', ...
               symbol, secdim(is,1:5));
           end
@@ -124,7 +122,6 @@ for icr = 1:ncr
           secclist = seclist{secc.id_section_list(ic)};
           symbol = secclist.symbol{...
             secclist.D == secdim(is,1) & secclist.t == secdim(is,2)};
-          % sdim = sprintf('%s-%g×%g', secc.type_name{ic}, secdim(is,1:2));
           sdim = sprintf('%s-%gx%gx%gx%g', symbol, secdim(is,[1 1 2 3]));
         end
         csbody{nstory-ist+1,icr+1} = sdim;

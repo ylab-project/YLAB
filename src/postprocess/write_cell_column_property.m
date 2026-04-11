@@ -96,11 +96,12 @@ for i=1:nfl
         if column.type(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
           idnmc = idmc2nmc(ic);
           idcc = nominal_column.idmec(idnmc,:);
+          idcc = idcc(idcc > 0);
           idmm = idmc2m(idcc);
           lm_ = sum(lm(idmm));
-          lfcx_(2) = lfcx(idcc(2),2);
-          lfcy_(2) = lfcy(idcc(2),2);
-          iscb_ = idm2scb(idmm(2));
+          lfcx_(2) = lfcx(idcc(end),2);
+          lfcy_(2) = lfcy(idcc(end),2);
+          iscb_ = idm2scb(idmm(end));
         end
         % 剛性表
         write_cpbody

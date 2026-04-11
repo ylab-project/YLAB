@@ -50,14 +50,7 @@ for i = 1:nfl
         if isempty(ic)
           continue
         end
-        switch column.type(ic)
-          case PRM.COLUMN_STANDARD
-            idsub = 1;
-          case PRM.COLUMN_FOR_BRACE_FOUNDATION
-            idsub = 1;
-          case PRM.COLUMN_FOR_BRACE_BODY
-            idsub = 2;
-        end
+        idsub = column.idnominal(ic, 2);
         irow = irow+1;
         body{irow,1} = column.floor_name{ic};
         body{irow,2} = column.coord_name{ic,1};

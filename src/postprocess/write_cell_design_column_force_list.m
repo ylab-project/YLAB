@@ -90,17 +90,17 @@ for i = 1:nstory
             rows{irow,6} = sprintf('%.0f', lm_nominal(im1));
           end
           rows{irow,5} = label{ilc};
-          rows{irow,7} = sprintf('%.0f', -dfn(inm,1,ilc)*1.d-3);
-          rows{irow,8} = sprintf('%.0f', dfn(inm,11,ilc)*1.d-6);
+          rows{irow,7} = sprintf('%.1f', -dfn(inm,1,ilc)*1.d-3);
+          rows{irow,8} = sprintf('%.1f', dfn(inm,11,ilc)*1.d-6);
           rows{irow,9} = '';
-          rows{irow,10} = sprintf('%.0f', -dfn(inm,5,ilc)*1.d-6);
-          rows{irow,11} = sprintf('%.0f', dfn(inm,9,ilc)*1.d-3);
-          rows{irow,12} = sprintf('%.0f', dfn(inm,3,ilc)*1.d-3);
-          rows{irow,13} = sprintf('%.0f', dfn(inm,12,ilc)*1.d-6);
+          rows{irow,10} = sprintf('%.1f', -dfn(inm,5,ilc)*1.d-6);
+          rows{irow,11} = sprintf('%.1f', dfn(inm,9,ilc)*1.d-3);
+          rows{irow,12} = sprintf('%.1f', dfn(inm,3,ilc)*1.d-3);
+          rows{irow,13} = sprintf('%.1f', dfn(inm,12,ilc)*1.d-6);
           rows{irow,14} = '';
-          rows{irow,15} = sprintf('%.0f', -dfn(inm,6,ilc)*1.d-6);
-          rows{irow,16} = sprintf('%.0f', -dfn(inm,8,ilc)*1.d-3);
-          rows{irow,17} = sprintf('%.0f', -dfn(inm,2,ilc)*1.d-3);
+          rows{irow,15} = sprintf('%.1f', -dfn(inm,6,ilc)*1.d-6);
+          rows{irow,16} = sprintf('%.1f', -dfn(inm,8,ilc)*1.d-3);
+          rows{irow,17} = sprintf('%.1f', -dfn(inm,2,ilc)*1.d-3);
         end
       end
     end
