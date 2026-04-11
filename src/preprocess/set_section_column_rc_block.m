@@ -71,10 +71,10 @@ for i=1:n
   dimension(i,1:2) = [data{i,5} data{i,6}];
   % 荷重剛性用Dx×Dy
   dimension(i,3:4) = dimension(i,1:2);
-  if ~ismissing(data{i,8}) && data{i,8}>0
+  if isnumeric(data{i,8}) && ~ismissing(data{i,8}) && data{i,8}>0
     dimension(i,3) = data{i,8};
   end
-  if ~ismissing(data{i,9}) && data{i,9}>0
+  if isnumeric(data{i,9}) && ~ismissing(data{i,9}) && data{i,9}>0
     dimension(i,4) = data{i,9};
   end
 end

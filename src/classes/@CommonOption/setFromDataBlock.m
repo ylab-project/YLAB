@@ -141,7 +141,7 @@ for i=1:size(data,1)
     case 'initial_penalty'
       for j=1:PRM.MAX_NUM_PHASE
         val = data{i,j+1};
-        if ~ismissing(val) && isnumeric(val)
+        if isnumeric(val) && ~ismissing(val)
           options.mu0(j) = val;
         end
       end

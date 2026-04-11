@@ -80,8 +80,8 @@ if n > 0
   [idx_, idy_, idz_] = find_idxyz_node(story_name_, coord_name_, baseline);
   for i=1:n
     % 列8にダミー指定（T）がある場合は保持
-    flag = tochar(data{i,8});
-    if ~ismissing(flag)
+    if ~ismissing(data{i,8})
+      flag = tochar(data{i,8});
       if matches(flag, 'T')
         iskeep_node(idx_(i), idy_(i), idz_(i)) = true;
       end
@@ -158,9 +158,8 @@ for i=1:n
   if all(ismissing(xyzval))
     continue
   end
-  flag = tochar(data{i,7});
-  if all(~ismissing(xyzval)) && ~ismissing(flag)
-    isrel = ~matches(flag,'F');
+  if all(~ismissing(xyzval)) && ~ismissing(data{i,7})
+    isrel = ~matches(tochar(data{i,7}), 'F');
   else
     isrel = true;
   end
