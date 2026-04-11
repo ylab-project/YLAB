@@ -195,10 +195,10 @@ end
 if coptions.consider_girder_deflection
   idmeg_ = nominal.girder.idmeg;
   gstype_ = com.member.girder.section_type;
-  Iyr = msprop.Iyr;
-  Iyr(idmg2m) = Iyr(idmg2m) .* gphiI;
+  Iyd = msprop.Iy;
+  Iyd(idmg2m) = Iyd(idmg2m) .* gphiI;
   [congdef, gdef_angle] = calc_nominal_girder_deflection( ...
-    idmeg_, idmg2m, gstype_, lm, lf, rs, M0sw, Em, Iyr, ...
+    idmeg_, idmg2m, gstype_, lm, lf, rs, M0sw, Em, Iyd, ...
     gdmax);
   congdef = congdef + coptions.alfa_girder_deflection;
 else
