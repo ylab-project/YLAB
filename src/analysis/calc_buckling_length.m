@@ -1,12 +1,12 @@
 function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
-  js, je, is_girder, lnm, lm, lr_col, Em, mejoint, nominal, ...
+  js, je, is_girder, lnm, lm, Em, mejoint, nominal, ...
   idmc2nc, options, beta, ilc, col_idstory, onfg)
 %calc_buckling_length - 柱部材の座屈長さを計算する（1方向分）
 %
 %   [lk, kc, bkinfo] = calc_buckling_length(Iy,
-%   mtype, js, je, is_girder, lnm, lm, lr_col,
-%   Em, mejoint, nominal, idmc2nc, options, beta,
-%   ilc, col_idstory, onfg) は、
+%   mtype, js, je, is_girder, lnm, lm, Em, mejoint,
+%   nominal, idmc2nc, options, beta, ilc,
+%   col_idstory, onfg) は、
 %   構造骨組みにおける柱部材の座屈長さを算出する。
 %   呼び出し側で方向別の引数を準備し、本関数を
 %   X方向・Y方向それぞれ1回ずつ呼び出す。
@@ -19,7 +19,6 @@ function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
 %     is_girder   - 該当方向の梁マスク [nme×1]
 %     lnm         - 通し部材の構造心間距離 [nme×1]
 %     lm          - セグメント芯間距離 [nme×1]
-%     lr_col      - 方向別剛域長 [nmc×2]
 %     Em          - ヤング係数 [nme×1]
 %     mejoint     - 接合条件 [nme×2]（柱脚,柱頭）
 %     nominal     - 名目部材情報 (struct)
@@ -54,11 +53,11 @@ bk_sumIcBot = zeros(1,nnc);
 bk_sumIgTop = zeros(1,nnc);
 bk_sumIgBot = zeros(1,nnc);
 
-% 横補剛間隔（lr控除・横補剛点判定付き）
+% 横補剛間隔（横補剛点判定付き、節点間距離ベース）
 lmc = lm(mtype==PRM.COLUMN);
 onfg_col = onfg;
-lbcn = calc_nominal_lb_column(lmc, nominal_column, lr_col, ...
-  js, je, is_girder, onfg_col, idmc2m);
+lbcn = calc_nominal_lb_column(lmc, nominal_column, js, je, ...
+  is_girder, onfg_col, idmc2m);
 
 % 通し柱の最大補剛間隔
 lbcnmax = lbcn.max;

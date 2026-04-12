@@ -1,19 +1,25 @@
 function [cvec, result, restoration] = analysis_constraint( ...
   xvar, com, options)
-%ANALYSIS_CONSTRAINT 構造解析と制約条件の評価
-% 概要: フレーム解析を実行し、各種制約条件を評価して制約値を返す
-% 構文: [cvec, result, restoration] = ...
-%   analysis_constraint(xvar, com, options)
-% 入力:
-%   xvar    - 設計変数ベクトル [nvar×1]
-%   com     - 共通データ構造体
-%   options - 解析オプション構造体
-% 出力:
-%   cvec        - 制約値ベクトル [1×ncon] (正の値が制約違反)
-%   result      - 詳細結果構造体（応力、変形、諸元等）
-%   restoration - 復元用データ構造体
-% 備考: 評価される制約は options.coptions で制御
-% See also: analysis_frame, eval_nominal_allowable_stress_ratio
+%analysis_constraint - 構造解析を実行し制約条件を評価する
+%
+%   [cvec, result, restoration] =
+%     analysis_constraint(xvar, com, options) は、
+%   フレーム解析を実行し、許容応力度比・層間変形・幅厚比等の
+%   制約を評価して制約値ベクトルを返す。評価対象の制約は
+%   options.coptions で制御する。
+%
+%   入力引数:
+%     xvar    - 設計変数ベクトル [nvar×1]
+%     com     - 共通データ構造体
+%     options - 解析オプション構造体
+%
+%   出力引数:
+%     cvec        - 制約値ベクトル [1×ncon]（正の値が制約違反）
+%     result      - 詳細結果構造体（応力、変形、諸元等）
+%     restoration - 復元用データ構造体
+%
+%   備考:
+%     - 関連関数: analysis_frame, eval_nominal_allowable_stress_ratio
 
 % 共通定数の取得
 nsec = com.nsec;                              % 断面数
@@ -135,15 +141,14 @@ Q_nb = calc_Q_nominal_brace(com, rs0, cxl, cyl);
 if coptions.consider_stress_ratio
   % ブレース水平力分担率の算出
   beta = calc_brace_force_share_ratio(com, rs0, cxl, cyl, Q_nb);
-  [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
-    fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ration, ...
-    bkinfo, lnm_bk, id_center_sel] = ...
-    eval_nominal_allowable_stress_ratio(msdim, stn, stcn, ...
-    A, Iy, Iz, C, mtype, mstype, mgdir, Em, Fm, idm2n, ...
-    lb, lm, lnm, lr, mejoint, nominal, isgmirrored, ...
+  [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, fcn, ...
+    fbn, fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, ...
+    id_center_sel] = eval_nominal_allowable_stress_ratio( ...
+    msdim, stn, stcn, A, Iy, Iz, C, mtype, mstype, mgdir, ...
+    Em, Fm, idm2n, lb, lm, lnm, mejoint, nominal, isgmirrored, ...
     idmg2mng, idmc2mnc, options, beta, lcdir, idmc2st, ...
-    com.member.column.onfg_x, com.member.column.onfg_y, ...
-    Cn, nomgc);
+    com.member.column.onfg_x, com.member.column.onfg_y, Cn, ...
+    nomgc);
 
   % ブレースの座屈長を上書き
   lk_brace = calc_brace_buckling_length(com.member.brace, ...
@@ -427,7 +432,6 @@ result.lkx = lkx;
 result.lky = lky;
 result.lm_weight = lm_weight;
 result.lm_nominal = lnm;
-result.lm_nominal_bk = lnm_bk;
 result.cbs = cbs;
 result.baseline = baseline;
 result.node = node;

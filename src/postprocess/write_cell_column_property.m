@@ -141,8 +141,8 @@ return
     cpbody{irow*2,9} = sprintf('%.3f', cphiI(ic,2));
     cpbody{irow*2-1,10} = sprintf('%.0f', Iy(idm)*1.d-4);
     cpbody{irow*2,10} = sprintf('%.0f', Iz(idm)*1.d-4);
-    As = sprintf('%.1f', msprop.Asy(idm)*1.d-2);
-    An = sprintf('%.1f', msprop.A(idm)*1.d-2);
+    As = sprintf('%.2f', msprop.Asy(idm)*1.d-2);
+    An = sprintf('%.2f', msprop.A(idm)*1.d-2);
     cpbody(irow*2-1:irow*2,11) = {As; As};
     cpbody{irow*2-1,12} = An;
     cpbody{irow*2-1,13} = 1;

@@ -215,6 +215,10 @@ classdef PRM
     BRACE_MEMBER_PAIR_BOTH_L = 4   % 両方の左（下がり）ブレース
     BRACE_MEMBER_PAIR_BOTH_R = 5   % 両方の右（下がり）ブレース
 
+    %% ブレース通し
+    BRACE_THROUGH_NONE = 0       % 通しなし
+    BRACE_THROUGH_AUTO = 1       % 通し自動
+
     %% 剛部材倍率
     RIGID_SCALE = 1.d6        % 剛性倍率
 

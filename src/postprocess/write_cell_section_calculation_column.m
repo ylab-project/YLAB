@@ -1,6 +1,19 @@
 function sccbody = write_cell_section_calculation_column( ...
   com, result, options)
-%write_cell_section_calculation_column - S柱断面算定表セル配列を生成
+%write_cell_section_calculation_column - S柱断面算定表のセル配列を生成する
+%
+%   sccbody = write_cell_section_calculation_column(
+%     com, result, options) は、各階・各符号の名目柱に対する
+%   応力・断面諸量・検定比をまとめた断面算定表のボディ行を
+%   出力用セル配列として返す。
+%
+%   入力引数:
+%     com     - 共通データ構造体（部材・断面・管理情報）
+%     result  - 解析結果構造体（kcx/kcy, lkx/lky, ration等）
+%     options - 出力オプション構造体
+%
+%   出力引数:
+%     sccbody - 断面算定表のボディ行セル配列 [nrow×ncol]
 
 % 定数
 nnc = com.num.nominal_column;
@@ -29,14 +42,13 @@ Zz = result.msprop.Zz;
 F = result.msprop.F;
 kcx = result.kcx;
 kcy = result.kcy;
+lkx = result.lkx;
+lky = result.lky;
 lambday = result.lambday;
 lambdaz = result.lambdaz;
 ration = abs(result.ration);
 lfcx = result.lf.columnx;
 lfcy = result.lf.columny;
-lrcx = result.lr.columnx;
-lrcy = result.lr.columny;
-mtype = com.member.property.type;
 lm_nominal = result.lm_nominal;
 cri_all = result.cri;
 crj_all = result.crj;
@@ -52,9 +64,6 @@ end
 % 断面2次半径
 iy_ = sqrt(Iy ./ A);
 iz_ = sqrt(Iz ./ A);
-lrm = lm_nominal;
-lrm(mtype == PRM.COLUMN) = lrm(mtype == PRM.COLUMN) ...
-  - max([sum(lrcx, 2) sum(lrcy, 2)], [], 2);
 
 % 柱許容応力度比
 cri = reshape(cri_all, [], nlc) + 1;
@@ -293,10 +302,8 @@ for i = 1:nstory
     % === Row 6: Lk + 検定ヘッダ ===
     irow = irow + 1;
     sccbody{irow, 1} = 'Lk';
-    lkx_ = kcx(ic1) * lrm(im1);
-    sccbody{irow, 2} = sprintf('%.0f', lkx_);
-    lky_ = kcy(ic1) * lrm(im1);
-    sccbody{irow, 5} = sprintf('%.0f', lky_);
+    sccbody{irow, 2} = sprintf('%.0f', lkx(im1));
+    sccbody{irow, 5} = sprintf('%.0f', lky(im1, 1));
     sccbody(irow, 11:20) = {'Z', 'A', 'Aw', 'fb', 'σc/fc', ...
       'σbx/fb', 'σby/fb', 'TOTAL', 'τ/fs', '組合せ'};
 
@@ -401,7 +408,17 @@ sccbody = sccbody(1:irow, :);
 return
 
   function reps = pick_representative(cands)
-  %pick_representative - 符号グループごとに代表1部材を選定
+  %pick_representative - 符号グループごとに代表1部材を選定する
+  %
+  %   reps = pick_representative(cands) は、候補部材を断面
+  %   符号でグルーピングし、各グループから最大検定比を持つ
+  %   部材を代表として選定する。
+  %
+  %   入力引数:
+  %     cands - 候補名目柱番号の配列
+  %
+  %   出力引数:
+  %     reps - 代表名目柱番号の配列
     if isempty(cands)
       reps = cands;
       return
