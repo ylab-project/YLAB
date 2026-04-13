@@ -196,9 +196,13 @@ type = ones(nnode,1)*PRM.NODE_STANDARD;
 % 代表節点
 idrep = zeros(nnode,1);
 
+% 基準階高ベースのZ座標
+zcoord_std = com.baseline.z.coord_standard;
+z_standard = zcoord_std(idz) + dz;
+
 % 結果の保存
-node = table(xname, yname, zname, x, y, z, dz, idx, idy, idz, ...
-  type, idstory, idrep);
+node = table(xname, yname, zname, x, y, z, z_standard, dz, ...
+  idx, idy, idz, type, idstory, idrep);
 
 return
 end

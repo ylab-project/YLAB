@@ -150,15 +150,14 @@ if coptions.consider_stress_ratio
     com.member.column.onfg_x, com.member.column.onfg_y, Cn, ...
     nomgc);
 
-  % ブレースの座屈長を上書き
-  lk_brace = calc_brace_buckling_length(com.member.brace, ...
+  % ブレース長さ L を上書き
+  lm_brace_buckling = calc_brace_buckling_length(com.member.brace, ...
     com.member.girder, node, com.section.property.type, ...
-    com.section.girder.idsec, secdim, ...
-    options.position_brace_foundation_girder);
-  lkx(mtype==PRM.BRACE,1) = lk_brace;
-  lky(mtype==PRM.BRACE,1) = lk_brace;
+    com.section.girder.idsec, secdim);
+  lkx(mtype==PRM.BRACE,1) = lm_brace_buckling;
+  lky(mtype==PRM.BRACE,1) = lm_brace_buckling;
 
-  % 正確な細長比を算出（lk_brace 反映後の lkx/lky を使用）
+  % 正確な細長比を算出（lm_brace_buckling 反映後の lkx/lky を使用）
   [lambday, lambdaz] = calc_lambda(A, Iy, Iz, mtype, mstype, lkx, lky);
 
   gr = max([reshape([gri; grj; grc],nng,[])],[],2) ...

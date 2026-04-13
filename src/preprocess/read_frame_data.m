@@ -52,35 +52,27 @@ function [com, options] = read_frame_data(input, options)
 %   idm2g = (1:nme); idm2g = idm2g(member.property.idmeg>0);
 
 %% ブロック区切り
-labels = {'基本事項', ...
-  '構造計算条件', '最適化条件', '制約条件', '出力制御', ...
-  '材料', '断面リスト', '柱脚リスト', ...
-  '軸X', '軸Y', '層', 'スパンX方向', 'スパンY方向', ...
-  '階', '標準階高と梁心の差', '剛床仮定の解除', ...
-  '節点', '支点', ...
-  '部材の寄り', '柱の寄り', '大梁の寄り', ...
-  '軸振れ', 'セットバック', ...
-  '大梁のレベル調整', '節点の同一化', ...
-  '設計変数', '梁せい分布除外', ...
-  'S梁断面', 'S柱断面', 'RC梁断面', 'RC柱断面', ...
-  'メーカー製柱脚断面', ...
+labels = {'基本事項', '構造計算条件', '最適化条件', '制約条件', ...
+  '出力制御', '材料', '断面リスト', '柱脚リスト', '軸X', '軸Y', ...
+  '層', 'スパンX方向', 'スパンY方向', '階', ...
+  '標準階高と梁心の差', '剛床仮定の解除', '節点', '支点', ...
+  '部材の寄り', '柱の寄り', '大梁の寄り', '軸振れ', ...
+  'セットバック', '大梁のレベル調整', '節点の同一化', ...
+  '設計変数', '梁せい分布除外', 'S梁断面', 'S柱断面', ...
+  'RC梁断面', 'RC柱断面', 'メーカー製柱脚断面', ...
   '鉛直ブレース断面（鋼材）', ...
   '鉛直ブレース断面（メーカー製品）', ...
   '鉛直ブレース断面（引張ブレース）', ...
-  '水平ブレース断面', ...
-  'S梁断面(仮定)', 'S柱断面(仮定)', ...
+  '水平ブレース断面', 'S梁断面(仮定)', 'S柱断面(仮定)', ...
   '鉛直ブレース断面（鋼材）(仮定)', ...
   '鉛直ブレース断面（メーカー製品）(仮定)', ...
-  '大梁配置', '柱配置', ...
-  '鉛直ブレース配置', '水平ブレース配置', ...
-  '梁の結合状態', '柱の結合状態', ...
+  '大梁配置', '柱配置', '鉛直ブレース配置', ...
+  '水平ブレース配置', '梁の結合状態', '柱の結合状態', ...
   '柱の剛域', '梁の横補剛', '通し柱', '通し梁', ...
-  'スラブ協力幅', '柱の剛度増減率', ...
-  '梁の剛度増減率', ...
+  'スラブ協力幅', '柱の剛度増減率', '梁の剛度増減率', ...
   '断面算定の省略（梁符号毎）', ...
   '断面算定の省略（柱符号毎）', ...
-  '荷重ケース', '節点荷重', '追加節点荷重', ...
-  '梁要素荷重'};
+  '荷重ケース', '節点荷重', '追加節点荷重', '梁要素荷重'};
 dbc = data_block_class;
 dbc.readCsvFile(input, labels);
 
@@ -136,8 +128,9 @@ for i = 1:section_list.nlist
     if isempty(idm)
       idm = com.nma + 1;
       com.material = [com.material; table(idm, ...
-        {TB_DEFAULT_MATERIAL}, 205000, 0.3, 235.0, true, ...
-        'VariableNames', com.material.Properties.VariableNames)];
+        {TB_DEFAULT_MATERIAL}, 205000, 0.3, 235.0, ...
+        true, 'VariableNames', ...
+        com.material.Properties.VariableNames)];
       com.nma = idm;
     end
     section_list.idmaterial{i}(:) = idm;
@@ -203,6 +196,7 @@ baseline.y.coord = calculate_coord(span.y.span);
 baseline.z.coord = calculate_coord(floor.height(iddd));
 baseline.z.isdummy = story.isdummy;
 baseline.z.idnominal = idstory2nominal;
+baseline.z.coord_standard = calculate_coord(floor.standard_height(iddd));
 
 %% 構造スパンの更新（部材の寄りを反映）
 member_column = set_member_column_p1_block(dbc, com);
@@ -847,9 +841,9 @@ data = dbc.get_data_block('柱脚リスト');
 n = size(data,1);
 
 % 符号・材料・リストファイル名
-column_base_list(1:n) = struct('D', [], 'kbs', [], 'Df', [], ...
-  'type', [], 'name', [], 'list_name', [], ...
-  'list_dir', [], 'file_name', []);
+column_base_list(1:n) = struct('D', [], 'kbs', ...
+  [], 'Df', [], 'type', [], 'name', [], ...
+  'list_name', [], 'list_dir', [], 'file_name', []);
 
 % list_name = cell(n,1);
 % file_name = cell(n,1);
@@ -884,403 +878,6 @@ for i=1:n
   column_base_list(i).file_name = file_name;
 end
 
-return
-end
-
-%--------------------------------------------------------------------------
-function xbaseline = set_xbaseline_block(dbc)
-data = dbc.get_data_block('軸X');
-n = size(data,1);
-name = cell(n,1);
-id = nan(n,1);
-for i=1:n
-  name{i} = tochar(data{i,1});
-  id(i) = data{i,2};
-end
-
-% 結果の保存
-isdummy = false(n,1);
-xbaseline = table(name, id, isdummy);
-xbaseline = sortrows(xbaseline, 'id');
-xbaseline.id = [];
-return
-end
-
-%--------------------------------------------------------------------------
-function ybaseline = set_ybaseline_block(dbc)
-data = dbc.get_data_block('軸Y');
-n = size(data,1);
-name = cell(n,1);
-id = nan(n,1);
-for i=1:n
-  name{i} = tochar(data{i,1});
-  id(i) = data{i,2};
-end
-
-% 結果の保存
-isdummy = false(n,1);
-ybaseline = table(name, id, isdummy);
-ybaseline = sortrows(ybaseline, 'id');
-ybaseline.id = [];
-return
-end
-
-%--------------------------------------------------------------------------
-function xspan = set_xspan_block(dbc, com)
-data = dbc.get_data_block('スパンX方向');
-n = size(data,1);
-name = cell(n,1);
-standard_span = zeros(n,1);
-span = zeros(n,1);
-for i=1:n
-  name{i} = tochar(data{i,1});
-  standard_span(i) = data{i,2};
-  span(i) = data{i,3};
-end
-
-% 通り番号
-idx = zeros(n,1); iddx = 1:com.nblx;
-for i=1:n
-  idx(i) = iddx(matches(com.baseline.x.name, name{i}));
-end
-xspan = table(name, standard_span, span, idx);
-return
-end
-
-%--------------------------------------------------------------------------
-function yspan = set_yspan_block(dbc, com)
-data = dbc.get_data_block('スパンY方向');
-n = size(data,1);
-name = cell(n,1);
-standard_span = zeros(n,1);
-span = zeros(n,1);
-for i=1:n
-  name{i} = tochar(data{i,1});
-  standard_span(i) = data{i,2};
-  span(i) = data{i,3};
-end
-
-% 通り番号
-idy = zeros(n,1); iddy = 1:com.nbly;
-for i=1:n
-  idy(i) = iddy(matches(com.baseline.y.name, name{i}));
-end
-yspan = table(name, standard_span, span, idy);
-return
-end
-
-%--------------------------------------------------------------------------
-function [story, zbaseline] = set_story_block(dbc)
-data = dbc.get_data_block('層');
-n = size(data,1);
-name = cell(n,1);
-idz = nan(n,1);
-isrigid = true(n,1);
-xg = zeros(n,1);
-yg = zeros(n,1);
-girder_level = zeros(n,1);
-isdummy = false(n,1);
-id_dependent_story = zeros(n,1);
-
-% 層データの読み込み
-for i=1:n
-  name{i} = tochar(data{i,1});
-  idz(i) = data{i,2};
-  isrigid(i) = (data{i,3}=='T');
-  xg(i) = data{i,4};
-  yg(i) = data{i,5};
-  if ~ismissing(data{i,6})
-    girder_level(i) = data{i,6};
-  end
-  if ~ismissing(data{i,7})
-    if data{i,7}=='T'
-      isdummy(i) = true;
-    end
-  end
-end
-
-% ダミー層の処理
-for i=1:n
-  if ~isdummy(i)
-    continue
-  end
-  if ~ismissing(data{i,8})
-    switch data{i,8}
-      case '上層'
-        id_dependent_story(i) = idz(i)+1;
-      case '下層'
-        id_dependent_story(i) = idz(i)-1;
-    end
-  end
-end
-
-% 結果の保存
-story = table(name, idz, isrigid, xg, yg, girder_level, ...
-  isdummy, id_dependent_story);
-story = sortrows(story, 'idz');
-id = story.idz;
-name = story.name;
-idstory = (1:n)';
-isdummy = story.isdummy;
-zbaseline = table(id,name,idstory,isdummy);
-zbaseline = sortrows(zbaseline, 'id');
-zbaseline.id = [];
-return
-end
-
-%--------------------------------------------------------------------------
-function [floor, story] = set_floor_block(dbc, com)
-data = dbc.get_data_block('階');
-n = size(data,1);
-
-% 共通定数
-nstory = com.nstory;
-
-% 共通配列
-story = com.story;
-
-% 階名・標準階高・構造階高
-name = cell(n,1);
-standard_height = nan(n,1);
-height = nan(n,1);
-story_name = cell(n,2);
-for i=1:n
-  name{i} = tochar(data{i,1});
-  story_name(i,:) = data(i,2:3);
-  standard_height(i) = data{i,3};
-  height(i) = data{i,4};
-  if ismissing(height(i))
-    height(i) = standard_height(i);
-  end
-end
-diff_height = zeros(n,1);
-
-% 層番号
-idstory = zeros(n,1); iddd = 1:com.nstory;
-idz = zeros(n,1);
-isdummy = false(n,1);
-idnominal = zeros(n,1);
-for i=1:n
-  idstory(i) = iddd(matches(com.story.name, story_name{i}));
-  idz(i) = story.idz(idstory(i));
-  isdummy(i) = story.isdummy(idstory(i));
-  idnominal(i) = story.idnominal(idstory(i));
-end
-floor = table(name, story_name, standard_height, height, diff_height, ...
-  idstory, idz, isdummy, idnominal);
-floor = sortrows(floor,'idz');
-
-% 層への階情報の追加
-floor_name = cell(nstory,1);
-for i=1:nstory; floor_name{i} = ''; end
-idfloor = nan(nstory,1);
-for i=1:n
-  floor_name{floor.idstory(i)} = floor.name{i};
-  idfloor(floor.idstory(i)) = i;
-end
-story.floor_name = floor_name;
-story.idfloor = idfloor;
-return
-end
-
-%--------------------------------------------------------------------------
-function alignment = set_baseline_alignment_block(dbc, com)
-data = dbc.get_data_block('部材の寄り');
-n = size(data,1);
-
-% 共通定数
-nblx = com.nblx;
-nbly = com.nbly;
-
-% データ読み取り
-xy_frame_name = cell(n,1);
-alignment_column = zeros(n,1);
-alignment_girder = zeros(n,1);
-for i=1:n
-  xy_frame_name{i} = tochar(data{i,1});
-  alignment_column(i) = data{i,2};
-  alignment_girder(i) = data{i,3};
-end
-
-% 通り番号の検索
-idir = zeros(n,1);
-idxy = zeros(n,1); iddd = 1:max([nblx nbly]);
-for i=1:n
-  % X通り
-  idx = matches(com.baseline.x.name, xy_frame_name{i});
-  if any(idx)
-    idir(i) = PRM.X;
-    idxy(i) = iddd(idx);
-    continue
-  end
-
-  % Y通り
-  idy = matches(com.baseline.y.name, xy_frame_name{i});
-  if any(idy)
-    idir(i) = PRM.Y;
-    idxy(i) = iddd(idy);
-  end
-end
-
-% X方向
-idx = idxy(idir==PRM.X);
-% frame_name = cell(nblx,1);
-frame_name = com.baseline.x.name;
-column = zeros(nblx,1);
-girder = zeros(nblx,1);
-% frame_name(idx) = xy_frame_name(idir==PRM.X);
-column(idx) = alignment_column(idir==PRM.X);
-girder(idx) = alignment_girder(idir==PRM.X);
-x = table(frame_name, column, girder);
-
-% Y方向
-idy = idxy(idir==PRM.Y);
-% frame_name = cell(nbly,1);
-frame_name = com.baseline.y.name;
-column = zeros(nbly,1);
-girder = zeros(nbly,1);
-% frame_name(idy) = xy_frame_name(idir==PRM.Y);
-column(idy) = alignment_column(idir==PRM.Y);
-girder(idy) = alignment_girder(idir==PRM.Y);
-y = table(frame_name, column, girder);
-
-% 結果の保存
-alignment.x = x;
-alignment.y = y;
-return
-end
-
-%--------------------------------------------------------------------------
-function alignment_column = set_baseline_alignment_column_block(dbc, com)
-data = dbc.get_data_block('柱の寄り');
-n = size(data,1);
-
-% データ読み取り
-story_name = cell(n,1);
-xcoord_name = cell(n,1);
-ycoord_name = cell(n,1);
-dx = zeros(n,1);
-dy = zeros(n,1);
-for i=1:n
-  story_name{i} = tochar(data{i,1});
-  xcoord_name{i} = tochar(data{i,2});
-  ycoord_name{i} = tochar(data{i,3});
-  val = data{i,4};
-  if ~ismissing(val)
-    dx(i) = val;
-  end
-  val = data{i,5};
-  if ~ismissing(val)
-    dy(i) = val;
-  end
-end
-
-% 通り番号の検索
-[idx, idy, idz] = find_idxy_floor_coord(story_name, ...
-  xcoord_name, ycoord_name, com.baseline, com.floor);
-
-% 結果の保存
-column = table(idx, idy, idz, dx, dy);
-alignment_column = column;
-return
-end
-
-%--------------------------------------------------------------------------
-function baseline_delta = set_baseline_delta_block(dbc, com)
-data = dbc.get_data_block('軸振れ');
-n = size(data,1);
-
-% 共通定数
-nblx = com.nblx;
-nbly = com.nbly;
-
-% データ読み取り
-xname = cell(n,1);
-yname = cell(n,1);
-dx = zeros(n,1);
-dy = zeros(n,1);
-for i=1:n
-  xname{i} = tochar(data{i,1});
-  yname{i} = tochar(data{i,2});
-  dx(i) = data{i,3};
-  dy(i) = data{i,4};
-end
-
-% 通り番号の検索
-idx = zeros(n,1);
-idy = zeros(n,1);
-iddd = 1:max([nblx nbly]);
-for i=1:n
-  % X通り
-  id = matches(com.baseline.x.name, xname{i});
-  if any(id)
-    idx(i) = iddd(id);
-  end
-
-  % Y通り
-  id = matches(com.baseline.y.name, yname{i});
-  if any(id)
-    idy(i) = iddd(id);
-  end
-end
-
-% 結果の保存
-baseline_delta = table(xname, yname, dx, dy, idx, idy);
-return
-end
-
-%--------------------------------------------------------------------------
-function baseline_setback = set_baseline_setback_block(dbc, com)
-data = dbc.get_data_block('セットバック');
-n = size(data,1);
-
-% 共通定数
-nblx = com.nblx;
-nbly = com.nbly;
-nstory = com.nstory;
-
-% データ読み取り
-story_name = cell(n,1);
-xname = cell(n,1);
-yname = cell(n,1);
-dx = zeros(n,1);
-dy = zeros(n,1);
-for i=1:n
-  story_name{i} = tochar(data{i,1});
-  xname{i} = tochar(data{i,2});
-  yname{i} = tochar(data{i,3});
-  dx(i) = data{i,4};
-  dy(i) = data{i,5};
-end
-
-% 通り番号の検索
-idx = zeros(n,1);
-idy = zeros(n,1);
-idstory = zeros(n,1);
-iddd = 1:max([nblx nbly nstory]);
-for i=1:n
-  % 層
-  id = matches(com.story.name, story_name{i});
-  if any(id)
-    idstory(i) = iddd(id);
-  end
-
-  % X通り
-  id = matches(com.baseline.x.name, xname{i});
-  if any(id)
-    idx(i) = iddd(id);
-  end
-
-  % Y通り
-  id = matches(com.baseline.y.name, yname{i});
-  if any(id)
-    idy(i) = iddd(id);
-  end
-end
-
-% 結果の保存
-baseline_setback = table(story_name, xname, yname, ...
-  dx, dy, idstory, idx, idy);
 return
 end
 
@@ -1370,13 +967,12 @@ idnode = zeros(n,1);
 iddn = 1:com.nnode;
 for i=1:n
   idnode(i) = iddn(com.node.idx==idx(i) ...
-    & com.node.idy==idy(i) ...
-    & com.node.idstory==idstory(i));
+    & com.node.idy==idy(i) & com.node.idstory==idstory(i));
 end
 
 % 結果の保存
-support = table(xname, yname, story_name, ...
-  isfixed, idx, idy, idstory, idnode);
+support = table(xname, yname, story_name, isfixed, ...
+  idx, idy, idstory, idnode);
 return
 end
 
@@ -1413,8 +1009,7 @@ idnode = zeros(n,1);
 iddn = 1:com.nnode;
 for i=1:n
   idn_ = iddn(com.node.idx==idx(i) ...
-    & com.node.idy==idy(i) ...
-    & com.node.idstory==idstory(i));
+    & com.node.idy==idy(i) & com.node.idstory==idstory(i));
   if ~isempty(idn_)
     idnode(i) = idn_;
   end
@@ -2190,8 +1785,8 @@ member_girder.idir(is_45deg) = PRM.XY;
 
 % 基礎梁フラグ（両端が支点節点なら基礎梁）
 idsup2n = com.support.idnode;
-member_girder.isfg = ismember(idnode1, idsup2n) ...
-  & ismember(idnode2, idsup2n);
+member_girder.isfg = ismember(idnode1, idsup2n) & ...
+  ismember(idnode2, idsup2n);
 
 % WFS部材番号の設定
 nmeg = size(member_girder,1);
@@ -2391,8 +1986,8 @@ for i=1:n
 end
 
 % 梁部材番号
-[idx, idy, idz, ~] = find_idxyz_girder(story_name, ...
-  frame_name, coord_name, baseline);
+[idx, idy, idz, ~] = find_idxyz_girder( ...
+  story_name, frame_name, coord_name, baseline);
 idmeg = find_idgirder_from_idxyz(idx, idy, idz, ...
   member_girder, [], baseline);
 
@@ -2419,12 +2014,27 @@ end
 
 %--------------------------------------------------------------------------
 function joint = set_member_column_joint_block(dbc, com)
-% 柱の結合状態を読み込む
+%set_member_column_joint_block - 柱の結合状態を読み込む
 %
-% CSVデータ構造:
-% 階, X軸, Y軸, 結合状態(X)柱頭, 結合状態(X)柱脚,
-% 結合状態(Y)柱頭, 結合状態(Y)柱脚
-% 結合状態: 0=ピン, それ以外=固定
+%   joint = set_member_column_joint_block(dbc, com) は、
+%   CSVデータブロック「柱の結合状態」から柱部材の
+%   結合状態（ピン/固定）を読み込み、柱部材配列に
+%   対応する結合状態配列を返す。
+%
+%   入力引数:
+%     dbc - データブロッククラスオブジェクト
+%     com - 共通データ構造体
+%
+%   出力引数:
+%     joint - 結合状態 [nmec x 4]
+%       列順: X柱脚, X柱頭, Y柱脚, Y柱頭
+%       値: PRM.FIX(固定) / PRM.PIN(ピン)
+%
+%   備考:
+%     CSVデータ構造:
+%     階, X軸, Y軸, 結合状態(X)柱頭, 結合状態(X)柱脚,
+%     結合状態(Y)柱頭, 結合状態(Y)柱脚
+%     結合状態: 0=ピン, それ以外=固定
 
 data = dbc.get_data_block('柱の結合状態');
 n = size(data,1);
@@ -2507,8 +2117,8 @@ for i=1:n
 end
 
 % 梁部材番号
-[idx, idy, idz, ~] = find_idxyz_girder(story_name, ...
-  frame_name, coord_name, baseline);
+[idx, idy, idz, ~] = find_idxyz_girder( ...
+  story_name, frame_name, coord_name, baseline);
 idmeg = find_idgirder_from_idxyz(idx, idy, idz, ...
   member_girder, [], baseline);
 
@@ -2572,8 +2182,8 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz, ~] = find_idxyz_girder(story_name, ...
-  frame_name, coord_name, baseline);
+[idx, idy, idz, ~] = find_idxyz_girder( ...
+  story_name, frame_name, coord_name, baseline);
 
 % 梁部材番号
 idmeg = find_idgirder_from_idxyz(idx, idy, idz, ...
@@ -2614,7 +2224,7 @@ end
 [idx, idy, idz, idir] = find_idxyz_girder(story_name, ...
   frame_name, coord_name, baseline);
 
-% 柱の剛度増減率
+% 梁の剛度増減率
 nmeg = size(member_girder,1);
 girder_phi = nan(nmeg,1);
 for i=1:n
@@ -2727,9 +2337,19 @@ end
 
 %--------------------------------------------------------------------------
 function istarget = set_exclusion_column_stress_block(dbc, com)
-% 柱の許容応力度検定除外設定
-% - RC柱（RCRS断面）は自動的に除外
-% - YLABIn.csv「断面算定の省略（柱符号毎）」で F 指定された柱符号も除外
+%set_exclusion_column_stress_block - 柱の許容応力度検定除外設定
+%
+%   istarget = set_exclusion_column_stress_block(dbc, com) は、
+%   柱断面の許容応力度検定対象フラグを返す。
+%   RC柱（RCRS断面）は自動的に除外し、CSV入力で
+%   F指定された柱符号も除外する。
+%
+%   入力引数:
+%     dbc - データブロッククラスオブジェクト
+%     com - 共通データ構造体
+%
+%   出力引数:
+%     istarget - 検定対象フラグ [nsecc x 1] logical
 
 % 共通配列
 nsecc = com.nsecc;
@@ -2796,13 +2416,12 @@ end
 % 除外節点の検索
 isexcluded = false(nmeg,1);
 for i=1:n
-  istarget = ...
-    idx(i,1) <= girder_idx(:,1) ...
-    & girder_idx(:,2) <= idx(i,2) ...
-    & idy(i,1) <= girder_idy(:,1) ...
-    & girder_idy(:,2) <= idy(i,2) ...
-    & idz(i,1) <= girder_idz(:,1) ...
-    & girder_idz(:,2) <= idz(i,2);
+  istarget = idx(i,1) <= girder_idx(:,1) & ...
+    girder_idx(:,2) <= idx(i,2) & ...
+    idy(i,1) <= girder_idy(:,1) & ...
+    girder_idy(:,2) <= idy(i,2) & ...
+    idz(i,1) <= girder_idz(:,1) & ...
+    girder_idz(:,2) <= idz(i,2);
   if idir(i)>0
     istarget = istarget & girder_idir == idir(i);
   end

@@ -1,9 +1,9 @@
 function [fval, fdetail, cost] = objective_lsr(xvar, ...
-  secmgr, ~, node, section, member, story, floor, options)
+  secmgr, ~, node, section, member, ~, floor, options)
 %objective_lsr - 断面最適化の目的関数（鉄骨コスト）
 %
 %   [fval, fdetail, cost] = objective_lsr(xvar,
-%   secmgr, ~, node, section, member, story,
+%   secmgr, ~, node, section, member, ~,
 %   floor, options) は、
 %   設計変数 xvar に対応する断面寸法から部材重量・
 %   コストを算出し、目的関数値を返す。
@@ -14,7 +14,6 @@ function [fval, fdetail, cost] = objective_lsr(xvar, ...
 %     node    - 節点データ構造体
 %     section - 断面データ構造体
 %     member  - 部材データ構造体
-%     story   - 層データ構造体
 %     floor   - 床データ構造体
 %     options - 計算オプション構造体
 %
@@ -79,7 +78,7 @@ lm_gir = calc_girder_weight_length(mgir_, node, stype, ...
 % ブレース: 標準階高の内法対角長
 mbrc_ = member.brace;
 lm_brc = calc_brace_cost_length(mbrc_, mgir_, mcol_, ...
-  node, story, floor, stype, idsc2s, idsg2s, secdim);
+  node, stype, idsc2s, idsg2s, secdim);
 
 % 水平ブレース等は節点座標から直接計算
 idm2n = [member.property.idnode1 member.property.idnode2];

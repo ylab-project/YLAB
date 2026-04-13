@@ -90,10 +90,8 @@ scallop = com.girder_scallop_size;
 secmgr = com.secmgr;
 slab.width = com.member.girder.slab_width;
 slab.thickness = com.member.girder.slab_thickness;
-slab.width_lower = ...
-  com.member.girder.slab_width_lower;
-slab.thickness_lower = ...
-  com.member.girder.slab_thickness_lower;
+slab.width_lower = com.member.girder.slab_width_lower;
+slab.thickness_lower = com.member.girder.slab_thickness_lower;
 story = com.story;
 stype = com.section.property.type;
 % stress_factor = com.sectionList.design_stress_factor(idmc2slist);
@@ -316,17 +314,16 @@ flag = struct("consider_shear_deformation", ...
 
 %% λeによる引張のみブレース判定
 is_steel_brace = (mtype == PRM.BRACE) ...
-  & (stype(idm2s) == PRM.BHSR ...
-  | stype(idm2s) == PRM.BHSS | stype(idm2s) == PRM.BWFS);
+  & (stype(idm2s) == PRM.BHSR | stype(idm2s) == PRM.BHSS ...
+  | stype(idm2s) == PRM.BWFS);
 is_tension = false(nme, 1);
 if any(is_steel_brace)
-  % 座屈長で λe を算定（SS7 3.8.1）
-  lk_brace = calc_brace_buckling_length( ...
-    member.brace, com.member.girder, node, stype, ...
-    com.section.girder.idsec, secdim, ...
-    options.position_brace_foundation_girder);
+  % ブレース長さ L で λe を算定（SS7 3.8.1）
+  lm_brace_buckling = calc_brace_buckling_length(member.brace, ...
+    com.member.girder, node, stype, com.section.girder.idsec, ...
+    secdim);
   lk_all = lm;
-  lk_all(mtype==PRM.BRACE) = lk_brace;
+  lk_all(mtype==PRM.BRACE) = lm_brace_buckling;
   iy_ = sqrt(Iy(is_steel_brace) ./ A(is_steel_brace));
   iz_ = sqrt(Iz(is_steel_brace) ./ A(is_steel_brace));
   imin_ = min(iy_, iz_);
@@ -340,8 +337,7 @@ is_tension_hb = com.member.property.is_tension_only_hb;
 is_tension = is_tension | is_tension_hb;
 
 %% 引張ブレースの判定（TB + λe判定鋼材 + 水平ブレース引張のみ）
-has_tension_brace = any(stype(idm2s) == PRM.TB) ...
-  || any(is_tension);
+has_tension_brace = any(stype(idm2s) == PRM.TB) || any(is_tension);
 
 if options.consider_foundation_uplift || has_tension_brace
   iter_max = 30;
@@ -350,19 +346,19 @@ else
 end
 
 %% ブレース剛性の事前計算
-br_stif = precompute_brace_stiffness(A, cxl, cyl, ...
-  lm, Em, JJ, prm, xr, yr, idn2df, idm2n1, ...
-  idm2n2, mtype, stype, idm2s, is_tension);
+br_stif = precompute_brace_stiffness(A, cxl, cyl, lm, ...
+  Em, JJ, prm, xr, yr, idn2df, idm2n1, idm2n2, mtype, ...
+  stype, idm2s, is_tension);
 if has_tension_brace
   id_tb = find([br_stif.is_tb]);
   ntb = length(id_tb);
 end
 
 %% 剛性行列の作成
-ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
-  cxl, cyl, lm, Em, prm, xr, yr, lrxm, lrym, ...
-  cbstiff, mtype, idn2df, idf2n, idm2n1, idm2n2, ...
-  idm2scb, mejoint, ndf, nbw, flag, br_stif);
+ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, ...
+  cyl, lm, Em, prm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
+  idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
+  nbw, flag, br_stif);
 
 %% 初期化
 isuplifted = false(nsup, nlc);
@@ -394,8 +390,8 @@ else
     for iter = 1:iter_max
       % TB剛性減算（共通）
       if has_tension_brace && any(iscompressed(:, ilc))
-        ksmat = subtract_brace_stiffness( ...
-          ksmat0, br_stif, id_tb, iscompressed(:, ilc));
+        ksmat = subtract_brace_stiffness(ksmat0, br_stif, ...
+          id_tb, iscompressed(:, ilc));
       else
         ksmat = ksmat0;
       end
@@ -415,8 +411,8 @@ else
         % G+P外力補正
         if has_tension_brace && any(iscompressed(:, ilc))
           frvec_ilc_ = frvec_ilc_ + calc_tb_gp_force( ...
-            br_stif, id_tb, dvec(:, 1), ...
-            iscompressed(:, ilc), iscompressed(:, 1));
+            br_stif, id_tb, dvec(:, 1), iscompressed(:, ilc), ...
+            iscompressed(:, 1));
         end
       end
       % 変位計算
@@ -427,14 +423,12 @@ else
       if has_tension_brace
         iscompressed_prev_ = iscompressed(:, ilc);
         if ilc == 1
-          iscompressed(:, 1) = ...
-            check_brace_compression_case( ...
+          iscompressed(:, 1) = check_brace_compression_case( ...
             br_stif, id_tb, dvec, 1, iscompressed(:, 1), []);
         else
-          iscompressed(:, ilc) = ...
-            check_brace_compression_case( ...
-            br_stif, id_tb, dvec, ilc, ...
-            iscompressed(:, ilc), iscompressed(:, 1));
+          iscompressed(:, ilc) = check_brace_compression_case( ...
+            br_stif, id_tb, dvec, ilc, iscompressed(:, ilc), ...
+            iscompressed(:, 1));
         end
         if ~all(iscompressed(:, ilc) == iscompressed_prev_)
           converged_ = false;
@@ -508,8 +502,8 @@ if has_tension_brace
 end
 
 %% Kブレース分割梁のせん断力補正
-rs0 = correct_kbrace_shear(rs0, node.type, ...
-  member_girder, member_brace, cxl, idm2n1, idm2n2);
+rs0 = correct_kbrace_shear(rs0, node.type, member_girder, ...
+  member_brace, cxl, idm2n1, idm2n2);
 
 %% 荷重ケースの重ね合わせ
 [rs, Mc, rvec, cgsrn] = superpose_analysis_case(rs0, ...
@@ -525,18 +519,15 @@ end
 state.tb.is_tension = is_tension(com.member.brace.idme);
 
 %% 設計応力の計算
-df0 = calc_design_force(rs0, lcdir, idmc2m, ...
-  idmg2m, lm, lf);
-dfn0 = calc_nominal_design_force(df0, ...
-  nominal_property);
+df0 = calc_design_force(rs0, lcdir, idmc2m, idmg2m, lm, lf);
+dfn0 = calc_nominal_design_force(df0, nominal_property);
 dfn = superpose_design_force(dfn0, lcdir);
 
 % 名目部材レベルの中央M（ケース別→重ね合わせ）
 % M0 は L287 で sw.M0 加算済み
 idnmg2nm = nominal_girder.idnominal;
-Mcn0 = calc_nominal_Mc(rs0, M0, ...
-  Mc0(idnm2m(:,1), :), idmeg, idmg2m, ...
-  idnmg2nm, lm, lf);
+Mcn0 = calc_nominal_Mc(rs0, M0, Mc0(idnm2m(:,1), :), ...
+  idmeg, idmg2m, idnmg2nm, lm, lf);
 Mcn = superpose_design_force(Mcn0, lcdir);
 nomgc.Mcn = squeeze(Mcn);
 nomgc.Mcn0 = squeeze(Mcn0);
@@ -548,10 +539,9 @@ Ncn = superpose_design_force(Ncn0, lcdir);
 nomgc.Ncn = squeeze(Ncn);
 
 %% 許容応力度計算用の係数算定
-[C, ~] = calc_modified_C(rs, M0, lm, lbng, ...
-  nomgc.xc, idm2mg, is_through_girder, idmeg, Mc);
-Cn = calc_modified_Cn(rs, M0, lm, nomgc, ...
-  idm2mg, is_through_girder, idmeg);
+[C, ~] = calc_modified_C(rs, M0, lm, lbng, nomgc.xc, ...
+  idm2mg, is_through_girder, idmeg, Mc);
+Cn = calc_modified_Cn(rs, M0, lm, nomgc, idm2mg, is_through_girder, idmeg);
 
 %% 柱梁耐力比算定用の軸力による全塑性曲げモーメント低下率の算定
 [vix, viy] = reduction_rate(mtype, cgsrn, A, Fm, lcdir);
@@ -574,9 +564,8 @@ end
 % An = Aw+Af;
 % [st, stc] = stress(rs, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, mtype);
 
-[stn, stcn] = calc_nominal_stress(dfn, Mcn, ...
-  Asc, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, ...
-  mtype, idnm2m);
+[stn, stcn] = calc_nominal_stress(dfn, Mcn, Asc, Asy, ...
+  Asz, Aw, Zy, Zz, Zyij, Zyc, mtype, idnm2m);
 % -------------------------------------------------------------------------
   function dnode = trans_dvec2dnode(ilcset, dnode, dvec)
     % 剛床を考慮した節点変位への変換
@@ -707,13 +696,12 @@ return
 end
 
 % -------------------------------------------------------------------------
-function ksmat = subtract_brace_stiffness(ksmat0, ...
-  br_stif, id_tb, iscompressed_ilc)
+function ksmat = subtract_brace_stiffness(ksmat0, br_stif, ...
+  id_tb, iscompressed_ilc)
 %subtract_brace_stiffness - 圧縮ブレースの剛性を減算
 %
-%   ksmat = subtract_brace_stiffness( ...
-%     ksmat0, br_stif, id_tb, ...
-%     iscompressed_ilc) は、
+%   ksmat = subtract_brace_stiffness(ksmat0, br_stif, ...
+%     id_tb, iscompressed_ilc) は、
 %   基本剛性マトリクスから圧縮ブレースの寄与を
 %   減算した剛性マトリクスを返す。
 %

@@ -1,4 +1,4 @@
-﻿function [member_brace, baseline, node, member_column, member_girder] = ...
+function [member_brace, baseline, node, member_column, member_girder] = ...
   set_member_brace_block(dbc, com, options)
 %set_member_brace_block - ブレース配置データの読み込みと処理
 %
@@ -472,6 +472,8 @@ return
     add_node.z = zcoord(:);
     % dzは柱脚節点からコピー
     add_node.dz = node.dz(member_column.idnode1(iac));
+    add_node.z_standard = ...
+      baseline.z.coord_standard(nz) + add_node.dz;
     add_node.type(:) = PRM.NODE_BRACE_FOR_COLUMN;
     add_node.zname(:) = baseline.z.name(nz);
 
@@ -546,6 +548,8 @@ return
     y_mid = (node.y(idnode_k_L_)+node.y(idnode_k_R_))/2;
     z_mid = (node.z(idnode_k_L_)+node.z(idnode_k_R_))/2;
     dz_mid = (node.dz(idnode_k_L_)+node.dz(idnode_k_R_))/2;
+    zs_mid = (node.z_standard(idnode_k_L_) ...
+      +node.z_standard(idnode_k_R_))/2;
 
     % 重複する中間節点の統合（同一位置は1つだけ作成）
     [~, idu2o, ido2u] = unique( ...
@@ -565,6 +569,7 @@ return
     addnode.x = x_mid(idu2o);
     addnode.y = y_mid(idu2o);
     addnode.z = z_mid(idu2o);
+    addnode.z_standard = zs_mid(idu2o);
     addnode.dz = dz_mid(idu2o);
 
     % 通り線情報の設定とダミー通りの作成
