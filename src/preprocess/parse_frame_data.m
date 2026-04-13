@@ -505,17 +505,19 @@ idmec2n = [com.member.column.idnode1 com.member.column.idnode2];
 idmeg2sec = com.section.girder.idsec(com.member.girder.idsecg);
 idmeg2dir = com.member.girder.idir;
 
-% 計算の準備
-idmec2seg1x = zeros(nmec,2);
-idmec2seg1y = zeros(nmec,2);
-idmec2seg2x = zeros(nmec,2);
-idmec2seg2y = zeros(nmec,2);
+% 計算の準備（同一方向の梁本数上限を十分大きく確保）
+MAX_N = 99;
+idmec2seg1x = zeros(nmec, MAX_N);
+idmec2seg1y = zeros(nmec, MAX_N);
+idmec2seg2x = zeros(nmec, MAX_N);
+idmec2seg2y = zeros(nmec, MAX_N);
 
-idmec2meg1x = zeros(nmec,2);
-idmec2meg1y = zeros(nmec,2);
-idmec2meg2x = zeros(nmec,2);
-idmec2meg2y = zeros(nmec,2);
+idmec2meg1x = zeros(nmec, MAX_N);
+idmec2meg1y = zeros(nmec, MAX_N);
+idmec2meg2x = zeros(nmec, MAX_N);
+idmec2meg2y = zeros(nmec, MAX_N);
 iggg = 1:nmeg;
+max_n = 0;
 
 % 関係する変数の数え上げ
 for ic = 1:nmec
@@ -528,13 +530,10 @@ for ic = 1:nmec
 
       % 節点の格納
       n = length(idmeg);
-      switch n
-        case 0
-          iddd = zeros(1,2);
-        case 1
-          iddd = [idmeg2sec(idmeg) 0];
-        case 2
-          iddd = idmeg2sec(idmeg);
+      max_n = max(max_n, n);
+      iddd = zeros(1, MAX_N);
+      if n > 0
+        iddd(1:n) = idmeg2sec(idmeg);
       end
       switch ilr
         case 1
@@ -559,6 +558,17 @@ for ic = 1:nmec
     end
   end
 end
+
+% 実際に使われた最大列数にリサイズ
+max_n = max(max_n, 2);
+idmec2seg1x = idmec2seg1x(:, 1:max_n);
+idmec2seg1y = idmec2seg1y(:, 1:max_n);
+idmec2seg2x = idmec2seg2x(:, 1:max_n);
+idmec2seg2y = idmec2seg2y(:, 1:max_n);
+idmec2meg1x = idmec2meg1x(:, 1:max_n);
+idmec2meg1y = idmec2meg1y(:, 1:max_n);
+idmec2meg2x = idmec2meg2x(:, 1:max_n);
+idmec2meg2y = idmec2meg2y(:, 1:max_n);
 
 return
 end
