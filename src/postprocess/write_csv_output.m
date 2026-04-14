@@ -153,7 +153,8 @@ write_table(fout, '鉛直ブレース剛性表,case=標準', bphead, bpbody);
 write_table(fout, '柱座屈長さ,case=標準', cblhead, cblbody);
 
 %% 柱座屈長さ係数の自動計算
-if ~isempty(result.bkinfo)
+if ~isempty(result.bkinfo) ...
+    && options.consider_column_buckling_length_factor
   [bkh, bkb] = write_cell_column_buckling_length_factor(com, result);
   write_table(fout, '柱座屈長さ係数の自動計算,case=標準', bkh, bkb);
 end

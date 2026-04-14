@@ -1,12 +1,12 @@
 function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
   js, je, is_girder, lnm, lm, Em, mejoint, nominal, ...
-  idmc2nc, options, beta, ilc, col_idstory, onfg)
+  idmc2nc, options, beta, ilc, col_idstory, onfg, kcUser)
 %calc_buckling_length - 柱部材の座屈長さを計算する（1方向分）
 %
 %   [lk, kc, bkinfo] = calc_buckling_length(Iy,
 %   mtype, js, je, is_girder, lnm, lm, Em, mejoint,
 %   nominal, idmc2nc, options, beta, ilc,
-%   col_idstory, onfg) は、
+%   col_idstory, onfg, kcUser) は、
 %   構造骨組みにおける柱部材の座屈長さを算出する。
 %   呼び出し側で方向別の引数を準備し、本関数を
 %   X方向・Y方向それぞれ1回ずつ呼び出す。
@@ -28,6 +28,8 @@ function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
 %     ilc         - 荷重ケースマスク [nlc×1]
 %     col_idstory - 柱部材の層番号
 %     onfg        - 基礎梁接続フラグ [nmc×1]
+%     kcUser      - ユーザー指定座屈長さ係数 [nmec×1]
+%                   NaN=自動計算、数値=直接入力値
 %
 %   出力引数:
 %     lk     - 座屈長さ [nme×1]
@@ -149,14 +151,11 @@ for inc = 1:nnc
   Gbst(inc) = Gb;
 end
 
-% 座屈長さ係数の計算（2分法）
-kcn = solveK(Gast, Gbst, 1e-3);
-
-% β修正前のK値を保存
-kcn_raw = kcn;
-
-% βによる座屈長さ係数の修正（図3.30: 線形補間）
+% 座屈長さ係数の計算
 if options.consider_column_buckling_length_factor
+  % 自動計算: 2分法で solve → β補正
+  kcn = solveK(Gast, Gbst, 1e-3);
+  kcn_raw = kcn;
   alpha = options.brace_share_threshold;
   for inc = 1:nnc
     nsub = nominal_column.idsub(inc, 2);
@@ -172,6 +171,23 @@ if options.consider_column_buckling_length_factor
       end
     end
   end
+else
+  % 自動計算OFF: デフォルト K=1.0（ユーザー指定が無い柱に適用）
+  kcn = ones(nnc, 1);
+  kcn_raw = kcn;
+end
+
+% ユーザー入力K値で上書き（自動計算・β補正の結果を完全に置換）
+% 通し柱は柱脚側部材（idmec(inc,1)）のユーザー指定値のみ参照する
+if ~isempty(kcUser)
+  for inc = 1:nnc
+    imec_primary = nominal_column.idmec(inc, 1);
+    userK = kcUser(imec_primary);
+    if ~isnan(userK)
+      kcn(inc) = userK;
+      kcn_raw(inc) = userK;
+    end
+  end
 end
 
 % 結果の整理
@@ -179,13 +195,10 @@ kc = kcn(idmc2nc(:,1));
 lbmax = lbcnmax(idmc2nc(:,1));
 
 % 座屈長さの初期化（梁面からの長さ）
+% 自動計算OFFでも kcn=1 またはユーザー指定K値になっているため常に K×Lb
 lk = zeros(nme,1);
 lk(:) = lm;
-if options.consider_column_buckling_length_factor
-  lk(mtype==PRM.COLUMN) = kc.*lbmax;
-else
-  lk(mtype==PRM.COLUMN) = lbmax;
-end
+lk(mtype==PRM.COLUMN) = kc.*lbmax;
 
 % 座屈長さ係数の中間値
 bkinfo.IcLc = bk_IcLc(:);
