@@ -19,7 +19,7 @@ lrg = result.lr.girder;
 
 % 準備計算
 Em = msprop.E;
-Gm = msprop.E./(2*(1+msprop.pr));
+Gm = msprop.G;
 
 % --- 梁断面 ---
 gphead = {...
@@ -102,7 +102,7 @@ return
   function write_gp_right(irow_, ig_)
     idm_ = girder.idme(ig_);
     gpbody{irow_*2-1,4} = girder.coord_name{ig_,2};
-    gpbody{irow_*2,6} = sprintf('%.1f', Gm(idm_)*1.d-3);
+    gpbody{irow_*2,6} = sprintf('%.2f', Gm(idm_)*1.d-3);
     % gpbody{irow_*2,7} = sprintf('%.0f', msprop.Iy(idm_)*1.d-4);
     % gpbody{irow_*2,8} = sprintf('%.3f', gphiI(ig_));
     % gpbody{irow_*2,9} = sprintf('%.0f', Iy(idm_)*1.d-4);

@@ -1,5 +1,5 @@
 function ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
-  cxl, cyl, lm, Em, prm, xr, yr, lrxm, lrym, cbstiff, ...
+  cxl, cyl, lm, Em, Gm, xr, yr, lrxm, lrym, cbstiff, ...
   mtype, idn2df, idf2n, idm2n1, idm2n2, idm2scb, joint, ...
   ndf, nbw, flag, br_stif)
 
@@ -43,7 +43,7 @@ for im = 1:nm
     else
       Izi = Iz(im);
     end
-    Ei = Em(im); pri = prm(im);
+    Ei = Em(im); Gi = Gm(im);
     jointi = joint(im,:);
 
     if any(lrxi+lryi>=li)
@@ -64,10 +64,10 @@ for im = 1:nm
     if idm2scb(im)>0
       kcbi = cbstiff(idm2scb(im));
       ke = stif_beam_matrix(li, Ai, Asyi, Aszi, ...
-        Iyi, Izi, Ji, Ei, pri, lrxi, lryi, jointi, kcbi, flag);
+        Iyi, Izi, Ji, Ei, Gi, lrxi, lryi, jointi, kcbi, flag);
     else
       ke = stif_beam_matrix(li, Ai, Asyi, Aszi, ...
-        Iyi, Izi, Ji, Ei, pri, lrxi, lryi, jointi, [], flag);
+        Iyi, Izi, Ji, Ei, Gi, lrxi, lryi, jointi, [], flag);
     end
 
     % 剛域を考慮した座標変換
@@ -84,7 +84,7 @@ for im = 1:nm
       fprintf('エラー: 部材 %d でNaNが検出されました\n', im);
       fprintf('  A=%.3e, Asy=%.3e, Asz=%.3e\n', Ai, Asyi, Aszi);
       fprintf('  Iy=%.3e, Iz=%.3e, JJ=%.3e\n', Iyi, Izi, Ji);
-      fprintf('  E=%.3e, pr=%.3f, l=%.3f\n', Ei, pri, li);
+      fprintf('  E=%.3e, G=%.3e, l=%.3f\n', Ei, Gi, li);
       fprintf(['  lrxi=[%.3f, %.3f], ' ...
         'lryi=[%.3f, %.3f]\n'], ...
         lrxi(1), lrxi(2), lryi(1), lryi(2));

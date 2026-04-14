@@ -47,7 +47,7 @@ nominal_column = com.nominal.column;
 % idnm2mc = nominal_column.idmec;
 idmc2nmc = column.idnominal;
 Em = msprop.E;
-Gm = msprop.E./(2*(1+msprop.pr));
+Gm = msprop.G;
 
 % --- 柱断面 ---
 cphead = cell(3,27);
@@ -134,7 +134,7 @@ return
     end
     cpbody(irow*2-1:irow*2,5) = {'x'; 'y'};
     cpbody{irow*2-1,6} = Em(idm)*1.d-3;
-    cpbody{irow*2-1,7} = sprintf('%.1f', Gm(idm)*1.d-3);
+    cpbody{irow*2-1,7} = sprintf('%.2f', Gm(idm)*1.d-3);
     cpbody{irow*2-1,8} = sprintf('%.0f', msprop.Iy(idm)*1.d-4);
     cpbody{irow*2,8} = sprintf('%.0f', msprop.Iz(idm)*1.d-4);
     cpbody{irow*2-1,9} = sprintf('%.3f', cphiI(ic,1));

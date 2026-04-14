@@ -1,5 +1,5 @@
 function br_stif = precompute_brace_stiffness(A, ...
-  cxl, cyl, lm, Em, JJ, prm, xr, yr, idn2df, idm2n1, ...
+  cxl, cyl, lm, Em, JJ, Gm, xr, yr, idn2df, idm2n1, ...
   idm2n2, mtype, stype, idm2s, is_tension_only)
 %precompute_brace_stiffness - 全ブレース剛性の事前計算
 %
@@ -14,7 +14,7 @@ function br_stif = precompute_brace_stiffness(A, ...
 %     lm - 部材長 [nme×1]
 %     Em - ヤング係数 [nme×1]
 %     JJ - ねじり定数 [nme×1]
-%     prm - ポアソン比 [nme×1]
+%     Gm - せん断弾性係数 [nme×1]
 %     xr, yr - 剛床中心からの相対座標 [nnode×1]
 %     idn2df - 節点-自由度変換 [nnode×6]
 %     idm2n1, idm2n2 - 部材端節点 [nme×1]
@@ -63,7 +63,7 @@ for idx = 1:nbr
   kn_i = Ei * Ai / li;
 
   % 局所座標系ke（軸+ねじり）
-  ke = stif_truss_matrix(li, Ai, Ei, JJ(im), prm(im));
+  ke = stif_truss_matrix(li, Ai, Ei, JJ(im), Gm(im));
 
   % 局所系→全体系変換
   t_ = [cxl(im,:); cyl(im,:); czl(im,:)];

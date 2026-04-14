@@ -57,6 +57,7 @@ M0 = com.M0;
 matE = com.material.E;
 matF = com.material.F;
 matpr = com.material.pr;
+matG = com.material.G;
 matisSN = com.material.isSN;
 floor = com.floor;
 % fvec = com.feqvec;
@@ -140,6 +141,7 @@ end
 
 Fm = msprop.F;
 prm = zeros(nme,1); prm(idm2mat>0) = matpr(idm2mat(idm2mat>0));
+Gm = zeros(nme,1); Gm(idm2mat>0) = matG(idm2mat(idm2mat>0));
 isSNm = zeros(nme,1); isSNm(idm2mat>0) = matisSN(idm2mat(idm2mat>0));
 
 % 水平ブレース
@@ -155,6 +157,7 @@ Em(stype(idm2s) == PRM.TB) = PRM.ES;
 msprop.E = Em;
 % msprop.F = Fm;  % 既に108行目で設定済み
 msprop.pr = prm;
+msprop.G = Gm;
 msprop.isSN = isSNm;
 
 % 構造体への変換
@@ -347,7 +350,7 @@ end
 
 %% ブレース剛性の事前計算
 br_stif = precompute_brace_stiffness(A, cxl, cyl, lm, ...
-  Em, JJ, prm, xr, yr, idn2df, idm2n1, idm2n2, mtype, ...
+  Em, JJ, Gm, xr, yr, idn2df, idm2n1, idm2n2, mtype, ...
   stype, idm2s, is_tension);
 if has_tension_brace
   id_tb = find([br_stif.is_tb]);
@@ -356,7 +359,7 @@ end
 
 %% 剛性行列の作成
 ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, ...
-  cyl, lm, Em, prm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
+  cyl, lm, Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
   idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
   nbw, flag, br_stif);
 
@@ -473,7 +476,7 @@ end
 
 % 応力計算
 [rs, Mc] = calc_member_force(1:nlc, dvec, [], frvec, ...
-  sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, prm, lm, ...
+  sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm, ...
   lrxm, lrym, flag, member_property, node, material, ...
   cbstiff, idm2mat, idm2scb, mejoint, br_stif);
 

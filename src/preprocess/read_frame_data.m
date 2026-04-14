@@ -128,7 +128,7 @@ for i = 1:section_list.nlist
     if isempty(idm)
       idm = com.nma + 1;
       com.material = [com.material; table(idm, ...
-        {TB_DEFAULT_MATERIAL}, 205000, 0.3, 235.0, ...
+        {TB_DEFAULT_MATERIAL}, 205000, 0.3, 79400, 235.0, ...
         true, 'VariableNames', ...
         com.material.Properties.VariableNames)];
       com.nma = idm;
@@ -693,6 +693,7 @@ id = zeros(n,1);
 name = cell(n,1);
 E = zeros(n,1);
 pr = zeros(n,1);
+G = zeros(n,1);
 F = zeros(n,1);
 isSN = false(n,1);
 for i = 1:n
@@ -701,13 +702,27 @@ for i = 1:n
   E(i) = data{i,2};
   pr(i) = data{i,3};
   F(i) = data{i,4};
+  G(i) = calc_shear_modulus(E(i), pr(i));
   if length(name{i})>=2
     isSN(i) = name{i}(1:2)=="SN";
   end
 end
 
 % 結果の保存
-material = table(id, name, E, pr, F, isSN);
+material = table(id, name, E, pr, G, F, isSN);
+return
+end
+
+%--------------------------------------------------------------------------
+function G = calc_shear_modulus(E, pr)
+%calc_shear_modulus - せん断弾性係数を算出する
+%   pr=0.3 のとき SS7 規定値 G=79400 N/mm2 を返す。
+%   それ以外は G = E/(2(1+pr)) で算出する。
+if pr == 0.3
+  G = 79400;
+else
+  G = E/(2*(1+pr));
+end
 return
 end
 
