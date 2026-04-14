@@ -38,6 +38,8 @@ for i=1:size(mat,1)
       options.maxcache = str2double(mat{i,2});
     case 'display'
       options.display = mat{i,2};
+    case 'column_member_length_type'
+      options.column_member_length_type = str2double(mat{i,2});
   end
 end
 

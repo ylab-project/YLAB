@@ -26,7 +26,7 @@ nstory = com.nstory;
 nominal_column = com.nominal.column;
 column = com.member.column;
 secc = com.section.column;
-lm_nominal = result.lm_nominal;
+lm_nominal = result.lm_bk_nominal;
 
 % 座屈長さ係数・座屈長さ・細長比
 kcx = result.kcx;
@@ -85,21 +85,21 @@ for i = 1:nstory
         isc = column.idsecc(ic1);
         cblbody{irow,4} = [secc.subindex{isc} secc.name{isc}];
 
-        % 部材長（節点間距離、x方向・y方向共通）切り上げ
-        cblbody{irow,5} = sprintf('%.0f', ceil(lm_nominal(im1)));
-        cblbody{irow,6} = sprintf('%.0f', ceil(lm_nominal(im1)));
+        % 部材長（節点間距離、x方向・y方向共通）
+        cblbody{irow,5} = sprintf('%.0f', lm_nominal(im1));
+        cblbody{irow,6} = sprintf('%.0f', lm_nominal(im1));
 
-        % 最大横補剛間隔（x方向、y方向）切り上げ
-        cblbody{irow,7} = sprintf('%.0f', ceil(lbmax_x(inc)));
-        cblbody{irow,8} = sprintf('%.0f', ceil(lbmax_y(inc)));
+        % 最大横補剛間隔（x方向、y方向）
+        cblbody{irow,7} = sprintf('%.0f', lbmax_x(inc));
+        cblbody{irow,8} = sprintf('%.0f', lbmax_y(inc));
 
-        % 座屈長さ係数（x方向、y方向）小数4桁切り上げ
-        cblbody{irow,9} = sprintf('%.3f', ceil(kcx(ic1)*1000)/1000);
-        cblbody{irow,10} = sprintf('%.3f', ceil(kcy(ic1)*1000)/1000);
+        % 座屈長さ係数（x方向、y方向）
+        cblbody{irow,9} = sprintf('%.3f', kcx(ic1));
+        cblbody{irow,10} = sprintf('%.3f', kcy(ic1));
 
-        % 座屈長さ Lk（切り上げ、result.lkx/lkyを参照）
-        cblbody{irow,11} = sprintf('%.0f', ceil(lkx(im1)));
-        cblbody{irow,12} = sprintf('%.0f', ceil(lky(im1, 1)));
+        % 座屈長さ Lk（result.lkx/lkyを参照）
+        cblbody{irow,11} = sprintf('%.0f', lkx(im1));
+        cblbody{irow,12} = sprintf('%.0f', lky(im1, 1));
 
         % 細長比（x方向、y方向）
         cblbody{irow,13} = sprintf('%.1f', lambday(im1));

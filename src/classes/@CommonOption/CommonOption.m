@@ -94,6 +94,9 @@ classdef CommonOption
     % 柱座屈長計算
     consider_column_buckling_length_factor (1,1) logical = true
 
+    % 柱部材長のとり方（1:コンクリートとの重複を除く, 2:節点間）
+    column_member_length_type (1,1) double = 1
+
     % 柱座屈長さ係数の自動計算入力値α
     brace_share_threshold (1,1) double = 0.7
 

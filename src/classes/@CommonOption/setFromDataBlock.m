@@ -117,6 +117,8 @@ for i=1:size(data,1)
       end
     case '幅厚比の事前処理'
       options.do_limit_wtratio_section = (data{i,2}=='Y');
+    case '柱部材長のとり方'
+      options.column_member_length_type = str2double(data{i,2});
   end
 end
 
