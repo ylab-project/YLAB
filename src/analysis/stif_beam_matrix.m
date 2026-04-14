@@ -69,7 +69,6 @@ else
   ry = 0;
   rz = 0;
 end
-J = J/100;
 
 if flag.consider_shear_deformation
   csy = (4*k1y*k2y+k1y+k2y)/(2*ky);

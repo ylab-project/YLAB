@@ -18,14 +18,17 @@ Iz = b.^3.*D/12;
 Zy = Iy./(D/2);
 Zz = Iz./(b/2);
 
+% 捩り定数（Saint-Venantの矩形断面近似式、短辺bs・長辺Dl基準）
+bs = min(b, D);
+Dl = max(b, D);
+JJ = bs.^3 .* Dl .* (1/3 ...
+  - 0.21 * (bs./Dl) .* (1 - (bs.^4)./(12*Dl.^4)));
+
 % ダミー
-JJ = A;
 Aw  = A;
 Zyf = Zy;
 Zpy = zeros(n,1);
 Zpz = zeros(n,1);
-% JJ = zeros(n,1);
-% Zyf = zeros(n,1);
 
 % 断面性能の配列化
 section_property = [A, Asy, Asz, Iy, Iz, Zy, Zz, Zyf, Zpy, Zpz, JJ, Aw];
