@@ -1,7 +1,7 @@
 function [congdef, deflection_angle] = ...
   calc_nominal_girder_deflection( ...
   idmeg, idmg2m, gstype, lm, lf, ...
-  rs, M0sw, Em, Iyr, gdmax)
+  rs, M0sw, Em, Iy, gdmax)
 %calc_nominal_girder_deflection - 名目梁単位のたわみ算定
 %
 %   SS7マニュアル 6.4.4 式(6.37)に基づき、名目梁単位で
@@ -17,7 +17,7 @@ function [congdef, deflection_angle] = ...
 %     rs     [nme×12×nlc] - 部材応力
 %     M0sw   [nme×1] - 付加曲げ＋自重モーメント
 %     Em     [nme×1] - ヤング率
-%     Iyr    [nme×1] - 断面二次モーメント（フィレット無視）
+%     Iy     [nme×1] - 断面二次モーメント（剛性計算条件準拠）
 %     gdmax  スカラー - たわみ制限値(1/gdmax)
 %
 %   出力引数:
@@ -72,7 +72,7 @@ for ing = 1:nng
 
   % たわみ算定（式6.37）
   Eg_ = Em(im_igs(1));
-  Iy_ = Iyr(im_igs(1));
+  Iy_ = Iy(im_igs(1));
   Mcg = ML + MR;
   delta = 5*M0_nom*lgn^2 / (48*Eg_*Iy_) ...
     - Mcg / (16*Eg_*Iy_) * lgn^2;
