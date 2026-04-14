@@ -573,9 +573,11 @@ end
   function dnode = trans_dvec2dnode(ilcset, dnode, dvec)
     % 剛床を考慮した節点変位への変換
     for in_=1:nnode
+      % 吸収節点（idstory=0）はスキップ
+      is_ = idn2st(in_);
+      if is_==0, continue; end
       for ilc_=ilcset
         dnode(in_,:,ilc_) = dvec(jdof(in_,:),ilc_);
-        is_ = idn2st(in_);
         if isrigidstory(is_)
           idnr = idst2nrep(is_);
           rz = dnode(idnr,6,ilc_);

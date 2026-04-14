@@ -12,8 +12,13 @@ for i=1:n
   end
 end
 
-% idrep = node.idrep(idnode);
-% idnode(idrep>0) = idrep(idrep>0);
+% 節点同一化により吸収された節点は代表節点に置換する。
+% 吸収元節点は idx/idy/idz=0 に無効化済みで上記検索では見つからず、
+% 未置換の呼び出し元では以降の処理で実行時エラーとなり顕在化する。
+ispositive = idnode > 0;
+idrep = zeros(n,1);
+idrep(ispositive) = node.idrep(idnode(ispositive));
+idnode(idrep>0) = idrep(idrep>0);
 return
 end
 

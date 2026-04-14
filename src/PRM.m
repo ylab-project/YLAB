@@ -178,6 +178,7 @@ classdef PRM
     NODE_FLEX_DIAPHRAGM = 10  % 柔床節点
     NODE_BRACE_FOR_GIRDER = 98  % ブレース用梁分割節点
     NODE_BRACE_FOR_COLUMN = 99  % ブレース用柱分割節点
+    NODE_ABSORBED = 100       % 節点同一化で他節点へ吸収済み（無効節点）
     
     %% 梁種類
     GIRDER_STANDARD = 0       % 標準梁
