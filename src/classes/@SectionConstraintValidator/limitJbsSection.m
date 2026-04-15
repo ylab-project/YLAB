@@ -79,6 +79,7 @@ for idsList = 1:nlist_
   sproplist = calc_secprop(sdimlist, PRM.WFS, scallop);
   Zpylist = sproplist.Zpy;
   Flist = secmgr.getIdSecList2F(idsList);
+  gradelist = secmgr.getIdSecList2Grade(idsList);
 
   % リストに対応するWFS断面の抽出と判定
   isvalid = obj.validSectionFlagCell_{idsList};
@@ -93,7 +94,7 @@ for idsList = 1:nlist_
       col_arg = [];
     end
     conjbs_ = calc_joint_bearing_strength_aij(sdimlist, ...
-      Zpylist, Flist, col_arg, [], options);
+      Zpylist, Flist, gradelist, col_arg, [], options);
   else
     if has_hss_col
       col_arg = max_sigu * ones(nsec_, 2);
@@ -101,7 +102,7 @@ for idsList = 1:nlist_
       col_arg = [];
     end
     conjbs_ = calc_joint_bearing_strength_std(sdimlist, ...
-      Zpylist, Flist, col_arg, [], options);
+      Zpylist, Flist, gradelist, col_arg, [], options);
   end
   isvalid_ = (conjbs_ < 0)';
 

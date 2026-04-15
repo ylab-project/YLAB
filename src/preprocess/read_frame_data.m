@@ -129,7 +129,7 @@ for i = 1:section_list.nlist
       idm = com.nma + 1;
       com.material = [com.material; table(idm, ...
         {TB_DEFAULT_MATERIAL}, 205000, 0.3, 79400, 235.0, ...
-        true, 'VariableNames', ...
+        true, PRM.GRADE_SN, 'VariableNames', ...
         com.material.Properties.VariableNames)];
       com.nma = idm;
     end
@@ -699,6 +699,7 @@ pr = zeros(n,1);
 G = zeros(n,1);
 F = zeros(n,1);
 isSN = false(n,1);
+steel_grade = zeros(n,1);
 for i = 1:n
   id(i) = i;
   name{i} = tochar(data{i,1});
@@ -707,12 +708,21 @@ for i = 1:n
   F(i) = data{i,4};
   G(i) = calc_shear_modulus(E(i), pr(i));
   if length(name{i})>=2
-    isSN(i) = name{i}(1:2)=="SN";
+    prefix = name{i}(1:2);
+    switch prefix
+      case "SS"
+        steel_grade(i) = PRM.GRADE_SS;
+      case "SN"
+        steel_grade(i) = PRM.GRADE_SN;
+        isSN(i) = true;
+      case "SM"
+        steel_grade(i) = PRM.GRADE_SM;
+    end
   end
 end
 
 % 結果の保存
-material = table(id, name, E, pr, G, F, isSN);
+material = table(id, name, E, pr, G, F, isSN, steel_grade);
 return
 end
 

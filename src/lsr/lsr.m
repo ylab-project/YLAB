@@ -16,6 +16,7 @@ idm2n = [com.member.property.idnode1 com.member.property.idnode2];
 cgsr = com.cgsr;
 Dgap = com.Dgap;
 matF = com.material.F;
+matGrade = com.material.steel_grade;
 mdir = com.member.property.idir;
 mtype = com.member.property.type;
 secmgr = com.secmgr;
@@ -213,7 +214,7 @@ for iter = start_iter+1:max_iter
     if consider_joint_bearing_strength
       isjbs_ = com.exclusion.is_joint_bearing_strength;
       xlist_jbs = restore_joint_bearing_strength( ...
-        xvar, member, matF, secmgr, options, ...
+        xvar, member, matF, matGrade, secmgr, options, ...
         isjbs_, com.nominal.girder);
     else
       xlist_jbs = [];

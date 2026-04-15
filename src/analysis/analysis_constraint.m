@@ -260,16 +260,17 @@ if coptions.consider_joint_bearing_strength
   sdimg_ng = secdim(idm2s(idm_ng_), 1:4);
   Zpyg_ng = Zpy(idm_ng_);
   Fg_ng = Fm(idm_ng_);
+  grade_ng = msprop.steel_grade(idm_ng_);
   if options.jbs_mu_formula == PRM.JBS_AIJ
     secdim_col = secdim(idm2s(idmc2m), :);
     m_num_col = calc_col_dim_jbs(com.member, secdim_col, ...
       Fcol_, ng_node1_, ng_node2_);
     [conjbs, jbsratio, idjbs] = calc_joint_bearing_strength_aij( ...
-      sdimg_ng, Zpyg_ng, Fg_ng, m_num_col, isjbs, options);
+      sdimg_ng, Zpyg_ng, Fg_ng, grade_ng, m_num_col, isjbs, options);
   else
     sigu_col = calc_sigu_col(com.member, Fcol_, ng_node1_, ng_node2_);
     [conjbs, jbsratio, idjbs] = calc_joint_bearing_strength_std( ...
-      sdimg_ng, Zpyg_ng, Fg_ng, sigu_col, isjbs, options);
+      sdimg_ng, Zpyg_ng, Fg_ng, grade_ng, sigu_col, isjbs, options);
   end
 else
   conjbs = [];

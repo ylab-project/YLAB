@@ -1,9 +1,10 @@
 function [conjbs, jbsratio, idjbs] = ...
   calc_joint_bearing_strength_aij(...
-  sdimg, Zpyg, Fg, m_num_col, isjbs, options)
+  sdimg, Zpyg, Fg, grade, m_num_col, isjbs, options)
 %calc_joint_bearing_strength_aij - 保有耐力接合（仕口）制約計算（AIJ式）
 %   鋼構造接合部設計指針式6.65に基づく。
-%   第4引数は sigu_col ではなく m_num_col（mファクター分子）。
+%   第4引数は梁の鋼種 grade（PRM.GRADE_SS/SN/SM）、
+%   第5引数は m_num_col（mファクター分子）。
 %   入力は名目梁単位 [nng×...]。
 %   conjbs [n_target×1]（isjbs対象のみに圧縮）、
 %   jbsratio [nng×2]（左右端別、対象外は0）、
@@ -25,12 +26,21 @@ sigu_f(Fg==325) = 490;
 sigwy = Fg;
 
 % α（jbs_alpha_typeに応じて）[ng×1]
+%   AIJ指針: 鋼種別にα値が異なる（SS400=1.40, SN400B/C=1.30,
+%     SM490=1.35, SN490B/C=1.25）。指針の表にない400N級はSS400、
+%     490N級はSM490の値を用いる。
+%   基準解説書: 400N級一律1.30、490N級一律1.20。
 alfa = zeros(ng, 1);
-alfa(Fg==235 | Fg==295) = 1.30;
+is400 = (Fg==235 | Fg==295);
+is490 = (Fg==325);
 if options.jbs_alpha_type == PRM.JBS_AIJ
-  alfa(Fg==325) = 1.25;
+  alfa(is400 & grade==PRM.GRADE_SN) = 1.30;
+  alfa(is400 & grade~=PRM.GRADE_SN) = 1.40;
+  alfa(is490 & grade==PRM.GRADE_SN) = 1.25;
+  alfa(is490 & grade~=PRM.GRADE_SN) = 1.35;
 else
-  alfa(Fg==325) = 1.20;
+  alfa(is400) = 1.30;
+  alfa(is490) = 1.20;
 end
 
 % Mfu = Af*db*σfu [ng×1]（フランジ寄与、端部によらない）

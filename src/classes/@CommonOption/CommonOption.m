@@ -57,6 +57,10 @@ classdef CommonOption
     jbs_mu_formula (1,1) double = PRM.JBS_AIJ
     jbs_alpha_type (1,1) double = PRM.JBS_AIJ
 
+    % 設計ルート（PRM.ROUTE_1/ROUTE_2_1/ROUTE_2_2/ROUTE_3）
+    % 梁の設計用せん断力の割増率n の導出に使用（計算時参照）
+    design_route (1,1) double = PRM.ROUTE_3
+
     % --- 計算機能 ---
     % 自重計算
     consider_self_weight (1,1) logical = true

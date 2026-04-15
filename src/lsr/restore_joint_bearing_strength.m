@@ -1,5 +1,5 @@
 function xlist = restore_joint_bearing_strength(xlist0, ...
-  member, matF, secmgr, options, isjbs, nominal_girder)
+  member, matF, matGrade, secmgr, options, isjbs, nominal_girder)
 %restore_joint_bearing_strength - 仕口の保有耐力接合の復元
 %   名目梁単位で候補を生成する。
 
@@ -28,14 +28,14 @@ if options.jbs_mu_formula == PRM.JBS_AIJ
   if nlist0 == 1 || ~options.do_parallel
     for id = 1:nlist0
       xcell{id} = restore_individual_aij( ...
-        xlist0(id,:), member, matF, secmgr, ...
+        xlist0(id,:), member, matF, matGrade, secmgr, ...
         options, isjbs, nominal_girder, ...
         ng_node1, ng_node2, node2col);
     end
   else
     parfor id = 1:nlist0
       xcell{id} = restore_individual_aij( ...
-        xlist0(id,:), member, matF, secmgr, ...
+        xlist0(id,:), member, matF, matGrade, secmgr, ...
         options, isjbs, nominal_girder, ...
         ng_node1, ng_node2, node2col);
     end
@@ -50,13 +50,13 @@ else
   if nlist0 == 1 || ~options.do_parallel
     for id = 1:nlist0
       xcell{id} = restore_individual_std( ...
-        xlist0(id,:), member, matF, secmgr, ...
+        xlist0(id,:), member, matF, matGrade, secmgr, ...
         options, sigu_col, isjbs, nominal_girder);
     end
   else
     parfor id = 1:nlist0
       xcell{id} = restore_individual_std( ...
-        xlist0(id,:), member, matF, secmgr, ...
+        xlist0(id,:), member, matF, matGrade, secmgr, ...
         options, sigu_col, isjbs, nominal_girder);
     end
   end
@@ -78,7 +78,7 @@ end
 
 %----------------------------------------------------------
 function xlist = restore_individual_std(xvar, member, ...
-  matF, secmgr, options, sigu_col, isjbs, nominal_girder)
+  matF, matGrade, secmgr, options, sigu_col, isjbs, nominal_girder)
 
 % 共通配列(ID変換)
 girder = member.girder;
@@ -105,16 +105,18 @@ Zpy = msprop.Zpy;
 
 % 材料定数
 F = secmgr.extractMemberMaterialF(secdim, matF);
+grade_mem = secmgr.extractMemberMaterialGrade(secdim, matGrade);
 
 % 名目梁の代表部材から断面諸量を取得
 idm_ng = girder.idme(idmeg(:, 1));
 Zpyg_ng = Zpy(idm_ng);
 Fg_ng = F(idm_ng);
+grade_ng = grade_mem(idm_ng);
 sdimg_ng = msdim(idm_ng, :);
 
 % 仕口の保有耐力接合制約の計算（名目梁単位、isjbs対象に圧縮）
 [conjbs, ~, idjbs] = calc_joint_bearing_strength_std( ...
-  sdimg_ng, Zpyg_ng, Fg_ng, sigu_col, isjbs, options);
+  sdimg_ng, Zpyg_ng, Fg_ng, grade_ng, sigu_col, isjbs, options);
 if all(conjbs <= 0)
   return
 end
@@ -145,9 +147,10 @@ for i = 1:nstarget
   for j = 1:length(ing_sec)
     ig = ing_sec(j);
     Fi = Fg_ng(ig) * ones(n, 1);
+    grade_i = grade_ng(ig) * ones(n, 1);
     sc_i = repmat(sigu_col(ig, :), n, 1);
     conjbs_ = calc_joint_bearing_strength_std(sdimlist, ...
-      Zpylist, Fi, sc_i, [], options);
+      Zpylist, Fi, grade_i, sc_i, [], options);
     isok(:, j) = conjbs_ < 0;
   end
   isok = all(isok, 2);
@@ -175,7 +178,7 @@ end
 
 %----------------------------------------------------------
 function xlist = restore_individual_aij(xvar, member, ...
-  matF, secmgr, options, isjbs, nominal_girder, ...
+  matF, matGrade, secmgr, options, isjbs, nominal_girder, ...
   ng_node1, ng_node2, node2col)
 
 col = member.column;
@@ -195,11 +198,13 @@ sprop = calc_secprop(secdim, stype, scallop, secmgr);
 msprop = sprop(idm2s, :);
 Zpy = msprop.Zpy;
 F = secmgr.extractMemberMaterialF(secdim, matF);
+grade_mem = secmgr.extractMemberMaterialGrade(secdim, matGrade);
 
 % 名目梁の代表部材から断面諸量を取得
 idm_ng = girder.idme(idmeg(:, 1));
 Zpyg_ng = Zpy(idm_ng);
 Fg_ng = F(idm_ng);
+grade_ng = grade_mem(idm_ng);
 
 % 柱断面・F値
 secdim_col = secdim(idm2s(col.idme), :);
@@ -221,7 +226,7 @@ m_num_col = calc_col_dim_jbs(member, secdim_col, Fcol_, ...
 % JBS制約計算（名目梁単位、isjbs対象に圧縮）
 sdimg_ng = msdim(idm_ng, :);
 [conjbs, ~, idjbs] = calc_joint_bearing_strength_aij( ...
-  sdimg_ng, Zpyg_ng, Fg_ng, m_num_col, isjbs, options);
+  sdimg_ng, Zpyg_ng, Fg_ng, grade_ng, m_num_col, isjbs, options);
 if all(conjbs <= 0)
   return
 end
@@ -346,8 +351,9 @@ for it = 1:n_target
 
   % calc_joint_bearing_strength_aij で一括評価
   Fg_cand = Fg_i .* ones(n, 1);
+  grade_cand = grade_ng(ing) .* ones(n, 1);
   [conjbs_cand, ~] = calc_joint_bearing_strength_aij( ...
-    br, Zpy_cand, Fg_cand, m_num_cand, [], options);
+    br, Zpy_cand, Fg_cand, grade_cand, m_num_cand, [], options);
 
   % 距離（主寸法 + 付随寸法）
   dist_all = sum(abs(br(:,2:4) - sdim_beam_cur(2:4)), 2) ...

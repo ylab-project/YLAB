@@ -21,6 +21,11 @@ classdef PRM
     %% 節点種別
     SUPPORT = 100         % 支点節点
 
+    %% 鋼種
+    GRADE_SS = 1
+    GRADE_SN = 2
+    GRADE_SM = 3
+
     %% 部材種別
     COLUMN = 1            % 柱
     GIRDER = 2            % 梁
@@ -172,6 +177,12 @@ classdef PRM
     %% 保有耐力接合（仕口）
     JBS_STANDARD = 1  % 基準解説書式
     JBS_AIJ      = 2  % 鋼構造接合部設計指針式
+
+    %% 設計ルート
+    ROUTE_1   = 1     % ルート1
+    ROUTE_2_1 = 21    % ルート2-1
+    ROUTE_2_2 = 22    % ルート2-2
+    ROUTE_3   = 3     % ルート3（保有水平耐力計算）
 
     %% 節点種類
     NODE_STANDARD = 0         % 標準節点
@@ -407,6 +418,29 @@ classdef PRM
           case ''
             ubb_type(i) = PRM.OTS;
         end
+      end
+      return
+    end
+
+    %% route_to_n_beam
+    function n = route_to_n_beam(route)
+    %route_to_n_beam - 設計ルートから梁設計用せん断力の割増率nを取得
+    %
+    %   S梁の設計用せん断力 Q_D = Q_L + n*Q_E に用いる割増率n。
+    %   ルート別に規定される（SS7入力編 割増率n）。
+    %
+    %   Inputs:
+    %     route - 設計ルート（PRM.ROUTE_1 等）
+    %
+    %   Outputs:
+    %     n - 割増率（ROUTE_1/ROUTE_3=1.50, ROUTE_2_1=2.00,
+    %                ROUTE_2_2=1.50, その他=1.00）
+      switch route
+        case PRM.ROUTE_1,   n = 1.50;
+        case PRM.ROUTE_2_1, n = 2.00;
+        case PRM.ROUTE_2_2, n = 1.50;
+        case PRM.ROUTE_3,   n = 1.50;
+        otherwise,          n = 1.00;
       end
       return
     end

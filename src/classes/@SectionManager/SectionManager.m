@@ -627,6 +627,10 @@ classdef SectionManager < handle
     function isSN = getIdSecList2isSN(secmgr, idslist)
       isSN = secmgr.propertyCalculator.extractSectionListIsSN(idslist);
     end
+
+    function grade = getIdSecList2Grade(secmgr, idslist)
+      grade = secmgr.propertyCalculator.extractSectionListGrade(idslist);
+    end
     
     % コスト係数・応力係数取得
     function sectionCostFactor = getSectionCostFactor( ...
@@ -706,6 +710,11 @@ classdef SectionManager < handle
 
     function F = extractMemberMaterialF(secmgr, secdim, matF)
       F = secmgr.propertyCalculator.extractMemberMaterialF(secdim, matF);
+    end
+
+    function grade = extractMemberMaterialGrade(secmgr, secdim, matGrade)
+      grade = secmgr.propertyCalculator ...
+        .extractMemberMaterialGrade(secdim, matGrade);
     end
     
     %% 断面リストID変換（deprecatedと新実装混在）

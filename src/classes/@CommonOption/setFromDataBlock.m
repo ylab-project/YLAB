@@ -119,6 +119,11 @@ for i=1:size(data,1)
       options.do_limit_wtratio_section = (data{i,2}=='Y');
     case '柱部材長のとり方'
       options.column_member_length_type = str2double(data{i,2});
+    case '設計ルート'
+      p = data{i,2};
+      if ~ismissing(p)
+        options.design_route = p;
+      end
   end
 end
 

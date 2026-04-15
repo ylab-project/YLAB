@@ -59,6 +59,7 @@ matF = com.material.F;
 matpr = com.material.pr;
 matG = com.material.G;
 matisSN = com.material.isSN;
+matsteel_grade = com.material.steel_grade;
 floor = com.floor;
 % fvec = com.feqvec;
 jdof = com.node.dof;
@@ -143,6 +144,8 @@ Fm = msprop.F;
 prm = zeros(nme,1); prm(idm2mat>0) = matpr(idm2mat(idm2mat>0));
 Gm = zeros(nme,1); Gm(idm2mat>0) = matG(idm2mat(idm2mat>0));
 isSNm = zeros(nme,1); isSNm(idm2mat>0) = matisSN(idm2mat(idm2mat>0));
+steel_grade_m = zeros(nme,1);
+steel_grade_m(idm2mat>0) = matsteel_grade(idm2mat(idm2mat>0));
 
 % 水平ブレース
 for isechb = 1:nsechb
@@ -159,6 +162,7 @@ msprop.E = Em;
 msprop.pr = prm;
 msprop.G = Gm;
 msprop.isSN = isSNm;
+msprop.steel_grade = steel_grade_m;
 
 % 構造体への変換
 msprop = table2struct(msprop,"ToScalar",true);
@@ -524,7 +528,13 @@ state.tb.is_tension = is_tension(com.member.brace.idme);
 %% 設計応力の計算
 df0 = calc_design_force(rs0, lcdir, idmc2m, idmg2m, lm, lf);
 dfn0 = calc_nominal_design_force(df0, nominal_property);
-dfn = superpose_design_force(dfn0, lcdir);
+% SS7: 設計用せん断力 Q_D = Q_L + n*Q_E の割増率 n は、
+% RC造梁のみに適用する（S造梁は対象外。S造は6.4、RC造は6.9参照）
+n_beam = PRM.route_to_n_beam(options.design_route);
+stype_nm = stype(idm2s(nominal_property.idme(:,1)));
+is_rc_girder_nm = nominal_property.mtype == PRM.GIRDER ...
+  & stype_nm == PRM.RCRS;
+dfn = superpose_design_force(dfn0, lcdir, is_rc_girder_nm, n_beam);
 
 % 名目部材レベルの中央M（ケース別→重ね合わせ）
 % M0 は L287 で sw.M0 加算済み
