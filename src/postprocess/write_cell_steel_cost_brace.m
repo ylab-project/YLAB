@@ -1,6 +1,4 @@
-function [head, body] = ...
-  write_cell_steel_cost_brace( ...
-  com, result, cost)
+function [head, body] = write_cell_steel_cost_brace(com, result, cost)
 %write_cell_steel_cost_brace - 鉄骨数量（鉛直ブレース）セル配列を生成
 %
 %   [head, body] = write_cell_steel_cost_brace(
@@ -44,10 +42,8 @@ lm_brace_cost = cost.brace.lm;
 
 % ヘッダ
 head = cell(2, NCOL);
-head(1, :) = {'階', 'ﾌﾚｰﾑ', '軸-軸', ...
-  '', '符号', 'ﾀｲﾌﾟ', '種類', ...
-  '鉄骨断面', 'A', '材料', ...
-  '単位重量', 'L', 'W'''};
+head(1, :) = {'階', 'ﾌﾚｰﾑ', '軸-軸', '', '符号', 'ﾀｲﾌﾟ', '種類', ...
+  '鉄骨断面', 'A', '材料', '単位重量', 'L', 'W'''};
 head(2, 8:NCOL) = {'mm', 'cm2', '', 'kg/m', 'm', 't'};
 
 % ボディ
@@ -63,10 +59,8 @@ for ist = nstory:-1:1
   % X通りブレース（Y→X順）
   for iy = 1:nbly
     for ix = 1:nblx
-      inb_list = find(ids_story == ist ...
-        & idx_nom(:,1) == ix ...
-        & idy_nom(:,1) == iy ...
-        & idir_nom == PRM.X);
+      inb_list = find(ids_story == ist & idx_nom(:,1) == ix ...
+        & idy_nom(:,1) == iy & idir_nom == PRM.X);
       for inb = inb_list'
         add_row(inb);
       end
@@ -75,10 +69,8 @@ for ist = nstory:-1:1
   % Y通りブレース（X→Y順）
   for ix = 1:nblx
     for iy = 1:nbly
-      inb_list = find(ids_story == ist ...
-        & idx_nom(:,1) == ix ...
-        & idy_nom(:,1) == iy ...
-        & idir_nom == PRM.Y);
+      inb_list = find(ids_story == ist & idx_nom(:,1) == ix ...
+        & idy_nom(:,1) == iy & idir_nom == PRM.Y);
       for inb = inb_list'
         add_row(inb);
       end
@@ -92,8 +84,9 @@ return
 
   function add_row(inb)
     ibij = nominal_brace.idmeb(inb, :);
-    npair = nnz(ibij);
-    ib1 = ibij(1);
+    nz_cols = find(ibij > 0);
+    npair = length(nz_cols);
+    ib1 = ibij(nz_cols(1));
 
     % 積算対象外（idsec未設定）はスキップ
     if idsec_brc(ib1) == 0
@@ -114,11 +107,10 @@ return
 
     % 2本目があれば合算
     if npair >= 2
-      ib2 = ibij(2);
+      ib2 = ibij(nz_cols(2));
       idm2 = brace.idme(ib2);
       L_total = L_total + lm_brace_cost(ib2) * 1e-3;
-      W_total = W_total ...
-        + Am(idm2) * lm_brace_cost(ib2) * PRM.RHOS * 1e-9;
+      W_total = W_total + Am(idm2) * lm_brace_cost(ib2) * PRM.RHOS * 1e-9;
     end
 
     % タイプ名
@@ -155,8 +147,7 @@ return
     body{irow, 5} = secb.name{idsb};
     body{irow, 6} = type_name_brace;
     body{irow, 7} = type_name;
-    body{irow, 8} = format_steel_cost_dim( ...
-      stype_, secdim(is, :), dim_sym);
+    body{irow, 8} = format_steel_cost_dim(stype_, secdim(is, :), dim_sym);
     body{irow, 9} = sprintf('%.2f', A_);
     body{irow, 10} = mat_name;
     body{irow, 11} = sprintf('%.2f', uw);

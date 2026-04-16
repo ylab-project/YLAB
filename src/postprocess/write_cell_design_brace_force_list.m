@@ -1,5 +1,5 @@
-function [dbflhead, dbflbody] = ...
-  write_cell_design_brace_force_list(com, result, icase)
+function [dbflhead, dbflbody] = write_cell_design_brace_force_list( ...
+  com, result, icase)
 %write_cell_design_brace_force_list - 鉛直ブレース設計応力表(長期/地震時)
 %
 %   [dbflhead, dbflbody] = ...
@@ -33,16 +33,14 @@ maxlc = max(ilcset);
 
 % ヘッダ
 dbflhead = cell(3, 10);
-dbflhead(1, 1:10) = { ...
-  '階', 'ﾌﾚｰﾑ', '軸－軸', '', '符号', ...
+dbflhead(1, 1:10) = {'階', 'ﾌﾚｰﾑ', '軸－軸', '', '符号', ...
   'ケース', 'タイプ', '軸力', '', '多層'};
 dbflhead(2, 8:9) = {'左下り', '右下り'};
 dbflhead(3, 8:9) = {'kN', 'kN'};
 
 nnb = com.num.nominal_brace;
 dbflbody = cell(0, 10);
-if nnb == 0 || isempty(rs_all) ...
-    || size(rs_all, 3) < maxlc
+if nnb == 0 || isempty(rs_all) || size(rs_all, 3) < maxlc
   return
 end
 rs = rs_all(:, :, ilcset);
@@ -62,11 +60,8 @@ for ist = nstory:-1:1
   % X通りブレース
   for iy = 1:nbly
     for ix = 1:nblx
-      inb_list = find( ...
-        ids_story == ist ...
-        & idx_nom(:, 1) == ix ...
-        & idy_nom(:, 1) == iy ...
-        & idir_nom == PRM.X);
+      inb_list = find(ids_story == ist & idx_nom(:, 1) == ix ...
+        & idy_nom(:, 1) == iy & idir_nom == PRM.X);
       for inb = inb_list'
         add_row(inb);
       end
@@ -75,11 +70,8 @@ for ist = nstory:-1:1
   % Y通りブレース
   for ix = 1:nblx
     for iy = 1:nbly
-      inb_list = find( ...
-        ids_story == ist ...
-        & idx_nom(:, 1) == ix ...
-        & idy_nom(:, 1) == iy ...
-        & idir_nom == PRM.Y);
+      inb_list = find(ids_story == ist & idx_nom(:, 1) == ix ...
+        & idy_nom(:, 1) == iy & idir_nom == PRM.Y);
       for inb = inb_list'
         add_row(inb);
       end
@@ -97,25 +89,25 @@ return
 
   function add_row(inb)
     ibij = nominal_brace.idmeb(inb, :);
-    % 左右の部材番号とiposを先に決定
+    nz_cols = find(ibij > 0);
+    % 左右の部材番号とiposを先に決定（ij_ は idmeb の列番号 = 物理位置）
     im_pair = zeros(1, 2);
     ipos_pair = zeros(1, 2);
-    npair = nnz(ibij);
-    for ij_ = 1:npair
+    for ij_ = nz_cols
       ib_ = ibij(ij_);
       im_pair(ij_) = brace.idme(ib_);
       switch brace.type(ib_)
         case PRM.BRACE_MEMBER_TYPE_X
-          if ismember(brace.pair(ib_), ...
-              [PRM.BRACE_MEMBER_PAIR_L, ...
-               PRM.BRACE_MEMBER_PAIR_BOTH_L])
+          pair_left_ = [PRM.BRACE_MEMBER_PAIR_L, ...
+            PRM.BRACE_MEMBER_PAIR_BOTH_L];
+          pair_both_ = [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
+            PRM.BRACE_MEMBER_PAIR_BOTH_R];
+          if ismember(brace.pair(ib_), pair_left_)
             ipos_pair(ij_) = 1;
           else
             ipos_pair(ij_) = 2;
           end
-          if ismember(brace.pair(ib_), ...
-              [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
-               PRM.BRACE_MEMBER_PAIR_BOTH_R])
+          if ismember(brace.pair(ib_), pair_both_)
             type_label_ = 'Ｘ';
           elseif ipos_pair(ij_) == 1
             type_label_ = '／';
@@ -135,23 +127,18 @@ return
     for ilc = 1:nlc
       irow = irow + 1;
       if ilc == 1
-        rows{irow, 1} = ...
-          nominal_brace.floor_name{inb};
-        rows{irow, 2} = ...
-          nominal_brace.frame_name{inb, 1};
-        rows{irow, 3} = ...
-          nominal_brace.coord_name{inb, 1};
-        rows{irow, 4} = ...
-          nominal_brace.coord_name{inb, 2};
-        isb_ = brace.idsecb(ibij(1));
+        rows{irow, 1} = nominal_brace.floor_name{inb};
+        rows{irow, 2} = nominal_brace.frame_name{inb, 1};
+        rows{irow, 3} = nominal_brace.coord_name{inb, 1};
+        rows{irow, 4} = nominal_brace.coord_name{inb, 2};
+        isb_ = brace.idsecb(ibij(nz_cols(1)));
         rows{irow, 5} = secb.name{isb_};
         rows{irow, 7} = type_label_;
       end
       rows{irow, 6} = label{ilc};
-      for ij_ = 1:npair
+      for ij_ = nz_cols
         icol = 7 + ipos_pair(ij_);
-        rows{irow, icol} = sprintf( ...
-          '%.0f', ...
+        rows{irow, icol} = sprintf('%.1f', ...
           rs(im_pair(ij_), 1, ilc) * 1.d-3);
       end
     end

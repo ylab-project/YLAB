@@ -90,14 +90,16 @@ return
 
   function add_row(inb)
     ibij = nominal_brace.idmeb(inb,:);
-    npair = nnz(ibij);
+    nz_cols = find(ibij > 0);
+    npair = length(nz_cols);
 
-    for ij = 1:npair
+    for iter = 1:npair
+      ij = nz_cols(iter);
       ib = ibij(ij);
       idm = brace.idme(ib);
       idsb = brace.idsecb(ib);
 
-      if ij == 1
+      if iter == 1
         irow = irow + 1;
         bpbody{irow,1} = nominal_brace.floor_name{inb};
         bpbody{irow,2} = nominal_brace.frame_name{inb,1};

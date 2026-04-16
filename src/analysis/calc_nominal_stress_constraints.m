@@ -61,8 +61,7 @@ for ilc = 1:nlc
     grj(ing,ilc) = gcj+gj1-1;
 
     % 中央曲げ応力度の検定（N/fc + M/fb）
-    grc(ing,ilc) = abs(ration(inm,14,ilc)) ...
-      + ration(inm,13,ilc) - 1;
+    grc(ing,ilc) = abs(ration(inm,14,ilc)) + ration(inm,13,ilc) - 1;
 
     % i端せん断応力度の検定
     gsi1 = ration(inm,2,ilc);
@@ -107,14 +106,12 @@ for ilc = 1:nlc
   for imb = 1:nmb
     inm = ibbb(imb);
     idme_ = idmeb(imb, :);
-    if nnz(idme_) == 1
-      bnij(idme_(1),ilc) = ...
-        max(abs(ration(inm,[1 7],ilc)))-1;
+    nz_ = find(idme_ > 0);
+    if isscalar(nz_)
+      bnij(idme_(nz_),ilc) = max(abs(ration(inm,[1 7],ilc)))-1;
     else
-      bnij(idme_(1),ilc) = ...
-        abs(ration(inm,1,ilc))-1;
-      bnij(idme_(2),ilc) = ...
-        abs(ration(inm,7,ilc))-1;
+      bnij(idme_(1),ilc) = abs(ration(inm,1,ilc))-1;
+      bnij(idme_(2),ilc) = abs(ration(inm,7,ilc))-1;
     end
   end
 

@@ -1,12 +1,22 @@
 function [asrbhead, asrbbody] = ...
   write_cell_allowable_stress_ratio_brace(com, result)
-%write_cell_allowable_stress_ratio_brace - ブレース検定比一覧
+%write_cell_allowable_stress_ratio_brace - ブレース検定比一覧を生成
+%
+%   [asrbhead, asrbbody] = ...
+%     write_cell_allowable_stress_ratio_brace(com, result) は、
+%   ブレース断面ごとの検定比（左下り/右下り最大）をセル配列として返す。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 結果構造体（bnij を使用）
+%
+%   出力引数:
+%     asrbhead - ヘッダセル配列 [2×3]
+%     asrbbody - データセル配列 [nsb×3]
 
-% 定数
 nmb = com.nmeb;
 nsb = com.nsecb;
 
-% 共通配列
 brace = com.member.brace;
 secb = com.section.brace;
 nominal_brace = com.nominal.brace;
@@ -17,15 +27,14 @@ bnij = result.bnij;
 
 asrbhead = {'符号','N',''; '','左下り','右下り'};
 
-% --- ブレース検定比一覧 ---
 asrbbody = cell(0,size(asrbhead,2));
 if nsb==0 || isempty(bnij)
   return
 end
 
-% 左右列割り当て: 1=左下り、2=右下り
-% X型: pair値（傾斜方向）で判定
-% K型: nominal_braceの登録順（1番目=左側、2番目=右側）
+% 左右列割り当て: 1=左下り(左側)、2=右下り(右側)
+% X型: brace.pair で判定
+% K型: idmeb の列番号（1列目=左側、2列目=右側、物理位置）
 side = zeros(nmb, 1);
 for ib = 1:nmb
   if brace.type(ib) == PRM.BRACE_MEMBER_TYPE_X
@@ -39,10 +48,12 @@ for ib = 1:nmb
 end
 for inb = 1:nnb
   ibij = nominal_brace.idmeb(inb, :);
-  if brace.type(ibij(1)) == PRM.BRACE_MEMBER_TYPE_X
+  nz = find(ibij > 0);
+  ib1 = ibij(nz(1));
+  if brace.type(ib1) == PRM.BRACE_MEMBER_TYPE_X
     continue
   end
-  for ij = 1:nnz(ibij)
+  for ij = nz
     side(ibij(ij)) = ij;
   end
 end

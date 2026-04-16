@@ -1,5 +1,5 @@
-function [bflhead, bflbody] = ...
-  write_cell_brace_force_list(com, result, icase)
+function [bflhead, bflbody] = write_cell_brace_force_list( ...
+  com, result, icase)
 %write_cell_brace_force_list - 名目ブレースの力一覧を生成
 %
 %   [bflhead, bflbody] = write_cell_brace_force_list( ...
@@ -22,17 +22,13 @@ lm = result.lm;
 rs = result.rs0(:,:,icase);
 Q_nb = result.Q_nb(:, icase);
 lcdir_i = com.loadcase.dir(icase);
-is_eq = ismember(lcdir_i, ...
-  [PRM.EXP, PRM.EXN, PRM.EYP, PRM.EYN]);
+is_eq = ismember(lcdir_i, [PRM.EXP, PRM.EXN, PRM.EYP, PRM.EYN]);
 
 bflhead = cell(2,11);
-bflhead(1,1:11) = { ...
-  '階','ﾌﾚｰﾑ','軸－軸','','符号', ...
+bflhead(1,1:11) = {'階','ﾌﾚｰﾑ','軸－軸','','符号', ...
   'タイプ','左下り','','右下り','','Q'};
-bflhead(2,7:10) = { ...
-  '部材長','N','部材長','N'};
-bflhead(3,7:11) = { ...
-  'mm','kN','mm','kN','kN'};
+bflhead(2,7:10) = {'部材長','N','部材長','N'};
+bflhead(3,7:11) = {'mm','kN','mm','kN','kN'};
 
 rows = cell(com.num.nominal_brace*2, size(bflhead,2));
 irow = 0;
@@ -51,9 +47,8 @@ for ist = nstory:-1:1
   idir_current = PRM.X;
   for iy = 1:nbly
     for ix = 1:nblx
-      inb_list = find(ids_story==ist ...
-        & idx_nom(:,1)==ix & idy_nom(:,1)==iy ...
-        & idir_nom==idir_current);
+      inb_list = find(ids_story==ist & idx_nom(:,1)==ix ...
+        & idy_nom(:,1)==iy & idir_nom==idir_current);
       for inb = inb_list'
         add_row(inb);
       end
@@ -64,9 +59,8 @@ for ist = nstory:-1:1
   idir_current = PRM.Y;
   for ix = 1:nblx
     for iy = 1:nbly
-      inb_list = find(ids_story==ist ...
-        & idx_nom(:,1)==ix & idy_nom(:,1)==iy ...
-        & idir_nom==idir_current);
+      inb_list = find(ids_story==ist & idx_nom(:,1)==ix ...
+        & idy_nom(:,1)==iy & idir_nom==idir_current);
       for inb = inb_list'
         add_row(inb);
       end
@@ -83,20 +77,19 @@ return
 
   function add_row(inb)
     ibij = nominal_brace.idmeb(inb,:);
+    nz_cols = find(ibij > 0);
 
-    for ij=1:nnz(ibij)
+    for iter = 1:length(nz_cols)
+      ij = nz_cols(iter);
       ib = ibij(ij);
       im = brace.idme(ib);
-      if ij==1
+      if iter==1
         irow = irow+1;
 
         rows{irow,1} = nominal_brace.floor_name{inb};
-        rows{irow,2} = ...
-          nominal_brace.frame_name{inb,1};
-        rows{irow,3} = ...
-          nominal_brace.coord_name{inb,1};
-        rows{irow,4} = ...
-          nominal_brace.coord_name{inb,2};
+        rows{irow,2} = nominal_brace.frame_name{inb,1};
+        rows{irow,3} = nominal_brace.coord_name{inb,1};
+        rows{irow,4} = nominal_brace.coord_name{inb,2};
 
         isb = brace.idsecb(ib);
         rows{irow,5} = secb.name{isb};
@@ -106,16 +99,16 @@ return
       % ブレース配置タイプ
       switch brace.type(ib)
         case PRM.BRACE_MEMBER_TYPE_X
-          if ismember(brace.pair(ib), ...
-              [PRM.BRACE_MEMBER_PAIR_L, ...
-               PRM.BRACE_MEMBER_PAIR_BOTH_L])
+          pair_left_ = [PRM.BRACE_MEMBER_PAIR_L, ...
+            PRM.BRACE_MEMBER_PAIR_BOTH_L];
+          pair_both_ = [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
+            PRM.BRACE_MEMBER_PAIR_BOTH_R];
+          if ismember(brace.pair(ib), pair_left_)
             ipos = 1;
           else
             ipos = 2;
           end
-          if ismember(brace.pair(ib), ...
-              [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
-               PRM.BRACE_MEMBER_PAIR_BOTH_R])
+          if ismember(brace.pair(ib), pair_both_)
             type_label = 'Ｘ';
           elseif ipos == 1
             type_label = '／';
@@ -135,12 +128,10 @@ return
       switch ipos
         case 1
           rows{irow,7} = sprintf('%.0f', lm(im));
-          rows{irow,8} = sprintf('%.1f', ...
-            rs(im,1)*1.d-3);
+          rows{irow,8} = sprintf('%.1f', rs(im,1)*1.d-3);
         case 2
           rows{irow,9} = sprintf('%.0f', lm(im));
-          rows{irow,10} = sprintf('%.1f', ...
-            rs(im,1)*1.d-3);
+          rows{irow,10} = sprintf('%.1f', rs(im,1)*1.d-3);
       end
     end
 

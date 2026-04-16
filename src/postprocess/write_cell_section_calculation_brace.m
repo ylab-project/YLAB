@@ -1,5 +1,4 @@
-function scbbody = write_cell_section_calculation_brace( ...
-  com, result)
+function scbbody = write_cell_section_calculation_brace(com, result)
 %write_cell_section_calculation_brace - 鉛直ブレース断面算定表
 %
 %   scbbody = write_cell_section_calculation_brace( ...
@@ -43,8 +42,7 @@ is_tension = result.state.tb.is_tension;
 idm2s = com.member.property.idsec;
 
 % 鋼材ブレース判定
-is_bsteel = ismember(stype, ...
-  [PRM.BWFS PRM.BHSS PRM.BHSR]);
+is_bsteel = ismember(stype, [PRM.BWFS PRM.BHSS PRM.BHSR]);
 
 % 早期リターン
 if com.nsecb == 0 || isempty(rs0_all)
@@ -61,10 +59,8 @@ end
 
 % TB断面のリスト情報取得（HTB, GP等）
 if has_tb
-  tblist = getListRecord( ...
-    secmgr, secdim(stype == PRM.TB, :));
-  idsb_tb = find( ...
-    secb.tctype == PRM.BRACE_TENSION);
+  tblist = getListRecord(secmgr, secdim(stype == PRM.TB, :));
+  idsb_tb = find(secb.tctype == PRM.BRACE_TENSION);
   ntb = length(idsb_tb);
   isb2itb = zeros(max(idsb_tb), 1);
   for itb = 1:ntb
@@ -89,13 +85,12 @@ for ist = nstory:-1:1
   % X方向: iy→ix
   for iy = 1:nbly
     for ix = 1:nblx
-      inb_list = find(ids_story == ist ...
-        & idx_nom(:,1) == ix ...
-        & idy_nom(:,1) == iy ...
-        & idir_nom == PRM.X);
+      inb_list = find(ids_story == ist & idx_nom(:,1) == ix ...
+        & idy_nom(:,1) == iy & idir_nom == PRM.X);
       for jj = 1:length(inb_list)
         inb = inb_list(jj);
-        ib1 = nominal_brace.idmeb(inb, 1);
+        idmeb_row = nominal_brace.idmeb(inb, :);
+        ib1 = idmeb_row(find(idmeb_row > 0, 1));
         isb_ = brace.idsecb(ib1);
         idsec_ = idm2s(brace.idme(ib1));
         stype_ = stype(idsec_);
@@ -104,10 +99,8 @@ for ist = nstory:-1:1
         if ~is_tb_ && ~is_steel_
           continue
         end
-        [irow, prev_material_] = ...
-          write_header_if_needed( ...
-          irow, prev_material_, ...
-          is_steel_, isb_, ib1);
+        [irow, prev_material_] = write_header_if_needed( ...
+          irow, prev_material_, is_steel_, isb_, ib1);
         if is_tb_
           output_member_tb(inb, isb_);
         else
@@ -120,13 +113,12 @@ for ist = nstory:-1:1
   % Y方向: ix→iy
   for ix = 1:nblx
     for iy = 1:nbly
-      inb_list = find(ids_story == ist ...
-        & idx_nom(:,1) == ix ...
-        & idy_nom(:,1) == iy ...
-        & idir_nom == PRM.Y);
+      inb_list = find(ids_story == ist & idx_nom(:,1) == ix ...
+        & idy_nom(:,1) == iy & idir_nom == PRM.Y);
       for jj = 1:length(inb_list)
         inb = inb_list(jj);
-        ib1 = nominal_brace.idmeb(inb, 1);
+        idmeb_row = nominal_brace.idmeb(inb, :);
+        ib1 = idmeb_row(find(idmeb_row > 0, 1));
         isb_ = brace.idsecb(ib1);
         idsec_ = idm2s(brace.idme(ib1));
         stype_ = stype(idsec_);
@@ -135,10 +127,8 @@ for ist = nstory:-1:1
         if ~is_tb_ && ~is_steel_
           continue
         end
-        [irow, prev_material_] = ...
-          write_header_if_needed( ...
-          irow, prev_material_, ...
-          is_steel_, isb_, ib1);
+        [irow, prev_material_] = write_header_if_needed( ...
+          irow, prev_material_, is_steel_, isb_, ib1);
         if is_tb_
           output_member_tb(inb, isb_);
         else
@@ -152,13 +142,12 @@ scbbody = scbbody(1:irow, :);
 
 return
 
-  function [ir, pm] = write_header_if_needed( ...
-    ir, pm, is_steel_arg, isb_arg, ib1_arg)
+  function [ir, pm] = write_header_if_needed(ir, pm, ...
+      is_steel_arg, isb_arg, ib1_arg)
   %write_header_if_needed - 材料ヘッダ行を出力
     if is_steel_arg
       idsl_ = secb.id_section_list(isb_arg);
-      mat_ = ...
-        secmgr.secList.material_name{idsl_, 1};
+      mat_ = secmgr.secList.material_name{idsl_, 1};
       F_hdr_ = msprop_F(brace.idme(ib1_arg));
       hkey_ = sprintf('%s_%.0f', mat_, F_hdr_);
     else
@@ -168,11 +157,9 @@ return
       ir = ir + 1;
       if is_steel_arg
         scbbody{ir, 1} = sprintf( ...
-          ' 鉄骨： [ %-9s]  Ｆ値   %.0f', ...
-          mat_, F_hdr_);
+          ' 鉄骨： [ %-9s]  Ｆ値   %.0f', mat_, F_hdr_);
       else
-        scbbody{ir, 1} = ...
-          ' 鉄骨： [ ---      ]  Ｆ値   ---';
+        scbbody{ir, 1} = ' 鉄骨： [ ---      ]  Ｆ値   ---';
       end
       pm = hkey_;
     end
@@ -181,8 +168,8 @@ return
   function output_member_tb(inb_, isb_)
   %output_member_tb - TB用の出力処理
     ibij_ = nominal_brace.idmeb(inb_, :);
-    npair_ = nnz(ibij_);
-    ib1_ = ibij_(1);
+    nz_cols_ = find(ibij_ > 0);
+    ib1_ = ibij_(nz_cols_(1));
     im1_ = brace.idme(ib1_);
     itb_ = isb2itb(isb_);
 
@@ -198,25 +185,19 @@ return
 
     % 断面符号行
     irow = irow + 1;
-    scbbody{irow, 1} = ...
-      sprintf('[%-6s]', sec_name_);
+    scbbody{irow, 1} = sprintf('[%-6s]', sec_name_);
     scbbody{irow, 7} = 'TYPE';
-    scbbody{irow, 8} = sprintf( ...
-      '%s [ %s  %s  %s ]', ...
+    scbbody{irow, 8} = sprintf('%s [ %s  %s  %s ]', ...
       get_type_label(ib1_, stype(idsec_)), ...
       type_name_, HTB_str_, GP_str_);
 
     % 配置・列ラベル行
     irow = irow + 1;
-    scbbody{irow, 1} = sprintf('[%s', ...
-      nominal_brace.floor_name{inb_});
-    scbbody{irow, 3} = ...
-      nominal_brace.frame_name{inb_, 1};
-    scbbody{irow, 4} = ...
-      nominal_brace.coord_name{inb_, 1};
+    scbbody{irow, 1} = sprintf('[%s', nominal_brace.floor_name{inb_});
+    scbbody{irow, 3} = nominal_brace.frame_name{inb_, 1};
+    scbbody{irow, 4} = nominal_brace.coord_name{inb_, 1};
     scbbody{irow, 5} = '-';
-    scbbody{irow, 6} = sprintf('%s]', ...
-      nominal_brace.coord_name{inb_, 2});
+    scbbody{irow, 6} = sprintf('%s]', nominal_brace.coord_name{inb_, 2});
     scbbody{irow, 8} = 'L';
     scbbody{irow, 9} = 'LNac';
     scbbody{irow, 10} = 'LNat';
@@ -234,11 +215,9 @@ return
 
     % Ab・Ae データ行
     % X形: 左→右の固定順、K形: 部材登録順
-    is_x_ = brace.type(ib1_) ...
-      == PRM.BRACE_MEMBER_TYPE_X;
+    is_x_ = brace.type(ib1_) == PRM.BRACE_MEMBER_TYPE_X;
     if is_x_
-      targets_ = [ ...
-        PRM.BRACE_MEMBER_PAIR_L ...
+      targets_ = [PRM.BRACE_MEMBER_PAIR_L ...
         PRM.BRACE_MEMBER_PAIR_BOTH_L; ...
         PRM.BRACE_MEMBER_PAIR_R ...
         PRM.BRACE_MEMBER_PAIR_BOTH_R];
@@ -247,26 +226,22 @@ return
       irow = irow + 1;
       if ilr_ == 1
         scbbody{irow, 1} = 'Ab';
-        scbbody{irow, 2} = ...
-          sprintf('%.2f', A_cm2_);
+        scbbody{irow, 2} = sprintf('%.2f', A_cm2_);
       else
         scbbody{irow, 1} = 'Ae';
-        scbbody{irow, 2} = ...
-          sprintf('%.2f', Ae_cm2_);
+        scbbody{irow, 2} = sprintf('%.2f', Ae_cm2_);
       end
 
       if is_x_
-        hit_ = find( ...
-          brace.pair(ibij_(1:npair_)) ...
-          == targets_(ilr_,1) ...
-          | brace.pair(ibij_(1:npair_)) ...
-          == targets_(ilr_,2), 1);
+        ibij_nz_ = ibij_(nz_cols_);
+        hit_ = find(brace.pair(ibij_nz_) == targets_(ilr_,1) ...
+          | brace.pair(ibij_nz_) == targets_(ilr_,2), 1);
         if isempty(hit_)
           continue
         end
-        ib_ = ibij_(hit_);
+        ib_ = ibij_nz_(hit_);
       else
-        if ilr_ > npair_
+        if ibij_(ilr_) == 0
           continue
         end
         ib_ = ibij_(ilr_);
@@ -274,39 +249,30 @@ return
       im_ = brace.idme(ib_);
 
       scbbody{irow, 7} = get_pos_label(ib_);
-      scbbody{irow, 8} = ...
-        sprintf('%.0f', lm(im_));
-      scbbody{irow, 10} = ...
-        sprintf('%.0f', Ta_kN_ / 1.5);
-      scbbody{irow, 12} = ...
-        sprintf('%.0f', Ta_kN_);
+      scbbody{irow, 8} = sprintf('%.0f', lm(im_));
+      scbbody{irow, 10} = sprintf('%.0f', Ta_kN_ / 1.5);
+      scbbody{irow, 12} = sprintf('%.0f', Ta_kN_);
 
       % NL（G+P成分）
-      scbbody{irow, 13} = sprintf( ...
-        '%.0f', rs0_all(im_, 1, 1) * 1e-3);
+      scbbody{irow, 13} = sprintf('%.0f', rs0_all(im_, 1, 1) * 1e-3);
 
       % 最大検定比のケース
       tiebreak_ = zeros(1, size(bnij, 2));
       tiebreak_(PRM.LT) = eps;
       tiebreak_(PRM.EXP) = eps;
       tiebreak_(PRM.EYP) = eps;
-      [~, c_ilc_] = max( ...
-        bnij(ib_, :) + tiebreak_);
+      [~, c_ilc_] = max(bnij(ib_, :) + tiebreak_);
       ratio_ = bnij(ib_, c_ilc_) + 1;
 
       % NK値
       [nkp_, nkn_] = get_nk(ib_, im_);
-      scbbody{irow, 17} = ...
-        sprintf('%.0f', nkp_);
-      scbbody{irow, 18} = ...
-        sprintf('%.0f', nkn_);
+      scbbody{irow, 17} = sprintf('%.0f', nkp_);
+      scbbody{irow, 18} = sprintf('%.0f', nkn_);
 
       % ケース名・検定比
-      scbbody{irow, 19} = ...
-        PRM.load_case_combo_name(c_ilc_);
+      scbbody{irow, 19} = PRM.load_case_combo_name(c_ilc_);
       if Ta_kN_ > 0
-        scbbody{irow, 20} = sprintf( ...
-          '%.2f', ceil(ratio_ * 100) / 100);
+        scbbody{irow, 20} = sprintf('%.2f', ceil(ratio_ * 100) / 100);
       end
     end
   end
@@ -314,8 +280,8 @@ return
   function output_member_steel(inb_, isb_)
   %output_member_steel - 鋼材ブレース用の出力処理
     ibij_ = nominal_brace.idmeb(inb_, :);
-    npair_ = nnz(ibij_);
-    ib1_ = ibij_(1);
+    nz_cols_ = find(ibij_ > 0);
+    ib1_ = ibij_(nz_cols_(1));
     im1_ = brace.idme(ib1_);
 
     % 断面プロパティ
@@ -334,26 +300,19 @@ return
 
     % 断面符号行
     irow = irow + 1;
-    scbbody{irow, 1} = ...
-      sprintf('[%-6s]', sec_name_);
+    scbbody{irow, 1} = sprintf('[%-6s]', sec_name_);
     scbbody{irow, 7} = 'TYPE';
-    scbbody{irow, 8} = sprintf( ...
-      '%s [ %s ]', ...
+    scbbody{irow, 8} = sprintf('%s [ %s ]', ...
       get_type_label(ib1_, stype_), ...
-      format_shape_name( ...
-      stype_, secdim(idsec_, :)));
+      format_shape_name(stype_, secdim(idsec_, :)));
 
     % 配置・列ラベル行
     irow = irow + 1;
-    scbbody{irow, 1} = sprintf('[%s', ...
-      nominal_brace.floor_name{inb_});
-    scbbody{irow, 3} = ...
-      nominal_brace.frame_name{inb_, 1};
-    scbbody{irow, 4} = ...
-      nominal_brace.coord_name{inb_, 1};
+    scbbody{irow, 1} = sprintf('[%s', nominal_brace.floor_name{inb_});
+    scbbody{irow, 3} = nominal_brace.frame_name{inb_, 1};
+    scbbody{irow, 4} = nominal_brace.coord_name{inb_, 1};
     scbbody{irow, 5} = '-';
-    scbbody{irow, 6} = sprintf('%s]', ...
-      nominal_brace.coord_name{inb_, 2});
+    scbbody{irow, 6} = sprintf('%s]', nominal_brace.coord_name{inb_, 2});
     scbbody{irow, 8} = 'L';
     scbbody{irow, 9} = sprintf('%s', 'λ');
     scbbody{irow, 10} = 'Lfc';
@@ -372,11 +331,9 @@ return
 
     % Ab・Ae データ行
     % X形: 左→右の固定順、K形: 部材登録順
-    is_x_ = brace.type(ib1_) ...
-      == PRM.BRACE_MEMBER_TYPE_X;
+    is_x_ = brace.type(ib1_) == PRM.BRACE_MEMBER_TYPE_X;
     if is_x_
-      targets_ = [ ...
-        PRM.BRACE_MEMBER_PAIR_L ...
+      targets_ = [PRM.BRACE_MEMBER_PAIR_L ...
         PRM.BRACE_MEMBER_PAIR_BOTH_L; ...
         PRM.BRACE_MEMBER_PAIR_R ...
         PRM.BRACE_MEMBER_PAIR_BOTH_R];
@@ -385,33 +342,26 @@ return
       irow = irow + 1;
       if ilr_ == 1
         scbbody{irow, 1} = 'Ab';
-        scbbody{irow, 2} = ...
-          sprintf('%.2f', A_cm2_);
-        scbbody{irow, 4} = sprintf( ...
-          '%s', 'Λ');
-        scbbody{irow, 6} = ...
-          sprintf('%.1f ', Lambda_);
+        scbbody{irow, 2} = sprintf('%.2f', A_cm2_);
+        scbbody{irow, 4} = sprintf('%s', 'Λ');
+        scbbody{irow, 6} = sprintf('%.1f ', Lambda_);
       else
         scbbody{irow, 1} = 'Ae';
-        scbbody{irow, 2} = ...
-          sprintf('%.2f', Ae_cm2_);
+        scbbody{irow, 2} = sprintf('%.2f', Ae_cm2_);
       end
 
       if is_x_
-        hit_ = find( ...
-          brace.pair(ibij_(1:npair_)) ...
-          == targets_(ilr_,1) ...
-          | brace.pair(ibij_(1:npair_)) ...
-          == targets_(ilr_,2), 1);
+        ibij_nz_ = ibij_(nz_cols_);
+        hit_ = find(brace.pair(ibij_nz_) == targets_(ilr_,1) ...
+          | brace.pair(ibij_nz_) == targets_(ilr_,2), 1);
         if isempty(hit_)
-          scbbody{irow, 7} = ...
-            get_pos_label_lr(ilr_, ib1_);
+          scbbody{irow, 7} = get_pos_label_lr(ilr_, ib1_);
           scbbody{irow, 21} = ' ----';
           continue
         end
-        ib_ = ibij_(hit_);
+        ib_ = ibij_nz_(hit_);
       else
-        if ilr_ > npair_
+        if ibij_(ilr_) == 0
           continue
         end
         ib_ = ibij_(ilr_);
@@ -420,8 +370,7 @@ return
 
       % 引張なし側の判定
       if is_no_tension_side_(ib_)
-        scbbody{irow, 7} = ...
-          get_pos_label(ib_);
+        scbbody{irow, 7} = get_pos_label(ib_);
         scbbody{irow, 21} = ' ----';
         continue
       end
@@ -430,56 +379,41 @@ return
       scbbody{irow, 7} = get_pos_label(ib_);
 
       % L（座屈長）
-      scbbody{irow, 8} = ...
-        sprintf('%.0f', lkx(im_));
+      scbbody{irow, 8} = sprintf('%.0f', lkx(im_));
 
       % λ（細長比）
-      lambda_ = max( ...
-        lambday(im_), lambdaz(im_, 1));
-      scbbody{irow, 9} = ...
-        sprintf('%.1f', lambda_);
+      lambda_ = max(lambday(im_), lambdaz(im_, 1));
+      scbbody{irow, 9} = sprintf('%.1f', lambda_);
 
       % fc 再計算
-      [Lfc_, sfc_] = ...
-        calc_fc_steel(lambda_, Lambda_, F_);
+      [Lfc_, sfc_] = calc_fc_steel(lambda_, Lambda_, F_);
 
       % 引張のみ判定
       is_tonly_ = is_tension(ib_);
 
       % Lfc, Lft, sfc, sft
       if ~is_tonly_
-        scbbody{irow, 10} = ...
-          sprintf('%.0f', Lfc_);
-        scbbody{irow, 12} = ...
-          sprintf('%.0f', sfc_);
+        scbbody{irow, 10} = sprintf('%.0f', Lfc_);
+        scbbody{irow, 12} = sprintf('%.0f', sfc_);
       end
-      scbbody{irow, 11} = ...
-        sprintf('%.0f', ftn(inm_, 1));
-      scbbody{irow, 13} = ...
-        sprintf('%.0f', ftn(inm_, 2));
+      scbbody{irow, 11} = sprintf('%.0f', ftn(inm_, 1));
+      scbbody{irow, 13} = sprintf('%.0f', ftn(inm_, 2));
 
       % NL（G+P成分）
-      scbbody{irow, 14} = sprintf( ...
-        '%.0f', rs0_all(im_, 1, 1) * 1e-3);
+      scbbody{irow, 14} = sprintf('%.0f', rs0_all(im_, 1, 1) * 1e-3);
 
       % NK値
       [nkp_, nkn_] = get_nk(ib_, im_);
-      scbbody{irow, 18} = ...
-        sprintf('%.0f', nkp_);
-      scbbody{irow, 19} = ...
-        sprintf('%.0f', nkn_);
+      scbbody{irow, 18} = sprintf('%.0f', nkp_);
+      scbbody{irow, 19} = sprintf('%.0f', nkn_);
 
       % ケース・検定比
-      [c_ilc_, rt_, rc_] = ...
-        calc_ratios_steel( ...
+      [c_ilc_, rt_, rc_] = calc_ratios_steel( ...
         im_, A_mm2_, F_, Lfc_, is_tonly_);
-      scbbody{irow, 20} = ...
-        PRM.load_case_combo_name(c_ilc_);
-      scbbody{irow, 21} = sprintf( ...
-        '%.2f ', ceil(rt_ * 100) / 100);
+      scbbody{irow, 20} = PRM.load_case_combo_name(c_ilc_);
+      scbbody{irow, 21} = sprintf('%.2f ', ceil(rt_ * 100) / 100);
       if ~is_tonly_ && rc_ > 0
-        scbbody{irow, 22} = sprintf( ...
-          '%.2f ', ceil(rc_ * 100) / 100);
+        scbbody{irow, 22} = sprintf('%.2f ', ceil(rc_ * 100) / 100);
       end
     end
   end
@@ -501,17 +435,14 @@ return
     end
     switch brace.type(ib_)
       case PRM.BRACE_MEMBER_TYPE_X
-        if ismember(brace.pair(ib_), ...
-            [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
-             PRM.BRACE_MEMBER_PAIR_BOTH_R])
+        pair_both_ = [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
+          PRM.BRACE_MEMBER_PAIR_BOTH_R];
+        if ismember(brace.pair(ib_), pair_both_)
           label_ = sprintf('X形(%s)', tc_str_);
-        elseif ismember(brace.pair(ib_), ...
-            PRM.BRACE_MEMBER_PAIR_L)
-          label_ = sprintf( ...
-            'X形(／)(%s)', tc_str_);
+        elseif ismember(brace.pair(ib_), PRM.BRACE_MEMBER_PAIR_L)
+          label_ = sprintf('X形(／)(%s)', tc_str_);
         else
-          label_ = sprintf( ...
-            'X形(＼)(%s)', tc_str_);
+          label_ = sprintf('X形(＼)(%s)', tc_str_);
         end
       case PRM.BRACE_MEMBER_TYPE_K_UPPER
         label_ = sprintf('K上形(%s)', tc_str_);
@@ -524,28 +455,23 @@ return
 
   function label_ = get_pos_label(ib_)
   %get_pos_label - 位置ラベル生成
+    pair_left_ = [PRM.BRACE_MEMBER_PAIR_L, PRM.BRACE_MEMBER_PAIR_BOTH_L];
     switch brace.type(ib_)
       case PRM.BRACE_MEMBER_TYPE_X
-        if ismember(brace.pair(ib_), ...
-            [PRM.BRACE_MEMBER_PAIR_L, ...
-             PRM.BRACE_MEMBER_PAIR_BOTH_L])
+        if ismember(brace.pair(ib_), pair_left_)
           label_ = '左下り';
         else
           label_ = '右下り';
         end
       case PRM.BRACE_MEMBER_TYPE_K_UPPER
-        if ismember(brace.pair(ib_), ...
-            [PRM.BRACE_MEMBER_PAIR_L, ...
-             PRM.BRACE_MEMBER_PAIR_BOTH_L])
+        if ismember(brace.pair(ib_), pair_left_)
           label_ = '左側';
         else
           label_ = '右側';
         end
       case PRM.BRACE_MEMBER_TYPE_K_LOWER
         % K下形: 左下がり=右側、右下がり=左側
-        if ismember(brace.pair(ib_), ...
-            [PRM.BRACE_MEMBER_PAIR_L, ...
-             PRM.BRACE_MEMBER_PAIR_BOTH_L])
+        if ismember(brace.pair(ib_), pair_left_)
           label_ = '右側';
         else
           label_ = '左側';
@@ -561,8 +487,7 @@ return
       case PRM.BRACE_MEMBER_TYPE_X
         if ilr_ == 1, label_ = '左下り';
         else,         label_ = '右下り'; end
-      case {PRM.BRACE_MEMBER_TYPE_K_UPPER, ...
-          PRM.BRACE_MEMBER_TYPE_K_LOWER}
+      case {PRM.BRACE_MEMBER_TYPE_K_UPPER, PRM.BRACE_MEMBER_TYPE_K_LOWER}
         if ilr_ == 1, label_ = '左側';
         else,         label_ = '右側'; end
       otherwise
@@ -575,42 +500,33 @@ return
     bp_ = bnij(ib_, [PRM.EXP PRM.EYP]);
     [~, idp_] = max(bp_);
     idc_pos_ = [PRM.EXP PRM.EYP];
-    nkp = rs_all( ...
-      im_, 1, idc_pos_(idp_)) * 1e-3;
+    nkp = rs_all(im_, 1, idc_pos_(idp_)) * 1e-3;
 
     bn_ = bnij(ib_, [PRM.EXN PRM.EYN]);
     [~, idn_] = max(bn_);
     idc_neg_ = [PRM.EXN PRM.EYN];
-    nkn = rs_all( ...
-      im_, 1, idc_neg_(idn_)) * 1e-3;
+    nkn = rs_all(im_, 1, idc_neg_(idn_)) * 1e-3;
   end
 
-  function name = format_shape_name( ...
-    stype_, dim_)
+  function name = format_shape_name(stype_, dim_)
   %format_shape_name - 断面形状名生成
     v = @(x) sprintf('%g', x);
     switch stype_
       case PRM.BWFS
-        name = sprintf( ...
-          'H-%s*%s*%s*%s*%s', ...
-          v(dim_(1)), v(dim_(2)), ...
-          v(dim_(3)), v(dim_(4)), ...
-          v(dim_(5)));
+        name = sprintf('H-%s*%s*%s*%s*%s', ...
+          v(dim_(1)), v(dim_(2)), v(dim_(3)), ...
+          v(dim_(4)), v(dim_(5)));
       case PRM.BHSS
-        name = sprintf( ...
-          '□-%s*%s*%s*%s', ...
-          v(dim_(1)), v(dim_(1)), ...
-          v(dim_(2)), v(dim_(3)));
+        name = sprintf('□-%s*%s*%s*%s', ...
+          v(dim_(1)), v(dim_(1)), v(dim_(2)), v(dim_(3)));
       case PRM.BHSR
-        name = sprintf('○-%s*%s', ...
-          v(dim_(1)), v(dim_(2)));
+        name = sprintf('○-%s*%s', v(dim_(1)), v(dim_(2)));
       otherwise
         name = '';
     end
   end
 
-  function [Lfc, sfc] = calc_fc_steel( ...
-    lambda, Lambda, F)
+  function [Lfc, sfc] = calc_fc_steel(lambda, Lambda, F)
   %calc_fc_steel - 鋼材ブレースのfc再計算
     ratio = lambda / Lambda;
     if ratio <= 1.0
@@ -622,8 +538,7 @@ return
     sfc = Lfc * 1.5;
   end
 
-  function [c_ilc, max_rt, max_rc] = ...
-    calc_ratios_steel( ...
+  function [c_ilc, max_rt, max_rc] = calc_ratios_steel( ...
     im_, A_, F_, Lfc_, is_tonly_)
   %calc_ratios_steel - 鋼材ブレースの検定比計算
     nlc_ = size(rs_all, 3);
