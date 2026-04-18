@@ -1,5 +1,5 @@
 function sw = comp_self_weight( ...
-  A, lm_weight, lm, member_property, msdim, slab, idn2df, ndf, ...
+  A, lm_weight, lm, member_property, msdim, idn2df, ndf, ...
   mejoint, face_deduct, options, member_column, brace_unit_weight, ...
   Df_foundation, idsup2n, rho_rc_member)
 %comp_self_weight - 自重による等価節点荷重を計算
@@ -15,7 +15,6 @@ function sw = comp_self_weight( ...
 %   lm              - 実際の部材長配列（CMQ計算用）
 %   member_property - 部材プロパティ構造体
 %   msdim           - 部材断面寸法配列
-%   slab            - スラブ情報構造体
 %   idn2df          - 節点→自由度変換配列
 %   ndf             - 全体自由度数
 %   mejoint         - 結合条件配列
@@ -44,7 +43,6 @@ mtype = member_property.type;
 idme2j1 = member_property.idnode1;
 idme2j2 = member_property.idnode2;
 stype = member_property.section_type;
-gstype = stype(mtype==PRM.GIRDER);
 
 % 柱タイプ配列の生成
 nme = length(mtype);
@@ -72,21 +70,6 @@ end
 % 部材ID→梁インデックスの変換マップ（偏心配分用）
 idme2ig = zeros(nme, 1);
 idme2ig(mtype==PRM.GIRDER) = 1:sum(mtype==PRM.GIRDER);
-
-% 重複スラブの考慮（SS7 計算編 式4.3準拠）
-% 梁断面の左右それぞれB/2の範囲でスラブと重複する
-% 体積を控除する。スラブ幅が0の側は控除しない。
-% 二重スラブは上下の床のVsをそれぞれ差し引く。
-has_slab = slab.width > 0;
-t1 = slab.thickness(:,1) .* has_slab(:,1);
-t2 = slab.thickness(:,2) .* has_slab(:,2);
-has_slab_l = slab.width_lower > 0;
-t1_l = slab.thickness_lower(:,1) .* has_slab_l(:,1);
-t2_l = slab.thickness_lower(:,2) .* has_slab_l(:,2);
-slab_t = t1 + t2 + t1_l + t2_l;
-slab_t(gstype~=PRM.RCRS) = 0;
-b = msdim(mtype==PRM.GIRDER,1);
-A(mtype==PRM.GIRDER) = A(mtype==PRM.GIRDER) - b/2 .* slab_t;
 
 % 計算の準備
 ar = zeros(nme,12);
@@ -137,9 +120,7 @@ if options.consider_finishing_material
   wf(mtype==PRM.COLUMN&stype==PRM.RCRS) = wfrcc;
   % RC梁(両側仕上)
   rcg = msdim(mtype==PRM.GIRDER&stype==PRM.RCRS,1:2);
-  rcgt = slab.thickness(gstype==PRM.RCRS) ...
-    + slab.thickness_lower(gstype==PRM.RCRS);
-  wfrcg = (rcg(:,1)+rcg(:,2)*2-rcgt)*options.finishing_material_rc_girder;
+  wfrcg = (rcg(:,1)+rcg(:,2)*2)*options.finishing_material_rc_girder;
   wf(mtype==PRM.GIRDER&stype==PRM.RCRS) = wfrcg;
 end
 w = w+wf;
