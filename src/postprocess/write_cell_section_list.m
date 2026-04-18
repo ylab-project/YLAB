@@ -94,8 +94,10 @@ end
 
 ncr = length(iddd);
 nc = com.nsecc;
-cshead = cell(1, ncr+1); cshead{1,1} = '階';
-csbody = cell(nstory, ncr+1);
+% SS7形式に合わせ、柱種名をcol5+に配置、データ行は階名(col1)と
+% full_name(col5+, 例: 1C1)を出力
+cshead = cell(1, ncr+4);
+csbody = cell(nstory, ncr+4);
 isemptyrow = true(1,nstory);
 for icr = 1:ncr
   % 該当断面の判別
@@ -113,18 +115,8 @@ for icr = 1:ncr
         continue
       end
       if secc.idstory(ic)==ist && istarget(ic)
-        cshead{1,icr+1} = secc.name{ic};
-        is = secc.idsec(ic);
-        if isempty(xvar)
-          iv = ids2var(is,:);
-          sdim = sprintf('%s, %s', vname{iv(1:2)});
-        else
-          secclist = seclist{secc.id_section_list(ic)};
-          symbol = secclist.symbol{...
-            secclist.D == secdim(is,1) & secclist.t == secdim(is,2)};
-          sdim = sprintf('%s-%gx%gx%gx%g', symbol, secdim(is,[1 1 2 3]));
-        end
-        csbody{nstory-ist+1,icr+1} = sdim;
+        cshead{1,icr+4} = secc.name{ic};
+        csbody{nstory-ist+1,icr+4} = secc.full_name{ic};
         isemptyrow(nstory-ist+1) = false;
       end
     end

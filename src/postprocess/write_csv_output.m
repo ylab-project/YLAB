@@ -17,7 +17,6 @@ function result = write_csv_output(xvar, com, options)
 nlc = com.nlc;
 loadcase = com.loadcase;
 output = options.outputfile;
-% lm = com.member.property.lm;
 secmgr = com.secmgr;
 section = com.section;
 member = com.member;
@@ -25,7 +24,6 @@ baseline = com.baseline;
 node = com.node;
 story = com.story;
 floor = com.floor;
-% material = com.material;
 
 % 断面関連
 secb = com.section.brace;
@@ -329,7 +327,7 @@ write_table(fout, '鉛直ブレース断面算定表', [], scbbody);
 for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
   [sdrhead, sdrbody] = write_cell_interstory_drift(com, ...
     result, options, icase);
-  write_table(fout, sprintf('層間変形角\tcase=%s', ...
+  write_table(fout, sprintf('層間変形角,case=%s', ...
     loadcase.name{icase}), sdrhead, sdrbody);
 end
 
@@ -339,7 +337,7 @@ for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
     break
   end
   cgscell = write_cell_column_gider_strength(com, result, icase);
-  write_table(fout, sprintf('柱梁耐力比\tcase=%s', ...
+  write_table(fout, sprintf('柱梁耐力比,case=%s', ...
     loadcase.name{icase}), cgscell.head, cgscell.body);
 end
 
@@ -374,6 +372,7 @@ function write_table(fout, name, head, body)
 %     name - テーブル名（name= に続く文字列）
 %     head - ヘッダ部セル配列（空可）
 %     body - データ部セル配列
+%
 if size(body, 1) == 0
   return
 end

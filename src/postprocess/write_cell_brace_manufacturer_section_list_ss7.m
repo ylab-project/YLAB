@@ -69,7 +69,7 @@ elseif any(isBRB)
     bsbody{i, 2} = secb.type_name{i};
     bsbody{i, 3} = secblist.symbol{i};
     bsbody{i, 4} = ...
-      sprintf('%.1f', secblist.A(i));
+      sprintf('%.2f', secblist.A(i));
   end
 else
   bshead = cell(2, 4);

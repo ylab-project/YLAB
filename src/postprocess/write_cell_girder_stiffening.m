@@ -95,12 +95,16 @@ return
     % if (slratio.n(ig)>0)
     body{irow,13} = sprintf('%.0f', slratio.lambda(ig));
     body{irow,14} = sprintf('%.0f', slratio.lbreq1(ig));
-    % body{irow,14} = sprintf('%.0f', slratio.iyreq(ig));
-    % end
     body{irow,15} = slratio.nreq(ig);
     body{irow,16} = sprintf('%.0f', slratio.lbmy(ig,1));
     body{irow,17} = sprintf('%.0f', slratio.lbmy(ig,2));
-    body{irow,18} = sprintf('%.0f', slratio.lbreq2(ig));
+    % 端部 限界Lb: Myを超える範囲にかかる横補剛間隔が限界Lbを超える場合 *
+    % 補剛なし（n=0）時は最大Lbを横補剛間隔として評価
+    lbreq2_str = sprintf('%.0f', slratio.lbreq2(ig));
+    if slratio.lbmax(ig) > slratio.lbreq2(ig)
+      lbreq2_str = [lbreq2_str '*'];
+    end
+    body{irow,18} = lbreq2_str;
     if conslr(ig)<=0
       judgement = 'OK';
     else
