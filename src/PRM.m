@@ -221,11 +221,11 @@ classdef PRM
     BRACE_MEMBER_TYPE_K_LOWER = 3  % K下形
 
     %% ブレースペア
-    BRACE_MEMBER_PAIR_L = 1        % 左（下がり）ブレース
-    BRACE_MEMBER_PAIR_R = 2        % 右（下がり）ブレース
+    BRACE_MEMBER_PAIR_L = 1        % 左下がりブレース
+    BRACE_MEMBER_PAIR_R = 2        % 右下がりブレース
     BRACE_MEMBER_PAIR_BOTH = 3     % 両方（入力専用、内部処理で展開される）
-    BRACE_MEMBER_PAIR_BOTH_L = 4   % 両方の左（下がり）ブレース
-    BRACE_MEMBER_PAIR_BOTH_R = 5   % 両方の右（下がり）ブレース
+    BRACE_MEMBER_PAIR_BOTH_L = 4   % 両方の左下がりブレース
+    BRACE_MEMBER_PAIR_BOTH_R = 5   % 両方の右下がりブレース
 
     %% ブレース通し
     BRACE_THROUGH_NONE = 0       % 通しなし

@@ -12,7 +12,6 @@ function [bphead, bpbody] = write_cell_brace_property(com, result)
 %     bphead - ヘッダー行セル配列 [3x20 cell]
 %     bpbody - 本体セル配列 [nnb x 20 cell]
 
-% 定数・共通配列
 nb = com.nmeb;
 nstory = com.nstory;
 nblx = com.nblx;
@@ -38,7 +37,6 @@ for ib_ = 1:nb
   end
 end
 
-% ヘッダー行
 bphead = cell(3,20);
 bphead(1,1:5) = {'階', 'ﾌﾚｰﾑ', '軸－軸', '', '符号'};
 bphead(1,6:10) = {'タイプ','E', 'Ao', '左下り',''};
@@ -50,7 +48,6 @@ bphead(3,6:10) = {'','kN/mm2','cm2','','cm2'};
 bphead(3,11:15) = {'','','mm','mm',''};
 bphead(3,16) = {'cm2'};
 
-% 本体作成（nominal_braceベースでループ）
 nominal_brace = com.nominal.brace;
 nnb = com.num.nominal_brace;
 ids_story = nominal_brace.idstory;
@@ -99,45 +96,18 @@ return
       idm = brace.idme(ib);
       idsb = brace.idsecb(ib);
 
+      [ipos, type_label] = resolve_brace_position_label( ...
+        brace, ib, ij, npair);
+
       if iter == 1
         irow = irow + 1;
         bpbody{irow,1} = nominal_brace.floor_name{inb};
         bpbody{irow,2} = nominal_brace.frame_name{inb,1};
         bpbody(irow,3:4) = nominal_brace.coord_name(inb,1:2);
         bpbody{irow,5} = secb.name{idsb};
-
-        % タイプ名
-        switch brace.type(ib)
-          case PRM.BRACE_MEMBER_TYPE_X
-            if npair == 2
-              bpbody{irow,6} = 'Ｘ';
-            elseif brace.pair(ib) == PRM.BRACE_MEMBER_PAIR_L
-              bpbody{irow,6} = '／';
-            else
-              bpbody{irow,6} = '＼';
-            end
-          case PRM.BRACE_MEMBER_TYPE_K_UPPER
-            bpbody{irow,6} = 'K上';
-          case PRM.BRACE_MEMBER_TYPE_K_LOWER
-            bpbody{irow,6} = 'K下';
-        end
-
-        % E, Ao
+        bpbody{irow,6} = type_label;
         bpbody{irow,7} = Em(idm) * 1.d-3;
         bpbody{irow,8} = sprintf('%.2f', msprop.A(idm) * 1.d-2);
-      end
-
-      % 左下り/右下り列の振り分け
-      switch brace.type(ib)
-        case PRM.BRACE_MEMBER_TYPE_X
-          if ismember(brace.pair(ib), [PRM.BRACE_MEMBER_PAIR_L, ...
-              PRM.BRACE_MEMBER_PAIR_BOTH_L])
-            ipos = 1;
-          else
-            ipos = 2;
-          end
-        case {PRM.BRACE_MEMBER_TYPE_K_UPPER, PRM.BRACE_MEMBER_TYPE_K_LOWER}
-          ipos = ij;
       end
 
       if ipos == 1

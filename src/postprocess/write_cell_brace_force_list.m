@@ -78,8 +78,9 @@ return
   function add_row(inb)
     ibij = nominal_brace.idmeb(inb,:);
     nz_cols = find(ibij > 0);
+    npair = length(nz_cols);
 
-    for iter = 1:length(nz_cols)
+    for iter = 1:npair
       ij = nz_cols(iter);
       ib = ibij(ij);
       im = brace.idme(ib);
@@ -97,31 +98,8 @@ return
       end
 
       % ブレース配置タイプ
-      switch brace.type(ib)
-        case PRM.BRACE_MEMBER_TYPE_X
-          pair_left_ = [PRM.BRACE_MEMBER_PAIR_L, ...
-            PRM.BRACE_MEMBER_PAIR_BOTH_L];
-          pair_both_ = [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
-            PRM.BRACE_MEMBER_PAIR_BOTH_R];
-          if ismember(brace.pair(ib), pair_left_)
-            ipos = 1;
-          else
-            ipos = 2;
-          end
-          if ismember(brace.pair(ib), pair_both_)
-            type_label = 'Ｘ';
-          elseif ipos == 1
-            type_label = '／';
-          else
-            type_label = '＼';
-          end
-        case PRM.BRACE_MEMBER_TYPE_K_UPPER
-          type_label = 'K上';
-          ipos = ij;
-        case PRM.BRACE_MEMBER_TYPE_K_LOWER
-          ipos = ij;
-          type_label = 'K下';
-      end
+      [ipos, type_label] = ...
+        resolve_brace_position_label(brace, ib, ij, npair);
       rows{irow,6} = type_label;
 
       % ブレースペアタイプ
@@ -135,10 +113,10 @@ return
       end
     end
 
-    % Q [N→kN]（上側節点の力; 非地震は絶対値）
-    q_out = -Q_nb(inb) * 1.d-3;
-    if ~is_eq
-      q_out = abs(q_out);
+    % Q [N→kN]（地震時は符号反転、非地震時はそのまま）
+    q_out = Q_nb(inb) * 1.d-3;
+    if is_eq
+      q_out = -q_out;
     end
     rows{irow,11} = sprintf('%.1f', q_out + 0);
   end

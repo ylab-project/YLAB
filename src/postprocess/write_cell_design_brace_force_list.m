@@ -90,37 +90,15 @@ return
   function add_row(inb)
     ibij = nominal_brace.idmeb(inb, :);
     nz_cols = find(ibij > 0);
+    npair = length(nz_cols);
     % 左右の部材番号とiposを先に決定（ij_ は idmeb の列番号 = 物理位置）
     im_pair = zeros(1, 2);
     ipos_pair = zeros(1, 2);
     for ij_ = nz_cols
       ib_ = ibij(ij_);
       im_pair(ij_) = brace.idme(ib_);
-      switch brace.type(ib_)
-        case PRM.BRACE_MEMBER_TYPE_X
-          pair_left_ = [PRM.BRACE_MEMBER_PAIR_L, ...
-            PRM.BRACE_MEMBER_PAIR_BOTH_L];
-          pair_both_ = [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
-            PRM.BRACE_MEMBER_PAIR_BOTH_R];
-          if ismember(brace.pair(ib_), pair_left_)
-            ipos_pair(ij_) = 1;
-          else
-            ipos_pair(ij_) = 2;
-          end
-          if ismember(brace.pair(ib_), pair_both_)
-            type_label_ = 'Ｘ';
-          elseif ipos_pair(ij_) == 1
-            type_label_ = '／';
-          else
-            type_label_ = '＼';
-          end
-        case PRM.BRACE_MEMBER_TYPE_K_UPPER
-          type_label_ = 'K上';
-          ipos_pair(ij_) = ij_;
-        case PRM.BRACE_MEMBER_TYPE_K_LOWER
-          type_label_ = 'K下';
-          ipos_pair(ij_) = ij_;
-      end
+      [ipos_pair(ij_), type_label_] = ...
+        resolve_brace_position_label(brace, ib_, ij_, npair);
     end
 
     % 各荷重ケースの軸力を出力

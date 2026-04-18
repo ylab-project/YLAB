@@ -16,8 +16,10 @@ function [nominal_brace, idnominal_brace] = countup_nominal_brace(com)
 %
 %   備考:
 %     - idmeb の 1列目=左側、2列目=右側（物理位置）
-%     - K下は brace.pair と物理位置が反転するため type+pair で列を決定
-%     - ブレースペア情報は PRM.BRACE_MEMBER_PAIR_* 定数で判定
+%     - pair 体系の役割分担:
+%         X形: PAIR_L/PAIR_R を使用（片側・両方問わず）
+%         K形: BOTH_L/BOTH_R を使用（片側・両方問わず）
+%     - K下は pair 定数と物理位置が反転する（仕様.md 方針1' 参照）
 
 brace = com.member.brace;
 nb = size(brace, 1);
@@ -35,43 +37,45 @@ for ib=1:nb
   used(ib) = true;
   idn = idn+1;
 
-  is_k = brace.type(ib) == PRM.BRACE_MEMBER_TYPE_K_UPPER ...
-    || brace.type(ib) == PRM.BRACE_MEMBER_TYPE_K_LOWER;
   is_k_lower = brace.type(ib) == PRM.BRACE_MEMBER_TYPE_K_LOWER;
 
+  % 物理位置（col）を pair と type の組み合わせで決定
+  %   PAIR_L  : X形 ／       → 1列目（左）
+  %   PAIR_R  : X形 ＼       → 2列目（右）
+  %   BOTH_L  : K上 左 / K下 右
+  %   BOTH_R  : K上 右 / K下 左
   switch brace.pair(ib)
-    case {PRM.BRACE_MEMBER_PAIR_L, PRM.BRACE_MEMBER_PAIR_R}
-      % 片側のみのブレース（ペアなし）
-      if is_k
-        % K上: PAIR_L(／)→左, PAIR_R(＼)→右
-        % K下: PAIR_L(／)→右, PAIR_R(＼)→左（物理位置が反転）
-        is_pair_l = brace.pair(ib) == PRM.BRACE_MEMBER_PAIR_L;
-        is_pair_r = brace.pair(ib) == PRM.BRACE_MEMBER_PAIR_R;
-        is_left = (is_pair_l && ~is_k_lower) || (is_pair_r && is_k_lower);
-        col = 1 + ~is_left;
+    case PRM.BRACE_MEMBER_PAIR_L
+      col = 1;
+    case PRM.BRACE_MEMBER_PAIR_R
+      col = 2;
+    case PRM.BRACE_MEMBER_PAIR_BOTH_L
+      if is_k_lower
+        col = 2;
       else
-        col = 1;              % X形片側は従来どおり1列目
+        col = 1;
       end
-      idmeb(idn, col) = ib;
-      idsub(idn, col) = 1;
-    case {PRM.BRACE_MEMBER_PAIR_BOTH_L, PRM.BRACE_MEMBER_PAIR_BOTH_R}
-      % ペアのブレースも同じ名目ブレースに登録
-      ib2 = brace.idpair(ib);
-      used(ib2) = true;
-      is_l = brace.pair(ib) == PRM.BRACE_MEMBER_PAIR_BOTH_L;
-      if is_k
-        % K上: BOTH_L→1列目（左）/, BOTH_R→2列目（右）\
-        % K下: BOTH_R→1列目（左）\, BOTH_L→2列目（右）/
-        col = 1 + xor(is_k_lower, ~is_l);
+    case PRM.BRACE_MEMBER_PAIR_BOTH_R
+      if is_k_lower
+        col = 1;
       else
-        % X形: BOTH_L→1列目、BOTH_R→2列目
-        col = 1 + ~is_l;
+        col = 2;
       end
-      col2 = 3 - col;
-      idmeb(idn, col)  = ib;
-      idmeb(idn, col2) = ib2;
-      idsub(idn, 1) = 1;
-      idsub(idn, 2) = 2;
+  end
+
+  ib2 = brace.idpair(ib);
+  if ib2 == ib
+    % 片側のみ（ペアなし）
+    idmeb(idn, col) = ib;
+    idsub(idn, col) = 1;
+  else
+    % ペアあり（BOTH 展開後）
+    used(ib2) = true;
+    col2 = 3 - col;
+    idmeb(idn, col)  = ib;
+    idmeb(idn, col2) = ib2;
+    idsub(idn, 1) = 1;
+    idsub(idn, 2) = 2;
   end
 end
 
@@ -115,9 +119,8 @@ for inb = 1:nnb
   end
 end
 
-nominal_brace = table( ...
-  idmeb, idsub, coord_name, floor_name, frame_name, ...
-  idstory, idir, idx, idy, type, 'VariableNames', ...
+nominal_brace = table(idmeb, idsub, coord_name, floor_name, ...
+  frame_name, idstory, idir, idx, idy, type, 'VariableNames', ...
   {'idmeb','idsub','coord_name','floor_name','frame_name', ...
   'idstory','idir','idx','idy','type'});
 

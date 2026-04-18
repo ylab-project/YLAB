@@ -64,7 +64,13 @@ for i=1:n
   end
 end
 
-%% ペアの解析
+%% ペアの解析（形状と組み合わせて pair 定数を決定）
+% SS7の「片(左)/片(右)/両方」は物理位置ベース。YLAB 内部の pair は
+% 傾き方向ベース。形状により読み替えが必要（K下は左右反転）。
+% pair_map: 行=brace_type (1:X, 2:K上, 3:K下), 列=side (1:左, 2:右)
+pair_map = [PRM.BRACE_MEMBER_PAIR_L, PRM.BRACE_MEMBER_PAIR_R; ...
+  PRM.BRACE_MEMBER_PAIR_BOTH_L, PRM.BRACE_MEMBER_PAIR_BOTH_R; ...
+  PRM.BRACE_MEMBER_PAIR_BOTH_R, PRM.BRACE_MEMBER_PAIR_BOTH_L];
 pair = zeros(n,1);
 for i=1:n
   val = data{i,7};
@@ -73,9 +79,9 @@ for i=1:n
   end
   switch val
     case "片(左)"
-      pair(i) = PRM.BRACE_MEMBER_PAIR_L;
+      pair(i) = pair_map(brace_type(i), 1);
     case "片(右)"
-      pair(i) = PRM.BRACE_MEMBER_PAIR_R;
+      pair(i) = pair_map(brace_type(i), 2);
     case "両方"
       pair(i) = PRM.BRACE_MEMBER_PAIR_BOTH;
   end
@@ -170,16 +176,34 @@ if ~isempty(id_k_brace)
     idnode_R_far_ = idnode_k_R_far(ik);
 
     % ペアに応じた節点割り当て
+    % idnode1 は常に下、idnode2 は常に上とする:
+    %   K上: far=下柱脚, mid=上梁中央 → idnode1=far, idnode2=mid
+    %   K下: far=上柱頭, mid=下梁中央 → idnode1=mid, idnode2=far
+    % 左右の選択（BOTH_L/BOTH_R）は shape と pair で決定:
+    %   K上 BOTH_L=左(L_far), BOTH_R=右(R_far)
+    %   K下 BOTH_L=右(R_far), BOTH_R=左(L_far)
+    is_k_lower_ = brace_type(i) == PRM.BRACE_MEMBER_TYPE_K_LOWER;
     switch pair(i)
-      case PRM.BRACE_MEMBER_PAIR_L
-        idnode1(i) = idnode_L_far_;
-        idnode2(i) = idnode_mid;
-      case PRM.BRACE_MEMBER_PAIR_R
-        idnode1(i) = idnode_mid;
-        idnode2(i) = idnode_R_far_;
+      case PRM.BRACE_MEMBER_PAIR_BOTH_L
+        if is_k_lower_
+          idnode1(i) = idnode_mid;
+          idnode2(i) = idnode_R_far_;
+        else
+          idnode1(i) = idnode_L_far_;
+          idnode2(i) = idnode_mid;
+        end
+      case PRM.BRACE_MEMBER_PAIR_BOTH_R
+        if is_k_lower_
+          idnode1(i) = idnode_mid;
+          idnode2(i) = idnode_L_far_;
+        else
+          idnode1(i) = idnode_R_far_;
+          idnode2(i) = idnode_mid;
+        end
       case PRM.BRACE_MEMBER_PAIR_BOTH
-        % BOTH展開前は左側のみ設定（node1=下）
-        if brace_type(i) == PRM.BRACE_MEMBER_TYPE_K_LOWER
+        % BOTH展開前は左側を設定（expand_brace_pair_both_func で
+        % K上→BOTH_L、K下→BOTH_R に対応）
+        if is_k_lower_
           idnode1(i) = idnode_mid;
           idnode2(i) = idnode_L_far_;
         else
@@ -224,14 +248,17 @@ if pos_brace_fg == PRM.BRACE_FOUNDATION_GIRDER_TOP && any(idz(:,1)==1 ...
     split_column_for_brace_at_girder_top_func(baseline, node, ...
       member_column, member_girder);
 
-  % 柱分割後、ブレースの節点を分割点に置き換え
+  % 柱分割後、ブレースの idnode1（下端）を分割点に置き換え
+  % idnode1 は常に下端なので、K上/X形 ともに idnode1 を置換するだけでよい
   for i=1:n
     if idz(i,1) == 1 ...
         && (brace_type(i) == PRM.BRACE_MEMBER_TYPE_K_UPPER ...
         || brace_type(i) == PRM.BRACE_MEMBER_TYPE_X)
-      % 左柱の分割点を検索
-      if pair(i) == PRM.BRACE_MEMBER_PAIR_L || ...
-         pair(i) == PRM.BRACE_MEMBER_PAIR_BOTH
+      % 左側物理位置: X形 PAIR_L, K上 BOTH_L, BOTH（未展開）
+      is_left_pos = pair(i) == PRM.BRACE_MEMBER_PAIR_L ...
+        || pair(i) == PRM.BRACE_MEMBER_PAIR_BOTH_L ...
+        || pair(i) == PRM.BRACE_MEMBER_PAIR_BOTH;
+      if is_left_pos
         idc_L = find(member_column.idx(:,1) == idx(i,1) & ...
                      member_column.idy(:,1) == idy(i,1) & ...
                      member_column.type == PRM.COLUMN_FOR_BRACE_BODY, 1);
@@ -239,17 +266,14 @@ if pos_brace_fg == PRM.BRACE_FOUNDATION_GIRDER_TOP && any(idz(:,1)==1 ...
           idnode1(i) = member_column.idnode1(idc_L);
         end
       end
-      % 右柱の分割点を検索（片側右のみ）
-      if pair(i) == PRM.BRACE_MEMBER_PAIR_R
+      % 右側物理位置: X形 PAIR_R, K上 BOTH_R
+      if pair(i) == PRM.BRACE_MEMBER_PAIR_R ...
+          || pair(i) == PRM.BRACE_MEMBER_PAIR_BOTH_R
         idc_R = find(member_column.idx(:,1) == idx(i,2) ...
           & member_column.idy(:,1) == idy(i,2) ...
           & member_column.type == PRM.COLUMN_FOR_BRACE_BODY, 1);
         if ~isempty(idc_R)
-          if brace_type(i) == PRM.BRACE_MEMBER_TYPE_K_UPPER
-            idnode2(i) = member_column.idnode1(idc_R);
-          else
-            idnode1(i) = member_column.idnode1(idc_R);
-          end
+          idnode1(i) = member_column.idnode1(idc_R);
         end
       end
     end
@@ -310,10 +334,10 @@ if any(pair == PRM.BRACE_MEMBER_PAIR_BOTH)
       if member_brace.type(ib_) ~= PRM.BRACE_MEMBER_TYPE_X
         continue
       end
-      if member_brace.pair(ib_) ~= PRM.BRACE_MEMBER_PAIR_BOTH_R
+      if member_brace.pair(ib_) ~= PRM.BRACE_MEMBER_PAIR_R
         continue
       end
-      % BOTH_Rのidnode1（下端）を右柱分割点に置換
+      % PAIR_R（X形右側対角）のidnode1（下端）を右柱分割点に置換
       idc_ = find(member_column.idx(:,1) == member_brace.idx(ib_,2) ...
         & member_column.idy(:,1) == member_brace.idy(ib_,2) ...
         & member_column.type == PRM.COLUMN_FOR_BRACE_BODY, 1);
@@ -375,19 +399,10 @@ return
     idsfg = member_girder.idsecg(idfg);
     Dtarget = section_girder.dimension(idsfg,2);
 
-    % 対象柱数の計算（K上形は2本、X形BOTHは2本、X形片側は1本）
-    n_k_upper = sum( ...
-      brace_type(id_target_brace) == PRM.BRACE_MEMBER_TYPE_K_UPPER);
-    n_x_both = sum( ...
-      brace_type(id_target_brace) == PRM.BRACE_MEMBER_TYPE_X ...
-      & pair(id_target_brace) == PRM.BRACE_MEMBER_PAIR_BOTH);
-    n_x_single = ntarget - n_k_upper - n_x_both;
-    ncolumn = n_k_upper * 2 + n_x_both * 2 + n_x_single;
-
-    % 配列の事前確保
-    iac_all = zeros(ncolumn, 1);
-    idnode_template_all = zeros(ncolumn, 1);
-    Dtarget_all = zeros(ncolumn, 1);
+    % 配列の事前確保（各ブレース最大2柱を上界として確保し末尾で切詰）
+    iac_all = zeros(ntarget*2, 1);
+    idnode_template_all = zeros(ntarget*2, 1);
+    Dtarget_all = zeros(ntarget*2, 1);
 
     icnt = 0;
     for ib=1:ntarget
@@ -395,19 +410,27 @@ return
       pair_type = pair(tid_);
 
       if brace_type(tid_) == PRM.BRACE_MEMBER_TYPE_K_UPPER
-        % K上形：左右両方の柱を分割
-        iac_L = find_idcolumn_from_idxyz(idx(tid_,[1 1]), ...
-          idy(tid_,[1 1]), idz(tid_,:), member_column);
-        iac_R = find_idcolumn_from_idxyz(idx(tid_,[2 2]), ...
-          idy(tid_,[2 2]), idz(tid_,:), member_column);
-        icnt = icnt + 1;
-        iac_all(icnt) = iac_L;
-        idnode_template_all(icnt) = member_column.idnode1(iac_L);
-        Dtarget_all(icnt) = Dtarget(ib);
-        icnt = icnt + 1;
-        iac_all(icnt) = iac_R;
-        idnode_template_all(icnt) = member_column.idnode1(iac_R);
-        Dtarget_all(icnt) = Dtarget(ib);
+        % K上形：pairに応じて分割対象の柱を決定（SS7整合）
+        % 左柱分割: BOTH_L（片(左)）または BOTH（両方）
+        if pair_type == PRM.BRACE_MEMBER_PAIR_BOTH_L ...
+            || pair_type == PRM.BRACE_MEMBER_PAIR_BOTH
+          iac_L = find_idcolumn_from_idxyz(idx(tid_,[1 1]), ...
+            idy(tid_,[1 1]), idz(tid_,:), member_column);
+          icnt = icnt + 1;
+          iac_all(icnt) = iac_L;
+          idnode_template_all(icnt) = member_column.idnode1(iac_L);
+          Dtarget_all(icnt) = Dtarget(ib);
+        end
+        % 右柱分割: BOTH_R（片(右)）または BOTH（両方）
+        if pair_type == PRM.BRACE_MEMBER_PAIR_BOTH_R ...
+            || pair_type == PRM.BRACE_MEMBER_PAIR_BOTH
+          iac_R = find_idcolumn_from_idxyz(idx(tid_,[2 2]), ...
+            idy(tid_,[2 2]), idz(tid_,:), member_column);
+          icnt = icnt + 1;
+          iac_all(icnt) = iac_R;
+          idnode_template_all(icnt) = member_column.idnode1(iac_R);
+          Dtarget_all(icnt) = Dtarget(ib);
+        end
       else
         % X形：ペアに応じた柱を分割
         if pair_type == PRM.BRACE_MEMBER_PAIR_L
@@ -441,6 +464,11 @@ return
         end
       end
     end
+
+    % 使用分に切詰
+    iac_all = iac_all(1:icnt);
+    idnode_template_all = idnode_template_all(1:icnt);
+    Dtarget_all = Dtarget_all(1:icnt);
 
     % Z座標の計算
     zcoord_all = Dtarget_all / 2;
@@ -663,8 +691,8 @@ return
     %
     %   tb_out = expand_brace_pair_both_func(tb_in) は、
     %   ペアが"両方"のブレースを左右2本に展開する。
-    %   K上形はBOTH_L+BOTH_R、K下形はBOTH_R+BOTH_L、
-    %   X形はBOTH_L+BOTH_Rに展開する。
+    %   K上形は BOTH_L+BOTH_R、K下形は BOTH_R+BOTH_L、
+    %   X形は PAIR_L+PAIR_R に展開する。
     %
     %   入力引数:
     %     tb_in  - ブレース部材テーブル
@@ -683,17 +711,17 @@ return
     brace_type_expand = brace_type(expand_idx);
     idnode_mid_array_expand = idnode_mid_array(expand_idx);
 
-    % 元のテーブルのペアを更新（K上形→BOTH_L、K下形→BOTH_R、X形→BOTH_L）
+    % 元のテーブルのペアを更新（K形はBOTH_L/R、X形はPAIR_L/R）
     for ie = 1:length(expand_idx)
       if brace_type_expand(ie) == PRM.BRACE_MEMBER_TYPE_K_UPPER
-        % K上形は左側がBOTH_L（下柱→中間）
+        % K上形は左側がBOTH_L（下柱→中間、／）
         tb_in.pair(expand_idx(ie)) = PRM.BRACE_MEMBER_PAIR_BOTH_L;
       elseif brace_type_expand(ie) == PRM.BRACE_MEMBER_TYPE_K_LOWER
-        % K下形は左側がBOTH_R（上柱→中間、逆V字）
+        % K下形は左側がBOTH_R（中間→上柱頭(L_far)、＼）
         tb_in.pair(expand_idx(ie)) = PRM.BRACE_MEMBER_PAIR_BOTH_R;
       else
-        % X形は左側がBOTH_L（通常の対角）
-        tb_in.pair(expand_idx(ie)) = PRM.BRACE_MEMBER_PAIR_BOTH_L;
+        % X形は左側がPAIR_L（通常の対角、／）
+        tb_in.pair(expand_idx(ie)) = PRM.BRACE_MEMBER_PAIR_L;
       end
     end
 
@@ -706,7 +734,7 @@ return
     for ie = 1:ntb_add
       % K上形の場合
       if brace_type_expand(ie) == PRM.BRACE_MEMBER_TYPE_K_UPPER
-        % 右側：下側節点→中間（BOTH_R、node1=下）
+        % 右側：下柱脚→中間節点（BOTH_R、node1=下柱脚）
         tb_add.pair(ie) = PRM.BRACE_MEMBER_PAIR_BOTH_R;
         idnode_mid_ = idnode_mid_array_expand(ie);
         tb_add.idnode2(ie) = idnode_mid_;
@@ -720,7 +748,7 @@ return
 
       % K下形の場合
       elseif brace_type_expand(ie) == PRM.BRACE_MEMBER_TYPE_K_LOWER
-        % 右側：中間→下柱（BOTH_L）
+        % 右側：中間→上柱頭(R_far)（BOTH_L、／）
         tb_add.pair(ie) = PRM.BRACE_MEMBER_PAIR_BOTH_L;
         idnode_mid_ = idnode_mid_array_expand(ie);
         tb_add.idnode1(ie) = idnode_mid_;
@@ -729,8 +757,8 @@ return
 
       % X形の場合
       else
-        % 右側：右下→左上（BOTH_R）
-        tb_add.pair(ie) = PRM.BRACE_MEMBER_PAIR_BOTH_R;
+        % 右側：右下→左上（PAIR_R、＼）
+        tb_add.pair(ie) = PRM.BRACE_MEMBER_PAIR_R;
         tb_add.idnode1(ie) = find_idnode_from_idxyz(tb_add.idx(ie,2), ...
           tb_add.idy(ie,2), tb_add.idz(ie,1), node);
         tb_add.idnode2(ie) = find_idnode_from_idxyz(tb_add.idx(ie,1), ...

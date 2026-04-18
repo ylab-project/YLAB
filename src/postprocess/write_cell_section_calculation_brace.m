@@ -435,11 +435,10 @@ return
     end
     switch brace.type(ib_)
       case PRM.BRACE_MEMBER_TYPE_X
-        pair_both_ = [PRM.BRACE_MEMBER_PAIR_BOTH_L, ...
-          PRM.BRACE_MEMBER_PAIR_BOTH_R];
-        if ismember(brace.pair(ib_), pair_both_)
+        if brace.idpair(ib_) ~= ib_
+          % BOTH展開によるペアあり: X形（両方）
           label_ = sprintf('X形(%s)', tc_str_);
-        elseif ismember(brace.pair(ib_), PRM.BRACE_MEMBER_PAIR_L)
+        elseif brace.pair(ib_) == PRM.BRACE_MEMBER_PAIR_L
           label_ = sprintf('X形(／)(%s)', tc_str_);
         else
           label_ = sprintf('X形(＼)(%s)', tc_str_);
