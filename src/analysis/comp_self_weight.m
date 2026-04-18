@@ -1,9 +1,7 @@
-function sw = comp_self_weight(...
-  A, lm_weight, lm, member_property, msdim, ...
-  slab, idn2df, ndf, mejoint, ...
-  face_deduct, options, member_column, ...
-  brace_unit_weight, Df_foundation, idsup2n, ...
-  rho_rc_member)
+function sw = comp_self_weight( ...
+  A, lm_weight, lm, member_property, msdim, slab, idn2df, ndf, ...
+  mejoint, face_deduct, options, member_column, brace_unit_weight, ...
+  Df_foundation, idsup2n, rho_rc_member)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
 % 柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを計算する。
@@ -24,7 +22,8 @@ function sw = comp_self_weight(...
 %   face_deduct     - 梁の柱面減算量 [nmeg x 2]（列1: i端, 列2: j端）
 %   options         - オプション構造体
 %   member_column   - 柱部材構造体
-%   brace_unit_weight - ブレース単位重量 [nmeb x 1] N/mm（BRB: メーカー値, 他: 0）
+%   brace_unit_weight - ブレース単位重量 [nmeb x 1] N/mm
+%                       （BRB: メーカー値, 他: 0）
 %   Df_foundation     - 基礎柱面寸法配列 [nsec×1]（統一断面ID→Df）
 %   idsup2n           - 支点節点IDの配列 [nsup×1]
 %   rho_rc_member     - RC密度 [nme×1] t/m3（Fc依存）
@@ -58,10 +57,8 @@ for ic = 1:length(member_column.idme)
   if member_column.type(ic) ~= PRM.COLUMN_FOR_BRACE_BODY
     continue
   end
-  ic_b1 = find( ...
-    member_column.idnominal(:,1) ...
-    == member_column.idnominal(ic, 1) ...
-    & is_brace1_, 1);
+  ic_b1 = find(member_column.idnominal(:,1) ...
+    == member_column.idnominal(ic, 1) & is_brace1_, 1);
   if isempty(ic_b1)
     continue
   end
@@ -128,8 +125,11 @@ if options.consider_finishing_material
   wfsg = (sg(:,1)*2+sg(:,2))*options.finishing_material_s_girder;
   wf(mtype==PRM.GIRDER&stype==PRM.WFS) = wfsg;
   % S柱(四面仕上)
-  sc = msdim(mtype==PRM.COLUMN&stype==PRM.HSS,1:2);
-  wfsc = sc(:,1)*4*options.finishing_material_s_column;
+  % 角形鋼管のコーナー半径 r を考慮した実周長で仕上重量を算出
+  % HSS secdim: 列1=D, 列2=t, 列3=r
+  sc = msdim(mtype==PRM.COLUMN&stype==PRM.HSS,1:3);
+  peri_sc = 4*(sc(:,1) - 2*sc(:,3)) + 2*pi*sc(:,3);
+  wfsc = peri_sc * options.finishing_material_s_column;
   wf(mtype==PRM.COLUMN&stype==PRM.HSS) = wfsc;
   % RC柱(四面仕上)
   rcc = msdim(mtype==PRM.COLUMN&stype==PRM.RCRS,3:4);  % 3,4列目が実寸法
@@ -149,7 +149,7 @@ czl = cross(cxl, cyl, 2);
 
 % 固定端荷重の計算
 %   ar: 要素座標系
-%   f,fc,fg: 全体座標系
+%   f, fc, fg, fw: 全体座標系
 %   座標変換行列は{F}=[T]^T{f}
 
 for im = 1:nme
@@ -200,7 +200,8 @@ for im = 1:nme
     % mejoint: 1:i端(強軸), 2:j端(強軸), 3:i端(弱軸), 4:j端(弱軸)
     joint = mejoint(im,:);
     a = face_deduct(ig, 1);  % i端の柱面減算量
-    b_ = face_deduct(ig, 2); % j端の柱面減算量（bは組み込み関数と重複を避ける）
+    % j端の柱面減算量（変数名 b との重複を避けるため末尾_）
+    b_ = face_deduct(ig, 2);
     L = li_m;                % 通り心間距離
     Lb = L - b_;             % = a + L' (荷重右端位置)
     w3 = wv(3);              % 要素座標系での鉛直荷重成分
@@ -220,22 +221,20 @@ for im = 1:nme
       cvi = [0; w3*li_w^2/8; 0];
       cvj = [0; 0; 0];
     else
-      % 両端固定: 柱面間分布荷重の固定端モーメント公式
-      % 単位集中荷重Pが位置xに作用するときの固定端モーメント:
-      %   MA(x) = P*x*(L-x)²/L²
-      %   MB(x) = P*x²*(L-x)/L²
-      % これを区間[a, L-b]で積分:
-      %   CA = ∫[a,Lb] w*x*(L-x)²/L² dx
-      %   CB = ∫[a,Lb] w*x²*(L-x)/L² dx
-      % 積分結果:
-      %   ∫x(L-x)²dx = L²x²/2 - 2Lx³/3 + x⁴/4
-      %   ∫x²(L-x)dx = Lx³/3 - x⁴/4
+      % 両端固定: SS7 計算編 4.2.10 (1) 一般分布荷重の固定端モーメント式
+      % 柱面間分布荷重に対し区間 [a, L-b] で積分して算出する。
+      %   単位集中荷重 P が位置 x に作用するときの固定端 M:
+      %     MA(x) = P·x·(L-x)²/L², MB(x) = P·x²·(L-x)/L²
+      %   区間 [a, L-b] で積分:
+      %     CA = ∫[a,Lb] w·x(L-x)²/L² dx
+      %     CB = ∫[a,Lb] w·x²(L-x)/L² dx
+      %   積分結果:
+      %     ∫x(L-x)²dx = L²x²/2 - 2Lx³/3 + x⁴/4
+      %     ∫x²(L-x)dx = Lx³/3 - x⁴/4
       L2 = L^2;
-      % CA の積分: F(x) = L²x²/2 - 2Lx³/3 + x⁴/4
       FA_Lb = L2*Lb^2/2 - 2*L*Lb^3/3 + Lb^4/4;
       FA_a  = L2*a^2/2  - 2*L*a^3/3  + a^4/4;
       CA = w3/L2 * (FA_Lb - FA_a);
-      % CB の積分: G(x) = Lx³/3 - x⁴/4
       GB_Lb = L*Lb^3/3 - Lb^4/4;
       GB_a  = L*a^3/3  - a^4/4;
       CB = w3/L2 * (GB_Lb - GB_a);
@@ -310,8 +309,7 @@ for isup = 1:length(idsup2n)
   Df_ = 0; im_col_ = 0;
   for ic = 1:length(member_column.idme)
     im_ = member_column.idme(ic);
-    if idme2j1(im_) ~= in_sup ...
-        && idme2j2(im_) ~= in_sup
+    if idme2j1(im_) ~= in_sup && idme2j2(im_) ~= in_sup
       continue
     end
     Df_ = Df_foundation(idm2s_(im_));
@@ -329,8 +327,7 @@ for isup = 1:length(idsup2n)
     if mtype(im_) ~= PRM.GIRDER
       continue
     end
-    if idme2j1(im_) ~= in_sup ...
-        && idme2j2(im_) ~= in_sup
+    if idme2j1(im_) ~= in_sup && idme2j2(im_) ~= in_sup
       continue
     end
     if stype(im_) == PRM.RCRS
@@ -341,8 +338,7 @@ for isup = 1:length(idsup2n)
     continue
   end
   % 基礎柱自重の計算と加算（Fc依存密度）
-  gamma_rc_ = rho_rc_member(im_col_) ...
-    * PRM.GRAVITY * 1.d-6;
+  gamma_rc_ = rho_rc_member(im_col_) * PRM.GRAVITY * 1.d-6;
   W_ = gamma_rc_ * Df_ * Df_ * D_beam;
   ns_ = idn2df(in_sup, :);
   fc(ns_) = fc(ns_) + [0; 0; W_; 0; 0; 0];

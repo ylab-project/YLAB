@@ -277,10 +277,16 @@ end
   calc_girder_weight_length(member_girder, com.node, ...
   stype_sec, com.section.girder.idsec, secdim, Df_foundation);
 
-%% 柱・梁を結合して全部材の荷重計算用部材長を作成
+%% ブレース座屈長（SS7 3.8.1、自重計算および λe 判定にも使用）
+lm_brace_buckling = calc_brace_buckling_length(member.brace, ...
+  com.member.girder, node, stype_sec, com.section.girder.idsec, ...
+  secdim);
+
+%% 柱・梁・ブレースを結合して全部材の荷重計算用部材長を作成
 lm_weight = lm;  % 初期値は構造階高ベースの部材長
 lm_weight(mtype==PRM.COLUMN) = lm_column_weight;
 lm_weight(mtype==PRM.GIRDER) = lm_girder_weight;
+lm_weight(mtype==PRM.BRACE) = lm_brace_buckling;
 
 %% BRB単位重量の取得
 brace_unit_weight = calc_brb_unit_weight(com.section.brace, ...
@@ -325,10 +331,7 @@ is_steel_brace = (mtype == PRM.BRACE) ...
   | stype(idm2s) == PRM.BWFS);
 is_tension = false(nme, 1);
 if any(is_steel_brace)
-  % ブレース長さ L で λe を算定（SS7 3.8.1）
-  lm_brace_buckling = calc_brace_buckling_length(member.brace, ...
-    com.member.girder, node, stype, com.section.girder.idsec, ...
-    secdim);
+  % λe 判定（SS7 3.8.1）
   lk_all = lm;
   lk_all(mtype==PRM.BRACE) = lm_brace_buckling;
   iy_ = sqrt(Iy(is_steel_brace) ./ A(is_steel_brace));
