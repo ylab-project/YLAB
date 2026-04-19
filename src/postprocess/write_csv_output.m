@@ -287,23 +287,13 @@ write_table(fout, '梁設計応力表(組合せ前)', dgiflhead, dgiflbody);
 write_table(fout, '柱設計応力表(組合せ前)', dciflhead, dciflbody);
 
 %% S梁検定比一覧
-if options.do_legacy_output
-  [asrghead, asrgbody] = ...
-    write_cell_allowable_stress_ratio_girder_legacy(com, result);
-else
-  [asrghead, asrgbody] = write_cell_allowable_stress_ratio_girder(...
-    com, result);
-end
+[asrghead, asrgbody] = write_cell_allowable_stress_ratio_girder(...
+  com, result);
 write_table(fout, 'S梁検定比一覧', asrghead, asrgbody);
 
 %% S柱検定比一覧
-if options.do_legacy_output
-  [asrchead, asrcbody] = ...
-    write_cell_allowable_stress_ratio_column_legacy(com, result);
-else
-  [asrchead, asrcbody] = write_cell_allowable_stress_ratio_column(...
-    com, result);
-end
+[asrchead, asrcbody] = write_cell_allowable_stress_ratio_column(...
+  com, result);
 write_table(fout, 'S柱検定比一覧', asrchead, asrcbody);
 
 %% 鉛直ブレース検定比一覧
@@ -324,10 +314,15 @@ scbbody = write_cell_section_calculation_brace(com, result);
 write_table(fout, '鉛直ブレース断面算定表', [], scbbody);
 
 %% 層間変形角
+if options.do_legacy_output
+  sep = sprintf('\t');
+else
+  sep = ',';
+end
 for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
   [sdrhead, sdrbody] = write_cell_interstory_drift(com, ...
     result, options, icase);
-  write_table(fout, sprintf('層間変形角,case=%s', ...
+  write_table(fout, sprintf('層間変形角%scase=%s', sep, ...
     loadcase.name{icase}), sdrhead, sdrbody);
 end
 
@@ -337,7 +332,7 @@ for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
     break
   end
   cgscell = write_cell_column_gider_strength(com, result, icase);
-  write_table(fout, sprintf('柱梁耐力比,case=%s', ...
+  write_table(fout, sprintf('柱梁耐力比%scase=%s', sep, ...
     loadcase.name{icase}), cgscell.head, cgscell.body);
 end
 

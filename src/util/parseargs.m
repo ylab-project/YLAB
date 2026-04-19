@@ -1,17 +1,24 @@
 function options = parseargs(options, varargin)
 %parseargs - 実行時引数の解釈処理
 %
-%   options = parseargs(options, varargin)
+%   options = parseargs(options, varargin) は、実行時引数 varargin を
+%   解釈してoptionsオブジェクトを更新する。フラグ引数（'-pdf' 等）と
+%   キー・値ペアの両方を扱う。
 %
-%   入力:
+%   入力引数:
 %     options  - CommonOption オブジェクト
 %     varargin - コマンドライン引数ペア
-%   フラグ引数:
-%     '-pdf'        - PDF出力を有効化
-%     '-nopdf'      - PDF出力を無効化
-%     '-dev'        - 開発者モード（GUI強制）
-%     '-legacy'     - レガシー出力形式を使用
-%     '-sequential' - 並列計算を無効化（プロファイリング用）
+%
+%   出力引数:
+%     options - 解釈済みの CommonOption オブジェクト
+%
+%   備考:
+%     フラグ引数:
+%       '-pdf'        - PDF出力を有効化
+%       '-nopdf'      - PDF出力を無効化
+%       '-dev'        - 開発者モード（GUI強制）
+%       '-legacy'     - レガシー出力形式を使用
+%       '-sequential' - 並列計算を無効化（プロファイリング用）
 
 n = length(varargin);
 tf = true(1,n);

@@ -1,4 +1,13 @@
 classdef CommonOption
+%CommonOption - YLAB共通オプション保持クラス
+%
+%   YLABの実行に必要な各種オプション（入出力パス、計算機能フラグ、
+%   最適化パラメータ等）をプロパティとして保持する。
+%
+%   備考:
+%     - 既定値はプロパティブロックで直接指定する
+%     - 実行前に validate() で必須値の検証を行う
+
   properties
     % --- ディレクトリパス ---
     approot (1,:) char
@@ -19,24 +28,19 @@ classdef CommonOption
     % --- フロー制御 ---
     version (1,:) char
     uimode (1,1) double = PRM.UIMODE_CUI
-    exemode char {mustBeMember(exemode, ...
-      {'OPT', 'GA', 'CHECK', 'CONVERT'})} = 'OPT'
+    exemode char {mustBeMember(exemode, {'OPT', 'GA', 'CHECK', ...
+      'CONVERT'})} = 'OPT'
     developer_mode logical = false;
-    % do_limit_initial_girder_height(1,1) logical = true
     do_limit_initial_girder_height(1,1) logical = false
     do_restration(1,1) logical = true
     do_restration_asr(1,1) logical = true
     % cgsr/jbs 集約復元（フェーズ1a: 単純 max/min 集約）
     do_aggregated_restore(1,1) logical = true
-    % do_restration(1,1) logical = false
-    % do_cache(1,1) logical = true
     do_cache(1,1) logical = false
-    % do_SA(1,1) logical = true
     do_SA(1,1) logical = false
     discretization(1,1) logical = true
     do_writeout_pdf(1,1) logical = false;
     do_parallel(1,1) logical = true;
-    % do_parallel(1,1) logical = false;
     save_full_result(1,1) logical = false;
     idtrial(1,1) double {mustBeNonnegative} = 0;
     idphase(1,1) double {mustBeNonnegative} = 999;
@@ -109,7 +113,6 @@ classdef CommonOption
     girder_scallop_size (1,1) double {mustBeNonnegative} = 35
 
     % 基礎の引き抜きの考慮
-    % consider_foundation_uplift logical (1,1) = true
     consider_foundation_uplift (1,1) logical = false
 
     % 梁・柱面での断面算定
@@ -139,7 +142,6 @@ classdef CommonOption
     consider_web_at_girder_end (1,1) logical = false
 
     % 最適化計算オプション
-    % penalty_method = PRM.PENALTY_SUM_TOTAL;
     penalty_method = PRM.PENALTY_MAXIMUM;
 
     % 制約条件オプション
@@ -149,14 +151,11 @@ classdef CommonOption
     iter_set (1,:) double {mustBePositive} = 1
     maxiter_in_LS (1,1) double {mustBeNonnegative} = inf
     maxphase (1,1) double {mustBeNonnegative} = inf
-    % maxcache (1,1) double = 1000
     maxcache (1,1) double {mustBeNonnegative} = 200
 
     % 画面出力
-    % display(1,:) char {mustBeMember(...
-    %   display,{'None','Iter10','Iter','Final'})} = 'Iter10'
-    display(1,:) char {mustBeMember(display, ...
-      {'None', 'Iter10', 'Iter', 'Final'})} = 'Iter'
+    display(1,:) char {mustBeMember(display, {'None', 'Iter10', ...
+      'Iter', 'Final'})} = 'Iter'
    
     % --- 制約条件計算用パラメータ ---
     type % 保留
@@ -172,8 +171,6 @@ classdef CommonOption
 
     % --- 最適化計算用パラメータ ---
     r(1,1) double {mustBePositive} = 2;
-    % 通常
-    % mu0 double = 0.3*ones(1,PRM.MAX_NUM_PHASE);
     mu0 double = [0.2 ones(1,PRM.MAX_NUM_PHASE-1)];
     mu(1,1) double;
     tau(1,1) double = 0;
@@ -199,12 +196,25 @@ classdef CommonOption
 
   methods
     function obj = CommonOption()
-      % コンストラクタ
+    %CommonOption - コンストラクタ
+    %
+    %   obj = CommonOption() は、CommonOptionインスタンスを生成し、
+    %   制約条件オプション(coptions)に ConstraintOption を割り当てる。
+    %
+    %   出力引数:
+    %     obj - CommonOptionインスタンス
       obj.coptions = ConstraintOption();
     end
 
     function validate(obj)
-      % オプション値の検証
+    %validate - オプション値の検証
+    %
+    %   validate(obj) は、必須プロパティの型・範囲と必須パス
+    %   (approot, prgroot, inputfile, outputfile) の設定有無を
+    %   検証し、不正時はエラーを投げる。
+    %
+    %   入力引数:
+    %     obj - CommonOptionインスタンス
       va_ = @validateattributes;
       nn_ = {'scalar', 'nonnegative'};
       po_ = {'scalar', 'positive'};
@@ -234,73 +244,16 @@ classdef CommonOption
     end
 
     function setDefaultValues(~)
-      % デフォルト値の設定
-      % 注: プロパティブロックで既に定義済みの値は
-      % 二重管理を避けるためコメントアウト（経過措置）
-      % obj.uimode = 'MATLAB';
-      % obj.exemode = 'OPT';
-      % obj.do_limit_initial_girder_height = false;
-      % obj.do_restration = true;
-      % obj.do_restration_asr = true;
-      % obj.do_cache = false;
-      % obj.do_SA = false;
-      % obj.discretization = true;
-      % obj.do_writeout_pdf = false;
-      % obj.do_parallel = true;
-      % obj.save_full_result = false;
-      % obj.idtrial = 0;
-      % obj.idphase = 999;
-      % obj.idtrial_resume = 1;
-      % obj.idphase_resume = 1;
-      % obj.iter_resume = 0;
-      % obj.iter = 0;
-      % obj.do_limit_wtratio_section = true;
-      % obj.do_limit_slr_section = true;
-      % obj.do_limit_jbs_section = true;
-      % obj.consider_self_weight = true;
-      % obj.self_weight_extra_factor_girder = 1;
-      % obj.self_weight_extra_factor_column = 1;
-      % obj.consider_finishing_material = true;
-      % obj.finishing_material_s_column = 500e-6;
-      % obj.finishing_material_s_girder = 500e-6;
-      % obj.finishing_material_rc_girder = 500e-6;
-      % obj.finishing_material_rc_column = 500e-6;
-      % obj.do_autoupdate_floor_height = true;
-      % obj.do_autoupdate_structural_span = true;
-      % obj.consider_rigid_zone = true;
-      % obj.consider_shear_deformation = true;
-      % obj.consider_lateral_torsional_buckling = true;
-      % obj.consider_column_buckling_length_factor = true;
-      % obj.consider_girder_scallop = true;
-      % obj.girder_scallop_size = 35;
-      % obj.consider_foundation_uplift = false;
-      % obj.consider_allowable_stress_at_face = true;
-      % obj.consider_SNH_WTRATIO = true;
-      % obj.consider_composite_slab_effect_s = PRM.COMPOSITE_SLAB_WIDTH;
-      % obj.composite_slab_coefficient_s = [1.3 1.5];
-      % obj.consider_composite_slab_effect_rc = PRM.COMPOSITE_SLAB_WIDTH;
-      % obj.composite_slab_coefficient_rc = [1.3 1.5];
-      % obj.position_brace_foundation_girder = ...
-      %   PRM.BRACE_FOUNDATION_GIRDER_TOP;
-      % obj.consider_web_at_girder_center = false;
-      % obj.consider_web_at_girder_end = false;
-      % obj.penalty_method = PRM.PENALTY_MAXIMUM;
-      % obj.iter_set = 1;
-      % obj.maxiter_in_LS = inf;
-      % obj.maxcache = 200;
-      % obj.display = 'Iter';
-      % obj.reqHgap = 150;
-      % obj.tolHgap = 20;
-      % obj.tolBgap = 10;
-      % obj.tolDgap = 10;
-      % obj.tolMaxDgap = 50;
-      % obj.tolRestoreCgr = 0.0;
-      % obj.tolRestoreSr = 0.0;
-      % obj.tolActive = -0.05;
-      % obj.r = 2;
-      % obj.mu0 = [0.2 ones(1,PRM.MAX_NUM_PHASE-1)];
-      % obj.tau = 0;
-      % obj.omega = 0;
+    %setDefaultValues - 既定値設定（no-op、過去互換用）
+    %
+    %   setDefaultValues(obj) は呼び出し互換性のため残されているが、
+    %   既定値はプロパティブロックに移管済みのため何も行わない。
+    %
+    %   入力引数:
+    %     obj - CommonOptionインスタンス（未使用）
+    %
+    %   備考:
+    %     - 全呼び出し元の削除完了後に本メソッドも削除予定
     end
   end
 end

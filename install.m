@@ -32,6 +32,7 @@ if opts.isTest
   list{end+1} = 'test';
   list{end+1} = 'test/utils';
   list{end+1} = 'tools';
+  list{end+1} = 'scripts';
   list{end+1} = 'tmp';
   list{end+1} = 'src/lsr_legacy';
 end

@@ -268,21 +268,19 @@ classdef PRM
   methods(Static)
     %% nvar_of_section_type
     function n = nvar_of_section_type(section_type)
-      % 断面種別ごとの変数種別数を取得
-      %
-      % 各断面種別が持つ変数の個数を返す。
-      %
-      % Inputs:
-      %   section_type - 断面種別 (PRM.WFS, PRM.HSS, PRM.BRB)
-      %
-      % Outputs:
-      %   n - 変数種別数
-      %       WFS: 4 (H, B, tw, tf)
-      %       HSS: 2 (D, t)
-      %       BRB: 2 (V1, V2)
-      %
-      % Example:
-      %   n = PRM.nvar_of_section_type(PRM.WFS)  % returns 4
+    %nvar_of_section_type - 断面種別ごとの変数種別数を取得
+    %
+    %   n = PRM.nvar_of_section_type(section_type) は、断面種別が持つ
+    %   変数の個数を返す。
+    %
+    %   入力引数:
+    %     section_type - 断面種別 (PRM.WFS, PRM.HSS, PRM.BRB 等)
+    %
+    %   出力引数:
+    %     n - 変数種別数（WFS: 4, HSS/HSR/BRB: 2, TB: 0）
+    %
+    %   例:
+    %     n = PRM.nvar_of_section_type(PRM.WFS)  % returns 4
       switch section_type
         case {PRM.WFS, PRM.BWFS}
           n = 4;
@@ -304,9 +302,16 @@ classdef PRM
     function lcname = load_case_name(idlc)
     %load_case_name - 荷重ケース短縮名を取得
     %
-    %   組合せ前テーブル（設計応力表）用の短縮名。
+    %   lcname = PRM.load_case_name(idlc) は、組合せ前テーブル
+    %   （設計応力表）用の短縮名を返す。
     %
-    %   Example:
+    %   入力引数:
+    %     idlc - 荷重ケースID (PRM.LT, PRM.EXP, PRM.EXN 等)
+    %
+    %   出力引数:
+    %     lcname - 荷重ケース短縮名 ('G+P', 'EX+', 'EX-' 等)
+    %
+    %   例:
     %     PRM.load_case_name(PRM.EXP)  % 'EX+'
       switch idlc
         case PRM.LT,  lcname = 'G+P';
@@ -322,9 +327,16 @@ classdef PRM
     function lcname = load_case_combo_name(idlc)
     %load_case_combo_name - 荷重組合せケース名を取得
     %
-    %   断面算定表（S梁/S柱/ブレース）用の組合せ名。
+    %   lcname = PRM.load_case_combo_name(idlc) は、断面算定表
+    %   （S梁/S柱/ブレース）用の組合せ名を返す。
     %
-    %   Example:
+    %   入力引数:
+    %     idlc - 荷重ケースID (PRM.LT, PRM.EXP, PRM.EXN 等)
+    %
+    %   出力引数:
+    %     lcname - 組合せ名 ('L', 'L+Ex', 'L-Ex' 等)
+    %
+    %   例:
     %     PRM.load_case_combo_name(PRM.EXP)  % 'L+Ex'
       switch idlc
         case PRM.LT,  lcname = 'L';
@@ -338,21 +350,22 @@ classdef PRM
 
     %% get_id_section_type
     function section_type = get_id_section_type(char_section_type)
-      % 断面種別文字列から断面種別IDを取得
-      %
-      % 文字列形式の断面種別を数値IDに変換する。
-      %
-      % Inputs:
-      %   char_section_type - 断面種別文字列のセル配列
-      %                       {'H', 'Ｈ', '□', 'アンボンドブレース(耐震)'}
-      %
-      % Outputs:
-      %   section_type - 断面種別ID配列
-      %                  PRM.WFS, PRM.HSS, PRM.BRB, PRM.OTS
-      %
-      % Example:
-      %   ids = PRM.get_id_section_type({'H', '□'})
-      %   % returns [10; 20]
+    %get_id_section_type - 断面種別文字列から断面種別IDを取得
+    %
+    %   section_type = PRM.get_id_section_type(char_section_type) は、
+    %   文字列形式の断面種別を数値IDに変換する。
+    %
+    %   入力引数:
+    %     char_section_type - 断面種別文字列のセル配列
+    %                         {'H', 'Ｈ', '□', 'アンボンドブレース(耐震)'}
+    %
+    %   出力引数:
+    %     section_type - 断面種別ID配列
+    %                    PRM.WFS, PRM.HSS, PRM.BRB, PRM.OTS 等
+    %
+    %   例:
+    %     ids = PRM.get_id_section_type({'H', '□'})
+    %     % returns [10; 20]
       n = length(char_section_type);
       section_type = nan(n,1);
       for i=1:n
@@ -384,21 +397,20 @@ classdef PRM
     
     %% get_id_ubb_type
     function ubb_type = get_id_ubb_type(char_ubb_type)
-      % UBB種別文字列からUBB種別IDを取得
-      %
-      % アンボンドブレースの種別文字列を数値IDに変換する。
-      %
-      % Inputs:
-      %   char_ubb_type - UBB種別文字列のセル配列
-      %                   {'UB400', 'UB490'}
-      %
-      % Outputs:
-      %   ubb_type - UBB種別ID配列
-      %              PRM.UB400, PRM.UB490, PRM.OTS
-      %
-      % Example:
-      %   ids = PRM.get_id_ubb_type({'UB400', 'UB490'})
-      %   % returns [101400; 101490]
+    %get_id_ubb_type - UBB種別文字列からUBB種別IDを取得
+    %
+    %   ubb_type = PRM.get_id_ubb_type(char_ubb_type) は、アンボンド
+    %   ブレースの種別文字列を数値IDに変換する。
+    %
+    %   入力引数:
+    %     char_ubb_type - UBB種別文字列のセル配列 ({'UB400','UB490'})
+    %
+    %   出力引数:
+    %     ubb_type - UBB種別ID配列 (PRM.UB400, PRM.UB490, PRM.OTS)
+    %
+    %   例:
+    %     ids = PRM.get_id_ubb_type({'UB400', 'UB490'})
+    %     % returns [101400; 101490]
       n = length(char_ubb_type);
       ubb_type = nan(n,1);
       for i=1:n
@@ -422,15 +434,16 @@ classdef PRM
     function n = route_to_n_beam(route)
     %route_to_n_beam - 設計ルートから梁設計用せん断力の割増率nを取得
     %
-    %   S梁の設計用せん断力 Q_D = Q_L + n*Q_E に用いる割増率n。
-    %   ルート別に規定される（SS7入力編 割増率n）。
+    %   n = PRM.route_to_n_beam(route) は、S梁の設計用せん断力
+    %   Q_D = Q_L + n*Q_E に用いる割増率nをルート別に返す
+    %   （SS7入力編 割増率n）。
     %
-    %   Inputs:
+    %   入力引数:
     %     route - 設計ルート（PRM.ROUTE_1 等）
     %
-    %   Outputs:
+    %   出力引数:
     %     n - 割増率（ROUTE_1/ROUTE_3=1.50, ROUTE_2_1=2.00,
-    %                ROUTE_2_2=1.50, その他=1.00）
+    %                 ROUTE_2_2=1.50, その他=1.00）
       switch route
         case PRM.ROUTE_1,   n = 1.50;
         case PRM.ROUTE_2_1, n = 2.00;
@@ -443,15 +456,16 @@ classdef PRM
 
     %% get_tb_shape_code
     function shape_code = get_tb_shape_code(type_str)
-      %get_tb_shape_code - TB種別文字列から形状コードを取得
-      %
-      % type 文字列のハイフン前プレフィックスで形状を判定する。
-      %
-      % Inputs:
-      %   type_str - TB種別文字列（例: 'L-75x75x6'）
-      %
-      % Outputs:
-      %   shape_code - 形状コード（PRM.TB_L 等）
+    %get_tb_shape_code - TB種別文字列から形状コードを取得
+    %
+    %   shape_code = PRM.get_tb_shape_code(type_str) は、type 文字列の
+    %   ハイフン前プレフィックスで形状を判定する。
+    %
+    %   入力引数:
+    %     type_str - TB種別文字列（例: 'L-75x75x6'）
+    %
+    %   出力引数:
+    %     shape_code - 形状コード（PRM.TB_L 等）
       tokens = split(type_str, '-');
       prefix = tokens{1};
       switch prefix
