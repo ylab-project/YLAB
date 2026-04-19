@@ -136,10 +136,6 @@ classdef PRM
     RHOS = 7.85           % 鋼材密度 [t/m3]
     ES   = 205000         % 鋼材ヤング係数 [N/mm2]
     RHORC = 2.5           % RC密度 [t/m3]（24.5 kN/m3）
-    % RIGID_COEF = 1.d5
-    RIGID_COEF = 1.d4
-    % RIGID_COEF = 1.d3
-    % RIGID_COEF = 1.d1
     MAX_SECTION_LIST = 4;
 
     %% 荷重ケース
