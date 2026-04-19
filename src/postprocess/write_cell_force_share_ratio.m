@@ -1,11 +1,9 @@
-function [head, body] = ...
-  write_cell_force_share_ratio(com, result, ilc)
+function [head, body] = write_cell_force_share_ratio(com, result, ilc)
 %write_cell_force_share_ratio - 水平力分担表の出力
 %
-%   [head, body] = write_cell_force_share_ratio( ...
-%     com, result, ilc) は、指定荷重ケースの水平力分担表を
-%   生成します。Qw（ブレース負担）はresult.Q_nbを
-%   フレーム・層ごとに集計して算出します。
+%   [head, body] = write_cell_force_share_ratio(com, result, ilc)
+%   は、指定荷重ケースの水平力分担表を生成する。Qw（ブレース負担）は
+%   result.Q_nbをフレーム・層ごとに集計して算出する。
 %
 %   入力引数:
 %     com    - 共通オブジェクト
@@ -61,8 +59,7 @@ N = rs0(:, 1, ilc);
 Qy = rs0(:, 2, ilc);
 Qz = rs0(:, 3, ilc);
 
-Fh_col = (N .* cxl(:, idir_eq) ...
-  + Qy .* cyl(:, idir_eq) ...
+Fh_col = (N .* cxl(:, idir_eq) + Qy .* cyl(:, idir_eq) ...
   + Qz .* czl(:, idir_eq)) .* sign_cz / 1000;
 
 % 柱種別フィルタ
@@ -70,18 +67,15 @@ column = com.member.column;
 col_type = zeros(size(mtype));
 is_col = (mtype == PRM.COLUMN);
 col_type(is_col) = column.type(mp.idmec(is_col));
-is_target_col = is_col ...
-  & (col_type == PRM.COLUMN_STANDARD ...
-    | col_type == PRM.COLUMN_FOR_BRACE_BODY);
+is_target_col = is_col & (col_type == PRM.COLUMN_STANDARD ...
+  | col_type == PRM.COLUMN_FOR_BRACE_BODY);
 
 % 柱のフレーム通りインデックス
 col_idframe = zeros(size(mtype));
 if idir_eq == 1
-  col_idframe(is_col) = ...
-    column.idy(mp.idmec(is_col), 1);
+  col_idframe(is_col) = column.idy(mp.idmec(is_col), 1);
 else
-  col_idframe(is_col) = ...
-    column.idx(mp.idmec(is_col), 1);
+  col_idframe(is_col) = column.idx(mp.idmec(is_col), 1);
 end
 
 % --- ブレースの水平力（Q_nbから集計）---
@@ -99,21 +93,13 @@ end
 % ヘッダ（3行: 列名、副見出し、単位）
 ncol = 18;
 head = cell(3, ncol);
-head(1, :) = { ...
-  '階', 'ﾌﾚｰﾑ', 'Qc', 'Qw', 'Qcw', ...
-  'QR', 'QG', 'QS', ...
-  'Qc/Qcw', 'Qw/Qcw', ...
-  'QR/ΣQ', 'QG/ΣQ', 'QS/ΣQ', ...
-  '負担率', 'δ', 'δ/h', 'ΣQ/δ', ''};
-head(2, :) = { ...
-  '', '', '', '', '', '', '', '', ...
-  '', '', '', '', '', '', '', '', ...
-  '水平ﾊﾞﾈ考慮', '水平ﾊﾞﾈなし'};
-head(3, :) = { ...
-  '', '', 'kN', 'kN', 'kN', ...
-  'kN', 'kN', 'kN', ...
-  '%', '%', '%', '%', '%', '%', ...
-  'mm', '', 'kN/mm', 'kN/mm'};
+head(1, :) = {'階', 'ﾌﾚｰﾑ', 'Qc', 'Qw', 'Qcw', 'QR', 'QG', 'QS', ...
+  'Qc/Qcw', 'Qw/Qcw', 'QR/ΣQ', 'QG/ΣQ', 'QS/ΣQ', '負担率', ...
+  'δ', 'δ/h', 'ΣQ/δ', ''};
+head(2, :) = {'', '', '', '', '', '', '', '', '', '', '', '', '', ...
+  '', '', '', '水平ﾊﾞﾈ考慮', '水平ﾊﾞﾈなし'};
+head(3, :) = {'', '', 'kN', 'kN', 'kN', 'kN', 'kN', 'kN', ...
+  '%', '%', '%', '%', '%', '%', 'mm', '', 'kN/mm', 'kN/mm'};
 
 % データ行
 maxrows = nstory * (nframe + 1);
@@ -122,6 +108,13 @@ irow = 0;
 
 for i = 1:nstory
   ist = nstory - i + 1;
+
+  % ダミー階はスキップ（SS7マニュアル 5.7: ダミー階は集計しない）
+  % 階の下端がダミー層の場合、この階はダミー階扱い
+  if ist > 1 && com.story.isdummy(ist-1)
+    continue
+  end
+
   story_name = com.story.floor_name{ist};
 
   % フレームごとのQc, Qw
@@ -130,14 +123,11 @@ for i = 1:nstory
 
   for ifr = 1:nframe
     % 柱の水平力
-    idx_c = is_target_col ...
-      & (midstory == ist) ...
-      & (col_idframe == ifr);
+    idx_c = is_target_col & (midstory == ist) & (col_idframe == ifr);
     Qc_frame(ifr) = sum(Fh_col(idx_c));
 
     % ブレースの水平力（Q_nbから集計）
-    idx_nb = (nb_idstory == ist) ...
-      & (nb_idframe == ifr);
+    idx_nb = (nb_idstory == ist) & (nb_idframe == ifr);
     Qw_frame(ifr) = sum(Q_nb(idx_nb));
   end
 
@@ -164,21 +154,16 @@ for i = 1:nstory
     end
     body{irow, 2} = frame_names{ifr};
     % 加力方向に応じた符号変換（+0で-0除去）
-    body{irow, 3} = sprintf('%.1f', ...
-      sign_dir * Qc_frame(ifr) + 0);
-    body{irow, 4} = sprintf('%.1f', ...
-      sign_dir * Qw_frame(ifr) + 0);
-    body{irow, 5} = sprintf('%.1f', ...
-      sign_dir * Qcw_fr + 0);
+    body{irow, 3} = sprintf('%.1f', sign_dir * Qc_frame(ifr) + 0);
+    body{irow, 4} = sprintf('%.1f', sign_dir * Qw_frame(ifr) + 0);
+    body{irow, 5} = sprintf('%.1f', sign_dir * Qcw_fr + 0);
     body{irow, 6} = '0.0';   % QR
     body{irow, 7} = '0.0';   % QG
     body{irow, 8} = '0.0';   % QS
     % 比率は符号不変（+0で-0除去）
     if abs(Qcw_fr) > 0
-      body{irow, 9} = sprintf('%.1f', ...
-        Qc_frame(ifr) / Qcw_fr * 100 + 0);
-      body{irow, 10} = sprintf('%.1f', ...
-        Qw_frame(ifr) / Qcw_fr * 100 + 0);
+      body{irow, 9} = sprintf('%.1f', Qc_frame(ifr)/Qcw_fr*100 + 0);
+      body{irow, 10} = sprintf('%.1f', Qw_frame(ifr)/Qcw_fr*100 + 0);
     else
       body{irow, 9} = '0.0';
       body{irow, 10} = '0.0';
@@ -187,8 +172,7 @@ for i = 1:nstory
     body{irow, 12} = '0.0';  % QG/ΣQ
     body{irow, 13} = '0.0';  % QS/ΣQ
     if abs(Qcw_total) > 0
-      body{irow, 14} = sprintf('%.1f', ...
-        Qcw_fr / Qcw_total * 100);
+      body{irow, 14} = sprintf('%.1f', Qcw_fr / Qcw_total * 100);
     else
       body{irow, 14} = '0.0';
     end
@@ -203,20 +187,15 @@ for i = 1:nstory
   irow = irow + 1;
   body{irow, 1} = '';
   body{irow, 2} = '合計';
-  body{irow, 3} = sprintf('%.1f', ...
-    sign_dir * Qc_total + 0);
-  body{irow, 4} = sprintf('%.1f', ...
-    sign_dir * Qw_total + 0);
-  body{irow, 5} = sprintf('%.1f', ...
-    sign_dir * Qcw_total + 0);
+  body{irow, 3} = sprintf('%.1f', sign_dir * Qc_total + 0);
+  body{irow, 4} = sprintf('%.1f', sign_dir * Qw_total + 0);
+  body{irow, 5} = sprintf('%.1f', sign_dir * Qcw_total + 0);
   body{irow, 6} = '0.0';
   body{irow, 7} = '0.0';
   body{irow, 8} = '0.0';
   if abs(Qcw_total) > 0
-    body{irow, 9} = sprintf('%.1f', ...
-      Qc_total / Qcw_total * 100 + 0);
-    body{irow, 10} = sprintf('%.1f', ...
-      Qw_total / Qcw_total * 100 + 0);
+    body{irow, 9} = sprintf('%.1f', Qc_total / Qcw_total * 100 + 0);
+    body{irow, 10} = sprintf('%.1f', Qw_total / Qcw_total * 100 + 0);
   else
     body{irow, 9} = '0.0';
     body{irow, 10} = '0.0';

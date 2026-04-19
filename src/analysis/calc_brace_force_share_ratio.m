@@ -1,12 +1,10 @@
-function beta = calc_brace_force_share_ratio( ...
-  com, rs0, cxl, cyl, Q_nb)
+function beta = calc_brace_force_share_ratio(com, rs0, cxl, cyl, Q_nb)
 %calc_brace_force_share_ratio - ブレース水平力分担率βを算出
 %
-%   beta = calc_brace_force_share_ratio( ...
-%     com, rs0, cxl, cyl, Q_nb) は、
-%   各層・各荷重ケースについてブレース水平力分担率βを算出します。
-%   ブレース負担せん断力Qbは名目ブレースごとのQ値（Q_nb）を
-%   層ごとに集計して求めます。
+%   beta = calc_brace_force_share_ratio(com, rs0, cxl, cyl, Q_nb)
+%   は、各層・各荷重ケースについてブレース水平力分担率βを算出する。
+%   ブレース負担せん断力Qbは名目ブレースごとのQ値（Q_nb）を層ごとに
+%   集計して求める。
 %
 %   入力引数:
 %     com  - 共通オブジェクト
@@ -35,8 +33,6 @@ czl = cross(cxl, cyl, 2);
 sign_cz = ones(size(cxl, 1), 1);
 sign_cz(cxl(:, 3) < 0) = -1;
 
-% 部材応力（重ね合わせ前）は引数rs0で受領済み
-
 % 結果配列
 beta = zeros(nstory, nlc);
 
@@ -53,12 +49,15 @@ column = com.member.column;
 col_type = zeros(size(mtype));
 is_col = (mtype == PRM.COLUMN);
 col_type(is_col) = column.type(mp.idmec(is_col));
-is_target_col = is_col ...
-  & (col_type == PRM.COLUMN_STANDARD ...
-    | col_type == PRM.COLUMN_FOR_BRACE_BODY);
+is_target_col = is_col & (col_type == PRM.COLUMN_STANDARD ...
+  | col_type == PRM.COLUMN_FOR_BRACE_BODY);
 
 % 名目ブレースの階インデックス
 nb_idstory = com.nominal.brace.idstory;
+
+% ダミー層→従属層のマップ
+isdummy = com.story.isdummy;
+id_dep = com.story.id_dependent_story;
 
 % 地震荷重ケースごとに計算
 for ilc = 1:nlc
@@ -95,6 +94,18 @@ for ilc = 1:nlc
     % β = ブレース負担率
     if abs(Qi) > 0
       beta(ist, ilc) = Qb / Qi;
+    end
+  end
+
+  % ダミー層のβを従属層に伝搬（柱座屈長さ補正がダミー境界で
+  % ブレース寄与を拾えるようにする）。abs大を残すことで、ブレース
+  % ありの層の値が優先される。
+  for ist_dum = 1:nstory
+    if ~isdummy(ist_dum), continue; end
+    ist_dep = id_dep(ist_dum);
+    if ist_dep <= 0 || ist_dep > nstory, continue; end
+    if abs(beta(ist_dum, ilc)) > abs(beta(ist_dep, ilc))
+      beta(ist_dep, ilc) = beta(ist_dum, ilc);
     end
   end
 end
