@@ -2,6 +2,40 @@ function ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
   cxl, cyl, lm, Em, Gm, xr, yr, lrxm, lrym, cbstiff, ...
   mtype, idn2df, idf2n, idm2n1, idm2n2, idm2scb, joint, ...
   ndf, nbw, flag, br_stif)
+%stif_sys_matrix - 全体剛性行列の組立（帯行列形式）
+%
+%   ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, cyl, lm, ...
+%     Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, idn2df, idf2n, ...
+%     idm2n1, idm2n2, idm2scb, joint, ndf, nbw, flag, br_stif) は、
+%   各部材の要素剛性行列を組立て全体剛性行列を帯行列形式で返す。
+%   梁はstif_beam_matrix、ブレースはbr_stif事前計算keを用いる。
+%
+%   入力引数:
+%     A, Asy, Asz - 断面積・せん断断面積Y/Z [nm×1]
+%     Iy, Iz, JJ  - 断面二次モーメントY/Z・ねじり定数 [nm×1]
+%     cxl, cyl    - 部材局所系x/y軸の方向余弦 [nm×3]
+%     lm          - 部材長 [nm×1]
+%     Em, Gm      - ヤング係数・せん断弾性係数 [nm×1]
+%     xr, yr      - 剛床重心座標 [nnode×1]
+%     lrxm, lrym  - 剛域長X/Y [nm×2]
+%     cbstiff     - 複合梁剛性配列
+%     mtype       - 部材種別 [nm×1]（PRM.GIRDER等）
+%     idn2df      - 節点→自由度番号 [nnode×6]
+%     idf2n       - 自由度→節点番号 [ndf×2]
+%     idm2n1,idm2n2 - 部材両端節点番号 [nm×1]
+%     idm2scb     - 部材→複合梁マッピング [nm×1]
+%     joint       - 接合条件 [nm×4]
+%     ndf         - 全自由度数
+%     nbw         - 帯幅
+%     flag        - 剛性行列計算フラグ
+%     br_stif     - ブレース剛性構造体配列（空可）
+%
+%   出力引数:
+%     ksmat - 全体剛性行列（帯行列形式）[ndf×nbw]
+%
+%   備考:
+%     - 梁の弱軸Iz・ねじり定数Jは微小化（×1e-6）する（SS7互換）。
+%     - 剛域長が部材長以上の場合、剛性をscale倍で実質固結化する。
 
 % 剛域長が部材長以上の場合の剛性スケール
 scale = 1e10;
@@ -36,21 +70,22 @@ for im = 1:nm
     % 局所系剛性行列
     li = lm(im); Ai = A(im);
     Asyi = Asy(im); Aszi = Asz(im);
-    Iyi = Iy(im); Ji = JJ(im);
-    % 梁の弱軸剛性Izは微小化する（SS7互換）
+    Iyi = Iy(im);
+    % 梁の弱軸剛性Iz・ねじり剛性Jは微小化する（SS7互換）
     if mtype(im) == PRM.GIRDER
       Izi = Iz(im)*1.d-6;
+      Ji = JJ(im)*1.d-6;
     else
       Izi = Iz(im);
+      Ji = JJ(im);
     end
     Ei = Em(im); Gi = Gm(im);
     jointi = joint(im,:);
 
     if any(lrxi+lryi>=li)
-      fprintf(['警告: 部材 %d で剛域長が部材長以上' ...
-        'です (li=%.3f, lrxi=[%.3f, %.3f], ' ...
-        'lryi=[%.3f, %.3f])\n'], im, li, ...
-        lrxi(1), lrxi(2), lryi(1), lryi(2));
+      fprintf(['警告: 部材 %d で剛域長が部材長以上です ' ...
+        '(li=%.3f, lrxi=[%.3f, %.3f], lryi=[%.3f, %.3f])\n'], ...
+        im, li, lrxi(1), lrxi(2), lryi(1), lryi(2));
       lrxi = [0 0];
       lryi = [0 0];
       Ai = Ai*scale;
@@ -63,11 +98,11 @@ for im = 1:nm
 
     if idm2scb(im)>0
       kcbi = cbstiff(idm2scb(im));
-      ke = stif_beam_matrix(li, Ai, Asyi, Aszi, ...
-        Iyi, Izi, Ji, Ei, Gi, lrxi, lryi, jointi, kcbi, flag);
+      ke = stif_beam_matrix(li, Ai, Asyi, Aszi, Iyi, Izi, Ji, ...
+        Ei, Gi, lrxi, lryi, jointi, kcbi, flag);
     else
-      ke = stif_beam_matrix(li, Ai, Asyi, Aszi, ...
-        Iyi, Izi, Ji, Ei, Gi, lrxi, lryi, jointi, [], flag);
+      ke = stif_beam_matrix(li, Ai, Asyi, Aszi, Iyi, Izi, Ji, ...
+        Ei, Gi, lrxi, lryi, jointi, [], flag);
     end
 
     % 剛域を考慮した座標変換
@@ -85,8 +120,7 @@ for im = 1:nm
       fprintf('  A=%.3e, Asy=%.3e, Asz=%.3e\n', Ai, Asyi, Aszi);
       fprintf('  Iy=%.3e, Iz=%.3e, JJ=%.3e\n', Iyi, Izi, Ji);
       fprintf('  E=%.3e, G=%.3e, l=%.3f\n', Ei, Gi, li);
-      fprintf(['  lrxi=[%.3f, %.3f], ' ...
-        'lryi=[%.3f, %.3f]\n'], ...
+      fprintf('  lrxi=[%.3f, %.3f], lryi=[%.3f, %.3f]\n', ...
         lrxi(1), lrxi(2), lryi(1), lryi(2));
       disp('ke行列:');
       disp(ke);

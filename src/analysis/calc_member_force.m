@@ -46,6 +46,9 @@ function [rs, Mc, rvec] = calc_member_force(ilcset, ...
 %     rs   - 部材端応力 [nme×12×nlc]
 %     Mc   - 反曲点モーメント [nme×nlc]
 %     rvec - 復元力ベクトル [ns6×nlc]
+%
+%   備考:
+%     - 梁(PRM.GIRDER)の弱軸Iz・ねじり定数Jはゼロとする（SS7互換）。
 
 % 共通配列
 idme2j1 = member_property.idnode1;
@@ -101,12 +104,14 @@ for im = targetset(:)'
   li = lm(im);
   t_local = [cxl(im, :); cyl(im, :); czl(im, :)];
   Ai = A(im); Asyi = Asy(im); Aszi = Asz(im);
-  Iyi = Iy(im); Ji = JJ(im);
-  % 梁の弱軸剛性Izはゼロとする（SS7互換）
+  Iyi = Iy(im);
+  % 梁の弱軸剛性Iz・ねじり剛性Jはゼロとする（SS7互換）
   if mtype(im) == PRM.GIRDER
     Izi = 0;
+    Ji = 0;
   else
     Izi = Iz(im);
+    Ji = JJ(im);
   end
   Ei = Em(im); Gi = Gm(im);
   jointi = joint(im, :);
