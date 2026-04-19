@@ -546,9 +546,7 @@ faddnode = set_additive_nodal_force_block(dbc, com);
 %% 要素荷重
 [felement, ar, M0] = set_girder_force_block(dbc, com);
 
-%% 等価節点荷重ベクトル
-feqvec = fnode+faddnode-felement;
-com.feqvec = feqvec;
+%% 荷重ベクトルの保存
 com.fnode = fnode;
 com.faddnode = faddnode;
 com.felement = felement;
@@ -2369,9 +2367,6 @@ function fnode = set_nodal_force_block(dbc, com)
 data = dbc.get_data_block('節点荷重');
 n = size(data,1);
 
-% 共通定数
-ndf = com.ndf;
-
 % 荷重ケース名
 name = cell(n,1);
 for i=1:n
@@ -2381,7 +2376,7 @@ end
 node = com.node; nnode = com.nnode;
 loadcase = com.loadcase; nlc = com.nlc; iddlc = 1:nlc;
 f = zeros(n,6);
-fnode = zeros(ndf,nlc);
+fnode = zeros(nnode, 6, nlc);
 lcase = zeros(n,1);
 idx = zeros(n,1); iddx = 1:com.nblx;
 idy = zeros(n,1); iddy = 1:com.nbly;
@@ -2399,8 +2394,8 @@ for i=1:n
   end
   idnode(i) = id_found;
   f(i,:) = cell2mat(data(i,5:10));
-  idof = node.dof(idnode(i),:);
-  fnode(idof,lcase(i)) = fnode(idof,lcase(i))+f(i,:)';
+  in = idnode(i);
+  fnode(in, :, lcase(i)) = fnode(in, :, lcase(i)) + reshape(f(i,:), 1, 6);
   % 節点荷重は重心に作用するとみなし、偏心モーメントは計算しない
 end
 
@@ -2412,9 +2407,6 @@ function fnode = set_additive_nodal_force_block(dbc, com)
 data = dbc.get_data_block('追加節点荷重');
 n = size(data,1);
 
-% 共通定数
-ndf = com.ndf;
-
 % 荷重ケース名
 name = cell(n,1);
 for i=1:n
@@ -2422,10 +2414,9 @@ for i=1:n
 end
 
 node = com.node; nnode = com.nnode;
-story = com.story;
 loadcase = com.loadcase; nlc = com.nlc; iddlc = 1:nlc;
 f = zeros(n,6);
-fnode = zeros(ndf,nlc);
+fnode = zeros(nnode, 6, nlc);
 lcase = zeros(n,1);
 idx = zeros(n,1); iddx = 1:com.nblx;
 idy = zeros(n,1); iddy = 1:com.nbly;
@@ -2439,10 +2430,9 @@ for i=1:n
   idnode(i) = iddn((node.idx==idx(i))&(node.idy==idy(i)) ...
     &(node.idz==idz(i)));
   f(i,:) = cell2mat(data(i,5:10));
-  idof = node.dof(idnode(i),:);
-  fnode(idof,lcase(i)) = fnode(idof,lcase(i))+f(i,:)';
-  fnode = add_rigid_eccentric_moment(fnode, idnode(i), f(i,1), f(i,2), ...
-    lcase(i), node, story);
+  in = idnode(i);
+  fnode(in, :, lcase(i)) = fnode(in, :, lcase(i)) + reshape(f(i,:), 1, 6);
+  % 剛床偏心 Mz は node_to_dof_vec で集約時に加算する
 end
 
 return

@@ -90,18 +90,18 @@ node = com.node;
 % nstiff = com.member.girder.nstiff;
 scallop = com.girder_scallop_size;
 secmgr = com.secmgr;
-slab.width = com.member.girder.slab_width;
-slab.thickness = com.member.girder.slab_thickness;
-slab.width_lower = com.member.girder.slab_width_lower;
-slab.thickness_lower = com.member.girder.slab_thickness_lower;
+% slab.width = com.member.girder.slab_width;
+% slab.thickness = com.member.girder.slab_thickness;
+% slab.width_lower = com.member.girder.slab_width_lower;
+% slab.thickness_lower = com.member.girder.slab_thickness_lower;
 story = com.story;
 stype = com.section.property.type;
 % stress_factor = com.sectionList.design_stress_factor(idmc2slist);
 xr = com.node.xr;
 yr = com.node.yr;
-fnode = com.fnode;
-faddnode = com.faddnode;
-felement = com.felement;
+fnode = com.fnode;  % (nnode, 6, nlc)
+faddnode = com.faddnode;  % (nnode, 6, nlc)
+felement = com.felement;  % (nnode, 6, nlc)
 
 %% ---
 if (options.discretization)
@@ -247,8 +247,7 @@ lbnm(mtype==PRM.GIRDER,:) = nomgc.lb(idg2ng, :);
 lbnm(mtype==PRM.COLUMN,1:3) = lbnc;
 
 % 等価外力（要素荷重）の更新
-felement = update_felement(felement, ar, cxl, cyl, idn2df, idm2n);
-fvec = fnode+faddnode-felement;
+felement = update_felement(felement, ar, cxl, cyl, idm2n);
 
 %% 柱梁端部の結合条件
 % mejoint: 1:X柱脚, 2:X柱頭, 3:Y柱脚, 4:Y柱頭
@@ -286,7 +285,7 @@ lm_brace_buckling = calc_brace_buckling_length(member.brace, ...
 lm_weight = lm;  % 初期値は構造階高ベースの部材長
 lm_weight(mtype==PRM.COLUMN) = lm_column_weight;
 lm_weight(mtype==PRM.GIRDER) = lm_girder_weight;
-lm_weight(mtype==PRM.BRACE) = lm_brace_buckling;
+lm_weight(mtype==PRM.BRACE) = lm(mtype==PRM.BRACE);
 
 %% BRB単位重量の取得
 brace_unit_weight = calc_brb_unit_weight(com.section.brace, ...
@@ -302,21 +301,28 @@ rho_rc_member = rho_rc_sec(idm2s);
 
 %% 自重の計算
 if options.consider_self_weight && options.consider_finishing_material
-  sw = comp_self_weight(A, lm_weight, lm, member_property, ...
-    msdim, idn2df, ndf, mejoint, face_deduct, options, ...
-    member_column, brace_unit_weight, Df_foundation, idsup2n, ...
-    rho_rc_member);
-  fvec(:,1) = fvec(:,1)-sw.f;
+  sw = comp_self_weight(A, lm_weight, lm, member_property, msdim, ...
+    nnode, mejoint, face_deduct, options, member_column, ...
+    brace_unit_weight, Df_foundation, idsup2n, rho_rc_member);
   ar(:,:,1) = ar(:,:,1)+sw.ar;
   M0(:,1)= M0(:,1)+sw.M0;
 else
   sw.ar = zeros(nme,12);
-  sw.f = zeros(ndf,1);
-  sw.fc = zeros(ndf,1);
-  sw.fg = zeros(ndf,1);
-  sw.fw = zeros(ndf,1);
+  sw.f = zeros(nnode, 6);
+  sw.fc = zeros(nnode, 6);
+  sw.fg = zeros(nnode, 6);
+  sw.fw = zeros(nnode, 6);
   sw.M0 = zeros(nme,1);
 end
+
+%% 等価節点荷重ベクトルの一括集約
+% fnode は重心作用とみなし偏心 Mz 非加算、他は偏心 Mz 加算
+sw_f_lc = zeros(nnode, 6, nlc);
+sw_f_lc(:, :, 1) = sw.f;
+fnode_dof = node_to_dof_vec(fnode, node, story, ndf, false);
+rest_dof = node_to_dof_vec(faddnode - felement - sw_f_lc, ...
+  node, story, ndf, true);
+fvec = fnode_dof + rest_dof;
 
 %% 計算条件
 flag = struct("consider_shear_deformation", ...

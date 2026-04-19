@@ -2,6 +2,10 @@ function [nlhead, nlbody] = write_cell_nodal_equiv_load(...
   com, result, doRedistribute)
 %write_cell_nodal_equiv_load - 等価節点荷重の出力セル配列を生成
 %
+% 節点単位の等価節点荷重 (fnode+faddnode-felement-sw.f) を
+% そのまま表示する。剛床集約や偏心モーメント加算は行わないため、
+% 剛床上の各節点には純粋な節点荷重寄与が表示される。
+%
 % doRedistribute: KBRACE-MID荷重をグリッド節点に再配分するか
 %   true（既定）: 再配分する（節点重量表と整合）
 %   false: 再配分しない（SS7等価節点荷重と比較用）
@@ -15,21 +19,18 @@ nn = com.nnode;
 nblx = com.nblx;
 nbly = com.nbly;
 nstory = com.nstory;
+nlc = com.nlc;
 
-% 共通配列
-% feqvec = com.feqvec;
+% 共通配列（すべて (nnode, 6) / (nnode, 6, nlc)）
 node = com.node;
-n2df = com.node.dof;
 sw = result.sw;
-% fvec = feqvec(:,1)+sw.f;
-fnode = com.fnode;
-faddnode = com.faddnode;
-felement = result.felement;
-fvec = fnode(:,1)+faddnode(:,1)-felement(:,1)-sw.f;
+sw_f_lc = zeros(nn, 6, nlc);
+sw_f_lc(:, :, 1) = sw.f;
+fvec_nnode = com.fnode + com.faddnode - result.felement - sw_f_lc;
 
 % KBRACE-MID節点の等価荷重をグリッド節点に再配分（出力表示用）
 if doRedistribute
-  fvec = redistribute_kbrace_mid(com, fvec);
+  fvec_nnode = redistribute_kbrace_mid(com, fvec_nnode);
 end
 
 % --- 等価節点荷重 ---
@@ -57,8 +58,8 @@ for i = 1:nstory
       nlbody{irow,1} = node.zname{in};
       nlbody{irow,2} = node.xname{in};
       nlbody{irow,3} = node.yname{in};
-      idf = n2df(in,[1 2 3 4 5 6]);
-      fff = fvec(idf)'.*[1.d-3 1.d-3 1.d-3 1.d-6 1.d-6 1.d-6];
+      fff = reshape(fvec_nnode(in, :, 1), 1, 6) ...
+        .*[1.d-3 1.d-3 1.d-3 1.d-6 1.d-6 1.d-6];
       fff = [fff(1:3) -fff(5) fff(4) fff(6)];
       for j=1:6
         nlbody{irow,3+j} = sprintf('%.2f',fff(j));

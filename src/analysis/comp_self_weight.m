@@ -1,7 +1,6 @@
-function sw = comp_self_weight( ...
-  A, lm_weight, lm, member_property, msdim, idn2df, ndf, ...
-  mejoint, face_deduct, options, member_column, brace_unit_weight, ...
-  Df_foundation, idsup2n, rho_rc_member)
+function sw = comp_self_weight(A, lm_weight, lm, member_property, ...
+  msdim, nnode, mejoint, face_deduct, options, member_column, ...
+  brace_unit_weight, Df_foundation, idsup2n, rho_rc_member)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
 % 柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを計算する。
@@ -15,8 +14,7 @@ function sw = comp_self_weight( ...
 %   lm              - 実際の部材長配列（CMQ計算用）
 %   member_property - 部材プロパティ構造体
 %   msdim           - 部材断面寸法配列
-%   idn2df          - 節点→自由度変換配列
-%   ndf             - 全体自由度数
+%   nnode           - 全節点数
 %   mejoint         - 結合条件配列
 %   face_deduct     - 梁の柱面減算量 [nmeg x 2]（列1: i端, 列2: j端）
 %   options         - オプション構造体
@@ -29,10 +27,10 @@ function sw = comp_self_weight( ...
 %
 % Outputs:
 %   sw - 結果構造体
-%        .f   : 等価節点荷重ベクトル
-%        .fc  : 柱の等価節点荷重
-%        .fg  : 梁の等価節点荷重
-%        .fw  : ブレースの等価節点荷重
+%        .f   : 等価節点荷重 (nnode, 6)
+%        .fc  : 柱の等価節点荷重 (nnode, 6)
+%        .fg  : 梁の等価節点荷重 (nnode, 6)
+%        .fw  : ブレースの等価節点荷重 (nnode, 6)
 %        .ar  : 要素座標系の固定端反力
 %        .M0  : 単純梁モーメント
 
@@ -73,9 +71,9 @@ idme2ig(mtype==PRM.GIRDER) = 1:sum(mtype==PRM.GIRDER);
 
 % 計算の準備
 ar = zeros(nme,12);
-fc = zeros(ndf,1);
-fg = zeros(ndf,1);
-fw = zeros(ndf,1);
+fc = zeros(nnode, 6);
+fg = zeros(nnode, 6);
+fw = zeros(nnode, 6);
 M0 = zeros(nme,1);
 rho = zeros(nme,1);
 if options.consider_self_weight
@@ -137,8 +135,8 @@ for im = 1:nme
   % --- 共通 ---
   li_w = lm_weight(im);  % 等価節点荷重用（荷重計算用部材長）
   wi = w(im);
-  ns = idn2df(idme2j1(im),:);
-  ne = idn2df(idme2j2(im),:);
+  in1 = idme2j1(im);
+  in2 = idme2j2(im);
 
   if mtype(im) == PRM.COLUMN
     % === 柱の処理 ===
@@ -152,11 +150,11 @@ for im = 1:nme
 
     ar(im,:) = zeros(1,12);
     W = wi * li_w;  % 総自重
-    fi_global = [0; 0; W/2; 0; 0; 0];
-    fj_global = [0; 0; W/2; 0; 0; 0];
+    fi_global = [0, 0, W/2, 0, 0, 0];
+    fj_global = [0, 0, W/2, 0, 0, 0];
 
-    fc(ns) = fc(ns)+fi_global;
-    fc(ne) = fc(ne)+fj_global;
+    fc(in1, :) = fc(in1, :) + fi_global;
+    fc(in2, :) = fc(in2, :) + fj_global;
   elseif mtype(im) == PRM.GIRDER
     % === 梁の処理 ===
     li_m = lm(im);  % CMQ用（実際の部材長）
@@ -264,8 +262,8 @@ for im = 1:nme
     fi_moment = [-sin_theta * (-cvi(2)); cos_theta * (-cvi(2)); 0];
     fj_moment = [-sin_theta * cvj(2); cos_theta * cvj(2); 0];
 
-    fg(ns) = fg(ns) + [fi_force; fi_moment];
-    fg(ne) = fg(ne) + [fj_force; fj_moment];
+    fg(in1, :) = fg(in1, :) + [fi_force; fi_moment]';
+    fg(in2, :) = fg(in2, :) + [fj_force; fj_moment]';
     m0m = wv(3)*li_m^2/8;  % M0も実際の部材長を使用
     M0(im) = m0m;
   elseif mtype(im) == PRM.BRACE
@@ -273,10 +271,10 @@ for im = 1:nme
     % W/2ずつ両端PZに配分（固定端反力なし）
     ar(im,:) = zeros(1,12);
     W = wi * li_w;
-    fi_global = [0; 0; W/2; 0; 0; 0];
-    fj_global = [0; 0; W/2; 0; 0; 0];
-    fw(ns) = fw(ns) + fi_global;
-    fw(ne) = fw(ne) + fj_global;
+    fi_global = [0, 0, W/2, 0, 0, 0];
+    fj_global = [0, 0, W/2, 0, 0, 0];
+    fw(in1, :) = fw(in1, :) + fi_global;
+    fw(in2, :) = fw(in2, :) + fj_global;
   end
 end
 
@@ -321,8 +319,7 @@ for isup = 1:length(idsup2n)
   % 基礎柱自重の計算と加算（Fc依存密度）
   gamma_rc_ = rho_rc_member(im_col_) * PRM.GRAVITY * 1.d-6;
   W_ = gamma_rc_ * Df_ * Df_ * D_beam;
-  ns_ = idn2df(in_sup, :);
-  fc(ns_) = fc(ns_) + [0; 0; W_; 0; 0; 0];
+  fc(in_sup, :) = fc(in_sup, :) + [0, 0, W_, 0, 0, 0];
 end
 
 % 結果の保存

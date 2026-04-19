@@ -7,16 +7,15 @@ nblx = com.nblx;
 nbly = com.nbly;
 nstory = com.nstory;
 
-% 共通配列
-feqvec = result.felement(:,1);
-fnode = com.fnode(:,1);
-faddnode = com.faddnode(:,1);
+% 共通配列（すべて (nnode, 6) / (nnode, 6, nlc)）
 node = com.node;
-n2df = com.node.dof;
 sw = result.sw;
+feqvec = result.felement(:, :, 1);  % G+P ケース
+fnode = com.fnode(:, :, 1);
+faddnode = com.faddnode(:, :, 1);
 
 % KBRACE-MID節点の自重をグリッド節点に再配分
-[feqvec, fg_, fw_, fc_, f_] = redistribute_kbrace_mid(...
+[feqvec, fg_, fw_, fc_, f_] = redistribute_kbrace_mid( ...
   com, feqvec, sw.fg, sw.fw, sw.fc, sw.f);
 sw.fg = fg_;
 sw.fw = fw_;
@@ -46,10 +45,10 @@ for iy = 1:nbly
       if node.idrep(in) > 0
         continue
       end
-      idf = n2df(in,3);
-      floor_ = feqvec(idf) * 1.d-3;
-      nf_ = (fnode(idf)+faddnode(idf)) * 1.d-3;
-      total_ = (feqvec(idf)+sw.f(idf)) * 1.d-3 - nf_;
+      % PZ (列3) のみ参照
+      floor_ = feqvec(in, 3) * 1.d-3;
+      nf_ = (fnode(in, 3) + faddnode(in, 3)) * 1.d-3;
+      total_ = (feqvec(in, 3) + sw.f(in, 3)) * 1.d-3 - nf_;
       % 1行目: 節点名 + 床自重 + 小計
       irow = irow + 1;
       nwbody{irow,1} = node.xname{in};
@@ -59,9 +58,9 @@ for iy = 1:nbly
       nwbody{irow,12} = fmt(floor_);
       % 2行目: 各自重 + 合計 + <RE>
       irow = irow + 1;
-      nwbody{irow,5} = fmt(sw.fg(idf)*1.d-3);
-      nwbody{irow,6} = fmt(sw.fw(idf)*1.d-3);
-      nwbody{irow,8} = fmt(sw.fc(idf)*1.d-3);
+      nwbody{irow,5} = fmt(sw.fg(in, 3)*1.d-3);
+      nwbody{irow,6} = fmt(sw.fw(in, 3)*1.d-3);
+      nwbody{irow,8} = fmt(sw.fc(in, 3)*1.d-3);
       nwbody{irow,12} = fmt(total_);
       nwbody{irow,ncol} = '<RE>';
     end
