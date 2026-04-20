@@ -361,8 +361,10 @@ else
   iter_max = 1;
 end
 
-%% ブレース剛性の事前計算
-br_stif = precompute_brace_stiffness(A, cxl, cyl, lm, ...
+%% ブレース剛性の事前計算（軸剛性はブレース長さ L = 内法）
+lm_stiff = lm;
+lm_stiff(mtype==PRM.BRACE) = lm_brace_buckling;
+br_stif = precompute_brace_stiffness(A, cxl, cyl, lm_stiff, ...
   Em, JJ, Gm, xr, yr, idn2df, idm2n1, idm2n2, mtype, ...
   stype, idm2s, is_tension);
 if has_tension_brace
