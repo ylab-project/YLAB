@@ -1,8 +1,63 @@
-function [msprop, secdim, dvec, dnode, felement, stn, stcn, ...
-  Mc, C, vix, viy, rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, ...
-  state, sw, lf, lr, lm, lm_weight, lnm, lbnm, Iy0, Iz0, ...
-  gphiI, gphiN, cphiI, cbs, baseline, node, story, floor, ...
-  Cn, nomgc] = analysis_frame(xvar, com, options)
+function [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, ...
+  vix, viy, rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, state, sw, lf, ...
+  lr, lmem, lnm, lbnm, Iy0, Iz0, gphiI, gphiN, cphiI, cbs, baseline, ...
+  node, story, floor, Cn, nomgc] = analysis_frame(xvar, com, options)
+%analysis_frame - 骨組のマトリクス解析本体（剛性組立・変位・応力算定）
+%
+%   [msprop, secdim, ...] = analysis_frame(xvar, com, options) は、
+%   断面変数 xvar と共通オブジェクト com から、部材断面性能・剛性行列を
+%   組み立て、荷重ケースごとの変位解析・部材応力算定・重ね合わせを行い、
+%   公称部材レベルの設計応力度および関連諸元を算出する。引張ブレースの
+%   圧縮除去および支点浮き上がりの収束ループを内部に含む。
+%
+%   入力引数:
+%     xvar    - 断面変数ベクトル（最適化設計変数）
+%     com     - 共通オブジェクト（節点・部材・断面・材料情報を保持）
+%     options - 計算オプション構造体（剛床・自重・浮き上がり等のフラグ）
+%
+%   出力引数:
+%     msprop   - 部材断面性能の構造体（A, Iy, Iz, E, F 等）
+%     secdim   - 解析で使用された断面寸法 [nsec x ncol] mm
+%     dvec     - 自由度別変位ベクトル [ndf x nlc]
+%     dnode    - 節点変位（剛床補正後） [nnode x 6 x nlc]
+%     felement - 等価節点荷重（要素荷重起因） [nnode x 6 x nlc]
+%     stn      - 公称部材の応力度（一般位置） 構造体
+%     stcn     - 公称部材の応力度（中央位置） 構造体
+%     Mc       - 部材中央曲げモーメント（重ね合わせ後）
+%     C        - 許容応力度計算用の係数（端部用）
+%     vix      - 軸力による全塑性曲げ低下率（X方向）
+%     viy      - 軸力による全塑性曲げ低下率（Y方向）
+%     rvec     - 部材端応力ベクトル（重ね合わせ後） [ns6 x nlc]
+%     rs       - 部材応力（重ね合わせ後） [nme x 12 x nlc]
+%     dfn      - 公称部材の設計応力（重ね合わせ後）
+%     rvec0    - 部材端応力ベクトル（ケース別・重ね合わせ前）
+%     rs0      - 部材応力（ケース別・重ね合わせ前）
+%     Mc0      - 部材中央曲げモーメント（ケース別）
+%     dfn0     - 公称部材の設計応力（ケース別）
+%     state    - 収束状態（sup.islifted, tb.iscompressed 等の構造体）
+%     sw       - 自重情報（sw.ar, sw.f, sw.M0 等の構造体）
+%     lf       - 両端フェイス長（柱X/柱Y/梁） 構造体
+%     lr       - 両端剛域長（柱X/柱Y/梁） 構造体
+%     lmem     - 部材長構造体 struct('geom','stiff','weight') 各 [nme x 1]
+%     lnm      - 通し部材長（通し柱・通し梁ベース） [nme x 1]
+%     lbnm     - 名目部材の横補剛区間長 [nme x 4]
+%     Iy0      - 剛域スケール前の Iy [nme x 1]
+%     Iz0      - 剛域スケール前の Iz [nme x 1]
+%     gphiI    - 合成梁の曲げ剛性増大率
+%     gphiN    - 合成梁の軸断面積増大率（出力用）
+%     cphiI    - 柱の曲げ剛度増減率 [nmec x 2]
+%     cbs      - 柱脚断面情報（calc_column_base_section の出力）
+%     baseline - 基線情報（Z座標更新後）
+%     node     - 節点情報（Z座標更新後）
+%     story    - ストーリー情報（形状更新後）
+%     floor    - フロア情報（形状更新後）
+%     Cn       - 許容応力度計算用の係数（公称部材用）
+%     nomgc    - 公称梁の検定位置情報（lb, xc, Mcn, Ncn 等）
+%
+%   備考:
+%     - 引張ブレース・支点浮き上がりが無い場合は Fast path を使用する。
+%     - 詳細な処理フローおよび各サブ関数の仕様は、本ファイル内の
+%       セクション見出しおよび呼び出し先関数のヘッダを参照。
 
 % 共通定数
 nbw = com.nbw;
@@ -281,11 +336,14 @@ lm_brace_buckling = calc_brace_buckling_length(member.brace, ...
   com.member.girder, node, stype_sec, com.section.girder.idsec, ...
   secdim);
 
+%% 剛性計算用部材長（ブレースのみ内法長さ L に差替え）
+lm_stiff = lm;
+lm_stiff(mtype==PRM.BRACE) = lm_brace_buckling;
+
 %% 柱・梁・ブレースを結合して全部材の荷重計算用部材長を作成
-lm_weight = lm;  % 初期値は構造階高ベースの部材長
+lm_weight = lm;  % 初期値（ブレースはこのまま節点間距離を使用）
 lm_weight(mtype==PRM.COLUMN) = lm_column_weight;
 lm_weight(mtype==PRM.GIRDER) = lm_girder_weight;
-lm_weight(mtype==PRM.BRACE) = lm(mtype==PRM.BRACE);
 
 %% BRB単位重量の取得
 brace_unit_weight = calc_brb_unit_weight(com.section.brace, ...
@@ -337,13 +395,11 @@ is_steel_brace = (mtype == PRM.BRACE) ...
   | stype(idm2s) == PRM.BWFS);
 is_tension = false(nme, 1);
 if any(is_steel_brace)
-  % λe 判定（SS7 3.8.1）
-  lk_all = lm;
-  lk_all(mtype==PRM.BRACE) = lm_brace_buckling;
+  % λe 判定（SS7 3.8.1、L = lm_stiff のブレース部分 = 内法長さ）
   iy_ = sqrt(Iy(is_steel_brace) ./ A(is_steel_brace));
   iz_ = sqrt(Iz(is_steel_brace) ./ A(is_steel_brace));
   imin_ = min(iy_, iz_);
-  lam_e = lk_all(is_steel_brace) ./ imin_;
+  lam_e = lm_stiff(is_steel_brace) ./ imin_;
   F_ = Fm(is_steel_brace);
   is_tension(is_steel_brace) = lam_e >= 1980 ./ sqrt(F_);
 end
@@ -362,8 +418,6 @@ else
 end
 
 %% ブレース剛性の事前計算（軸剛性はブレース長さ L = 内法）
-lm_stiff = lm;
-lm_stiff(mtype==PRM.BRACE) = lm_brace_buckling;
 br_stif = precompute_brace_stiffness(A, cxl, cyl, lm_stiff, ...
   Em, JJ, Gm, xr, yr, idn2df, idm2n1, idm2n2, mtype, ...
   stype, idm2s, is_tension);
@@ -374,7 +428,7 @@ end
 
 %% 剛性行列の作成
 ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, ...
-  cyl, lm, Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
+  cyl, lm_stiff, Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
   idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
   nbw, flag, br_stif);
 
@@ -491,7 +545,7 @@ end
 
 % 応力計算
 [rs, Mc] = calc_member_force(1:nlc, dvec, [], frvec, ...
-  sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm, ...
+  sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm_stiff, ...
   lrxm, lrym, flag, member_property, node, material, ...
   cbstiff, idm2mat, idm2scb, mejoint, br_stif);
 
@@ -590,9 +644,24 @@ end
 
 [stn, stcn] = calc_nominal_stress(dfn, Mcn, Asc, Asy, ...
   Asz, Aw, Zy, Zz, Zyij, Zyc, mtype, idnm2m);
+
+%% 部材長構造体の組立て（戻り値）
+lmem = struct('geom', lm, 'stiff', lm_stiff, 'weight', lm_weight);
 % -------------------------------------------------------------------------
   function dnode = trans_dvec2dnode(ilcset, dnode, dvec)
-    % 剛床を考慮した節点変位への変換
+  %trans_dvec2dnode - 解ベクトルから節点変位への変換（剛床考慮）
+  %
+  %   dnode = trans_dvec2dnode(ilcset, dnode, dvec) は、
+  %   自由度ベクトル dvec を節点変位配列 dnode に展開する。
+  %   剛床属性の層では代表節点の回転から水平変位を補正する。
+  %
+  %   入力引数:
+  %     ilcset - 対象荷重ケースの添字配列
+  %     dnode - 節点変位配列（更新前） [nnode×6×nlc]
+  %     dvec - 解ベクトル（自由度順） [ndof×nlc]
+  %
+  %   出力引数:
+  %     dnode - 節点変位配列（更新後） [nnode×6×nlc]
     for in_=1:nnode
       % 吸収節点（idstory=0）はスキップ
       is_ = idn2st(in_);
@@ -613,7 +682,23 @@ end
 
 % -------------------------------------------------------------------------
 function [vix, viy] = reduction_rate(c_g, Ne, A, F, lcdir)
-% 柱梁耐力比算定用の軸力による全塑性曲げモーメント低下率の算定
+%reduction_rate - 軸力による全塑性曲げモーメント低下率の算定
+%
+%   [vix, viy] = reduction_rate(c_g, Ne, A, F, lcdir) は、
+%   柱梁耐力比算定用に、軸力比 Nr=|N|/(A*F*1.1) に基づき
+%   X方向・Y方向地震時の低下率を柱部材について算定する。
+%   Nr<=0.5 で 1-4*Nr^2/3、Nr>0.5 で 4*(1-Nr)/3 を与える。
+%
+%   入力引数:
+%     c_g - 部材種別フラグ（PRM.COLUMN 等） [nme×1]
+%     Ne - 荷重ケース別軸力 [nme×nlc]
+%     A - 断面積 [nme×1]
+%     F - 基準強度 [nme×1]
+%     lcdir - 各荷重ケースの方向コード（PRM.EXP/EXN/EYP/EYN）
+%
+%   出力引数:
+%     vix - X方向低下率 [nmec×2]（正負）
+%     viy - Y方向低下率 [nmec×2]（正負）
 
 % 定数
 nlc = length(lcdir);
@@ -707,6 +792,21 @@ end
 
 % -------------------------------------------------------------------------
 function [fvec, ar] = modify_force_for_pinjoint(fvec0, ar0, mejoint)
+%modify_force_for_pinjoint - ピン接合端の外力解除
+%
+%   [fvec, ar] = modify_force_for_pinjoint(fvec0, ar0, mejoint) は、
+%   部材端接合条件 mejoint がピンの要素について、長期荷重ケース
+%   （ilc=1）の材端モーメント成分を 0 にクリアする。
+%
+%   入力引数:
+%     fvec0 - 節点荷重ベクトル（変更前）
+%     ar0 - 部材材端力配列（変更前） [nme×12×nlc]
+%     mejoint - 部材端接合条件 [nme×2]（1列目=i端, 2列目=j端）
+%
+%   出力引数:
+%     fvec - 節点荷重ベクトル（現状は変更なし）
+%     ar - 部材材端力配列（ピン端のモーメント=0に設定）
+
 % 初期化
 fvec = fvec0;
 ar = ar0;
