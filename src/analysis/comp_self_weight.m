@@ -1,5 +1,5 @@
 function sw = comp_self_weight(A, lm_weight, lm, member_property, ...
-  msdim, nnode, mejoint, face_deduct, options, member_column, ...
+  msdim, slab, nnode, mejoint, face_deduct, options, member_column, ...
   brace_unit_weight, Df_foundation, idsup2n, rho_rc_member)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
@@ -14,6 +14,8 @@ function sw = comp_self_weight(A, lm_weight, lm, member_property, ...
 %   lm              - 実際の部材長配列（CMQ計算用）
 %   member_property - 部材プロパティ構造体
 %   msdim           - 部材断面寸法配列
+%   slab            - スラブ情報構造体（RC梁の重複スラブ控除用、
+%                     .width/.thickness/.width_lower/.thickness_lower）
 %   nnode           - 全節点数
 %   mejoint         - 結合条件配列
 %   face_deduct     - 梁の柱面減算量 [nmeg x 2]（列1: i端, 列2: j端）
@@ -68,6 +70,28 @@ end
 % 部材ID→梁インデックスの変換マップ（偏心配分用）
 idme2ig = zeros(nme, 1);
 idme2ig(mtype==PRM.GIRDER) = 1:sum(mtype==PRM.GIRDER);
+
+% RC梁のスラブ重複体積の差し引き（SS7 計算編 式4.1, 4.3）
+% 梁幅 B を左右 B/2 に分け、各半分を対応する側の床（上面＋下面）と
+% 独立に差し引く。各半分の差し引き後は 0 でクリップ（スラブ厚が
+% 梁せいを上回る入力に対する保護）。
+% S梁は対象外（床荷重は梁要素荷重として別途考慮される）。
+gstype = stype(mtype==PRM.GIRDER);
+is_rc = (gstype == PRM.RCRS);
+has_slab_u = slab.width > 0;
+t_u1 = slab.thickness(:,1) .* has_slab_u(:,1);
+t_u2 = slab.thickness(:,2) .* has_slab_u(:,2);
+has_slab_l = slab.width_lower > 0;
+t_l1 = slab.thickness_lower(:,1) .* has_slab_l(:,1);
+t_l2 = slab.thickness_lower(:,2) .* has_slab_l(:,2);
+% S梁の t は 0（差し引きなし）
+t_left  = (t_u1 + t_l1) .* is_rc;
+t_right = (t_u2 + t_l2) .* is_rc;
+b_g = msdim(mtype==PRM.GIRDER, 1);
+A_half = A(mtype==PRM.GIRDER) / 2;
+A_left  = max(A_half - b_g/2 .* t_left, 0);
+A_right = max(A_half - b_g/2 .* t_right, 0);
+A(mtype==PRM.GIRDER) = A_left + A_right;
 
 % 計算の準備
 ar = zeros(nme,12);

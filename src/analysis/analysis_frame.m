@@ -145,10 +145,10 @@ node = com.node;
 % nstiff = com.member.girder.nstiff;
 scallop = com.girder_scallop_size;
 secmgr = com.secmgr;
-% slab.width = com.member.girder.slab_width;
-% slab.thickness = com.member.girder.slab_thickness;
-% slab.width_lower = com.member.girder.slab_width_lower;
-% slab.thickness_lower = com.member.girder.slab_thickness_lower;
+slab.width = com.member.girder.slab_width;
+slab.thickness = com.member.girder.slab_thickness;
+slab.width_lower = com.member.girder.slab_width_lower;
+slab.thickness_lower = com.member.girder.slab_thickness_lower;
 story = com.story;
 stype = com.section.property.type;
 % stress_factor = com.sectionList.design_stress_factor(idmc2slist);
@@ -359,7 +359,7 @@ rho_rc_member = rho_rc_sec(idm2s);
 %% 自重の計算
 if options.consider_self_weight && options.consider_finishing_material
   sw = comp_self_weight(A, lm_weight, lm, member_property, msdim, ...
-    nnode, mejoint, face_deduct, options, member_column, ...
+    slab, nnode, mejoint, face_deduct, options, member_column, ...
     brace_unit_weight, Df_foundation, idsup2n, rho_rc_member);
   ar(:,:,1) = ar(:,:,1)+sw.ar;
   M0(:,1)= M0(:,1)+sw.M0;
