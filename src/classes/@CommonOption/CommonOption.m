@@ -96,6 +96,11 @@ classdef CommonOption
     % せん断変形
     consider_shear_deformation (1,1) logical = true
 
+    % 梁の弱軸曲げ剛性 Iz の係数（0=考慮OFF=微小化、非0=その値を Iz に乗じる）
+    % 既存挙動（梁一律微小化）は 0 で表現。SS7 の梁水平面内変形の考慮の
+    % 詳細モード（鉛直/水平 × 3モード + 個別指定）は未対応
+    factor_Iz (1,1) double = 0
+
     % 横座屈の考慮
     consider_lateral_torsional_buckling (1,1) logical = true
 

@@ -1,7 +1,7 @@
 function [rs, Mc, rvec] = calc_member_force(ilcset, ...
   dvec, rs, ~, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, ...
   Em, Gm, lm, lrxm, lrym, flag, member_property, node, ...
-  ~, cbstiff, ~, idm2scb, joint, br_stif)
+  ~, cbstiff, ~, idm2scb, joint, br_stif, factor_Iz)
 %calc_member_force - 部材応力の計算
 %
 %   [rs, Mc, rvec] = calc_member_force( ...
@@ -9,7 +9,7 @@ function [rs, Mc, rvec] = calc_member_force(ilcset, ...
 %     A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm, ...
 %     lrxm, lrym, flag, member_property, ...
 %     node, ~, cbstiff, ~, idm2scb, ...
-%     joint, br_stif) は、
+%     joint, br_stif, factor_Iz) は、
 %   各部材の変位から部材端応力を計算する。
 %   通常部材は梁要素剛性行列、ブレースはトラス変換で処理する。
 %
@@ -41,6 +41,7 @@ function [rs, Mc, rvec] = calc_member_force(ilcset, ...
 %     idm2scb  - 部材→複合梁マッピング [nme×1]
 %     joint    - 接合条件 [nme×4]
 %     br_stif  - ブレース剛性構造体配列（空可）
+%     factor_Iz - 梁の弱軸剛性 Iz の係数（スカラー、0=考慮OFF）
 %
 %   出力引数:
 %     rs   - 部材端応力 [nme×12×nlc]
@@ -48,7 +49,9 @@ function [rs, Mc, rvec] = calc_member_force(ilcset, ...
 %     rvec - 復元力ベクトル [ns6×nlc]
 %
 %   備考:
-%     - 梁(PRM.GIRDER)の弱軸Iz・ねじり定数Jはゼロとする（SS7互換）。
+%     - 応力側は剛性側（stif_sys_matrix）と異なり微小化せず完全 0 を
+%       許容する（factor_Iz=0 で梁 Iz=0、factor_J(im)=0 で J=0）。
+%     - factor_J は member_property.factor_J から取得。
 
 % 共通配列
 idme2j1 = member_property.idnode1;
@@ -98,6 +101,12 @@ tg_cache = cell(nme, 1);
 t_cache = cell(nme, 1);
 ndi_cache = cell(nme, 1);
 
+% Iz/J 係数の事前展開（応力側は微小化せず完全 0 を許容）
+% 梁: factor_Iz をそのまま乗算（0 なら Iz 寄与 0）。柱: 1
+Iz_fac = ones(nme, 1);
+Iz_fac(mtype == PRM.GIRDER) = factor_Iz;
+J_fac = member_property.factor_J;
+
 for im = targetset(:)'
   lrxi = lrxm(im, :);
   lryi = lrym(im, :);
@@ -105,14 +114,8 @@ for im = targetset(:)'
   t_local = [cxl(im, :); cyl(im, :); czl(im, :)];
   Ai = A(im); Asyi = Asy(im); Aszi = Asz(im);
   Iyi = Iy(im);
-  % 梁の弱軸剛性Iz・ねじり剛性Jはゼロとする（SS7互換）
-  if mtype(im) == PRM.GIRDER
-    Izi = 0;
-    Ji = 0;
-  else
-    Izi = Iz(im);
-    Ji = JJ(im);
-  end
+  Izi = Iz(im) * Iz_fac(im);
+  Ji = JJ(im) * J_fac(im);
   Ei = Em(im); Gi = Gm(im);
   jointi = joint(im, :);
 

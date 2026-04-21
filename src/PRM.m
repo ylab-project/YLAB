@@ -138,6 +138,10 @@ classdef PRM
     RHORC = 2.5           % RC密度 [t/m3]（24.5 kN/m3）
     MAX_SECTION_LIST = 4;
 
+    %% 剛性低減係数
+    % 剛性組立で「剛性 0」相当を表現する微小値（完全 0 は数値問題）
+    STIFF_IGNORE_FACTOR = 1e-6
+
     %% 荷重ケース
     LT = 1                % G+P (長期荷重)
     EXP = 2               % L+Ex (X方向正)

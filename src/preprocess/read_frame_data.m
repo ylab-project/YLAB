@@ -53,25 +53,21 @@ function [com, options] = read_frame_data(input, options)
 
 %% ブロック区切り
 labels = {'基本事項', '構造計算条件', '最適化条件', '制約条件', ...
-  '出力制御', '材料', '断面リスト', '柱脚リスト', '軸X', '軸Y', ...
-  '層', 'スパンX方向', 'スパンY方向', '階', ...
-  '標準階高と梁心の差', '剛床仮定の解除', '節点', '支点', ...
-  '部材の寄り', '柱の寄り', '大梁の寄り', '軸振れ', ...
-  'セットバック', '大梁のレベル調整', '節点の同一化', ...
-  '設計変数', '梁せい分布除外', 'S梁断面', 'S柱断面', ...
+  '出力制御', '材料', '断面リスト', '柱脚リスト', '軸X', '軸Y', '層', ...
+  'スパンX方向', 'スパンY方向', '階', '標準階高と梁心の差', ...
+  '剛床仮定の解除', '節点', '支点', '部材の寄り', '柱の寄り', ...
+  '大梁の寄り', '軸振れ', 'セットバック', '大梁のレベル調整', ...
+  '節点の同一化', '設計変数', '梁せい分布除外', 'S梁断面', 'S柱断面', ...
   'RC梁断面', 'RC柱断面', 'メーカー製柱脚断面', ...
-  '鉛直ブレース断面（鋼材）', ...
-  '鉛直ブレース断面（メーカー製品）', ...
-  '鉛直ブレース断面（引張ブレース）', ...
-  '水平ブレース断面', 'S梁断面(仮定)', 'S柱断面(仮定)', ...
-  '鉛直ブレース断面（鋼材）(仮定)', ...
-  '鉛直ブレース断面（メーカー製品）(仮定)', ...
-  '大梁配置', '柱配置', '鉛直ブレース配置', ...
-  '水平ブレース配置', '梁の結合状態', '柱の結合状態', ...
-  '柱の剛域', '梁の横補剛', '柱の座屈長さ係数', '通し柱', '通し梁', ...
-  'スラブ協力幅', '柱の剛度増減率', '梁の剛度増減率', ...
-  '断面算定の省略（梁符号毎）', ...
-  '断面算定の省略（柱符号毎）', ...
+  '鉛直ブレース断面（鋼材）', '鉛直ブレース断面（メーカー製品）', ...
+  '鉛直ブレース断面（引張ブレース）', '水平ブレース断面', ...
+  'S梁断面(仮定)', 'S柱断面(仮定)', '鉛直ブレース断面（鋼材）(仮定)', ...
+  '鉛直ブレース断面（メーカー製品）(仮定)', '大梁配置', '柱配置', ...
+  '鉛直ブレース配置', '水平ブレース配置', '梁の結合状態', ...
+  '柱の結合状態', '柱の剛域', '梁の横補剛', '柱の座屈長さ係数', ...
+  '通し柱', '通し梁', 'スラブ協力幅', '柱の剛度増減率', ...
+  '梁の剛度増減率', '梁の捩り剛性増減率', '柱の捩り剛性増減率', ...
+  '断面算定の省略（梁符号毎）', '断面算定の省略（柱符号毎）', ...
   '荷重ケース', '節点荷重', '追加節点荷重', '梁要素荷重'};
 dbc = data_block_class;
 dbc.readCsvFile(input, labels);
@@ -127,10 +123,9 @@ for i = 1:section_list.nlist
     idm = find(matches(com.material.name, TB_DEFAULT_MATERIAL), 1);
     if isempty(idm)
       idm = com.nma + 1;
-      com.material = [com.material; table(idm, ...
-        {TB_DEFAULT_MATERIAL}, 205000, 0.3, 79400, 235.0, ...
-        true, PRM.GRADE_SN, 'VariableNames', ...
-        com.material.Properties.VariableNames)];
+      com.material = [com.material; table(idm, {TB_DEFAULT_MATERIAL}, ...
+        205000, 0.3, 79400, 235.0, true, PRM.GRADE_SN, ...
+        'VariableNames', com.material.Properties.VariableNames)];
       com.nma = idm;
     end
     section_list.idmaterial{i}(:) = idm;
@@ -515,6 +510,12 @@ com.member.column.phiI = column_phiI;
 girder_phiI = set_member_girder_phi_block(dbc, com);
 com.member.girder.phiI = girder_phiI;
 
+%% 捩り剛性増減率（梁・柱、com.member.property.factor_J に上書き）
+factor_J = com.member.property.factor_J;
+factor_J = set_factor_J_girder_block(dbc, com, factor_J);
+factor_J = set_factor_J_column_block(dbc, com, factor_J);
+com.member.property.factor_J = factor_J;
+
 %% 断面算定の省略（梁符号毎）
 istarget = set_exclusion_girder_stress_block(dbc, com);
 com.exclusion.is_section_girder_allowable_stress = istarget;
@@ -867,9 +868,9 @@ data = dbc.get_data_block('柱脚リスト');
 n = size(data,1);
 
 % 符号・材料・リストファイル名
-column_base_list(1:n) = struct('D', [], 'kbs', ...
-  [], 'Df', [], 'type', [], 'name', [], ...
-  'list_name', [], 'list_dir', [], 'file_name', []);
+column_base_list(1:n) = struct('D', [], 'kbs', [], 'Df', [], ...
+  'type', [], 'name', [], 'list_name', [], 'list_dir', [], ...
+  'file_name', []);
 
 % list_name = cell(n,1);
 % file_name = cell(n,1);
@@ -1009,8 +1010,8 @@ for i=1:n
 end
 
 % 結果の保存
-support = table(xname, yname, story_name, isfixed, ...
-  idx, idy, idstory, idnode);
+support = table(xname, yname, story_name, isfixed, idx, idy, ...
+  idstory, idnode);
 return
 end
 
@@ -1415,10 +1416,16 @@ if nmehb > 0
     member_horizontal_brace.tctype == PRM.BRACE_TENSION;
 end
 
+% 捩り剛性増減率の初期値（梁=0=考慮OFF、それ以外=1=通常値）
+% 入力セクション「梁/柱の捩り剛性増減率」で該当部材が上書きされる
+factor_J = ones(nme, 1);
+factor_J(type==PRM.GIRDER) = 0;
+
 % 結果の保存
 member_property = table(type, idir, idmeg, idmec, idmeb, ...
   idmehb, section_type, idsec, idsecc, idsecg, idsecb, ...
-  idsechb, idnode1, idnode2, idstory, idvar, is_tension_only_hb);
+  idsechb, idnode1, idnode2, idstory, idvar, is_tension_only_hb, ...
+  factor_J);
 return
 end
 
@@ -1886,10 +1893,10 @@ for i=1:n
 end
 
 % 梁部材番号
-[idx, idy, idz, ~] = find_idxyz_girder( ...
-  story_name, frame_name, coord_name, baseline);
-idmeg = find_idgirder_from_idxyz(idx, idy, idz, ...
-  member_girder, [], baseline);
+[idx, idy, idz, ~] = find_idxyz_girder(story_name, frame_name, ...
+  coord_name, baseline);
+idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder, ...
+  [], baseline);
 
 % 結合状態
 joint = PRM.FIX*ones(nmeg,4);
@@ -2017,10 +2024,10 @@ for i=1:n
 end
 
 % 梁部材番号
-[idx, idy, idz, ~] = find_idxyz_girder( ...
-  story_name, frame_name, coord_name, baseline);
-idmeg = find_idgirder_from_idxyz(idx, idy, idz, ...
-  member_girder, [], baseline);
+[idx, idy, idz, ~] = find_idxyz_girder(story_name, frame_name, ...
+  coord_name, baseline);
+idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder, ...
+  [], baseline);
 
 % % 結合状態
 % stiffening.Lb = nan(nmeg,3);
@@ -2082,12 +2089,12 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz, ~] = find_idxyz_girder( ...
-  story_name, frame_name, coord_name, baseline);
+[idx, idy, idz, ~] = find_idxyz_girder(story_name, frame_name, ...
+  coord_name, baseline);
 
 % 梁部材番号
-idmeg = find_idgirder_from_idxyz(idx, idy, idz, ...
-  member_girder, [], baseline);
+idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder, ...
+  [], baseline);
 
 % レベル調整値
 girder_level = zeros(nmg,1);
@@ -2172,8 +2179,8 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz] = find_idxyz_column(floor_name, ...
-  xcoord_name, ycoord_name, baseline, story);
+[idx, idy, idz] = find_idxyz_column(floor_name, xcoord_name, ...
+  ycoord_name, baseline, story);
 
 % 柱の剛度増減率
 nmec = size(member_column,1);
@@ -2196,12 +2203,114 @@ for i=1:n
   end
 
   % 柱部材番号
-  idmec = find_idcolumn_from_idxyz(idx(i,:), ...
-    idy(i,:), idz(i,:), member_column);
+  idmec = find_idcolumn_from_idxyz(idx(i,:), idy(i,:), idz(i,:), ...
+    member_column);
 
   % 値のセット
   val = data{i,8};
   column_phi(idmec,idir) = val;
+end
+return
+end
+
+%--------------------------------------------------------------------------
+function factor_J = set_factor_J_girder_block(dbc, com, factor_J)
+%set_factor_J_girder_block - 梁の捩り剛性増減率を factor_J に書き込む
+%
+%   factor_J = set_factor_J_girder_block(dbc, com, factor_J) は、
+%   入力セクション「梁の捩り剛性増減率」を読み、該当梁の
+%   com.member.property.factor_J に増減率を上書きして返す。
+%   セクション無または空の場合は factor_J をそのまま返す。
+%
+%   入力引数:
+%     dbc      - データブロッククラス
+%     com      - 共通オブジェクト
+%     factor_J - 現在の factor_J 配列 [nm×1]
+%
+%   出力引数:
+%     factor_J - 更新後の factor_J 配列 [nm×1]
+
+data = dbc.get_data_block('梁の捩り剛性増減率');
+n = size(data,1);
+if n == 0, return; end
+
+% 共通配列
+member_girder = com.member.girder;
+baseline = com.baseline;
+
+% データ読み取り（列: 層,層,フレーム,フレーム,軸,軸,増減率）
+story_name = cell(n,2);
+frame_name = cell(n,2);
+coord_name = cell(n,2);
+for i=1:n
+  story_name(i,:) = tochar(data(i,1:2));
+  frame_name(i,:) = tochar(data(i,3:4));
+  coord_name(i,:) = tochar(data(i,5:6));
+end
+
+% バッチ呼び出し（iorigin で展開後の行と元入力行の対応を取る）
+[idx, idy, idz, idir, ~, iorigin] = find_idxyz_girder( ...
+  story_name, frame_name, coord_name, baseline);
+for io = 1:length(idir)
+  idmeg = find_idgirder_from_idxyz(idx(io,:), idy(io,:), ...
+    idz(io,:), member_girder, idir(io), baseline);
+  ids = idmeg(idmeg > 0);
+  if isempty(ids); continue; end
+  % 梁 idmeg → property 行 index（idme）へ変換して上書き
+  factor_J(member_girder.idme(ids)) = data{iorigin(io),7};
+end
+return
+end
+
+%--------------------------------------------------------------------------
+function factor_J = set_factor_J_column_block(dbc, com, factor_J)
+%set_factor_J_column_block - 柱の捩り剛性増減率を factor_J に書き込む
+%
+%   factor_J = set_factor_J_column_block(dbc, com, factor_J) は、
+%   入力セクション「柱の捩り剛性増減率」を読み、該当柱の
+%   com.member.property.factor_J に増減率を上書きして返す。
+%   セクション無または空の場合は factor_J をそのまま返す。
+%
+%   入力引数:
+%     dbc      - データブロッククラス
+%     com      - 共通オブジェクト
+%     factor_J - 現在の factor_J 配列 [nm×1]
+%
+%   出力引数:
+%     factor_J - 更新後の factor_J 配列 [nm×1]
+
+data = dbc.get_data_block('柱の捩り剛性増減率');
+n = size(data,1);
+if n == 0, return; end
+
+% 共通配列
+member_column = com.member.column;
+baseline = com.baseline;
+story = com.story;
+
+% データ読み取り（列: 階,階,X軸,X軸,Y軸,Y軸,増減率）
+floor_name = cell(n,2);
+xcoord_name = cell(n,2);
+ycoord_name = cell(n,2);
+for i=1:n
+  floor_name(i,:) = tochar(data(i,1:2));
+  xcoord_name(i,:) = tochar(data(i,3:4));
+  ycoord_name(i,:) = tochar(data(i,5:6));
+end
+
+% 通り番号（find_idxyz_column は入力 n 行に対して n 行出力）
+[idx, idy, idz] = find_idxyz_column(floor_name, xcoord_name, ...
+  ycoord_name, baseline, story);
+
+% 該当柱の factor_J を上書き
+for i=1:n
+  idmec = find_idcolumn_from_idxyz(idx(i,:), idy(i,:), idz(i,:), ...
+    member_column);
+  ids = idmec(idmec > 0);
+  if isempty(ids); continue; end
+  val = data{i,7};
+  % 柱 idmec → property 行 index（idme）へ変換して上書き
+  factor_J(member_column.idme(ids)) = val;
 end
 return
 end
@@ -2310,18 +2419,15 @@ for i=1:n
 end
 
 % 通り番号の検索
-[idx, idy, idz] = find_idxyz_coord(story_name, ...
-  xcoord_name, ycoord_name, baseline);
+[idx, idy, idz] = find_idxyz_coord(story_name, xcoord_name, ...
+  ycoord_name, baseline);
 
 % 除外節点の検索
 isexcluded = false(nmeg,1);
 for i=1:n
-  istarget = idx(i,1) <= girder_idx(:,1) & ...
-    girder_idx(:,2) <= idx(i,2) & ...
-    idy(i,1) <= girder_idy(:,1) & ...
-    girder_idy(:,2) <= idy(i,2) & ...
-    idz(i,1) <= girder_idz(:,1) & ...
-    girder_idz(:,2) <= idz(i,2);
+  istarget = idx(i,1) <= girder_idx(:,1) & girder_idx(:,2) <= idx(i,2) ...
+    & idy(i,1) <= girder_idy(:,1) & girder_idy(:,2) <= idy(i,2) ...
+    & idz(i,1) <= girder_idz(:,1) & girder_idz(:,2) <= idz(i,2);
   if idir(i)>0
     istarget = istarget & girder_idir == idir(i);
   end

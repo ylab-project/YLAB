@@ -1,14 +1,15 @@
 function ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
   cxl, cyl, lm, Em, Gm, xr, yr, lrxm, lrym, cbstiff, ...
   mtype, idn2df, idf2n, idm2n1, idm2n2, idm2scb, joint, ...
-  ndf, nbw, flag, br_stif)
+  ndf, nbw, flag, br_stif, factor_Iz, factor_J)
 %stif_sys_matrix - 全体剛性行列の組立（帯行列形式）
 %
 %   ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, cyl, lm, ...
 %     Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, idn2df, idf2n, ...
-%     idm2n1, idm2n2, idm2scb, joint, ndf, nbw, flag, br_stif) は、
-%   各部材の要素剛性行列を組立て全体剛性行列を帯行列形式で返す。
-%   梁はstif_beam_matrix、ブレースはbr_stif事前計算keを用いる。
+%     idm2n1, idm2n2, idm2scb, joint, ndf, nbw, flag, br_stif, ...
+%     factor_Iz, factor_J) は、各部材の要素剛性行列を組立て全体剛性
+%   行列を帯行列形式で返す。梁はstif_beam_matrix、ブレースは br_stif
+%   事前計算 ke を用いる。
 %
 %   入力引数:
 %     A, Asy, Asz - 断面積・せん断断面積Y/Z [nm×1]
@@ -29,12 +30,17 @@ function ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
 %     nbw         - 帯幅
 %     flag        - 剛性行列計算フラグ
 %     br_stif     - ブレース剛性構造体配列（空可）
+%     factor_Iz   - 梁の弱軸剛性 Iz の係数（スカラー、0=考慮OFF）
+%     factor_J    - 捩り剛性 J の係数 [nm×1]（0=考慮OFF）
 %
 %   出力引数:
 %     ksmat - 全体剛性行列（帯行列形式）[ndf×nbw]
 %
 %   備考:
-%     - 梁の弱軸Iz・ねじり定数Jは微小化（×1e-6）する（SS7互換）。
+%     - factor_Iz=0 / factor_J(im)=0 の場合、該当剛性を
+%       PRM.STIFF_IGNORE_FACTOR 倍して微小化（SS7互換、完全 0 は
+%       数値問題）。Iz は梁のみ（mtype==PRM.GIRDER）に factor_Iz を
+%       適用、柱は通常値。J は部材種別不問で factor_J に従う。
 %     - 剛域長が部材長以上の場合、剛性をscale倍で実質固結化する。
 
 % 剛域長が部材長以上の場合の剛性スケール
@@ -47,6 +53,18 @@ czl = cross(cxl, cyl, 2);
 z = zeros(3,3);
 xrm = [xr(idm2n1) xr(idm2n2)];
 yrm = [yr(idm2n1) yr(idm2n2)];
+
+% Iz/J 係数の事前展開（ループ内分岐を排除し単純乗算で済ませる）
+% 梁: factor_Iz==0 なら STIFF_IGNORE_FACTOR、非0 なら factor_Iz。柱: 1
+% 0 を完全 0 にせず微小値で代用するのは数値問題回避のため
+Iz_fac = ones(nm, 1);
+if factor_Iz == 0
+  Iz_fac(mtype == PRM.GIRDER) = PRM.STIFF_IGNORE_FACTOR;
+else
+  Iz_fac(mtype == PRM.GIRDER) = factor_Iz;
+end
+J_fac = factor_J;
+J_fac(J_fac == 0) = PRM.STIFF_IGNORE_FACTOR;
 
 % ブレースのインデックスマップ
 br_im_map = zeros(nm, 1);
@@ -71,14 +89,8 @@ for im = 1:nm
     li = lm(im); Ai = A(im);
     Asyi = Asy(im); Aszi = Asz(im);
     Iyi = Iy(im);
-    % 梁の弱軸剛性Iz・ねじり剛性Jは微小化する（SS7互換）
-    if mtype(im) == PRM.GIRDER
-      Izi = Iz(im)*1.d-6;
-      Ji = JJ(im)*1.d-6;
-    else
-      Izi = Iz(im);
-      Ji = JJ(im);
-    end
+    Izi = Iz(im) * Iz_fac(im);
+    Ji = JJ(im) * J_fac(im);
     Ei = Em(im); Gi = Gm(im);
     jointi = joint(im,:);
 

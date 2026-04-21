@@ -331,14 +331,13 @@ end
   calc_girder_weight_length(member_girder, com.node, ...
   stype_sec, com.section.girder.idsec, secdim, Df_foundation);
 
-%% ブレース座屈長（SS7 3.8.1、自重計算および λe 判定にも使用）
+%% ブレース座屈長（SS7 3.8.1、座屈長用。後日 lnom.buckling に整理予定）
 lm_brace_buckling = calc_brace_buckling_length(member.brace, ...
   com.member.girder, node, stype_sec, com.section.girder.idsec, ...
   secdim);
 
-%% 剛性計算用部材長（ブレースのみ内法長さ L に差替え）
+%% 剛性計算用部材長（全部材で節点間距離を使用）
 lm_stiff = lm;
-lm_stiff(mtype==PRM.BRACE) = lm_brace_buckling;
 
 %% 柱・梁・ブレースを結合して全部材の荷重計算用部材長を作成
 lm_weight = lm;  % 初期値（ブレースはこのまま節点間距離を使用）
@@ -427,10 +426,12 @@ if has_tension_brace
 end
 
 %% 剛性行列の作成
+factor_Iz = options.factor_Iz;
+factor_J = com.member.property.factor_J;
 ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, ...
   cyl, lm_stiff, Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
   idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
-  nbw, flag, br_stif);
+  nbw, flag, br_stif, factor_Iz, factor_J);
 
 %% 初期化
 isuplifted = false(nsup, nlc);
@@ -547,7 +548,7 @@ end
 [rs, Mc] = calc_member_force(1:nlc, dvec, [], frvec, ...
   sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm_stiff, ...
   lrxm, lrym, flag, member_property, node, material, ...
-  cbstiff, idm2mat, idm2scb, mejoint, br_stif);
+  cbstiff, idm2mat, idm2scb, mejoint, br_stif, factor_Iz);
 
 % 斜め柱応力を全体系XY方向に変換（SS7互換）
 rs = trans_column_force_global_xy(rs, cxl, cyl, idmc2m);
@@ -646,7 +647,11 @@ end
   Asz, Aw, Zy, Zz, Zyij, Zyc, mtype, idnm2m);
 
 %% 部材長構造体の組立て（戻り値）
-lmem = struct('geom', lm, 'stiff', lm_stiff, 'weight', lm_weight);
+% buckling はブレース座屈長用（暫定。後日 lnom.buckling に整理）
+lm_buckling = lm;
+lm_buckling(mtype==PRM.BRACE) = lm_brace_buckling;
+lmem = struct('geom', lm, 'stiff', lm_stiff, ...
+  'buckling', lm_buckling, 'weight', lm_weight);
 % -------------------------------------------------------------------------
   function dnode = trans_dvec2dnode(ilcset, dnode, dvec)
   %trans_dvec2dnode - 解ベクトルから節点変位への変換（剛床考慮）
@@ -751,44 +756,6 @@ vix = vi(:,[PRM.EXP PRM.EXN]);
 viy = vi(:,[PRM.EYP PRM.EYN]);
 return
 end
-
-% -------------------------------------------------------------------------
-% function [st, stc] = stress(...
-%   rs, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyf, Zyc, mtype)
-% % 応力から応力度を計算する
-% 
-% % 計算の準備
-% [nme, ~, nlc] = size(rs);
-% 
-% % 応力度の計算
-% st = zeros(nme,12,nlc);
-% stc = zeros(nme,nlc);
-% Zz(mtype==PRM.BRACE) = 1.d-6;
-% Asz(mtype==PRM.GIRDER) = Aw(mtype==PRM.GIRDER);
-% for ilc = 1:nlc
-%   st(:,1,ilc) = rs(:,1,ilc)./A;
-%   st(:,2,ilc) = rs(:,2,ilc)./Asy;
-%   st(:,3,ilc) = rs(:,3,ilc)./Asz;
-%   st(:,6,ilc) = rs(:,6,ilc)./Zz;
-%   st(:,7,ilc) = rs(:,7,ilc)./A;
-%   st(:,8,ilc) = rs(:,8,ilc)./Asy;
-%   st(:,9,ilc) = rs(:,9,ilc)./Asz;
-%   st(:,12,ilc) = rs(:,12,ilc)./Zz;
-%   for im = 1:nme
-%     switch mtype(im)
-%       case PRM.GIRDER
-%         st(im,5,ilc) = rs(im,5,ilc)/Zyf(im);
-%         st(im,11,ilc) = rs(im,11,ilc)/Zyf(im);
-%         stc(im,ilc) = Mc(im,ilc)/Zyc(im);
-%       case PRM.COLUMN
-%         st(im,5,ilc) = rs(im,5,ilc)/Zy(im);
-%         st(im,11,ilc) = rs(im,11,ilc)/Zy(im);
-%     end
-%   end
-% end
-% 
-% return
-% end
 
 % -------------------------------------------------------------------------
 function [fvec, ar] = modify_force_for_pinjoint(fvec0, ar0, mejoint)

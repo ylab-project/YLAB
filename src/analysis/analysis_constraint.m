@@ -144,9 +144,9 @@ if coptions.consider_stress_ratio
   beta = calc_brace_force_share_ratio(com, rs0, cxl, cyl, Q_nb);
 
   % ブレース・柱の座屈長さ用部材長を算出
-  % ブレース分は analysis_frame で算出済みの lmem.stiff を流用
+  % ブレース分は analysis_frame で算出済みの lmem.buckling を流用
   lm_bk = lm;
-  lm_bk(mtype==PRM.BRACE) = lmem.stiff(mtype==PRM.BRACE);
+  lm_bk(mtype==PRM.BRACE) = lmem.buckling(mtype==PRM.BRACE);
   if options.column_member_length_type == 1
     % コンクリートとの重複を除く（RC梁D/2控除）
     lm_bk(mtype==PRM.COLUMN) = calc_column_buckling_segment_length( ...
