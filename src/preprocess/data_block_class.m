@@ -6,6 +6,7 @@ classdef data_block_class < handle
     cdata(:,:) cell
     bcdata(:,1) double
     casedata(:,1) cell
+    origrows(:,1) double
     checkLabel(1,1) logical = true
     modeSS7(1,1) logical = false
   end
@@ -14,39 +15,39 @@ classdef data_block_class < handle
     function obj = data_block_class
     end
     function readCsvFile(obj, input, labels)
+      % readlines ベースでスキップ対象行（空行・コメント行・全カンマ行）を判定
+      % readcell は空行・コメント行を詰めて行番号が失われるので、元 CSV
+      % 行番号を保持するためにこの段階で判定する
+      lines = readlines(input);
+      stripped = strtrim(lines);
+      has_quote = startsWith(stripped, '"');
+      stripped(has_quote) = extractAfter(stripped(has_quote), 1);
+      no_comma = strtrim(replace(stripped, ',', ''));
+      is_skip = (strlength(no_comma) == 0) | startsWith(no_comma, '%');
+      obj.origrows = find(~is_skip);
+
       % 値配列とCell配列の作成
       opts = detectImportOptions(input);
       opts.Delimiter = {','};
       opts.DataLines = [1,inf];
       opts.CommentStyle = '%';
       obj.cdata = readcell(input, opts);
-      [nc,mc] = size(obj.cdata);
-      iscommentline = false(1,nc);
-      for i=1:nc
-        iscommentline(i) = true;
-        for j=1:mc
-          cdata_ = obj.cdata{i,j};
-          if ~ismissing(cdata_)
-            if ~isnumeric(cdata_) && ~ischar(cdata_)
-              cdata_ = sprintf('%s',cdata_);
-            end
-            if ischar(cdata_) && ~isempty(cdata_) && cdata_(1)=='%'
-              if j==1
-                iscommentline(i) = true;
-                break
-              else
-                % for jj=j:mc
-                %   obj.cdata{i,jj} = [];
-                % end
-                break
-              end
-            end
-            iscommentline(i) = false;
-          end
-        end
-      end
-      obj.cdata(iscommentline,:) = [];
+
+      % readcell は空行・先頭%行を strip するが、クォート付%行や全カンマ
+      % 行は残るため、readcell 出力を readlines の元行に対応付け、is_skip
+      % で再フィルタして obj.cdata と obj.origrows を一致させる
+      raw = strtrim(lines);
+      is_dropped_by_readcell = (strlength(raw) == 0) | startsWith(raw, '%');
+      map_cdata_to_lines = find(~is_dropped_by_readcell);
+      assert(length(map_cdata_to_lines) == size(obj.cdata,1), ...
+        'readcell 出力行数と readlines の対応が取れません (%d vs %d)', ...
+        length(map_cdata_to_lines), size(obj.cdata,1));
+      obj.cdata(is_skip(map_cdata_to_lines),:) = [];
       obj.labels = labels;
+
+      assert(length(obj.origrows) == size(obj.cdata,1), ...
+        'origrows と cdata の行数が一致しません (%d vs %d)', ...
+        length(obj.origrows), size(obj.cdata,1));
 
       %モデルデータ
       n = size(obj.cdata,1); iddd = 1:n;
@@ -133,6 +134,24 @@ classdef data_block_class < handle
           cdata = obj.cdata(obj.bcdata==bid &...
             strncmp(caselabel, obj.casedata, length(caselabel)),:);
       end
+    end
+    %---
+    function rows = get_data_block_rows(obj, label)
+    %get_data_block_rows - ブロック内の各行が cdata のどの行に対応するか
+      bid = obj.bid(['name=' label]);
+      rows = find(obj.bcdata == bid);
+    end
+    %---
+    function throw_dat_err(obj, label, block_row, cat, id, varargin)
+    %throw_dat_err - ブロック内行位置付きのエラーを発生
+    %
+    %   obj.throw_dat_err(label, block_row, cat, id, varargin) は、
+    %   指定されたブロック内行番号から元 CSV 行番号を解決し、
+    %   ブロック内行と CSV 行の両方をエラーメッセージの先頭引数として
+    %   throw_err に委譲する。
+      data_rows = obj.get_data_block_rows(label);
+      csv_row = obj.origrows(data_rows(block_row));
+      throw_err(cat, id, block_row, csv_row, varargin{:});
     end
     %---
     function ret = bid(obj, label)
