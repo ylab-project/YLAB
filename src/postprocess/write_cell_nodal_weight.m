@@ -46,8 +46,9 @@ sw.f = f_r;
 % 床自重（feqvec PZ成分）の有無でモード切替
 % - 1つでも床自重があれば 2 行/節点モード（14列、概算軸力TL付き）
 % - 全節点で床自重0なら 1 行/節点モード（13列）
-% 閾値 50 N は fmt() の 0.05 kN 表示打切りに対応（これ未満は非表示）
-has_floor = any(abs(feqvec(:, 3)) >= 50);
+% 閾値は fmt() の表示打切りと一致させる（feqvec は N 単位）
+fmt_threshold_kn = 0.05;
+has_floor = any(abs(feqvec(:, 3)) >= fmt_threshold_kn * 1000);
 
 % --- ヘッダ ---
 if has_floor
@@ -137,24 +138,25 @@ end
 nwbody = nwbody(1:irow,:);
 
 return
-end
 
-function s = fmt(v)
-%fmt - 0は空欄、それ以外は小数1桁で書式化
-%
-%   s = fmt(v) は、数値 v が |v| < 0.05 なら空文字、それ以外は
-%   小数1桁の文字列を返す。
-%
-%   入力引数:
-%     v - 数値（kN 単位想定）
-%
-%   出力引数:
-%     s - 書式化文字列
-  if abs(v) < 0.05
-    s = '';
-  else
-    s = sprintf('%.1f', v);
+  function s = fmt(v)
+  %fmt - 0は空欄、それ以外は小数1桁で書式化
+  %
+  %   s = fmt(v) は、数値 v が |v| < fmt_threshold_kn なら空文字、
+  %   それ以外は小数1桁の文字列を返す。しきい値はメイン関数の
+  %   fmt_threshold_kn を参照する（ネスト関数）。
+  %
+  %   入力引数:
+  %     v - 数値（kN 単位想定）
+  %
+  %   出力引数:
+  %     s - 書式化文字列
+    if abs(v) < fmt_threshold_kn
+      s = '';
+    else
+      s = sprintf('%.1f', v);
+    end
+
+    return
   end
-
-  return
 end

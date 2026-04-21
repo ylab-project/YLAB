@@ -53,14 +53,11 @@ xylist = [xlist(:)' ylist(:)'];
 io = 0;
 if m==1
   for i=1:n
-    if is_all_token(frame_name{i})
-      iz = resolve_story(story_name(i,:), m, iddz, zlist, nblz);
-      io=io+1; idir(io)=PRM.Y; idx(io,:)=[1,nblx]; idz(io,:)=iz;
-      idy(io,:) = resolve_coord(coord_name(i,:), iddy, ylist, nbly);
-      iorigin(io) = i;
-      io=io+1; idir(io)=PRM.X; idy(io,:)=[1,nbly]; idz(io,:)=iz;
-      idx(io,:) = resolve_coord(coord_name(i,:), iddx, xlist, nblx);
-      iorigin(io) = i;
+    if is_all_token(frame_name{i,1})
+      [io, idir, idx, idy, idz, iorigin] = expand_all_frame( ...
+        io, idir, idx, idy, idz, iorigin, i, story_name(i,:), ...
+        coord_name(i,:), m, iddx, iddy, iddz, xlist, ylist, zlist, ...
+        nblx, nbly, nblz);
       continue
     end
     io = io+1;
@@ -85,13 +82,10 @@ if m==1
 else
   for i=1:n
     if is_all_token(frame_name{i,1})
-      iz = resolve_story(story_name(i,:), m, iddz, zlist, nblz);
-      io=io+1; idir(io)=PRM.Y; idx(io,:)=[1,nblx]; idz(io,:)=iz;
-      idy(io,:) = resolve_coord(coord_name(i,:), iddy, ylist, nbly);
-      iorigin(io) = i;
-      io=io+1; idir(io)=PRM.X; idy(io,:)=[1,nbly]; idz(io,:)=iz;
-      idx(io,:) = resolve_coord(coord_name(i,:), iddx, xlist, nblx);
-      iorigin(io) = i;
+      [io, idir, idx, idy, idz, iorigin] = expand_all_frame( ...
+        io, idir, idx, idy, idz, iorigin, i, story_name(i,:), ...
+        coord_name(i,:), m, iddx, iddy, iddz, xlist, ylist, zlist, ...
+        nblx, nbly, nblz);
       continue
     end
     io = io+1;
@@ -180,5 +174,44 @@ if is_all_token(crow{1})
 else
   ic = [iddc(matches(clist, crow{1})), iddc(matches(clist, crow{2}))];
 end
+return
+end
+
+
+function [io, idir, idx, idy, idz, iorigin] = expand_all_frame( ...
+  io, idir, idx, idy, idz, iorigin, i, story_row, coord_row, m, ...
+  iddx, iddy, iddz, xlist, ylist, zlist, nblx, nbly, nblz)
+%expand_all_frame - フレーム「全/ALL」指定をX/Y方向2行に展開
+%
+%   [io, idir, idx, idy, idz, iorigin] = expand_all_frame(...) は、
+%   フレーム「全」指定の 1 入力行を出力バッファに 2 行展開する
+%   （1行目: Y方向全域、2行目: X方向全域）。io は出力バッファの
+%   現在位置で、展開後に 2 増やして返す。
+%
+%   入力引数:
+%     io        - 出力バッファ現在位置（更新前）
+%     idir/idx/idy/idz/iorigin - 出力バッファ（更新前）
+%     i         - 元入力行の添字
+%     story_row - 層名 1 行 [1×m] cell
+%     coord_row - 軸名 1 行 [1×2] cell
+%     m, iddx/iddy/iddz, xlist/ylist/zlist, nblx/nbly/nblz
+%               - find_idxyz_girder の内部変数（解決用）
+%
+%   出力引数:
+%     io/idir/idx/idy/idz/iorigin - 2 行追加後のバッファ
+iz = resolve_story(story_row, m, iddz, zlist, nblz);
+io = io + 1;
+idir(io) = PRM.Y;
+idx(io,:) = [1, nblx];
+idz(io,:) = iz;
+idy(io,:) = resolve_coord(coord_row, iddy, ylist, nbly);
+iorigin(io) = i;
+io = io + 1;
+idir(io) = PRM.X;
+idy(io,:) = [1, nbly];
+idz(io,:) = iz;
+idx(io,:) = resolve_coord(coord_row, iddx, xlist, nblx);
+iorigin(io) = i;
+
 return
 end
