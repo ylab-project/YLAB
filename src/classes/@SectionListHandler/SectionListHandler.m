@@ -224,6 +224,17 @@ classdef SectionListHandler < handle
       return
     end
     %----------------------------------------------------------------------
+    function n = getMaxIdPhase(obj)
+    %getMaxIdPhase - 全断面リストの idphase 最大値を返す
+      n = 0;
+      for i = 1:obj.nlist
+        if ~isempty(obj.idphase{i})
+          n = max(n, max(obj.idphase{i}));
+        end
+      end
+      return
+    end
+    %----------------------------------------------------------------------
     function dimension = getDimension(obj, idList, idPhase)
       dimension = [];
       id = idList;

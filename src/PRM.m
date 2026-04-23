@@ -235,7 +235,7 @@ classdef PRM
     RIGID_SCALE = 1.d6        % 剛性倍率
 
     %% 最大フェーズ数
-    MAX_NUM_PHASE = 10        % 最大フェーズ数
+    MAX_NUM_PHASE = 100       % 最大フェーズ数
     
     %% UIモード
     UIMODE_CUI = 1;           % コマンドラインモード

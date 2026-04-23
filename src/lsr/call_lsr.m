@@ -7,7 +7,8 @@ baseline = com.baseline;
 node = com.node;
 story = com.story;
 floor = com.floor;
-max_idphase = min(options.maxphase,2);
+max_idphase = min(options.maxphase, ...
+  com.sectionList.getMaxIdPhase() + 1);
 
 % 上下限値
 lb = secmgr.lb;

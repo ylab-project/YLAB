@@ -782,6 +782,12 @@ for i=1:n
   else
     idphase_(i) = val;
   end
+  nphase_required = idphase_(i) + 1;
+  if nphase_required > PRM.MAX_NUM_PHASE
+    dbc.throw_dat_err('断面リスト', i, ...
+      'Input', 'ExceedMaxPhase', ...
+      nphase_required, PRM.MAX_NUM_PHASE);
+  end
   val = data{i,8};
   if ismissing(val)
     type_name_{i} = [];
