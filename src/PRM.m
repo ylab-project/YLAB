@@ -268,6 +268,13 @@ classdef PRM
     % システムエラー
     EXITFLAG_LICENSE_ERROR = -500;     % ライセンス認証エラー
     EXITFLAG_INTERNAL_ERROR = -999;    % 予期しないエラー
+
+    %% CSV 行末マーカー
+    % ROW_END_MARKER: CSV 行末に出力する SS7 規約の論理行終端文字列
+    % CONT_MARKER: body 最終列に置くと継続行扱いとなり ROW_END_MARKER を
+    %   付与しない。marker 空は既定終端として ROW_END_MARKER を付与。
+    ROW_END_MARKER = '<RE>';
+    CONT_MARKER    = '<CONT>';
   end
   methods(Static)
     %% nvar_of_section_type

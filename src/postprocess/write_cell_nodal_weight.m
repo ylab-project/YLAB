@@ -18,8 +18,9 @@ function [nwhead, nwbody] = write_cell_nodal_weight(com, result)
 %
 %   備考:
 %     - 基礎重量は支点節点の節点外力（-fnode-faddnode）として計上。
-%     - 概算軸力列は空出力。概算軸力TL は同 (X,Y) グリッドの
-%       最上階からの累積合計（2 行モードのみ）として計算。
+%     - 概算軸力列（13列目）は常に空出力。
+%     - 概算軸力TL（14列目、2 行モードのみ）は同 (X,Y) グリッドの
+%       最上階からの合計値の累積として計算。
 
 % 定数
 nn = com.nnode;
@@ -56,14 +57,14 @@ if has_floor
     '特殊荷重', '柱自重', '補正', 'ﾌﾚｰﾑ外', '基礎重量', '合計', ...
     '概算軸力', '概算軸力TL'; '', '', '', 'kN', 'kN', 'kN', 'kN', ...
     'kN', 'kN', 'kN', 'kN', 'kN', 'kN', 'kN'};
-  ncol = 15;  % 14データ列 + <RE>列
+  ncol = 15;  % 14データ列 + marker列
   nwbody = cell(nn*2, ncol);
 else
   nwhead = {'X軸', 'Y軸', '層', '床自重', '梁自重', '壁自重', ...
     '特殊荷重', '柱自重', '補正', 'ﾌﾚｰﾑ外', '基礎重量', '合計', ...
     '概算軸力'; '', '', '', 'kN', 'kN', 'kN', 'kN', 'kN', 'kN', ...
     'kN', 'kN', 'kN', 'kN'};
-  ncol = 14;  % 13データ列 + <RE>列
+  ncol = 14;  % 13データ列 + marker列
   nwbody = cell(nn, ncol);
 end
 
@@ -101,15 +102,14 @@ for iy = 1:nbly
       end
       axial_sum_tl = axial_sum_tl + total_;
       if has_floor
-        % 2 行/節点モード
-        % 1 行目: 節点名 + 床自重
+        % 2 行/節点モード: 1 行目は継続行（末尾に CONT_MARKER）
         irow = irow + 1;
         nwbody{irow,1} = node.xname{in};
         nwbody{irow,2} = node.yname{in};
         nwbody{irow,3} = node.zname{in};
         nwbody{irow,4} = fmt(floor_);
-        % 2 行目: 梁/壁/柱/基礎/ﾌﾚｰﾑ外 + 合計 + 概算軸力TL + <RE>
-        % 概算軸力列(13)は空出力
+        nwbody{irow,ncol} = PRM.CONT_MARKER;
+        % 2 行目: 概算軸力列(13)は空出力、marker 空で行末に <RE> 付与
         irow = irow + 1;
         nwbody{irow,5} = fmt(fg_);
         nwbody{irow,6} = fmt(fw_);
@@ -117,7 +117,6 @@ for iy = 1:nbly
         nwbody{irow,11} = fmt(foundation_);
         nwbody{irow,12} = fmt(total_);
         nwbody{irow,14} = fmt(axial_sum_tl);
-        nwbody{irow,ncol} = '<RE>';
       else
         % 1 行/節点モード（概算軸力列は空出力）
         irow = irow + 1;
@@ -130,7 +129,6 @@ for iy = 1:nbly
         nwbody{irow,8} = fmt(fc_);
         nwbody{irow,11} = fmt(foundation_);
         nwbody{irow,12} = fmt(total_);
-        nwbody{irow,ncol} = '<RE>';
       end
     end
   end

@@ -1,58 +1,83 @@
 function write_csv_from_cell(fid, head, body, modeSS7)
 %write_csv_from_cell - セル配列をCSV形式でファイルに書き出す
 %
-% 入力:
-%   fid     - ファイル識別子 (fopenで取得)
-%   head    - ヘッダー部のセル配列
-%   body    - データ部のセル配列
-%   modeSS7 - SS7形式フラグ (省略時true、trueの場合<data>タグを挿入)
+%   write_csv_from_cell(fid, head, body, modeSS7) は、head/body の
+%   セル配列を CSV 行として fid に出力する。body 最終列を marker 列と
+%   して扱い、marker が PRM.CONT_MARKER の行は継続行として行末の <RE>
+%   を付けない（それ以外は PRM.ROW_END_MARKER を付与）。body の列数
+%   が head と同じ場合は、marker 列を動的に追加することで、既存 writer
+%   が改修なしで <RE> 自動付与の対象となる。
+%
+%   入力引数:
+%     fid     - ファイル識別子 (fopenで取得)
+%     head    - ヘッダ部のセル配列（marker 列は持たない）
+%     body    - データ部のセル配列（最終列が marker、または head と同列数）
+%     modeSS7 - SS7形式フラグ (省略時true、trueの場合<data>タグを挿入)
 
 if nargin==3
   modeSS7 = true;
 end
 
-write_csv_from_cell_(fid, head)
+write_tab_(fid, head, false)
 if modeSS7
   fprintf(fid, '<data>\n');
 end
-write_csv_from_cell_(fid, body)
+if ~isempty(body) && size(body, 2) == size(head, 2)
+  body(:, end+1) = {''};
+end
+write_tab_(fid, body, true)
 
 return
 end
 
-function write_csv_from_cell_(fid, tab)
-%write_csv_from_cell_ - セル配列をCSV出力する内部関数
+function write_tab_(fid, tab, has_marker)
+%write_tab_ - セル配列をCSV出力（RFC 4180準拠のクォート処理）
 %
-% RFC 4180準拠のエスケープ処理を行う:
-%   - カンマ、ダブルクォート、改行を含む値はダブルクォートで囲む
-%   - 空白を含む値もダブルクォートで囲む
-%   - 値内のダブルクォートは "" にエスケープ
-%   - 入力(SS7→YLAB)・出力(YLAB→SS7)とも本ルールを適用する
+%   write_tab_(fid, tab, has_marker) は、セル配列 tab を CSV 行として
+%   fid に出力する。has_marker=true のとき、tab 最終列を marker として
+%   扱い、marker が PRM.CONT_MARKER の行には行末の <RE> を付与しない。
+%   それ以外の行（marker が空・未定義も含む）は PRM.ROW_END_MARKER を
+%   付与する。
+%   RFC 4180: カンマ/ダブルクォート/改行/空白を含むセルはダブルクォート
+%   で囲み、値内のダブルクォートは "" にエスケープ（入出力で共通適用）。
+%
+%   入力引数:
+%     fid        - ファイル識別子 (fopenで取得)
+%     tab        - 出力対象のセル配列
+%     has_marker - tab 最終列を marker 列として扱うかのフラグ
 
 if isempty(tab)
   return
 end
-[n, ~] = size(tab);
 
-% 全セルを文字列化
 str = cellfun(@cell2str, tab, 'UniformOutput', false);
-
-% RFC 4180クォート処理（一括）
-needs_q = cellfun(@(v) ~isempty(v) ...
-  & contains(v, {',', '"', newline, char(13), ' '}), str);
+needs_q = cellfun(@(v) ~isempty(v) && contains(v, ...
+  {',', '"', newline, char(13), ' '}), str);
 str(needs_q) = cellfun(@(v) ['"' strrep(v, '"', '""') '"'], ...
   str(needs_q), 'UniformOutput', false);
 
-% 空行判定（全セルが空の行はスキップ）
+if has_marker
+  marker_col = str(:, end);
+  str = str(:, 1:end-1);
+else
+  marker_col = [];
+end
 notempty = ~cellfun('isempty', str);
 
-% 行ごとにjoinして一括出力
+n = size(tab, 1);
+cont = PRM.CONT_MARKER;
+re_suffix = [',' PRM.ROW_END_MARKER];
 lines = cell(n, 1);
 for i = 1:n
   if ~any(notempty(i, :))
     lines{i} = '';
+    continue
+  end
+  line = strjoin(str(i, :), ',');
+  if has_marker && ~strcmp(marker_col{i}, cont)
+    lines{i} = [line re_suffix];
   else
-    lines{i} = strjoin(str(i, :), ',');
+    lines{i} = line;
   end
 end
 fprintf(fid, '%s\n', lines{:});
@@ -62,6 +87,16 @@ end
 
 function s = cell2str(v)
 %cell2str - セル値を文字列に変換
+%
+%   s = cell2str(v) は、セル配列の 1 要素 v を文字列に変換する。
+%   空は空文字、数値/論理は '%g' 書式、文字はそのまま、その他は char
+%   で変換する。
+%
+%   入力引数:
+%     v - 変換対象の値（任意型）
+%
+%   出力引数:
+%     s - 変換後の文字列
 if isempty(v)
   s = '';
 elseif isnumeric(v) || islogical(v)
@@ -73,4 +108,3 @@ else
 end
 return
 end
-
