@@ -57,7 +57,8 @@ labels = {'基本事項', '構造計算条件', '最適化条件', '制約条件
   'スパンX方向', 'スパンY方向', '階', '標準階高と梁心の差', ...
   '剛床仮定の解除', '節点', '支点', '部材の寄り', '柱の寄り', ...
   '大梁の寄り', '軸振れ', 'セットバック', '大梁のレベル調整', ...
-  '節点の同一化', '設計変数', '梁せい分布除外', 'S梁断面', 'S柱断面', ...
+  '節点の同一化', '設計変数', '梁せい分布除外', '柱外径差制限の除外', ...
+  'S梁断面', 'S柱断面', ...
   'RC梁断面', 'RC柱断面', 'メーカー製柱脚断面', ...
   '鉛直ブレース断面（鋼材）', '鉛直ブレース断面（メーカー製品）', ...
   '鉛直ブレース断面（引張ブレース）', '水平ブレース断面', ...
@@ -527,6 +528,10 @@ com.exclusion.is_section_column_allowable_stress = istarget;
 %% 梁せい分布除外
 idexclusion = set_exclusion_girder_smooth_block(dbc, com);
 com.exclusion.girder_smooth.idme = idexclusion;
+
+%% 柱外径差制限の除外
+idexclusion = set_exclusion_column_diameter_gap_block(dbc, com);
+com.exclusion.column_diameter_gap.idme = idexclusion;
 
 %% 名目梁（set_girder_force_blockで使用）
 [nominal_girder, idnominal_girder] = countup_nominal_girder(com);
@@ -2440,6 +2445,46 @@ for i=1:n
   isexcluded = isexcluded | istarget;
 end
 idexclusion = 1:nmeg;
+idexclusion = idexclusion(isexcluded);
+
+return
+end
+
+%--------------------------------------------------------------------------
+function idexclusion = set_exclusion_column_diameter_gap_block(dbc, com)
+data = dbc.get_data_block('柱外径差制限の除外');
+n = size(data,1);
+
+% 共通配列
+baseline = com.baseline;
+column_idx = com.member.column.idx;
+column_idy = com.member.column.idy;
+column_idz = com.member.column.idz;
+nmec = com.nmec;
+
+% 階名・通り名（方向列なし）
+story_name = cell(n,2);
+xcoord_name = cell(n,2);
+ycoord_name = cell(n,2);
+for i=1:n
+  story_name(i,:) = tochar(data(i,1:2));
+  xcoord_name(i,:) = tochar(data(i,3:4));
+  ycoord_name(i,:) = tochar(data(i,5:6));
+end
+
+% 通り番号の検索（find_idxyz_column は全/ALL 対応済み）
+[idx, idy, idz] = find_idxyz_column(story_name, xcoord_name, ...
+  ycoord_name, baseline, com.story);
+
+% 除外柱部材の検索
+isexcluded = false(nmec,1);
+for i=1:n
+  istarget = idx(i,1)<=column_idx(:,1) & column_idx(:,2)<=idx(i,2) ...
+    & idy(i,1)<=column_idy(:,1) & column_idy(:,2)<=idy(i,2) ...
+    & idz(i,1)<=column_idz(:,1) & column_idz(:,2)<=idz(i,2);
+  isexcluded = isexcluded | istarget;
+end
+idexclusion = 1:nmec;
 idexclusion = idexclusion(isexcluded);
 
 return

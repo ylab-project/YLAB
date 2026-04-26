@@ -1,77 +1,83 @@
 function gapjoint = countup_column_gapjoint(com)
-% 共通定数
+%countup_column_gapjoint - 柱外径差制限のペアテーブル生成
+%
+%   gapjoint = countup_column_gapjoint(com) は、xy通りごとに柱を階順に
+%   並べ、除外柱・RC柱を除いた残りの柱の隣接ペアを生成して、節点番号・
+%   xy通り番号・変数番号の対応テーブルを返す。除外指定の柱やRC柱を
+%   挟んだS柱同士も跨ぎ比較される。
+%
+%   入力引数:
+%     com - 共通オブジェクト (struct)
+%             member.column, section.column, node, exclusion を参照
+%
+%   出力引数:
+%     gapjoint - 柱外径差ペアテーブル (table)
+%                  idnode (n×1), idxy (n×2), idvar (n×2)
+
+% 柱総数
 nmec = com.nmec;
-nnode = com.nnode;
-nstory = com.nstory;
 
-% 共通配列
+% 柱・節点の参照配列
 idmec2var = com.member.column.idvar;
-idmec2n1 = com.member.column.idnode1;
-idmec2n2 = com.member.column.idnode2;
-idn2s = com.node.idstory;
-idn2xy = [com.node.idx com.node.idy];
-% RC柱判定用
+idmec2x   = com.member.column.idx(:,1);   % 柱は始終端で同じ
+idmec2y   = com.member.column.idy(:,1);
+idmec2z   = com.member.column.idz;        % [下端節点idz, 上端節点idz]
+idmec2n1  = com.member.column.idnode1;
+idn2xy    = [com.node.idx com.node.idy];
 column_type = com.section.column.type(com.member.column.idsecc);
-% mtype = com.member.property.type;
 
-% 接合部数の数え上げ
-% TODO 対象階の指定方法を要見直し
-isset = 2:nstory;
-is_target_joint = false(nnode,1);
-for is=isset
-  is_target_joint(idn2s==is) = true;
-end
-ngapjoint = sum(+is_target_joint);
+% 除外柱のmask生成
+idexclude = com.exclusion.column_diameter_gap.idme;
+is_excluded = false(nmec,1);
+is_excluded(idexclude) = true;
 
-% 計算の準備
-idnode_all = (1:nnode)'; idnode_all = idnode_all(is_target_joint);
+% xy通りごとに柱をグループ化
+[~, ~, ig] = unique([idmec2x idmec2y], 'rows');
+nxy = max(ig);
 
-% 結果格納用（動的に拡張）
-result_idnode = [];
-result_idvar = [];
+% 結果格納用を事前確保（最大ペア数はvalid柱数-1の総和、上限はnmec）
+nmax = nmec;
+result_idnode = zeros(nmax,1);
+result_idvar  = zeros(nmax,2);
+np = 0;
 
-% 同じ接合部にとりつく柱外径の数え上げ
-immm = 1:nmec;
-for i = 1:ngapjoint
-  in = idnode_all(i);
-  idmec1 = immm(idmec2n1==in);  %上階柱部材番号（柱下端が接続→上側の柱）
-  idmec2 = immm(idmec2n2==in);  %下階柱部材番号（柱上端が接続→下側の柱）
+immm = (1:nmec)';
+for ixy = 1:nxy
+  % このxy通りの柱を階順に並べる（下端節点のz順）
+  idcols = immm(ig==ixy);
+  [~, iord] = sort(idmec2z(idcols,1));
+  idcols = idcols(iord);
 
-  % 空チェック（上下どちらかがなければ除外）※複数柱チェックより先
-  if isempty(idmec1) || isempty(idmec2)
-    continue
-  end
+  % 除外柱・RC柱を落としてvalidな柱のみ残す
+  valid = ~is_excluded(idcols) & column_type(idcols) ~= PRM.RCRS;
+  idcols_valid = idcols(valid);
 
-  % 複数柱が接続する場合は全ペアの組み合わせを対象
-  for j1 = 1:length(idmec1)
-    for j2 = 1:length(idmec2)
-      mc1 = idmec1(j1);
-      mc2 = idmec2(j2);
+  % 残った柱の隣接ペアを生成
+  for k = 1:length(idcols_valid)-1
+    mc2 = idcols_valid(k);       % 下階柱
+    mc1 = idcols_valid(k+1);     % 上階柱
 
-      % RC柱が含まれる場合は除外
-      if column_type(mc1) == PRM.RCRS || column_type(mc2) == PRM.RCRS
-        continue
-      end
-
-      % 同じ変数の場合も除外
-      var1 = idmec2var(mc1,1);
-      var2 = idmec2var(mc2,1);
-      if var1 == var2
-        continue
-      end
-
-      % ペアを追加
-      result_idnode = [result_idnode; in]; %#ok<AGROW>
-      result_idvar = [result_idvar; var1 var2]; %#ok<AGROW>
+    % 同じ変数のペアは除外
+    var1 = idmec2var(mc1,1);
+    var2 = idmec2var(mc2,1);
+    if var1 == var2
+      continue
     end
+
+    % ペアを追加（節点はmc2の上端=mc1の下端）
+    np = np + 1;
+    result_idnode(np)   = idmec2n1(mc1);
+    result_idvar(np, :) = [var1 var2];
   end
 end
+result_idnode = result_idnode(1:np);
+result_idvar  = result_idvar(1:np, :);
 
-% 結果が空の場合
+% 結果が空の場合は空テーブルを返す
 if isempty(result_idnode)
   idnode = zeros(0,1);
-  idxy = zeros(0,2);
-  idvar = zeros(0,2);
+  idxy   = zeros(0,2);
+  idvar  = zeros(0,2);
   gapjoint = table(idnode, idxy, idvar);
   return
 end
@@ -79,9 +85,8 @@ end
 % 重複を除去
 [idvar, ia] = unique(result_idvar,'rows');
 idnode = result_idnode(ia);
-idxy = idn2xy(idnode,:);
+idxy   = idn2xy(idnode,:);
 gapjoint = table(idnode, idxy, idvar);
 gapjoint = sortrows(gapjoint,[2 3]);
 return
 end
-
