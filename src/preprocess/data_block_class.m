@@ -13,11 +13,30 @@ classdef data_block_class < handle
   methods
     %---
     function obj = data_block_class
+    %data_block_class - データブロッククラスのコンストラクタ
+    %
+    %   obj = data_block_class() は、空の data_block_class インスタンスを
+    %   生成する。各プロパティはクラス定義の既定値で初期化される。
+    %
+    %   出力引数:
+    %     obj - 生成された data_block_class インスタンス
     end
     function readCsvFile(obj, input, labels)
-      % readlines ベースでスキップ対象行（空行・コメント行・全カンマ行）を判定
-      % readcell は空行・コメント行を詰めて行番号が失われるので、元 CSV
-      % 行番号を保持するためにこの段階で判定する
+    %readCsvFile - CSV を読み込みブロック単位に分類する
+    %
+    %   obj.readCsvFile(input, labels) は、入力 CSV ファイルを読み込み、
+    %   空行・コメント行（先頭 %）をスキップしつつ、name= 行および
+    %   <data> 行を区切りとしてデータブロックに分類する。各行のブロック
+    %   番号は obj.bcdata に、ケースラベルは obj.casedata に格納される。
+    %   元 CSV の行番号は obj.origrows に保持され、エラー報告に用いる。
+    %   また obj.modelname と obj.comment を CSV 内の該当行から抽出する。
+    %
+    %   入力引数:
+    %     input  - 読み込む CSV ファイルパス (char/string)
+    %     labels - 有効なブロックラベル一覧 (cell 配列)
+      % readlines ベースでスキップ対象行（空行・コメント行・全カンマ
+      % 行）を判定。readcell は空行・コメント行を詰めて行番号が失われ
+      % るので、元 CSV 行番号を保持するためにこの段階で判定する
       lines = readlines(input);
       stripped = strtrim(lines);
       has_quote = startsWith(stripped, '"');
@@ -33,11 +52,13 @@ classdef data_block_class < handle
       opts.CommentStyle = '%';
       obj.cdata = readcell(input, opts);
 
-      % readcell は空行・先頭%行を strip するが、クォート付%行や全カンマ
-      % 行は残るため、readcell 出力を readlines の元行に対応付け、is_skip
-      % で再フィルタして obj.cdata と obj.origrows を一致させる
+      % readcell は完全空行・先頭%行をドロップするが、全カンマ行は
+      % <missing> 行として残し、クォート付き%行も残す。readcell 出力を
+      % readlines の元行に対応付け、is_skip で再フィルタして obj.cdata
+      % と obj.origrows を一致させる
       raw = strtrim(lines);
-      is_dropped_by_readcell = (strlength(raw) == 0) | startsWith(raw, '%');
+      is_dropped_by_readcell = (strlength(raw) == 0) ...
+        | startsWith(raw, '%');
       map_cdata_to_lines = find(~is_dropped_by_readcell);
       assert(length(map_cdata_to_lines) == size(obj.cdata,1), ...
         'readcell 出力行数と readlines の対応が取れません (%d vs %d)', ...
@@ -74,7 +95,6 @@ classdef data_block_class < handle
       caselabel = [];
       isdata = true;
       for iline=2:nlines
-        % obj.cdata{iline,1}
         isheader = false;
         if ischar(obj.cdata{iline,1})
           if contains(obj.cdata{iline,1},'name=')
@@ -109,35 +129,59 @@ classdef data_block_class < handle
           obj.casedata{iline} = caselabel;
         end
       end
-      % ' の処理
-      % obj.cdata = cellfun(@replaceQuotes, obj.cdata, 'UniformOutput', false);
-      function out = replaceQuotes(x)
-        if ischar(x) || isstring(x)  % 文字列の場合のみ処理
-          out = strrep(x, '''', '''''');
-        else
-          out = x; % 数値やその他のデータはそのまま
-        end
-      end
     end
     %---
     function num = get_num_data_lines(obj, label)
+    %get_num_data_lines - 指定ラベルのデータ行数を返す
+    %
+    %   num = obj.get_num_data_lines(label) は、ブロックラベル label に
+    %   属するデータ行の総数を返す。
+    %
+    %   入力引数:
+    %     label - ブロックラベル (char/string)
+    %
+    %   出力引数:
+    %     num - 該当ブロックのデータ行数
       bid = obj.bid(['name=' label]);
       num = sum(+(obj.bcdata==bid));
     end
     %---
     function cdata = get_data_block(obj, label, caselabel)
+    %get_data_block - 指定ラベルのデータブロックを取得
+    %
+    %   cdata = obj.get_data_block(label) は、ブロックラベル label に
+    %   属する全データ行を cell 配列として返す。
+    %   cdata = obj.get_data_block(label, caselabel) は、さらに
+    %   caselabel で前方一致するケースに限定して返す。
+    %
+    %   入力引数:
+    %     label     - ブロックラベル (char/string)
+    %     caselabel - ケースラベル前方一致フィルタ (任意)
+    %
+    %   出力引数:
+    %     cdata - 該当行を抽出した cell 配列
       bid = obj.bid(['name=' label]);
       switch nargin
         case 2
           cdata = obj.cdata(obj.bcdata==bid,:);
         case 3
-          cdata = obj.cdata(obj.bcdata==bid &...
-            strncmp(caselabel, obj.casedata, length(caselabel)),:);
+          cdata = obj.cdata(obj.bcdata==bid & strncmp(caselabel, ...
+            obj.casedata, length(caselabel)),:);
       end
     end
     %---
     function rows = get_data_block_rows(obj, label)
     %get_data_block_rows - ブロック内の各行が cdata のどの行に対応するか
+    %
+    %   rows = obj.get_data_block_rows(label) は、ブロックラベル label
+    %   に属するデータ行の cdata 上の行番号を返す。throw_dat_err での
+    %   元 CSV 行番号解決に使用される。
+    %
+    %   入力引数:
+    %     label - ブロックラベル (char/string)
+    %
+    %   出力引数:
+    %     rows - cdata 上の行番号ベクトル
       bid = obj.bid(['name=' label]);
       rows = find(obj.bcdata == bid);
     end
@@ -149,12 +193,30 @@ classdef data_block_class < handle
     %   指定されたブロック内行番号から元 CSV 行番号を解決し、
     %   ブロック内行と CSV 行の両方をエラーメッセージの先頭引数として
     %   throw_err に委譲する。
+    %
+    %   入力引数:
+    %     label     - ブロックラベル (char/string)
+    %     block_row - ブロック内行番号 (1始まり)
+    %     cat       - エラーカテゴリ (throw_err に渡す)
+    %     id        - エラー識別子 (throw_err に渡す)
+    %     varargin  - エラーメッセージ用の追加引数
       data_rows = obj.get_data_block_rows(label);
       csv_row = obj.origrows(data_rows(block_row));
       throw_err(cat, id, block_row, csv_row, varargin{:});
     end
     %---
     function ret = bid(obj, label)
+    %bid - ラベル文字列に対応するブロック番号を返す
+    %
+    %   ret = obj.bid(label) は、obj.labels の i 番目要素が label と
+    %   'name=' プレフィックス付きで一致するとき i を返す。一致がない
+    %   場合は 0 を返す。
+    %
+    %   入力引数:
+    %     label - 'name=<ラベル>' 形式の文字列
+    %
+    %   出力引数:
+    %     ret - 一致した obj.labels の添字、なければ 0
       ret = 0;
       for i=1:length(obj.labels)
         if strcmp(label, ['name=' obj.labels{i}])
