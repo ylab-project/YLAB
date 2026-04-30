@@ -37,8 +37,22 @@ classdef data_block_class < handle
       % readlines ベースでスキップ対象行（空行・コメント行・全カンマ
       % 行）を判定。readcell は空行・コメント行を詰めて行番号が失われ
       % るので、元 CSV 行番号を保持するためにこの段階で判定する
-      lines = readlines(input);
-      stripped = strtrim(lines);
+      stripped = strtrim(readlines(input));
+      % readcell は常にファイル末尾の改行 1 つを trim する一方、
+      % readlines は末尾改行で空行を 1 つ多く生成する。両者の行数を
+      % 整合させるため、末尾空行を常に 1 つ削る (末尾空行が 0 個の
+      % CSV は対象外)
+      if ~isempty(stripped) && strlength(stripped(end)) == 0
+        stripped(end) = [];
+      end
+      % readcell からドロップされる行は CommentStyle='%' の先頭%行のみ
+      % (下記 EmptyLineRule='read' で空行・全カンマ行は保持)。クォート
+      % 付き %行を誤判定しないよう、クォート除去前の stripped で判定
+      is_dropped_by_readcell = startsWith(stripped, '%');
+      % has_quote/extractAfter で先頭クォート除去後に %始まりを is_skip
+      % 判定対象に含めるのは、SS7 連携入力 CSV の装飾セクション区切り
+      % ("% ====== ..." 等のクォート付%行) を装飾コメントとして統一的
+      % にスキップする意図的設計 (参照: コミット b015ebb)
       has_quote = startsWith(stripped, '"');
       stripped(has_quote) = extractAfter(stripped(has_quote), 1);
       no_comma = strtrim(replace(stripped, ',', ''));
@@ -50,15 +64,14 @@ classdef data_block_class < handle
       opts.Delimiter = {','};
       opts.DataLines = [1,inf];
       opts.CommentStyle = '%';
+      % 全 missing 行を保持し、is_skip で後段除去する。default の skip
+      % は CSV 規模・列数推定によって全カンマ行の trim 可否が変わり、
+      % readcell 行数と origrows の対応が不安定になるため明示
+      opts.EmptyLineRule = 'read';
       obj.cdata = readcell(input, opts);
 
-      % readcell は完全空行・先頭%行をドロップするが、全カンマ行は
-      % <missing> 行として残し、クォート付き%行も残す。readcell 出力を
-      % readlines の元行に対応付け、is_skip で再フィルタして obj.cdata
-      % と obj.origrows を一致させる
-      raw = strtrim(lines);
-      is_dropped_by_readcell = (strlength(raw) == 0) ...
-        | startsWith(raw, '%');
+      % readcell 出力を readlines の元行に対応付け、is_skip で再フィルタ
+      % して obj.cdata と obj.origrows を一致させる
       map_cdata_to_lines = find(~is_dropped_by_readcell);
       assert(length(map_cdata_to_lines) == size(obj.cdata,1), ...
         'readcell 出力行数と readlines の対応が取れません (%d vs %d)', ...
