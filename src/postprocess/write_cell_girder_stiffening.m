@@ -1,5 +1,18 @@
 function stgcell = write_cell_girder_stiffening(com, result)
-%writeSectionProperties - Write section properties
+%write_cell_girder_stiffening - 梁横補剛表のセル配列を生成
+%
+%   stgcell = write_cell_girder_stiffening(com, result) は、保有耐力
+%   横補剛の検討結果（Lb, λ, 限界Lb, 必要補剛数 等）を符号別に
+%   集計したセル配列をヘッダ・ボディ構造で返す。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 解析結果構造体 (slratio, conslr 等)
+%
+%   出力引数:
+%     stgcell - 構造体（head, body フィールド）
+%       stgcell.head - ヘッダ部セル配列
+%       stgcell.body - データ部セル配列
 
 % 定数
 ng = com.nmeg;
@@ -12,7 +25,6 @@ girder = com.member.girder;
 secg = com.section.girder;
 slratio = result.slratio;
 gstype = girder.section_type;
-% lm = com.member.property.lm;
 conslr = result.conslr;
 
 % --- ヘッダー ---
@@ -70,20 +82,18 @@ for i = 1:nstory
     end
   end
 end
-% head(:,8:11) = [];
-% body(:,8:11) = [];
 stgcell.head = head;
 stgcell.body = body;
 return
   function print_row
+  %print_row - 1梁分の横補剛検討値を body の現在行に書き出す
     body{irow,1} = girder.story_name{ig};
     body{irow,2} = girder.frame_name{ig};
     body{irow,3} = girder.coord_name{ig,1};
     body{irow,4} = girder.coord_name{ig,2};
     isg = girder.idsecg(ig);
-    body{irow,5} = [secg.subindex{isg} secg.name{isg}];
+    body{irow,5} = make_section_symbol(secg, isg);
     body{irow,6} = sprintf('%.0f', slratio.lg(ig));
-    % body{irow,7} = sprintf('%.1f', slratio.n(ig));
     if slratio.lb(ig,1)~=slratio.lg(ig)
       body{irow,8} = sprintf('%.0f', slratio.lb(ig,1));
     end
@@ -91,11 +101,14 @@ return
       body{irow,11} = sprintf('%.0f', slratio.lb(ig,2));
     end
     body{irow,12} = sprintf('%.0f', slratio.lbmax(ig));
-    % body{irow,12} = slratio.lb(ig);
-    % if (slratio.n(ig)>0)
     body{irow,13} = sprintf('%.0f', slratio.lambda(ig));
     body{irow,14} = sprintf('%.0f', slratio.lbreq1(ig));
-    body{irow,15} = slratio.nreq(ig);
+    % 必要n: 等間隔配置の限界Lbを最大Lbが超える場合は補剛不能を示す *
+    nreq_str = sprintf('%d', slratio.nreq(ig));
+    if slratio.lbmax(ig) > slratio.lbreq1(ig)
+      nreq_str = [nreq_str '*'];
+    end
+    body{irow,15} = nreq_str;
     body{irow,16} = sprintf('%.0f', slratio.lbmy(ig,1));
     body{irow,17} = sprintf('%.0f', slratio.lbmy(ig,2));
     % 端部 限界Lb: Myを超える範囲にかかる横補剛間隔が限界Lbを超える場合 *

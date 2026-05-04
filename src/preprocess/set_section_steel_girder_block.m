@@ -1,19 +1,32 @@
 function [section_girder, design_variable] = ...
   set_section_steel_girder_block(dbc, com, options)
 %set_section_steel_girder_block - S梁断面ブロックの読み込み
-% idvar <- (Hn,Bn,twn,tfm)
+%
+%   [section_girder, design_variable] = ...
+%     set_section_steel_girder_block(dbc, com, options) は、入力データの
+%   「S梁断面」ブロックを読み込み、S梁の断面情報テーブルと更新後の
+%   設計変数構造体を返す。
+%
+%   入力引数:
+%     dbc     - データブロックコンテナ
+%     com     - 共通オブジェクト (story/baseline/sectionList 等)
+%     options - 実行オプション (coptions.rank_girder 等)
+%
+%   出力引数:
+%     section_girder  - S梁断面テーブル [n×15]
+%       主要列: name, subindex, subindex_raw, story_name, full_name,
+%       id_section_list, type_name, idstory, type, idmaterial, idz,
+%       idznominal, idvar, rank, dimension
+%     design_variable - 更新された設計変数構造体
+%
+%   備考:
+%     - subindex は内部参照用（'-' は層番号に置換）、
+%       subindex_raw は出力用の生値。
+%     - 設計変数 idvar は (Hn,Bn,twn,tfn) 等の順で割り当てる。
 
 data = dbc.get_data_block('S梁断面');
 n = size(data,1);
 design_variable = com.design.variable;
-
-% % 有効行のチェック
-% istarget = true(1,n);
-% for i=1:n
-%   if ismissing(data{i,4})
-%     istarget(i) = false;
-%   end
-% end
 
 % 層名
 story_name = cell(n,1);
@@ -37,14 +50,20 @@ for i=1:n
 end
 
 % 添字
+%   subindex     : 内部参照（full_name 構築）用。'-' は層番号に置換
+%   subindex_raw : 出力用。入力時の生値を保持（'-' のまま）
 subindex = cell(n,1);
+subindex_raw = cell(n,1);
 for i=1:n
-  subindex{i} = data{i,3};
-  if subindex{i}=='-'
-    subindex{i} = num2str(idstory(i));
+  v = data{i,3};
+  if isnumeric(v)
+    v = num2str(v);
   end
-  if isnumeric(subindex{i})
-    subindex{i} = num2str(subindex{i});
+  subindex_raw{i} = v;
+  if strcmp(v, '-')
+    subindex{i} = num2str(idstory(i));
+  else
+    subindex{i} = v;
   end
 end
 
@@ -58,7 +77,6 @@ type_name = cell(n,1);
 for i=1:n
   section_list_name{i} = tochar(data{i,4});
   full_name{i} = [subindex{i} name{i}];
-  % fprintf('%d:%s\n',i,section_list_name{i})
   issl = strcmp(com.sectionList.name, section_list_name{i});
   if any(issl)
     idsl = iddd(issl);
@@ -111,15 +129,14 @@ dimension = zeros(n,mvar);
 rank = options.coptions.rank_girder*ones(n,1);
 for i = 1:n
   if size(data, 2) >= 9 && ~all(ismissing(data{i, 9}))
-    idx = find(strcmp(PRM.MEMBER_RANK_NAME, ...
-      tochar(data{i, 9})), 1);
+    idx = find(strcmp(PRM.MEMBER_RANK_NAME, tochar(data{i, 9})), 1);
     if ~isempty(idx), rank(i) = idx; end
   end
 end
 
 % 結果の保存
-section_girder = table(name, subindex, story_name, full_name, ...
-  id_section_list, type_name, idstory, type, idmaterial, ...
+section_girder = table(name, subindex, subindex_raw, story_name, ...
+  full_name, id_section_list, type_name, idstory, type, idmaterial, ...
   idz, idznominal, idvar, rank, dimension);
 
 return

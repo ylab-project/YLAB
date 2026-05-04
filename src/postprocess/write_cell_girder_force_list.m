@@ -1,16 +1,22 @@
 function [head, body] = write_cell_girder_force_list(com, result, icase)
-%WRITE_CELL_GIRDER_FORCE_LIST 梁応力表のセル配列を生成
-% 概要: 指定ケースの梁応力一覧をセル配列形式で出力
-% 構文: [lhead, body] =
-%   write_cell_girder_force_list(com, result, icase)
-% 入力:
-%   com    - 共通データ構造体
-%   result - 解析結果構造体（lm, rs0, Mc0を含む）
-%   icase  - ケース番号（スカラー整数）
-% 出力:
-%   head - {2×ncol} ヘッダセル配列
-%   body - {nrow×ncol} データセル配列
-% See also: write_cell_column_force_list
+%write_cell_girder_force_list - 梁応力表のセル配列を生成
+%
+%   [head, body] = write_cell_girder_force_list(com, result, icase) は、
+%   指定ケースの梁応力一覧（M, Q, N）をセル配列形式で出力する。
+%   通常梁・Kブレース通し梁のいずれにも対応し、Kブレース部分は
+%   分割番号付きで複数行を出力する。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 解析結果構造体 (lm, rs0, Mc0 等)
+%     icase  - 荷重ケース番号
+%
+%   出力引数:
+%     head - ヘッダ部セル配列 [2×ncol]
+%     body - データ部セル配列 [nrow×ncol]
+%
+%   関連関数:
+%     write_cell_column_force_list
 
 %% 定数
 ng = com.nmeg;
@@ -26,12 +32,6 @@ rs0 = result.rs0;
 Mc0 = result.Mc0;
 nominal_girder = com.nominal.girder;
 idnominal = com.member.girder.idnominal;
-% story = com.story;
-% dnode = result.dnode;
-% feqvec = com.feqvec;
-% node = com.node;
-% n2df = com.node.dof;
-% sw = result.sw;
 
 %% ヘッダ定義（層、フレーム、座標、符号、分割、応力値）
 head = { ...
@@ -168,7 +168,7 @@ return
     body{row_idx,3} = axis_from;
     body{row_idx,4} = axis_to;
     isg = girder.idsecg(ig_);
-    body{row_idx,5} = [secg.subindex{isg} secg.name{isg}];
+    body{row_idx,5} = make_section_symbol(secg, isg);
     body{row_idx,6} = seq_;
     % 応力値（部材長、M[kNm]、Q[kN]、N[kN]）
     body{row_idx,7} = sprintf('%.0f', lm(im));

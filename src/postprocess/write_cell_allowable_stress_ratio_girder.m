@@ -1,6 +1,18 @@
 function [head, body] = write_cell_allowable_stress_ratio_girder(com, ...
   result)
 %write_cell_allowable_stress_ratio_girder - S梁検定比一覧セル配列を生成
+%
+%   [head, body] = write_cell_allowable_stress_ratio_girder(com, result)
+%   は、S梁の許容応力度検定比（M, Q, 保有耐力接合）を符号ごとに
+%   集計したセル配列を生成する。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 解析結果構造体 (gri/grj/grc/gsi/gsj, jbsratio 等)
+%
+%   出力引数:
+%     head - ヘッダ部セル配列 [3×15]
+%     body - データ部セル配列 [nrow×15]
 
 % 定数
 nsg = com.nsecg;
@@ -81,7 +93,7 @@ for i = 1:nstory
 
     % 書き出し
     body{irow, 1} = secg.story_name{isg};
-    body{irow, 2} = [secg.subindex{isg} secg.name{isg}];
+    body{irow, 2} = make_section_symbol(secg, isg);
     % M: 仕口左(3)=空, 左端(4), 中央(5), 右端(6), 仕口右(7)=空
     body{irow, 4} = sprintf('%.2f', gri_);
     body{irow, 5} = sprintf('%.2f', grc_);

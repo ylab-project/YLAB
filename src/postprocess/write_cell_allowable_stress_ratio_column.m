@@ -1,6 +1,19 @@
 function [asrchead, asrcbody] = ...
   write_cell_allowable_stress_ratio_column(com, result)
 %write_cell_allowable_stress_ratio_column - S柱検定比一覧
+%
+%   [asrchead, asrcbody] =
+%     write_cell_allowable_stress_ratio_column(com, result) は、
+%   S柱の許容応力度検定比（M, Q）を符号ごとに集計したセル配列を
+%   生成する。柱頭・柱脚に対応する j端・i端の最大値を出力する。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 解析結果構造体 (cri/crj/csi/csj 等)
+%
+%   出力引数:
+%     asrchead - ヘッダ部セル配列 [2×7]
+%     asrcbody - データ部セル配列 [nrow×7]
 
 % 定数
 nsc = com.nsecc;
@@ -71,8 +84,7 @@ for i = 1:nstory
 
     % 書き出し（柱頭=j端, 柱脚=i端）
     asrcbody{irow,1} = secc.floor_name{isc};
-    asrcbody{irow,2} = sprintf('%s', ...
-      [secc.subindex{isc} secc.name{isc}]);
+    asrcbody{irow,2} = make_section_symbol(secc, isc);
     asrcbody{irow,3} = sprintf('%.2f', crj_);
     asrcbody{irow,4} = '';
     asrcbody{irow,5} = sprintf('%.2f', cri_);

@@ -38,20 +38,17 @@ node = com.node;
   column, stype, idsecc2sec, secdim, lm_weight, Am, secmgr);
 
 % 仕口部長さの算出
-[jt, jb] = calc_column_joint_length(column, ...
-  com.member.girder, node, stype, idsecg2sec, secdim);
+[jt, jb] = calc_column_joint_length(column, com.member.girder, ...
+  node, stype, idsecg2sec, secdim);
 
 % 下階柱の有無（仕口部(柱脚)出力判定用）
 has_column_below = ismember(column.idnode1, column.idnode2);
 
 % ヘッダ
 head = cell(2, NCOL);
-head(1, :) = {'階', 'X軸', 'Y軸', ...
-  '符号', '部位', '', '種類', ...
-  '鉄骨断面', 'A', '材料', ...
-  '単位重量', 'L', 'W'''};
-head(2, 8:NCOL) = { ...
-  'mm', 'cm2', 'ﾌﾗﾝｼﾞ/ｳｪﾌﾞ', 'kg/m', 'm', 't'};
+head(1, :) = {'階', 'X軸', 'Y軸', '符号', '部位', '', '種類', ...
+  '鉄骨断面', 'A', '材料', '単位重量', 'L', 'W'''};
+head(2, 8:NCOL) = {'mm', 'cm2', 'ﾌﾗﾝｼﾞ/ｳｪﾌﾞ', 'kg/m', 'm', 't'};
 
 % ボディ（柱+仕口部で最大3行/柱）
 body = cell(nc * 3, NCOL);
@@ -63,10 +60,8 @@ for i = 1:nfl
   for iy = 1:nbly
     for ix = 1:nblx
       for iz = 1:nblz
-        ic = iccc( ...
-          column.idfloor == ifl ...
-          & column.idx(:,1) == ix ...
-          & column.idy(:,1) == iy ...
+        ic = iccc(column.idfloor == ifl ...
+          & column.idx(:,1) == ix & column.idy(:,1) == iy ...
           & column.idz(:,1) == iz);
         if isempty(ic)
           continue
@@ -103,7 +98,7 @@ for i = 1:nfl
         irow = irow + 1;
         body{irow, 1} = com.floor.name{ifl};
         body(irow, 2:3) = column.coord_name(ic, 1:2);
-        body{irow, 4} = [secc.subindex{idsc} secc.name{idsc}];
+        body{irow, 4} = make_section_symbol(secc, idsc);
         body{irow, 5} = '柱';
         body{irow, 7} = type_name;
         body{irow, 8} = dim_str;

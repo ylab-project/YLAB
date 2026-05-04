@@ -41,8 +41,7 @@ head = cell(2, NCOL);
 head(1, :) = {'層', 'ﾌﾚｰﾑ', '軸-軸', '', ...
   '符号', '部位', '種類', '鉄骨断面', ...
   'A', '材料', '単位重量', 'L', 'W'''};
-head(2, 8:NCOL) = { ...
-  'mm', 'cm2', 'ﾌﾗﾝｼﾞ/ｳｪﾌﾞ', 'kg/m', 'm', 't'};
+head(2, 8:NCOL) = {'mm', 'cm2', 'ﾌﾗﾝｼﾞ/ｳｪﾌﾞ', 'kg/m', 'm', 't'};
 
 % ボディ（nominal_girder単位でループ）
 body = cell(ng, NCOL);
@@ -90,7 +89,7 @@ for i = 1:nstory
       body{irow, 1} = nmg.story_name{ing};
       body{irow, 2} = nmg.frame_name{ing};
       body(irow, 3:4) = nmg.coord_name(ing, :);
-      body{irow, 5} = [secg.subindex{idsg} secg.name{idsg}];
+      body{irow, 5} = make_section_symbol(secg, idsg);
       body{irow, 6} = '－';
       body{irow, 7} = type_name;
       body{irow, 8} = format_steel_cost_dim(stype_, secdim(is, :), sym);
@@ -141,7 +140,7 @@ for i = 1:nstory
         body{irow, 1} = nmg.story_name{ing};
         body{irow, 2} = nmg.frame_name{ing};
         body(irow, 3:4) = nmg.coord_name(ing, :);
-        body{irow, 5} = [secg.subindex{idsg} secg.name{idsg}];
+        body{irow, 5} = make_section_symbol(secg, idsg);
         body{irow, 6} = '－';
         body{irow, 7} = type_name;
         body{irow, 8} = format_steel_cost_dim(stype_, secdim(is, :), sym);

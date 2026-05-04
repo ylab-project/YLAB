@@ -1,10 +1,23 @@
 function [dcflhead, dcflbody] = ...
   write_cell_design_column_force_list(com, result, icase)
-%writeSectionProperties - Write section properties
+%write_cell_design_column_force_list - 柱設計応力表セル配列を生成
+%
+%   [dcflhead, dcflbody] =
+%     write_cell_design_column_force_list(com, result, icase) は、
+%   名目柱ごとの設計応力（軸力N・曲げMx/My・せん断Qx/Qy）一覧を
+%   生成する。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 解析結果構造体 (lm_nominal, dfn 等)
+%     icase  - ケース指定 (1: 長期L のみ、2以上: 地震L±E)
+%
+%   出力引数:
+%     dcflhead - ヘッダ部セル配列 [3×17]
+%     dcflbody - データ部セル配列 [nrow×17]
 
 % 定数
 nc = com.nmec;
-% nsc = com.nsecc;
 nnc = com.num.nominal_column;
 nblx = com.nblx;
 nbly = com.nbly;
@@ -19,7 +32,6 @@ lm_nominal = result.lm_nominal;
 dfn_all = result.dfn;
 
 % ID変換
-idnm2sc = column.idsecc(nominal_column.idmec(:,1));
 idnm2x = column.idx(nominal_column.idmec(:,1),1);
 idnm2y = column.idy(nominal_column.idmec(:,1),1);
 idnm2z = column.idz(nominal_column.idmec(:,1),1);
@@ -77,7 +89,6 @@ for i = 1:nstory
         % --- 箇所ごとの部材番号 ---
         idsub = nominal_column.idsub(inc,:);
         ic1 = idnm2mc(inc,idsub(1)); im1 = idmc2m(ic1);
-        ic2 = idnm2mc(inc,idsub(2)); im2 = idmc2m(ic2);
 
         for ilc=1:nlc
           irow = irow+1;
@@ -86,7 +97,7 @@ for i = 1:nstory
             rows{irow,2} = column.coord_name{ic1,1};
             rows{irow,3} = column.coord_name{ic1,2};
             isc = column.idsecc(ic1);
-            rows{irow,4} = [secc.subindex{isc} secc.name{isc}];
+            rows{irow,4} = make_section_symbol(secc, isc);
             rows{irow,6} = sprintf('%.0f', lm_nominal(im1));
           end
           rows{irow,5} = label{ilc};

@@ -13,10 +13,15 @@ function [section_column, design_variable] = ...
 %     options - 実行オプション (coptions.rank_column 等)
 %
 %   出力引数:
-%     section_column  - S柱断面テーブル [n×13]
+%     section_column  - S柱断面テーブル [n×14]
+%       主要列: name, subindex, subindex_raw, full_name, floor_name,
+%       id_section_list, type_name, idstory, type, idmaterial,
+%       idznominal, idvar, rank, dimension
 %     design_variable - 更新された設計変数構造体
 %
 %   備考:
+%     - subindex は内部参照用、subindex_raw は出力用の生値（S梁との
+%       対称化のため両方を保持）。
 %     - 部材種別（ランク）は列9を正とし、空の場合のみ列7を互換
 %       フォールバックとして参照する（次期バージョンで廃止予定）。
 
@@ -49,12 +54,17 @@ for i=1:n
 end
 
 % 添字
+%   subindex     : 内部参照（full_name 構築）用
+%   subindex_raw : 出力用。S梁との対称化のため生値を保持
 subindex = cell(n,1);
+subindex_raw = cell(n,1);
 for i=1:n
-  subindex{i} = data{i,3};
-  if isnumeric(subindex{i})
-    subindex{i} = num2str(subindex{i});
+  v = data{i,3};
+  if isnumeric(v)
+    v = num2str(v);
   end
+  subindex_raw{i} = v;
+  subindex{i} = v;
 end
 
 % 断面リスト
@@ -144,8 +154,8 @@ for i = 1:n
 end
 
 % 結果の保存
-section_column = table(name, subindex, full_name, floor_name, ...
-  id_section_list, type_name, idstory, type, idmaterial, ...
+section_column = table(name, subindex, subindex_raw, full_name, ...
+  floor_name, id_section_list, type_name, idstory, type, idmaterial, ...
   idznominal, idvar, rank, dimension);
 
 return

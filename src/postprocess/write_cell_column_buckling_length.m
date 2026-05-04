@@ -83,7 +83,7 @@ for i = 1:nstory
         cblbody{irow,2} = column.coord_name{ic1,1};
         cblbody{irow,3} = column.coord_name{ic1,2};
         isc = column.idsecc(ic1);
-        cblbody{irow,4} = [secc.subindex{isc} secc.name{isc}];
+        cblbody{irow,4} = make_section_symbol(secc, isc);
 
         % 部材長（節点間距離、x方向・y方向共通）
         cblbody{irow,5} = sprintf('%.0f', lm_nominal(im1));

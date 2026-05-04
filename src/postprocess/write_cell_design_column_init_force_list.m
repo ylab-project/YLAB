@@ -88,7 +88,7 @@ for i = 1:nstory
             dciflbody{irow,2} = column.coord_name{ic1,1};
             dciflbody{irow,3} = column.coord_name{ic1,2};
             isc = column.idsecc(ic1);
-            dciflbody{irow,4} = [secc.subindex{isc} secc.name{isc}];
+            dciflbody{irow,4} = make_section_symbol(secc, isc);
             dciflbody{irow,6} = sprintf('%.0f', lm_nominal(im1));
           end
           dciflbody{irow,5} = PRM.load_case_name(ilc);

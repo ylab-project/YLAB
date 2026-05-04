@@ -1082,7 +1082,26 @@ end
 
 %--------------------------------------------------------------------------
 function section_girder = set_section_rc_girder_block(dbc, com)
-% idvar <- (Hn,Bn,twn,tfm)
+%set_section_rc_girder_block - RC梁断面ブロックの読み込み
+%
+%   section_girder = set_section_rc_girder_block(dbc, com) は、入力
+%   データの「RC梁断面」ブロックを読み込み、RC梁の断面情報テーブルを
+%   返す。S梁断面と同じテーブル構造を採用する。
+%
+%   入力引数:
+%     dbc - データブロックコンテナ
+%     com - 共通オブジェクト
+%
+%   出力引数:
+%     section_girder - RC梁断面テーブル [n×15]
+%       主要列: name, subindex, subindex_raw, story_name, full_name,
+%       id_section_list, type_name, idstory, type, idmaterial, idz,
+%       idznominal, idvar, dimension, rank
+%
+%   備考:
+%     - RC梁は最適化対象外のため idvar=0。
+%     - subindex_raw は出力用の生値、subindex は内部参照用
+%       （'-' は空文字に置換）。
 
 data = dbc.get_data_block('RC梁断面');
 n = size(data,1);
@@ -1109,13 +1128,20 @@ for i=1:n
 end
 
 % 添字
+%   subindex     : 内部参照（full_name 構築）用。'-' は空文字に置換
+%   subindex_raw : 出力用。入力時の生値を保持（'-' のまま）
 subindex = cell(n,1);
+subindex_raw = cell(n,1);
 for i=1:n
-  subindex{i} = data{i,3};
-  if isnumeric(subindex{i})
-    subindex{i} = num2str(subindex{i});
-  elseif subindex{i} =='-'
-    subindex{i} ='';
+  v = data{i,3};
+  if isnumeric(v)
+    v = num2str(v);
+  end
+  subindex_raw{i} = v;
+  if strcmp(v, '-')
+    subindex{i} = '';
+  else
+    subindex{i} = v;
   end
 end
 
@@ -1155,8 +1181,8 @@ end
 rank = zeros(n,1);
 
 % 結果の保存
-section_girder = table(name, subindex, story_name, full_name, ...
-  id_section_list, type_name, idstory, type, idmaterial, ...
+section_girder = table(name, subindex, subindex_raw, story_name, ...
+  full_name, id_section_list, type_name, idstory, type, idmaterial, ...
   idz, idznominal, idvar, dimension, rank);
 return
 end

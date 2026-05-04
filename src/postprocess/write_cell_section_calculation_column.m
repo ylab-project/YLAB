@@ -119,7 +119,7 @@ for i = 1:nstory
     continue
   end
 
-  % --- 鉄骨ヘッダ行（各階先頭） ---
+  % --- 鉄骨ヘッダ行（各階先頭。次の柱エントリと同一ブロック扱い） ---
   inc0_ = cands_(1);
   isc0_ = idnm2sc(inc0_);
   is0_ = idsecc2sec(isc0_);
@@ -134,10 +134,12 @@ for i = 1:nstory
   F_bot_ = F(im1_0);
   irow = irow + 1;
   sccbody{irow, 1} = '鉄骨      柱頭      Ｆ値    柱脚      Ｆ値';
+  sccbody{irow, ncol} = PRM.CONT_MARKER;
   irow = irow + 1;
   sccbody{irow, 1} = sprintf('[ %-9s]  %.1f  [ %-9s]  %.1f', ...
     mat0_, F_top_, mat0_, F_bot_);
-  irow = irow + 1; % 空行
+  sccbody{irow, ncol} = PRM.CONT_MARKER;
+  irow = irow + 1; % 空行（全フィールド空のため CSV 出力上も空行・スキップ可）
 
   for k_ = 1:length(cands_)
     inc = cands_(k_);
@@ -183,8 +185,7 @@ for i = 1:nstory
 
     % === Row 1: 符号行 + 応力ヘッダ ===
     irow = irow + 1;
-    sccbody{irow, 1} = sprintf('[%s]', ...
-      [secc.subindex{isc_} secc.name{isc_}]);
+    sccbody{irow, 1} = sprintf('[%s]', make_section_symbol(secc, isc_));
     flnm_ = column.floor_name{ic1};
     sccbody{irow, 3} = sprintf('[%s', flnm_);
     sccbody{irow, 5} = column.coord_name{ic1, 1};
@@ -199,6 +200,7 @@ for i = 1:nstory
     sccbody{irow, 17} = 'N';
     sccbody{irow, 18} = 'M';
     sccbody{irow, 19} = 'Q';
+    sccbody{irow, ncol} = PRM.CONT_MARKER;
 
     % === Row 2: 断面行 + <X>柱頭 応力 ===
     irow = irow + 1;
@@ -237,6 +239,7 @@ for i = 1:nstory
     sccbody{irow, 18} = sprintf('%.0f', d11jlx_);
     d9jlx_ = dfn(inm, 9, jlx) * 1e-3;
     sccbody{irow, 19} = sprintf('%.0f', d9jlx_);
+    sccbody{irow, ncol} = PRM.CONT_MARKER;
 
     % === Row 3: 部材長 + 柱脚 応力 ===
     irow = irow + 1;
@@ -257,6 +260,7 @@ for i = 1:nstory
     sccbody{irow, 18} = sprintf('%.0f', d5ilx_);
     d3ilx_ = dfn(inm, 3, ilx) * 1e-3;
     sccbody{irow, 19} = sprintf('%.0f', d3ilx_);
+    sccbody{irow, ncol} = PRM.CONT_MARKER;
 
     % === Row 4: 方向ヘッダ + <Y>柱頭 応力 ===
     irow = irow + 1;
@@ -277,6 +281,7 @@ for i = 1:nstory
     sccbody{irow, 18} = sprintf('%.0f', d12jly_);
     d8jly_ = -dfn(inm, 8, jly) * 1e-3;
     sccbody{irow, 19} = sprintf('%.0f', d8jly_);
+    sccbody{irow, ncol} = PRM.CONT_MARKER;
 
     % === Row 5: Lk/h + Y柱脚 応力 ===
     irow = irow + 1;
@@ -298,6 +303,7 @@ for i = 1:nstory
     sccbody{irow, 18} = sprintf('%.0f', d6ily_);
     d2ily_ = -dfn(inm, 2, ily) * 1e-3;
     sccbody{irow, 19} = sprintf('%.0f', d2ily_);
+    sccbody{irow, ncol} = PRM.CONT_MARKER;
 
     % === Row 6: Lk + 検定ヘッダ ===
     irow = irow + 1;
@@ -306,6 +312,7 @@ for i = 1:nstory
     sccbody{irow, 5} = sprintf('%.0f', lky(im1, 1));
     sccbody(irow, 11:20) = {'Z', 'A', 'Aw', 'fb', 'σc/fc', ...
       'σbx/fb', 'σby/fb', 'TOTAL', 'τ/fs', '組合せ'};
+    sccbody{irow, ncol} = PRM.CONT_MARKER;
 
     % === Row 7: iy + <X>柱頭 検定 ===
     irow = irow + 1;
@@ -330,6 +337,7 @@ for i = 1:nstory
     sccbody{irow, 19} = sprintf('%.2f', tau_xj);
     mxj_ = max(total_xj, tau_xj);
     sccbody{irow, 20} = sprintf('%.2f', mxj_);
+    sccbody{irow, ncol} = PRM.CONT_MARKER;
 
     % === Row 8: λ + 柱脚 検定 ===
     irow = irow + 1;
@@ -354,6 +362,7 @@ for i = 1:nstory
     sccbody{irow, 19} = sprintf('%.2f', tau_xi);
     mxi_ = max(total_xi, tau_xi);
     sccbody{irow, 20} = sprintf('%.2f', mxi_);
+    sccbody{irow, ncol} = PRM.CONT_MARKER;
 
     % === Row 9: fcL + <Y>柱頭 検定 ===
     irow = irow + 1;
@@ -377,8 +386,9 @@ for i = 1:nstory
     sccbody{irow, 19} = sprintf('%.2f', tau_yj);
     myj_ = max(total_yj, tau_yj);
     sccbody{irow, 20} = sprintf('%.2f', myj_);
+    sccbody{irow, ncol} = PRM.CONT_MARKER;
 
-    % === Row 10: fcS + Y柱脚 検定 ===
+    % === Row 10: fcS + Y柱脚 検定 (柱エントリ末尾。<RE> を付与) ===
     irow = irow + 1;
     fcs_ = fcn(inm, 1, 2);
     sccbody{irow, 2} = sprintf('fcS  %.0f', fcs_);

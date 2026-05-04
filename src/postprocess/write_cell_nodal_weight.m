@@ -138,11 +138,11 @@ nwbody = nwbody(1:irow,:);
 return
 
   function s = fmt(v)
-  %fmt - 0は空欄、それ以外は小数1桁で書式化
+  %fmt - 0は空欄、それ以外は小数1桁で切り上げ書式化
   %
   %   s = fmt(v) は、数値 v が |v| < fmt_threshold_kn なら空文字、
-  %   それ以外は小数1桁の文字列を返す。しきい値はメイン関数の
-  %   fmt_threshold_kn を参照する（ネスト関数）。
+  %   それ以外は SS7 互換の切り上げ（絶対値方向）で小数1桁の文字列を
+  %   返す。しきい値はメイン関数の fmt_threshold_kn を参照する。
   %
   %   入力引数:
   %     v - 数値（kN 単位想定）
@@ -152,7 +152,9 @@ return
     if abs(v) < fmt_threshold_kn
       s = '';
     else
-      s = sprintf('%.1f', v);
+      % 絶対値方向の切り上げ（SS7 出力に合わせる）
+      rounded = sign(v) * ceil(abs(v) * 10) / 10;
+      s = sprintf('%.1f', rounded);
     end
 
     return

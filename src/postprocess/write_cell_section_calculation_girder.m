@@ -1,6 +1,20 @@
 function scgbody = write_cell_section_calculation_girder( ...
   com, result, options)
 %write_cell_section_calculation_girder - S梁断面算定表セル配列を生成
+%
+%   scgbody = write_cell_section_calculation_girder(com, result, options)
+%   は、各層の名目梁に対して断面諸量・応力・検定比をまとめた
+%   断面算定表のボディ行を出力用セル配列として返す。
+%   options.section_calc_all_members=false のときは符号ごとに
+%   最大検定比を持つ代表部材のみを出力する。
+%
+%   入力引数:
+%     com     - 共通オブジェクト
+%     result  - 解析結果構造体 (secdim, ration, fbn, fcn 等)
+%     options - 出力オプション構造体
+%
+%   出力引数:
+%     scgbody - 断面算定表のボディ行セル配列 [nrow×15]
 
 % 定数
 nng = com.num.nominal_girder;
@@ -145,6 +159,10 @@ for i = 1:nstory
       % 軸力有無
       has_axial = any(stn(inm, [1 7], 1) ~= 0);
 
+      % 梁エントリの開始行を記録（最終行以外は CONT_MARKER で連結し、
+      % SS7 と同じ単一論理行ブロックとして cmp7 で照合できるようにする）
+      irow_block_start = irow + 1;
+
       % --- 鉄骨ヘッダ行 ---
       is_ = idsecg2sec(isg);
       idsl_ = secdim(is_, 6);
@@ -163,16 +181,18 @@ for i = 1:nstory
       % --- 符号行 ---
       ns_ = max(nstiff_nom(ing) - 1, 0);
       lm_ = lm_nominal(im1);
+      % 内法スパン (柱面間)。dangle は内法基準で計算されているため
+      % たわみδの絶対値も内法スパンを掛けて算出する（SS7仕様）
+      lgn_ = lm_ - lfg(ig1, 1) - lfg(ig2, 2);
       da_ = dangle(ing);
-      delta_ = abs(da_) * lm_;
+      delta_ = abs(da_) * lgn_;
       if da_ ~= 0
         dL_ = min(round(1/abs(da_)), 99999);
       else
         dL_ = 99999;
       end
       irow = irow + 1;
-      scgbody{irow,1} = sprintf('[ %s ]', ...
-        [secg.subindex{isg} secg.name{isg}]);
+      scgbody{irow,1} = sprintf('[ %s ]', make_section_symbol(secg, isg));
       scgbody{irow,2} = sprintf('[%s', girder.story_name{ig1});
       scgbody{irow,3} = girder.frame_name{ig1};
       scgbody{irow,4} = girder.coord_name{ig1, 1};
@@ -222,8 +242,33 @@ for i = 1:nstory
         iy_ = sqrt(Iz_ / A(im1));
         lam_ = lm_ / iy_;
       end
-      scgbody{irow,12} = sprintf('必要補剛数(等) %.0f本', nreq_);
+      % 等間隔配置の限界Lbを最大Lbが超える場合は補剛不能を示す *
+      if has_slr && slratio.lbmax(ig1) > slratio.lbreq1(ig1)
+        scgbody{irow,12} = sprintf('必要補剛数(等) %.0f本*', nreq_);
+      else
+        scgbody{irow,12} = sprintf('必要補剛数(等) %.0f本', nreq_);
+      end
       scgbody{irow,15} = sprintf('λ %d', ceil(lam_));
+
+      % --- 端部行（端部に設ける補剛本数 + 限界Lb） ---
+      if has_slr
+        irow = irow + 1;
+        scgbody{irow,11} = '端部';
+        lbreq2_ = slratio.lbreq2(ig1);
+        if lbreq2_ > 0
+          n_left_ = ceil(2 * slratio.lbmy(ig1, 1) / lbreq2_);
+          n_right_ = ceil(2 * slratio.lbmy(ig1, 2) / lbreq2_);
+        else
+          n_left_ = 0; n_right_ = 0;
+        end
+        scgbody{irow,12} = sprintf( ...
+          '(左) %d本 (右) %d本', n_left_, n_right_);
+        if slratio.lbmax(ig1) > lbreq2_
+          scgbody{irow,15} = sprintf('限界Lb %.0f*', lbreq2_);
+        else
+          scgbody{irow,15} = sprintf('限界Lb %.0f', lbreq2_);
+        end
+      end
 
       % --- Lb値行（補剛数>0のとき） ---
       if ns_ > 0 && has_slr
@@ -301,19 +346,27 @@ for i = 1:nstory
       scgbody{irow, 4} = PRM.load_case_combo_name(clc);
       scgbody{irow, 6} = PRM.load_case_combo_name(jlc);
       scgbody{irow, 9} = 'C';
-      % fb==Ft（C補正が結果に効いていない）とき空白
+      % C 補正係数: fb==Ft（補正が結果に効いていない）または
+      % C==1.0（無補正）のとき空白とする（SS7 互換表示）
       ftdiv_ = [1.5 1 1 1 1];
       fti_ = F(im1) / ftdiv_(ilc);
       ftc_ = F(imc) / ftdiv_(clc);
       ftj_ = F(im2) / ftdiv_(jlc);
-      if abs(fbn(inm, 1, ilc) - fti_) > FB_EQ_TOL
-        scgbody{irow, 10} = sprintf('%.3f', C(ig1, 1, ilc));
+      C_TOL = 1e-3;
+      Ci_ = C(ig1, 1, ilc);
+      Cc_ = C(igc, 3, clc);
+      Cj_ = C(ig2, 2, jlc);
+      if abs(fbn(inm, 1, ilc) - fti_) > FB_EQ_TOL ...
+          && abs(Ci_ - 1) > C_TOL
+        scgbody{irow, 10} = sprintf('%.3f', Ci_);
       end
-      if abs(fbn(inm, 2, clc) - ftc_) > FB_EQ_TOL
-        scgbody{irow, 12} = sprintf('%.3f', C(igc, 3, clc));
+      if abs(fbn(inm, 2, clc) - ftc_) > FB_EQ_TOL ...
+          && abs(Cc_ - 1) > C_TOL
+        scgbody{irow, 12} = sprintf('%.3f', Cc_);
       end
-      if abs(fbn(inm, 3, jlc) - ftj_) > FB_EQ_TOL
-        scgbody{irow, 14} = sprintf('%.3f', C(ig2, 2, jlc));
+      if abs(fbn(inm, 3, jlc) - ftj_) > FB_EQ_TOL ...
+          && abs(Cj_ - 1) > C_TOL
+        scgbody{irow, 14} = sprintf('%.3f', Cj_);
       end
 
       if has_axial
@@ -413,6 +466,10 @@ for i = 1:nstory
         end
       end
 
+      % この梁エントリの最終行以外を CONT_MARKER 連結
+      for r_ = irow_block_start:irow-1
+        scgbody{r_, ncol} = PRM.CONT_MARKER;
+      end
     end
   end
 end
@@ -422,6 +479,12 @@ return
 
   function reps = pick_representative(cands)
   %pick_representative - 符号グループごとに代表1部材を選定
+  %
+  %   入力引数:
+  %     cands - 候補名目梁番号の配列
+  %
+  %   出力引数:
+  %     reps - 各符号で最大検定比を持つ代表名目梁番号の配列
     if isempty(cands)
       reps = cands;
       return

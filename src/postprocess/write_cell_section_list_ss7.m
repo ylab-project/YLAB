@@ -69,7 +69,7 @@ for i = 1:nstory
       irow = irow+1;
       gsbody{irow,1} = secg.story_name{ig};
       gsbody{irow,2} = secg.name{ig};
-      gsbody{irow,3} = secg.subindex{ig};
+      gsbody{irow,3} = secg.subindex_raw{ig};
       gsbody{irow,4} = 0;
       gsbody{irow,5} = 0;
       type_name = secg.type_name{ig};
@@ -133,7 +133,7 @@ for i = 1:nstory
       irow = irow+1;
       csbody{irow,1} = secc.floor_name{ic};
       csbody{irow,2} = secc.name{ic};
-      csbody{irow,3} = secc.subindex{ic};
+      csbody{irow,3} = secc.subindex_raw{ic};
       type_name = secc.type_name{ic};
       csbody{irow,4} = type_name;
       is = secc.idsec(ic);
@@ -194,6 +194,14 @@ end
 return
 %--------------------------------------------------------------------------
   function [grname, idsecg] = find_section_girder(secname)
+  %find_section_girder - 出力制御ラベル順に梁符号と参照行を返す
+  %
+  %   入力引数:
+  %     secname - 梁断面の符号セル配列
+  %
+  %   出力引数:
+  %     grname - 出力ラベル順に並んだ符号
+  %     idsecg - 各符号の secname における先頭行番号
     n_ = length(options.output_girder_list_label);
     idsecg = zeros(n_,1);
     iddd_ = 1:length(secname);
@@ -209,6 +217,14 @@ return
   end
 %--------------------------------------------------------------------------
   function [crname, idsecc] = find_section_column(secname)
+  %find_section_column - 出力制御ラベル順に柱符号と参照行を返す
+  %
+  %   入力引数:
+  %     secname - 柱断面の符号セル配列
+  %
+  %   出力引数:
+  %     crname - 出力ラベル順に並んだ符号
+  %     idsecc - 各符号の secname における先頭行番号
     n_ = length(options.output_column_list_label);
     idsecc = zeros(n_,1);
     iddd_ = 1:length(secname);
@@ -224,6 +240,14 @@ return
   end
 %--------------------------------------------------------------------------
   function [grname, idsec] = sort_section_girder(secname)
+  %sort_section_girder - 梁符号を文字列ソートして返す
+  %
+  %   入力引数:
+  %     secname - 梁断面の符号セル配列
+  %
+  %   出力引数:
+  %     grname - 文字列ソート後の符号
+  %     idsec  - ソート前の labels_ 内インデックス
     labels_ = unique(secname);
     n_ = length(labels_);
 

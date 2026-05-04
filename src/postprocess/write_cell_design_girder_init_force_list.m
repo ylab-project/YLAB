@@ -1,6 +1,18 @@
 function [dgiflhead, dgiflbody] = ...
   write_cell_design_girder_init_force_list(com, result)
 %write_cell_design_girder_init_force_list - 梁設計応力表(組合せ前)生成
+%
+%   [dgiflhead, dgiflbody] =
+%     write_cell_design_girder_init_force_list(com, result) は、
+%   荷重組合せ前の名目梁設計応力（曲げM・せん断Q）一覧を生成する。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 解析結果構造体 (lm_nominal, dfn0, nomgc.Mcn0 等)
+%
+%   出力引数:
+%     dgiflhead - ヘッダ部セル配列 [3×24]
+%     dgiflbody - データ部セル配列 [nrow×24]
 
 % 定数
 nng = com.num.nominal_girder;
@@ -98,7 +110,7 @@ return
         rows{irow, 3} = girder.coord_name{ig1, 1};
         rows{irow, 4} = girder.coord_name{ig2, 2};
         isg = girder.idsecg(ig1);
-        rows{irow, 5} = [secg.subindex{isg} secg.name{isg}];
+        rows{irow, 5} = make_section_symbol(secg, isg);
         rows{irow, 7} = sprintf('%.0f', lm_nominal(im1));
       end
       rows{irow, 6} = PRM.load_case_name(ilc);

@@ -1,50 +1,45 @@
 function [cphead, cpbody] = write_cell_column_property(com, result)
-%writeSectionProperties - Write section properties
+%write_cell_column_property - 柱断面諸量出力のセル配列を生成
+%
+%   [cphead, cpbody] = write_cell_column_property(com, result) は、
+%   柱断面の諸量（E, G, Io, I, As, An, α, β, κ, 部材長, 剛域,
+%   フェイス位置, 結合状態 等）を階・通り・符号ごとに集計した
+%   セル配列を生成する。x/y 方向で2行ずつ出力する。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 解析結果構造体 (msprop, Iy/Iz, lm, lf, lr, cbs 等)
+%
+%   出力引数:
+%     cphead - ヘッダ部セル配列 [3×27]
+%     cpbody - データ部セル配列 [(2*nrow)×27]
 
 % 定数
 nblx = com.nblx;
 nbly = com.nbly;
 nblz = com.nblz;
 nc = com.nmec;
-% ng = com.nmeg;
-nb = com.nmeb;
-% nm = com.nme;
-% nstory = com.nstory;
 nfl = com.nfl;
 idmc2m = com.member.column.idme;
 idm2scb = com.member.property.idseccb;
-% idm2s = com.member.property.idsec;
-% ids2mat = result.ids2mat;
 
 % 共通配列
 column = com.member.column;
-% girder = com.member.girder;
-% brace = com.member.brace;
 secc = com.section.column;
-% secg = com.section.girder;
-% secb = com.section.brace;
-% story = com.story;
 floor = com.floor;
-% matE = com.material.E;
-% matG = com.material.E./(2*(1+com.material.pr));
 msprop = result.msprop;
 Iy = result.Iy;
 Iz = result.Iz;
 cphiI = result.cphiI;
-% gphiI = result.gphiI;
 lm = result.lm;
-% lfg = result.lf.girder;
 lfcx = result.lf.columnx;
 lfcy = result.lf.columny;
-% lrg = result.lr.girder;
 lrcx = result.lr.columnx;
 lrcy = result.lr.columny;
 cbstiff = result.cbs.stiff;
 nominal_column = com.nominal.column;
 
 % 準備計算
-% idm2mat = ids2mat(idm2s);
-% idnm2mc = nominal_column.idmec;
 idmc2nmc = column.idnominal;
 Em = msprop.E;
 Gm = msprop.G;
@@ -76,8 +71,6 @@ for i=1:nfl
     for ix = 1:nblx
       for iz = 1:nblz
         % 柱脚側で判定する（SS7ルール）
-        % ic = iccc(column.idstory==ist & ...
-        %   column.idx(:,1)==ix & column.idy(:,1)==iy & column.idz(:,1)==iz);
         ic = iccc(column.idfloor==ifl & ...
           column.idx(:,1)==ix & column.idy(:,1)==iy & column.idz(:,1)==iz);
         if isempty(ic)
@@ -110,28 +103,16 @@ for i=1:nfl
   end
 end
 
-% % ブレースがある場合
-% if nb==0
-%   return
-% end
-% % cphead = cphead(:,[1:8 9 9 9 10:end]);
-% % % , cpbody
-
 return
 %--------------------------------------------------------------------------
   function write_cpbody
+  %write_cpbody - 1柱分の断面諸量を cpbody の現在行(2行)に書き出す
     irow = irow+1;
-    % floor_name = story.floor_name{ist};
     floor_name = floor.name{ifl};
     cpbody{irow*2-1,1} = floor_name;
     cpbody(irow*2-1,2:3) = column.coord_name(ic,1:2);
     idsc = column.idsecc(ic);
-    sub = secc.subindex{idsc};
-    if strcmp(sub, '-')
-        cpbody{irow*2-1,4} = secc.name{idsc};
-    else
-        cpbody{irow*2-1,4} = [sub secc.name{idsc}];
-    end
+    cpbody{irow*2-1,4} = make_section_symbol(secc, idsc);
     cpbody(irow*2-1:irow*2,5) = {'x'; 'y'};
     cpbody{irow*2-1,6} = Em(idm)*1.d-3;
     cpbody{irow*2-1,7} = sprintf('%.2f', Gm(idm)*1.d-3);
@@ -164,7 +145,6 @@ return
       {sprintf('%.0f', lfcx_(2)); sprintf('%.0f', lfcy_(2))};
     cpbody(irow*2-1:irow*2,25) = ...
       {sprintf('%.0f', lfcx_(1)); sprintf('%.0f', lfcy_(1))};
-    % cpbody(irow*2-1:irow*2,26:27) = {'剛接', '剛接'; '剛接', '剛接'};
     % column.joint(ic,:) 1:X柱脚, 2:X柱頭, 3:Y柱脚, 4:Y柱頭
     for jxy=1:2
       for kbt=1:2
@@ -174,8 +154,6 @@ return
             cpbody{irow*2+jxy-2,28-kbt} = "ピン";
           case PRM.FIX
             cpbody{irow*2+jxy-2,28-kbt} = "剛接";
-            % otherwise
-            %   cpbody{irow*2+jxy-2,25+kbt} = "??";
         end
       end
     end

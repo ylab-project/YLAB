@@ -1,5 +1,18 @@
 function [gphead, gpbody] = write_cell_girder_property(com, result)
-%write_cell_girder_property 梁断面を出力するセル配列を生成
+%write_cell_girder_property - 梁断面諸量出力のセル配列を生成
+%
+%   [gphead, gpbody] = write_cell_girder_property(com, result) は、
+%   梁断面の諸量（E, G, Io, I, As, An, α, β, κ, 部材長, 剛域,
+%   フェイス位置, 結合状態 等）を符号ごとに集計したセル配列を
+%   生成する。Kブレース通し梁は左右ペアを1行にまとめて出力する。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 解析結果構造体 (msprop, Iy, gphiI, gphiN, lm, lr 等)
+%
+%   出力引数:
+%     gphead - ヘッダ部セル配列 [3×19]
+%     gpbody - データ部セル配列 [(2*nrow)×17]
 
 % 定数
 ng = com.nmeg;
@@ -60,6 +73,7 @@ end
 return
 
   function write_gp_entry(ig_left, ig_right)
+  %write_gp_entry - 梁1組（左右ペアまたは単独）を gpbody に出力
     if ig_right <= 0
       ig_right = ig_left;
     end
@@ -68,25 +82,21 @@ return
   end
 
   function write_gp_left(irow_, ig_)
+  %write_gp_left - 梁の左端側情報を gpbody の指定行に書き出す
     idm_ = girder.idme(ig_);
     gpbody{irow_*2-1,1} = girder.story_name{ig_};
     gpbody{irow_*2-1,2} = girder.frame_name{ig_};
     gpbody{irow_*2-1,3} = girder.coord_name{ig_,1};
     gpbody{irow_*2-1,4} = '';
     idsec_ = girder.idsecg(ig_);
-    sub = secg.subindex{idsec_};
-    if strcmp(sub, '-')
-        gpbody{irow_*2-1,5} = secg.name{idsec_};
-    else
-        gpbody{irow_*2-1,5} = [sub secg.name{idsec_}];
-    end
+    gpbody{irow_*2-1,5} = make_section_symbol(secg, idsec_);
     gpbody{irow_*2-1,6} = Em(idm_)*1.d-3;
-    gpbody{irow_*2-1,7} = sprintf('%.0f', msprop.Iy(idm_)*1.d-4);
+    gpbody{irow_*2-1,7} = fmt_adaptive(msprop.Iy(idm_)*1.d-4);
     gpbody{irow_*2-1,8} = sprintf('%.3f', gphiI(ig_));
-    gpbody{irow_*2-1,9} = sprintf('%.0f', Iy(idm_)*1.d-4);
-    gpbody{irow_*2-1,10} = sprintf('%.2f', msprop.Asy(idm_)*1.d-2);
+    gpbody{irow_*2-1,9} = fmt_adaptive(Iy(idm_)*1.d-4);
+    gpbody{irow_*2-1,10} = fmt_adaptive(msprop.Asy(idm_)*1.d-2);
     gpbody{irow_*2-1,11} = 1;
-    gpbody{irow_*2-1,12} = sprintf('%.2f', msprop.Asy(idm_)*1.d-2);
+    gpbody{irow_*2-1,12} = fmt_adaptive(msprop.Asy(idm_)*1.d-2);
     gpbody{irow_*2-1,13} = 1;
     gpbody{irow_*2-1,14} = 1;
     if girder.type(ig_) == PRM.GIRDER_FOR_KBRACE1
@@ -100,26 +110,24 @@ return
   end
 
   function write_gp_right(irow_, ig_)
+  %write_gp_right - 梁の右端側情報を gpbody の指定行に書き出す
     idm_ = girder.idme(ig_);
     gpbody{irow_*2-1,4} = girder.coord_name{ig_,2};
     gpbody{irow_*2,6} = sprintf('%.2f', Gm(idm_)*1.d-3);
-    % gpbody{irow_*2,7} = sprintf('%.0f', msprop.Iy(idm_)*1.d-4);
-    % gpbody{irow_*2,8} = sprintf('%.3f', gphiI(ig_));
-    % gpbody{irow_*2,9} = sprintf('%.0f', Iy(idm_)*1.d-4);
     Ano_ = msprop.A(idm_) * 1.d-2;
-    gpbody{irow_*2,10} = sprintf('%.1f', Ano_);
+    gpbody{irow_*2,10} = fmt_adaptive(Ano_);
     gpbody{irow_*2,11} = sprintf('%.3f', gphiN(ig_));
-    gpbody{irow_*2,12} = sprintf('%.1f', Ano_ * gphiN(ig_));
+    gpbody{irow_*2,12} = fmt_adaptive(Ano_ * gphiN(ig_));
     gpbody{irow_*2,13} = 1;
     kappa_ = get_kappa(secg.type(girder.idsecg(ig_)));
     gpbody{irow_*2,14} = kappa_;
-    % gpbody{irow_*2,15} = sprintf('%.0f', lm(idm_));
     gpbody{irow_*2,16} = sprintf('%.0f', lrg(ig_,2));
     gpbody{irow_*2,17} = sprintf('%.0f', lfg(ig_,2));
     gpbody{irow_*2,19} = joint_label(girder.joint(ig_,2));
   end
 
   function label = joint_label(value)
+  %joint_label - 結合状態コードから表示文字列に変換
     switch value
       case PRM.PIN
         label = "ピン";
@@ -136,6 +144,18 @@ return
       kappa = 1.2;
     else
       kappa = 1;
+    end
+
+    return
+  end
+
+  function s = fmt_adaptive(v)
+  %fmt_adaptive - SS7 互換の適応桁数フォーマット
+  %   |v| >= 1000 のとき整数表示、未満のとき小数2桁
+    if abs(v) >= 1000
+      s = sprintf('%.0f', v);
+    else
+      s = sprintf('%.2f', v);
     end
 
     return

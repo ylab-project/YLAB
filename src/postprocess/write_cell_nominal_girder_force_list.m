@@ -1,6 +1,20 @@
 function [gflhead, gflbody] = ...
   write_cell_nominal_girder_force_list(com, result, icase)
-%WRITE_CELL_NOMINAL_GIRDER_FORCE_LIST 名目梁の梁応力表(一次)を生成
+%write_cell_nominal_girder_force_list - 名目梁の梁応力表(一次)を生成
+%
+%   [gflhead, gflbody] = ...
+%     write_cell_nominal_girder_force_list(com, result, icase) は、
+%   名目梁ごとに分割番号付きで応力（M, Q, N）を集計したセル配列を
+%   生成する。
+%
+%   入力引数:
+%     com    - 共通オブジェクト
+%     result - 解析結果構造体 (rs0, Mc0, lm 等)
+%     icase  - 荷重ケース番号
+%
+%   出力引数:
+%     gflhead - ヘッダ部セル配列 [2×ncol]
+%     gflbody - データ部セル配列 [nrow×ncol]
 
 nominal_girder = com.nominal.girder;
 girder = com.member.girder;
@@ -60,6 +74,7 @@ end
 return
 
   function add_rows(ing)
+  %add_rows - 名目梁 ing の構成部材ごとに rows へ応力行を追加
     idparts = nominal_girder.idmeg(ing,:);
     idparts = idparts(idparts>0);
     if isempty(idparts)
@@ -88,7 +103,7 @@ return
       rows{irow,3} = nominal_girder.coord_name{ing,1};
       rows{irow,4} = nominal_girder.coord_name{ing,2};
       isg = girder.idsecg(ig);
-      rows{irow,5} = [secg.subindex{isg} secg.name{isg}];
+      rows{irow,5} = make_section_symbol(secg, isg);
       rows{irow,6} = kk;
       rows{irow,7} = sprintf('%.0f', lm(im));
       rows{irow,8} = sprintf('%.1f', -rs(im,5)*1.d-6);

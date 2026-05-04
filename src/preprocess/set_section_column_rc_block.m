@@ -1,5 +1,23 @@
 function section_column = set_section_column_rc_block(dbc, com)
 %set_section_column_rc_block - RC柱断面データの読み込み
+%
+%   section_column = set_section_column_rc_block(dbc, com) は、入力
+%   データの「RC柱断面」ブロックを読み込み、RC柱の断面情報テーブルを
+%   返す。S柱断面と同じテーブル構造を採用する。
+%
+%   入力引数:
+%     dbc - データブロックコンテナ
+%     com - 共通オブジェクト (story/baseline/material 等)
+%
+%   出力引数:
+%     section_column - RC柱断面テーブル [n×14]
+%       主要列は set_section_column_block と同じ。subindex_raw は
+%       出力用の生値（'-' のまま）、subindex は内部参照用（'-' は
+%       空文字に置換）。
+%
+%   備考:
+%     - RC柱は最適化対象外のため idvar=0、id_section_list=0 とする。
+%     - 入力ブロックが空の場合は空のテーブルを返す。
 
 data = dbc.get_data_block('RC柱断面');
 if isempty(data)
@@ -36,13 +54,20 @@ for i=1:n
 end
 
 % 添字
+%   subindex     : 内部参照（full_name 構築）用。'-' は空文字に置換
+%   subindex_raw : 出力用。入力時の生値を保持（'-' のまま）
 subindex = cell(n,1);
+subindex_raw = cell(n,1);
 for i=1:n
-  subindex{i} = data{i,3};
-  if isnumeric(subindex{i})
-    subindex{i} = num2str(subindex{i});
-  elseif subindex{i} =='-'
-    subindex{i} ='';
+  v = data{i,3};
+  if isnumeric(v)
+    v = num2str(v);
+  end
+  subindex_raw{i} = v;
+  if strcmp(v, '-')
+    subindex{i} = '';
+  else
+    subindex{i} = v;
   end
 end
 
@@ -83,8 +108,8 @@ end
 rank = PRM.RANK_NONE * ones(n, 1);
 
 % 結果の保存（S柱断面と同じテーブル構造）
-section_column = table(name, subindex, full_name, floor_name, ...
-  id_section_list, type_name, idstory, type, idmaterial, ...
+section_column = table(name, subindex, subindex_raw, full_name, ...
+  floor_name, id_section_list, type_name, idstory, type, idmaterial, ...
   idznominal, idvar, rank, dimension);
 
 return
