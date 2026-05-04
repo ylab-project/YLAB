@@ -54,17 +54,13 @@ for i=1:n
 end
 
 % 添字
-%   subindex     : 内部参照（full_name 構築）用
-%   subindex_raw : 出力用。S梁との対称化のため生値を保持
+%   subindex     : 内部参照（full_name 構築）用。'-' は階番号に置換
+%   subindex_raw : 出力用。入力時の生値を保持（'-' のまま）
 subindex = cell(n,1);
 subindex_raw = cell(n,1);
+idfloor = com.story.idfloor(idstory);
 for i=1:n
-  v = data{i,3};
-  if isnumeric(v)
-    v = num2str(v);
-  end
-  subindex_raw{i} = v;
-  subindex{i} = v;
+  [subindex{i}, subindex_raw{i}] = make_subindex(data{i,3}, idfloor(i));
 end
 
 % 断面リスト

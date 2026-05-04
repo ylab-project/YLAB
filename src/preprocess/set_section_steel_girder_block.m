@@ -55,16 +55,7 @@ end
 subindex = cell(n,1);
 subindex_raw = cell(n,1);
 for i=1:n
-  v = data{i,3};
-  if isnumeric(v)
-    v = num2str(v);
-  end
-  subindex_raw{i} = v;
-  if strcmp(v, '-')
-    subindex{i} = num2str(idstory(i));
-  else
-    subindex{i} = v;
-  end
+  [subindex{i}, subindex_raw{i}] = make_subindex(data{i,3}, idstory(i));
 end
 
 % 断面リスト

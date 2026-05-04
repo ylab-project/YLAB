@@ -1101,7 +1101,7 @@ function section_girder = set_section_rc_girder_block(dbc, com)
 %   備考:
 %     - RC梁は最適化対象外のため idvar=0。
 %     - subindex_raw は出力用の生値、subindex は内部参照用
-%       （'-' は空文字に置換）。
+%       （'-' は層番号に置換）。
 
 data = dbc.get_data_block('RC梁断面');
 n = size(data,1);
@@ -1128,21 +1128,12 @@ for i=1:n
 end
 
 % 添字
-%   subindex     : 内部参照（full_name 構築）用。'-' は空文字に置換
+%   subindex     : 内部参照（full_name 構築）用。'-' は層番号に置換
 %   subindex_raw : 出力用。入力時の生値を保持（'-' のまま）
 subindex = cell(n,1);
 subindex_raw = cell(n,1);
 for i=1:n
-  v = data{i,3};
-  if isnumeric(v)
-    v = num2str(v);
-  end
-  subindex_raw{i} = v;
-  if strcmp(v, '-')
-    subindex{i} = '';
-  else
-    subindex{i} = v;
-  end
+  [subindex{i}, subindex_raw{i}] = make_subindex(data{i,3}, idstory(i));
 end
 
 % 断面リスト
@@ -1637,14 +1628,12 @@ for i=1:n
   name{i} = tochar(data{i,2});
 end
 
-% 添字
+% 添字（'-' は階番号に置換、set_section_column_block と整合）
 subindex = cell(n,1);
 full_name = cell(n,1);
+idfloor = com.story.idfloor(idstory);
 for i=1:n
-  subindex{i} = data{i,3};
-  if isnumeric(subindex{i})
-    subindex{i} = num2str(subindex{i});
-  end
+  subindex{i} = make_subindex(data{i,3}, idfloor(i));
   full_name{i} = [subindex{i} name{i}];
 end
 

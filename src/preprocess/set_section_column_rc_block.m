@@ -13,7 +13,7 @@ function section_column = set_section_column_rc_block(dbc, com)
 %     section_column - RC柱断面テーブル [n×14]
 %       主要列は set_section_column_block と同じ。subindex_raw は
 %       出力用の生値（'-' のまま）、subindex は内部参照用（'-' は
-%       空文字に置換）。
+%       階番号に置換）。
 %
 %   備考:
 %     - RC柱は最適化対象外のため idvar=0、id_section_list=0 とする。
@@ -54,21 +54,13 @@ for i=1:n
 end
 
 % 添字
-%   subindex     : 内部参照（full_name 構築）用。'-' は空文字に置換
+%   subindex     : 内部参照（full_name 構築）用。'-' は階番号に置換
 %   subindex_raw : 出力用。入力時の生値を保持（'-' のまま）
 subindex = cell(n,1);
 subindex_raw = cell(n,1);
+idfloor = com.story.idfloor(idstory);
 for i=1:n
-  v = data{i,3};
-  if isnumeric(v)
-    v = num2str(v);
-  end
-  subindex_raw{i} = v;
-  if strcmp(v, '-')
-    subindex{i} = '';
-  else
-    subindex{i} = v;
-  end
+  [subindex{i}, subindex_raw{i}] = make_subindex(data{i,3}, idfloor(i));
 end
 
 % 断面リスト
