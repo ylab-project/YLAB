@@ -122,8 +122,8 @@ Fg = Fm(idmwfs2m);                           % 基準強度
 % 梁たわみ計算用のモーメント
 M0sw = M0+sw.M0;                             % 付加曲げ＋自重モーメント
 
-% H形鋼の断面寸法（H×B×tw×tf）
-msdim = secdim(idm2s,1:4);
+% H形鋼の断面寸法（H×B×tw×tf×r）
+msdim = secdim(idm2s,1:5);
 msdimwfs = msdim(idme2stype==PRM.WFS,:);
 
 % 階高データ
