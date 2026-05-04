@@ -13,7 +13,7 @@ function [dgflhead, dgflbody] = ...
 %
 %   出力引数:
 %     dgflhead - ヘッダ部セル配列 [3×27]
-%     dgflbody - データ部セル配列 [nrow×27]
+%     dgflbody - データ部セル配列 [nrow×28]（最終列は CONT_MARKER）
 
 % 定数
 nng = com.num.nominal_girder;
@@ -82,7 +82,8 @@ dfn = dfn_all(:, :, ilcset);
 Mcn = Mcn_all(:, ilcset);
 
 % --- 表書き出し ---
-rows = cell(nng * nlc, ncol);
+% rows は head=27 列 + marker 列で 28 列
+rows = cell(nng * nlc, ncol + 1);
 iggg = 1:nng;
 irow = 0;
 for i = 1:nstory
@@ -108,6 +109,18 @@ end
 
 return
   function print_body
+  %print_body - 1 名目梁分の応力行を rows に書き出す（外側 irow を更新）
+  %
+  %   print_body は、外側スコープの (ist, ix, iy, idir) に対応する
+  %   名目梁を検索し、各荷重ケース (1..nlc) について 1 物理行ずつ
+  %   rows に書き込む。最終ケース以外には CONT_MARKER を付与する。
+  %
+  %   入力引数:
+  %     なし（外側スコープの ist, ix, iy, idir, nlc, label,
+  %     dfn, Mcn, idnmg2*, idmg2m, girder, secg, lm_nominal を参照）
+  %
+  %   出力引数:
+  %     なし（外側の rows と irow を更新）
     ing = iggg(idnmg2story == ist & idnmg2x(:, 1) == ix ...
       & idnmg2y(:, 1) == iy & idnmg2dir(:) == idir);
     if isempty(ing)
@@ -149,6 +162,10 @@ return
       Nj_ = -dfn(inm, 7, ilc) * 1e-3;
       rows{irow, 24} = sprintf('%.1f', Ni_);
       rows{irow, 26} = sprintf('%.1f', Nj_);
+      % 1 名目梁 = nlc 物理行/論理ブロック。最終ケース以外は CONT_MARKER
+      if ilc < nlc
+        rows{irow, end} = PRM.CONT_MARKER;
+      end
     end
   end
 end

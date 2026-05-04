@@ -14,8 +14,8 @@ function [head, body] = write_cell_steel_cost_summary( ...
 %     secdim  - 断面寸法配列 [nsec×ncol]
 %
 %   出力引数:
-%     head - ヘッダ部セル配列
-%     body - データ部セル配列
+%     head - ヘッダ部セル配列 [1×13]
+%     body - データ部セル配列 [nrow×14]（最終列は CONT_MARKER）
 
 NFIX = 5;
 
@@ -111,6 +111,14 @@ end
 blk4 = build_brb_length_block(cost, secdim, stype, secmgr, NFIX, NCOL);
 
 body = [blk1; blk2; blk3; blk4];
+nbody = size(body, 1);
+if nbody == 0
+  return
+end
+% blk1〜blk4 を 1 論理ブロックとして扱う（SS7 互換、BRB あり/なし共通）。
+% 最終行のみ marker 空のままで <RE> を付与し、それ以外は CONT_MARKER。
+body(:, NCOL+1) = {PRM.CONT_MARKER};
+body{nbody, NCOL+1} = '';
 
 return
 end
@@ -118,15 +126,20 @@ end
 function wt = accum_grp(wt, grp, secdim, part, mask, ip)
 %accum_grp - 部位別重量を(idslist,idsection,idmat)行に加算
 %
-%   wt = accum_grp(wt, grp, secdim, part, mask, ip)
+%   wt = accum_grp(wt, grp, secdim, part, mask, ip) は、部位
+%   構造体 part の有効要素 (mask=true) について断面・材料グループを
+%   特定し、対応する wt(:,ip) に重量を加算した wt を返す。
 %
 %   入力引数:
 %     wt     - 重量テーブル [nrows×npart]
-%     grp    - グループキー [nrows×3]
+%     grp    - グループキー [nrows×3] (idslist, idsection, idmat)
 %     secdim - 断面寸法配列
 %     part   - 部位構造体 (.idsec, .idmat, .weight)
 %     mask   - 有効要素の論理マスク
 %     ip     - 部位インデックス
+%
+%   出力引数:
+%     wt - 加算後の重量テーブル [nrows×npart]
   is = part.idsec(mask);
   im = part.idmat(mask);
   w = part.weight(mask);
@@ -149,10 +162,21 @@ function [wt, grp, rep_is] = sort_by_type(wt, grp, rep_is, nrows, secmgr)
 %sort_by_type - 種類名順でソート
 %
 %   [wt, grp, rep_is] = sort_by_type(
-%     wt, grp, rep_is, nrows, secmgr)
+%     wt, grp, rep_is, nrows, secmgr) は、種類名（sl.type）の
+%   優先度順で wt/grp/rep_is を並べ替える。SS7の部位別集計表と
+%   同じ並び順にする。
 %
-%   SS7の部位別集計表と同じ並び順にする。
-%   種類名（sl.type）の優先度順でソートする。
+%   入力引数:
+%     wt     - 重量テーブル [nrows×npart]
+%     grp    - グループキー [nrows×3]
+%     rep_is - 各グループの代表セクションID [nrows×1]
+%     nrows  - グループ数
+%     secmgr - 断面マネージャ
+%
+%   出力引数:
+%     wt     - ソート後の重量テーブル
+%     grp    - ソート後のグループキー
+%     rep_is - ソート後の代表セクションID
   order = zeros(nrows, 1);
   map = containers.Map({'細幅', '中幅', '広幅', 'BCR', ...
     'STKR', 'BCP', '山形鋼', '溝形鋼', '平鋼', 'ﾀｰﾝﾊﾞｯｸﾙ'}, ...
@@ -183,7 +207,24 @@ function blk = build_steel_weight_block(grp, rep_is, ...
 %
 %   blk = build_steel_weight_block(
 %     grp, rep_is, wt, nrows, npart,
-%     NFIX, NCOL, stype, secdim, secmgr, material)
+%     NFIX, NCOL, stype, secdim, secmgr, material) は、
+%   グループごとの鉄骨重量行と小計行を含むブロックを構築する。
+%
+%   入力引数:
+%     grp      - グループキー [nrows×3]
+%     rep_is   - 各グループの代表セクションID [nrows×1]
+%     wt       - 部位別重量テーブル [nrows×npart]
+%     nrows    - グループ数
+%     npart    - 部位数（合計列を含む）
+%     NFIX     - 固定列数（部位列の前にある列の数）
+%     NCOL     - 全列数
+%     stype    - 断面種別配列
+%     secdim   - 断面寸法配列
+%     secmgr   - 断面マネージャ
+%     material - 材料情報構造体
+%
+%   出力引数:
+%     blk - ブロック1のセル配列 [(nrows+1)×NCOL]
   blk = cell(nrows + 1, NCOL);
   for r = 1:nrows
     is = rep_is(r);
@@ -230,7 +271,24 @@ function [blk, sub2] = build_extra_weight_block(grp, ...
 %
 %   [blk, sub2] = build_extra_weight_block(
 %     grp, wt, nrows, npart, IPTOT,
-%     NFIX, NCOL, pfac, material)
+%     NFIX, NCOL, pfac, material) は、材料別に集計した割増重量
+%   （pfac-1 の倍率）を含むブロックを構築する。割増がゼロの行は
+%   除去する。
+%
+%   入力引数:
+%     grp      - グループキー [nrows×3]
+%     wt       - 部位別重量テーブル [nrows×npart]
+%     nrows    - グループ数
+%     npart    - 部位数（合計列を含む）
+%     IPTOT    - 合計列のインデックス
+%     NFIX     - 固定列数
+%     NCOL     - 全列数
+%     pfac     - 部位別割増率 [1×(npart-1)]
+%     material - 材料情報構造体
+%
+%   出力引数:
+%     blk  - ブロック2のセル配列（ゼロのときは [0×NCOL]）
+%     sub2 - 部位別の割増小計 [1×npart]
 
   % 材料別の重量を集計
   umat = unique(grp(:, 3));
@@ -289,7 +347,18 @@ function blk = build_total_block(sub1, sub2, npart, NFIX, NCOL)
 %build_total_block - 合計ブロック(ブロック3)を構築
 %
 %   blk = build_total_block(
-%     sub1, sub2, npart, NFIX, NCOL)
+%     sub1, sub2, npart, NFIX, NCOL) は、鉄骨重量小計 sub1 と
+%   割増重量小計 sub2 の和を 1 行のブロックとして返す。
+%
+%   入力引数:
+%     sub1  - 鉄骨重量の小計 [1×npart]
+%     sub2  - 割増重量の小計 [1×npart]
+%     npart - 部位数（合計列を含む）
+%     NFIX  - 固定列数
+%     NCOL  - 全列数
+%
+%   出力引数:
+%     blk - ブロック3のセル配列 [1×NCOL]
   blk = cell(1, NCOL);
   blk{1, 1} = '　　　 合計　　[t]';
   total = sub1 + sub2;
@@ -308,11 +377,20 @@ function blk = build_brb_length_block(cost, secdim, ...
 %
 %   blk = build_brb_length_block(
 %     cost, secdim, stype, secmgr,
-%     NFIX, NCOL)
-%
-%   部位別集計表(鉄骨)のブロック4。
+%     NFIX, NCOL) は、部位別集計表(鉄骨)のブロック4を構築する。
 %   BRB（メーカー製品）の品番・長さ・本数を出力する。
 %   (品番, 丸め長さ)でグループ化し本数を合計する。
+%
+%   入力引数:
+%     cost   - 積算データ構造体（.brace.idsec, .idmat, .lm 等）
+%     secdim - 断面寸法配列
+%     stype  - 断面種別配列
+%     secmgr - 断面マネージャ
+%     NFIX   - 固定列数
+%     NCOL   - 全列数
+%
+%   出力引数:
+%     blk - ブロック4のセル配列（BRBが無い場合は [0×NCOL]）
 
   nb = numel(cost.brace.idsec);
 
@@ -379,10 +457,14 @@ end
 function maker = get_brb_maker(type_code)
 %get_brb_maker - 製品コードからメーカー短縮名を取得
 %
-%   maker = get_brb_maker(type_code)
+%   maker = get_brb_maker(type_code) は、製品コードプレフィックス
+%   からBRBメーカーの短縮名を返す。未知のコードは空文字を返す。
 %
-%   製品コードプレフィックスからBRBメーカーの
-%   短縮名を返す。未知のコードは空文字を返す。
+%   入力引数:
+%     type_code - 製品コード文字列（例: 'UB...'）
+%
+%   出力引数:
+%     maker - メーカー短縮名（未知コードは ''）
   if startsWith(type_code, 'UB')
     maker = '日鉄エンジニアリング';
   else

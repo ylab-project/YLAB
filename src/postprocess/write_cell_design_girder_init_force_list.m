@@ -12,7 +12,7 @@ function [dgiflhead, dgiflbody] = ...
 %
 %   出力引数:
 %     dgiflhead - ヘッダ部セル配列 [3×24]
-%     dgiflbody - データ部セル配列 [nrow×24]
+%     dgiflbody - データ部セル配列 [nrow×25]（最終列は CONT_MARKER）
 
 % 定数
 nng = com.num.nominal_girder;
@@ -42,14 +42,14 @@ idmg2m = girder.idme;
 
 % --- ヘッダ（3行 x 24列）---
 dgiflhead = cell(3, ncol);
-dgiflhead(1, 1:7) = {'層', 'ﾌﾚｰﾑ', '軸－軸', '', ...
-  '符号', 'ケース', '部材長'};
+dgiflhead(1, 1:7) = {'層', 'ﾌﾚｰﾑ', '軸－軸', '', '符号', ...
+  'ケース', '部材長'};
 dgiflhead{1, 8} = '曲げ';
 dgiflhead{1, 17} = 'せん断';
-dgiflhead(2, 8:16) = {'左端', 'ﾊﾝﾁ端', 'JOINT', ...
-  '1/4', '中央', '1/4', 'JOINT', 'ﾊﾝﾁ端', '右端'};
-dgiflhead(2, 17:24) = {'左端', 'ﾊﾝﾁ端', 'JOINT', ...
-  '左1/4', '右1/4', 'JOINT', 'ﾊﾝﾁ端', '右端'};
+dgiflhead(2, 8:16) = {'左端', 'ﾊﾝﾁ端', 'JOINT', '1/4', '中央', ...
+  '1/4', 'JOINT', 'ﾊﾝﾁ端', '右端'};
+dgiflhead(2, 17:24) = {'左端', 'ﾊﾝﾁ端', 'JOINT', '左1/4', '右1/4', ...
+  'JOINT', 'ﾊﾝﾁ端', '右端'};
 dgiflhead{3, 7} = 'mm';
 dgiflhead(3, 8:16) = repmat({'kNm'}, 1, 9);
 dgiflhead(3, 17:24) = repmat({'kN'}, 1, 8);
@@ -63,7 +63,8 @@ if isempty(dfn0_all) || nlc == 0
 end
 
 % --- 表書き出し ---
-rows = cell(nng * nlc, ncol);
+% rows は head=24 列 + marker 列で 25 列
+rows = cell(nng * nlc, ncol + 1);
 iggg = 1:nng;
 irow = 0;
 for i = 1:nstory
@@ -89,9 +90,20 @@ end
 
 return
   function print_body
-    ing = iggg(idnmg2story == ist ...
-      & idnmg2x(:, 1) == ix & idnmg2y(:, 1) == iy ...
-      & idnmg2dir(:) == idir);
+  %print_body - 1 名目梁分の初期応力行を rows に書き出す
+  %
+  %   print_body は、外側スコープの (ist, ix, iy, idir) に対応する
+  %   名目梁を検索し、各荷重ケース (1..nlc) について 1 物理行ずつ
+  %   rows に書き込む。最終ケース以外には CONT_MARKER を付与する。
+  %
+  %   入力引数:
+  %     なし（外側スコープの ist, ix, iy, idir, nlc, dfn0_all,
+  %     Mcn0_all, idnmg2*, idmg2m, girder, secg, lm_nominal を参照）
+  %
+  %   出力引数:
+  %     なし（外側の rows と irow を更新）
+    ing = iggg(idnmg2story == ist & idnmg2x(:, 1) == ix ...
+      & idnmg2y(:, 1) == iy & idnmg2dir(:) == idir);
     if isempty(ing)
       return
     end
@@ -121,6 +133,10 @@ return
       % せん断: 左端(17), 右端(24)
       rows{irow, 17} = sprintf('%.2f', dfn0_all(inm, 3, ilc) * 1e-3);
       rows{irow, 24} = sprintf('%.2f', dfn0_all(inm, 9, ilc) * 1e-3);
+      % 1 名目梁 = nlc 物理行/論理ブロック。最終ケース以外は CONT_MARKER
+      if ilc < nlc
+        rows{irow, end} = PRM.CONT_MARKER;
+      end
     end
   end
 end

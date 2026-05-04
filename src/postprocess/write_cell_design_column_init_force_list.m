@@ -13,7 +13,7 @@ function [dciflhead, dciflbody] = ...
 %
 %   出力引数:
 %     dciflhead - ヘッダ行セル配列 [3×20]
-%     dciflbody - データ行セル配列 [nrow×20]
+%     dciflbody - データ行セル配列 [nrow×21]（最終列は CONT_MARKER）
 
 % 定数
 nc = com.nmec;
@@ -42,17 +42,16 @@ idmc2m = column.idme;
 
 % --- 柱設計応力表 ---
 dciflhead = cell(3,20);
-dciflhead(1,1:18) = {'階', 'X軸', 'Y軸', '符号', ...
-  'ケース', '部材長', '軸力', '', '曲げx', '', '', ...
-  'せん断x', '', '', '曲げy', '', '', 'せん断y'};
+dciflhead(1,1:18) = {'階', 'X軸', 'Y軸', '符号', 'ケース', ...
+  '部材長', '軸力', '', '曲げx', '', '', 'せん断x', '', '', ...
+  '曲げy', '', '', 'せん断y'};
 
-dciflhead(2,6:20) = {'', '柱頭', '柱脚', '柱頭', ...
-  '中央', '柱脚', '柱頭', '中央', '柱脚', '柱頭', ...
-  '中央', '柱脚', '柱頭', '中央', '柱脚'};
+dciflhead(2,6:20) = {'', '柱頭', '柱脚', '柱頭', '中央', '柱脚', ...
+  '柱頭', '中央', '柱脚', '柱頭', '中央', '柱脚', '柱頭', '中央', ...
+  '柱脚'};
 
-dciflhead(3,6:20) = {'mm', 'kN', 'kN', 'kNm', 'kNm', ...
-  'kNm', 'kN', 'kN', 'kN', 'kNm', 'kNm', 'kNm', ...
-  'kN', 'kN', 'kN'};
+dciflhead(3,6:20) = {'mm', 'kN', 'kN', 'kNm', 'kNm', 'kNm', 'kN', ...
+  'kN', 'kN', 'kNm', 'kNm', 'kNm', 'kN', 'kN', 'kN'};
 
 ncol = size(dciflhead,2);
 dciflbody = cell(0,ncol);
@@ -60,7 +59,8 @@ if nnc==0 || isempty(lm_nominal) || isempty(dfn0_all) || nlc==0
   return
 end
 dfn0 = dfn0_all;
-dciflbody = cell(nc*nlc,ncol);
+% dciflbody は head=20 列 + marker 列で 21 列
+dciflbody = cell(nc*nlc,ncol+1);
 iccc = 1:nnc;
 irow = 0;
 for i = 1:nstory
@@ -111,6 +111,10 @@ for i = 1:nstory
           dciflbody{irow,18} = sprintf('%.2f', -dfn0(inm,8,ilc)*1.d-3);
           dciflbody{irow,19} = '';
           dciflbody{irow,20} = sprintf('%.2f', -dfn0(inm,2,ilc)*1.d-3);
+          % 1 名目柱 = nlc 物理行/論理ブロック。最終以外に CONT_MARKER
+          if ilc < nlc
+            dciflbody{irow,end} = PRM.CONT_MARKER;
+          end
         end
       end
     end

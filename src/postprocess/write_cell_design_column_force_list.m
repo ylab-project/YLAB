@@ -14,7 +14,7 @@ function [dcflhead, dcflbody] = ...
 %
 %   出力引数:
 %     dcflhead - ヘッダ部セル配列 [3×17]
-%     dcflbody - データ部セル配列 [nrow×17]
+%     dcflbody - データ部セル配列 [nrow×18]（最終列は CONT_MARKER）
 
 % 定数
 nc = com.nmec;
@@ -52,16 +52,12 @@ nlc = length(ilcset);
 maxlc = max(ilcset);
 
 % --- 柱設計応力表 ---
-dcflhead = { ...
-  '層', 'X軸', 'Y軸', '符号', 'ケース', '部材長', ...
-  '軸力', '曲げx', '', '', 'せん断x', '', ...
-  '曲げy', '', '', 'せん断y', ''; ...
-  '', '', '', '', '', '', ...
-  '', '柱頭', '中央', '柱脚', '柱頭', '柱脚', ...
-  '柱頭', '中央', '柱脚', '柱頭', '柱脚'; ...
-  '', '', '', '', '', 'mm',	...
-  'kN', 'kNm', 'kNm', 'kNm', 'kN', 'kN', ...
-  'kNm', 'kNm', 'kNm', 'kN', 'kN'};
+dcflhead = {'層', 'X軸', 'Y軸', '符号', 'ケース', '部材長', '軸力', ...
+  '曲げx', '', '', 'せん断x', '', '曲げy', '', '', 'せん断y', '';
+  '', '', '', '', '', '', '', '柱頭', '中央', '柱脚', '柱頭', ...
+  '柱脚', '柱頭', '中央', '柱脚', '柱頭', '柱脚';
+  '', '', '', '', '', 'mm', 'kN', 'kNm', 'kNm', 'kNm', 'kN', ...
+  'kN', 'kNm', 'kNm', 'kNm', 'kN', 'kN'};
 ncol = size(dcflhead,2);
 dcflbody = cell(0,ncol);
 if nnc==0 || isempty(lm_nominal)
@@ -71,7 +67,8 @@ if isempty(dfn_all) || size(dfn_all,3)<maxlc
   return
 end
 dfn = dfn_all(:,:,ilcset);
-rows = cell(nc*nlc,ncol);
+% rows は head=17 列 + marker 列で 18 列
+rows = cell(nc*nlc,ncol+1);
 iccc = 1:nnc;
 irow = 0;
 for i = 1:nstory
@@ -79,8 +76,8 @@ for i = 1:nstory
   for iy = 1:nbly
     for ix = 1:nblx
       for iz = 1:nblz
-        inc = iccc(idnm2story==ist ...
-          & idnm2x(:,1)==ix & idnm2y(:,1)==iy & idnm2z(:,1)==iz);
+        inc = iccc(idnm2story==ist & idnm2x(:,1)==ix ...
+          & idnm2y(:,1)==iy & idnm2z(:,1)==iz);
         if isempty(inc)
           continue
         end
@@ -112,6 +109,10 @@ for i = 1:nstory
           rows{irow,15} = sprintf('%.1f', -dfn(inm,6,ilc)*1.d-6);
           rows{irow,16} = sprintf('%.1f', -dfn(inm,8,ilc)*1.d-3);
           rows{irow,17} = sprintf('%.1f', -dfn(inm,2,ilc)*1.d-3);
+          % 1 名目柱 = nlc 物理行/論理ブロック。最終以外に CONT_MARKER
+          if ilc < nlc
+            rows{irow,end} = PRM.CONT_MARKER;
+          end
         end
       end
     end

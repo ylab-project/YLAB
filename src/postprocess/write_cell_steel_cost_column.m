@@ -10,8 +10,8 @@ function [head, body] = write_cell_steel_cost_column(com, result)
 %     result - 解析結果構造体
 %
 %   出力引数:
-%     head - ヘッダ部セル配列
-%     body - データ部セル配列
+%     head - ヘッダ部セル配列 [2×13]
+%     body - データ部セル配列 [nrow×14]（最終列は CONT_MARKER）
 
 NCOL = 13;
 
@@ -50,8 +50,8 @@ head(1, :) = {'階', 'X軸', 'Y軸', '符号', '部位', '', '種類', ...
   '鉄骨断面', 'A', '材料', '単位重量', 'L', 'W'''};
 head(2, 8:NCOL) = {'mm', 'cm2', 'ﾌﾗﾝｼﾞ/ｳｪﾌﾞ', 'kg/m', 'm', 't'};
 
-% ボディ（柱+仕口部で最大3行/柱）
-body = cell(nc * 3, NCOL);
+% ボディ（柱+仕口部で最大3行/柱、最終列は marker）
+body = cell(nc * 3, NCOL + 1);
 irow = 0;
 iccc = 1:nc;
 
@@ -60,9 +60,8 @@ for i = 1:nfl
   for iy = 1:nbly
     for ix = 1:nblx
       for iz = 1:nblz
-        ic = iccc(column.idfloor == ifl ...
-          & column.idx(:,1) == ix & column.idy(:,1) == iy ...
-          & column.idz(:,1) == iz);
+        ic = iccc(column.idfloor == ifl & column.idx(:,1) == ix ...
+          & column.idy(:,1) == iy & column.idz(:,1) == iz);
         if isempty(ic)
           continue
         end
@@ -95,6 +94,8 @@ for i = 1:nfl
         end
         W_body = Am(idm) * L_body * PRM.RHOS * 1e-9;
 
+        % 1 柱 = 1 論理ブロック（柱本体 + 仕口部）
+        block_start = irow + 1;
         irow = irow + 1;
         body{irow, 1} = com.floor.name{ifl};
         body(irow, 2:3) = column.coord_name(ic, 1:2);
@@ -137,6 +138,8 @@ for i = 1:nfl
           body{irow, 12} = sprintf('%.3f', jb(ic) * 1e-3);
           body{irow, 13} = sprintf('%.3f', W_jb);
         end
+        % ブロック内の中間行に CONT_MARKER を付与
+        body(block_start:irow-1, end) = {PRM.CONT_MARKER};
       end
     end
   end

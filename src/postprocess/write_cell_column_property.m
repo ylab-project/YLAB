@@ -12,7 +12,7 @@ function [cphead, cpbody] = write_cell_column_property(com, result)
 %
 %   出力引数:
 %     cphead - ヘッダ部セル配列 [3×27]
-%     cpbody - データ部セル配列 [(2*nrow)×27]
+%     cpbody - データ部セル配列 [(2*nrow)×28]（最終列は CONT_MARKER）
 
 % 定数
 nblx = com.nblx;
@@ -46,23 +46,18 @@ Gm = msprop.G;
 
 % --- 柱断面 ---
 cphead = cell(3,27);
-cphead(1,:) = { ...
-  '階', 'X軸', 'Y軸', '符号', '方', 'E', 'G', ...
-  'Io', 'φI', 'I', 'Aso', 'Ano', ...
-  'φQ', 'φn', 'As', 'An', 'α', 'αn', ...
-  'β', 'κ', '部材長', '剛域', '', 'フェイス位置', '', '結合状態', ''};
-cphead(2,:) = { ...
-  '', '', '', '', '向', '', ...
-  '', '', '', '', '', '', ...
-  '', '', '', '', '', '', ...
-  '', '', '', '柱頭', '柱脚', '柱頭', '柱脚', '柱頭', '柱脚'};
-cphead(3,:) = { ...
-  '', '', '', '', '', 'kN/mm2', ...
-  'kN/mm2', 'cm4', '', 'cm4', 'cm2', 'cm2' ...
-  '', '', 'cm2', 'cm2', '', '', ...
-  '', '', 'mm', 'mm', 'mm', 'mm', 'mm', 'kNm/rad', 'kNm/rad'};
+cphead(1,:) = {'階', 'X軸', 'Y軸', '符号', '方', 'E', 'G', 'Io', ...
+  'φI', 'I', 'Aso', 'Ano', 'φQ', 'φn', 'As', 'An', 'α', 'αn', ...
+  'β', 'κ', '部材長', '剛域', '', 'フェイス位置', '', ...
+  '結合状態', ''};
+cphead(2,:) = {'', '', '', '', '向', '', '', '', '', '', '', '', ...
+  '', '', '', '', '', '', '', '', '', '柱頭', '柱脚', '柱頭', ...
+  '柱脚', '柱頭', '柱脚'};
+cphead(3,:) = {'', '', '', '', '', 'kN/mm2', 'kN/mm2', 'cm4', '', ...
+  'cm4', 'cm2', 'cm2', '', '', 'cm2', 'cm2', '', '', '', '', ...
+  'mm', 'mm', 'mm', 'mm', 'mm', 'kNm/rad', 'kNm/rad'};
 
-cpbody = cell(nc*2,27);
+cpbody = cell(nc*2, size(cphead,2)+1);  % 末尾は marker 列
 irow = 0;
 iccc = 1:nc;
 for i=1:nfl
@@ -71,8 +66,8 @@ for i=1:nfl
     for ix = 1:nblx
       for iz = 1:nblz
         % 柱脚側で判定する（SS7ルール）
-        ic = iccc(column.idfloor==ifl & ...
-          column.idx(:,1)==ix & column.idy(:,1)==iy & column.idz(:,1)==iz);
+        ic = iccc(column.idfloor==ifl & column.idx(:,1)==ix ...
+          & column.idy(:,1)==iy & column.idz(:,1)==iz);
         if isempty(ic)
           continue
         end
@@ -98,6 +93,8 @@ for i=1:nfl
         end
         % 剛性表
         write_cpbody
+        % 1 柱 = 2 物理行/論理ブロック。x 行（1 行目）に CONT_MARKER
+        cpbody{irow*2-1, end} = PRM.CONT_MARKER;
       end
     end
   end
@@ -107,6 +104,18 @@ return
 %--------------------------------------------------------------------------
   function write_cpbody
   %write_cpbody - 1柱分の断面諸量を cpbody の現在行(2行)に書き出す
+  %
+  %   write_cpbody は、外側スコープの irow をインクリメントし、
+  %   現在の柱 ic の x/y 方向諸量を cpbody{irow*2-1, :} (x行) と
+  %   cpbody{irow*2, :} (y行) に書き出す。
+  %
+  %   入力引数:
+  %     なし（外側スコープの ic, idm, lm_, lfcx_, lfcy_, iscb_,
+  %     ifl, msprop, Iy, Iz, cphiI, lrcx, lrcy, cbstiff,
+  %     column, secc, floor, Em, Gm を参照）
+  %
+  %   出力引数:
+  %     なし（外側の cpbody と irow を更新）
     irow = irow+1;
     floor_name = floor.name{ifl};
     cpbody{irow*2-1,1} = floor_name;
@@ -167,6 +176,16 @@ return
 
   function kappa = get_kappa(stype)
   %get_kappa - 断面種別に応じたせん断形状係数を返す
+  %
+  %   kappa = get_kappa(stype) は、断面種別 stype に応じて
+  %   せん断形状係数 κ を返す。RC矩形断面（PRM.RCRS）は 1.2、
+  %   それ以外は 1 を返す。
+  %
+  %   入力引数:
+  %     stype - 断面種別コード
+  %
+  %   出力引数:
+  %     kappa - せん断形状係数
     if stype == PRM.RCRS
       kappa = 1.2;
     else

@@ -12,7 +12,7 @@ function [gphead, gpbody] = write_cell_girder_property(com, result)
 %
 %   出力引数:
 %     gphead - ヘッダ部セル配列 [3×19]
-%     gpbody - データ部セル配列 [(2*nrow)×17]
+%     gpbody - データ部セル配列 [(2*nrow)×20]（最終列は CONT_MARKER）
 
 % 定数
 ng = com.nmeg;
@@ -35,20 +35,14 @@ Em = msprop.E;
 Gm = msprop.G;
 
 % --- 梁断面 ---
-gphead = {...
-  '層', 'ﾌﾚｰﾑ', '軸－軸', '', '符号', 'E', ...
-  'Io',	'φI', 'I', 'Aso', 'φQ', 'As', ...
-  'α', 'β', '部材長', '剛域', 'ﾌｪｲｽ' ...
-  'ﾊﾟﾈﾙ', '結合'; ...
-  '', '', '', '', '', 'G', ...
-  '', '', '', 'Ano', 'φn', 'An', ...
-  'αn', 'κ', '', '左/右', '左/右' ...
-  '左/右', '左/右';
-  '', '', '', '', '', 'kN/mm2', ...
-  'cm4', '', 'cm4', 'cm2', '', 'cm2', ...
-  '', '', 'mm',	'mm', 'mm' ...
-  'mm', ''};
-gpbody = cell(ng*2,17);
+gphead = {'層', 'ﾌﾚｰﾑ', '軸－軸', '', '符号', 'E', 'Io', 'φI', ...
+  'I', 'Aso', 'φQ', 'As', 'α', 'β', '部材長', '剛域', 'ﾌｪｲｽ', ...
+  'ﾊﾟﾈﾙ', '結合';
+  '', '', '', '', '', 'G', '', '', '', 'Ano', 'φn', 'An', ...
+  'αn', 'κ', '', '左/右', '左/右', '左/右', '左/右';
+  '', '', '', '', '', 'kN/mm2', 'cm4', '', 'cm4', 'cm2', '', ...
+  'cm2', '', '', 'mm', 'mm', 'mm', 'mm', ''};
+gpbody = cell(ng*2, size(gphead,2)+1);  % 末尾は marker 列
 irow = 0;
 for i=1:nstory
   ist = nstory-i+1;
@@ -67,6 +61,8 @@ for i=1:nstory
     end
     irow = irow+1;
     write_gp_entry(ig, ig_pair);
+    % 1 梁 = 2 物理行/論理ブロック。1 行目に CONT_MARKER
+    gpbody{irow*2-1, end} = PRM.CONT_MARKER;
   end
 end
 
@@ -74,6 +70,17 @@ return
 
   function write_gp_entry(ig_left, ig_right)
   %write_gp_entry - 梁1組（左右ペアまたは単独）を gpbody に出力
+  %
+  %   write_gp_entry(ig_left, ig_right) は、左右の梁番号を受け
+  %   gpbody の現在 irow 位置に左端／右端情報を書き出す。
+  %   ig_right<=0 の場合は単独梁として ig_left を両端に用いる。
+  %
+  %   入力引数:
+  %     ig_left  - 左端側の梁部材番号（スカラー）
+  %     ig_right - 右端側の梁部材番号（0以下なら単独扱い）
+  %
+  %   出力引数:
+  %     なし（外側の gpbody を更新）
     if ig_right <= 0
       ig_right = ig_left;
     end
@@ -83,6 +90,16 @@ return
 
   function write_gp_left(irow_, ig_)
   %write_gp_left - 梁の左端側情報を gpbody の指定行に書き出す
+  %
+  %   write_gp_left(irow_, ig_) は、論理ブロックの 1 物理行目
+  %   (gpbody{irow_*2-1, :}) に梁 ig_ の左端側情報を書き込む。
+  %
+  %   入力引数:
+  %     irow_ - 論理ブロックの行番号（1始まり）
+  %     ig_   - 対象梁部材番号
+  %
+  %   出力引数:
+  %     なし（外側の gpbody を更新）
     idm_ = girder.idme(ig_);
     gpbody{irow_*2-1,1} = girder.story_name{ig_};
     gpbody{irow_*2-1,2} = girder.frame_name{ig_};
@@ -111,6 +128,17 @@ return
 
   function write_gp_right(irow_, ig_)
   %write_gp_right - 梁の右端側情報を gpbody の指定行に書き出す
+  %
+  %   write_gp_right(irow_, ig_) は、論理ブロックの 1 物理行目末尾
+  %   (4列) と 2 物理行目 (gpbody{irow_*2, :}) に梁 ig_ の右端側
+  %   情報を書き込む。
+  %
+  %   入力引数:
+  %     irow_ - 論理ブロックの行番号（1始まり）
+  %     ig_   - 対象梁部材番号
+  %
+  %   出力引数:
+  %     なし（外側の gpbody を更新）
     idm_ = girder.idme(ig_);
     gpbody{irow_*2-1,4} = girder.coord_name{ig_,2};
     gpbody{irow_*2,6} = sprintf('%.2f', Gm(idm_)*1.d-3);
@@ -128,6 +156,16 @@ return
 
   function label = joint_label(value)
   %joint_label - 結合状態コードから表示文字列に変換
+  %
+  %   label = joint_label(value) は、結合状態コード（PRM.PIN/FIX）
+  %   を表示文字列（"ピン"/"剛接"）に変換する。該当しない場合は
+  %   空文字を返す。
+  %
+  %   入力引数:
+  %     value - 結合状態コード（PRM.PIN, PRM.FIX 等）
+  %
+  %   出力引数:
+  %     label - 表示文字列
     switch value
       case PRM.PIN
         label = "ピン";
@@ -140,6 +178,16 @@ return
 
   function kappa = get_kappa(stype)
   %get_kappa - 断面種別に応じたせん断形状係数を返す
+  %
+  %   kappa = get_kappa(stype) は、断面種別 stype に応じて
+  %   せん断形状係数 κ を返す。RC矩形断面（PRM.RCRS）は 1.2、
+  %   それ以外は 1 を返す。
+  %
+  %   入力引数:
+  %     stype - 断面種別コード
+  %
+  %   出力引数:
+  %     kappa - せん断形状係数
     if stype == PRM.RCRS
       kappa = 1.2;
     else
@@ -151,7 +199,15 @@ return
 
   function s = fmt_adaptive(v)
   %fmt_adaptive - SS7 互換の適応桁数フォーマット
-  %   |v| >= 1000 のとき整数表示、未満のとき小数2桁
+  %
+  %   s = fmt_adaptive(v) は、数値 v を SS7 互換の桁数で書式化
+  %   する。|v| >= 1000 のとき整数表示、未満のとき小数2桁とする。
+  %
+  %   入力引数:
+  %     v - 数値
+  %
+  %   出力引数:
+  %     s - 書式化文字列
     if abs(v) >= 1000
       s = sprintf('%.0f', v);
     else
