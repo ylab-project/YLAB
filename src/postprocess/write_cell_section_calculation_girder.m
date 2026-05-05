@@ -93,6 +93,9 @@ idnm2stype = girder.section_type(idmeg1_);
 idnm2sg = girder.idsecg(idmeg1_);
 idnm2dir = girder.idir(idmeg1_, 1);
 idnm2story = girder.idstory(idmeg1_, 1);
+idnm2x = girder.idx(idmeg1_, 1);
+idnm2y = girder.idy(idmeg1_, 1);
+idnm2z = girder.idz(idmeg1_, 1);
 idnm2mg = nominal_girder.idmeg;
 idnmg2nm = nominal_girder.idnominal;
 idmg2m = girder.idme;
@@ -128,7 +131,10 @@ for i = 1:nstory
     mask_ = idnm2story == ist & idnm2dir == idir ...
       & idnm2stype == PRM.WFS & nominal_girder.is_allowable_stress;
     cands_ = iggg(mask_);
-    [~, ord_] = sort(secg_order(cands_));
+    % SS7 互換: 符号 → Y → X → Z 順
+    sort_key_ = [secg_order(cands_), idnm2y(cands_), ...
+      idnm2x(cands_), idnm2z(cands_)];
+    [~, ord_] = sortrows(sort_key_);
     cands_ = cands_(ord_);
     if ~options.section_calc_all_members
       cands_ = pick_representative(cands_);

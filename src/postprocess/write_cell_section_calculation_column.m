@@ -78,6 +78,9 @@ max_ratio_all = max(max(cri, [], 2), max(crj, [], 2));
 idnm2sc = column.idsecc(nominal_column.idmec(:, 1));
 nmec1_ = nominal_column.idmec(:, 1);
 idnm2story = column.idstory(nmec1_, 1);
+idnm2x = column.idx(nmec1_, 1);
+idnm2y = column.idy(nmec1_, 1);
+idnm2z = column.idz(nmec1_, 1);
 idnm2mc = nominal_column.idmec;
 idnmc2nm = nominal_column.idnominal;
 idmc2m = column.idme;
@@ -110,7 +113,10 @@ for i = 1:nstory
   ist = nstory - i + 1;
   mask_ = idnm2story == ist & nominal_column.is_allowable_stress;
   cands_ = iccc(mask_);
-  [~, ord_] = sort(secc_order(cands_));
+  % SS7 互換: 符号 → Y → X → Z 順
+  sort_key_ = [secc_order(cands_), idnm2y(cands_), ...
+    idnm2x(cands_), idnm2z(cands_)];
+  [~, ord_] = sortrows(sort_key_);
   cands_ = cands_(ord_);
   if ~options.section_calc_all_members
     cands_ = pick_representative(cands_);
