@@ -1,17 +1,20 @@
 function write_csv_constraint_problem(result, options, cvec, fout)
 %write_csv_constraint_problem - 制約条件の違反量・関数値をCSV出力
-
-% 準備
-% nvar = com.nvar;
-% nnode = com.nnode;
-% nme = com.nme;
+%
+%   write_csv_constraint_problem(result, options, cvec, fout) は、
+%   制約種類ごとの違反量集計（制約違反量）と全制約関数値（制約関数値）の
+%   2 ブロックを fout に書き出す。
+%
+%   入力引数:
+%     result  - 解析結果構造体 (conlabel, ncon を含む)
+%     options - オプション構造体 (tau, tolActive を含む)
+%     cvec    - 制約関数値ベクトル
+%     fout    - 出力先ファイル識別子
 
 % 制約条件の分類
 clabel = result.conlabel;
 ncon = result.ncon;
 tau = options.tau;
-% [maxvio, idmaxvio, idmaxvioc, ccategory] = ...
-%   extract_convio(ncon, ccon, tau, cvec);
 
 % 制約条件番号
 ncvec = length(cvec);
@@ -33,7 +36,6 @@ for ic = 1:mcon
   body{ic,2} = n1con(ic);
   body{ic,3} = n2con(ic);
   body{ic,4} = ncon(ic);
-  % body{ic,5} = sum(cvec(n1con(ic):n2con(ic))>=-0.1);
   body{ic,5} = sum(cvec(n1con(ic):n2con(ic))>=options.tolActive);
   body{ic,6} = sum(cvec(n1con(ic):n2con(ic))>tau);
   [viocon, id] = max(cvec(n1con(ic):n2con(ic)));
@@ -45,7 +47,7 @@ end
 
 % 制約違反量
 fprintf(fout, '\n\nname=制約違反量\n');
-write_csv_from_cell(fout, head, body);
+write_csv_from_cell(fout, head, body, true, true);
 
 % 制約関数値
 mcell = 20;
@@ -62,7 +64,7 @@ for i=1:ncell
 end
 
 fprintf(fout, '\n\nname=制約関数値\n');
-write_csv_from_cell(fout, [], body);
+write_csv_from_cell(fout, [], body, true, true);
 
 return
 end

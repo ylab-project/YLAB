@@ -13,7 +13,7 @@ function [dbflhead, dbflbody] = write_cell_design_brace_force_list( ...
 %
 %   出力引数:
 %     dbflhead - ヘッダセル配列 [3×10]
-%     dbflbody - データセル配列 [nrow×10]
+%     dbflbody - データセル配列 [nrow×11]（最終列は CONT_MARKER）
 
 nominal_brace = com.nominal.brace;
 brace = com.member.brace;
@@ -48,7 +48,7 @@ rs = rs_all(:, :, ilcset);
 nstory = com.nstory;
 nblx = com.nblx;
 nbly = com.nbly;
-rows = cell(nnb * nlc, 10);
+rows = cell(nnb * nlc, 10 + 1);
 irow = 0;
 
 ids_story = nominal_brace.idstory;
@@ -80,7 +80,7 @@ for ist = nstory:-1:1
 end
 
 if irow == 0
-  dbflbody = cell(0, 10);
+  dbflbody = cell(0, 10 + 1);
 else
   dbflbody = rows(1:irow, :);
 end
@@ -116,8 +116,11 @@ return
       rows{irow, 6} = label{ilc};
       for ij_ = nz_cols
         icol = 7 + ipos_pair(ij_);
-        rows{irow, icol} = sprintf('%.1f', ...
-          rs(im_pair(ij_), 1, ilc) * 1.d-3);
+        rows{irow, icol} = sprintf('%.1f', rs(im_pair(ij_), 1, ilc) ...
+          * 1.d-3);
+      end
+      if ilc < nlc
+        rows{irow, end} = PRM.CONT_MARKER;
       end
     end
   end

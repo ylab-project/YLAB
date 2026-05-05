@@ -11,10 +11,9 @@ function [head, body] = write_cell_force_share_ratio(com, result, ilc)
 %     ilc    - 荷重ケース番号
 %
 %   出力引数:
-%     head - ヘッダセル配列
-%     body - データセル配列
+%     head - ヘッダセル配列 [3×18]
+%     body - データセル配列 [nrow×19]（最終列は CONT_MARKER）
 
-% 定数
 nstory = com.nstory;
 lcdir = com.loadcase.dir;
 
@@ -101,9 +100,8 @@ head(2, :) = {'', '', '', '', '', '', '', '', '', '', '', '', '', ...
 head(3, :) = {'', '', 'kN', 'kN', 'kN', 'kN', 'kN', 'kN', ...
   '%', '%', '%', '%', '%', '%', 'mm', '', 'kN/mm', 'kN/mm'};
 
-% データ行
 maxrows = nstory * (nframe + 1);
-body = cell(maxrows, ncol);
+body = cell(maxrows, ncol + 1);
 irow = 0;
 
 for i = 1:nstory
@@ -181,6 +179,7 @@ for i = 1:nstory
     body{irow, 16} = '';
     body{irow, 17} = '';
     body{irow, 18} = '';
+    body{irow, ncol + 1} = PRM.CONT_MARKER;
   end
 
   % 合計行

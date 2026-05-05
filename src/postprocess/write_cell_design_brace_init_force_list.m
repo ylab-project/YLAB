@@ -12,7 +12,7 @@ function [head, body] = write_cell_design_brace_init_force_list( ...
 %
 %   出力引数:
 %     head - ヘッダセル配列 [3×9]
-%     body - データセル配列 [nrow×9]
+%     body - データセル配列 [nrow×10]（最終列は CONT_MARKER）
 
 nominal_brace = com.nominal.brace;
 brace = com.member.brace;
@@ -22,8 +22,8 @@ nlc = size(rs0_all, 3);
 
 % ヘッダ
 head = cell(3, 9);
-head(1, 1:8) = {'階', 'ﾌﾚｰﾑ', '軸－軸', '', ...
-  '符号', 'ケース', 'タイプ', '軸力'};
+head(1, 1:8) = {'階', 'ﾌﾚｰﾑ', '軸－軸', '', '符号', ...
+  'ケース', 'タイプ', '軸力'};
 head(2, 8:9) = {'左下り', '右下り'};
 head(3, 8:9) = {'kN', 'kN'};
 
@@ -36,7 +36,7 @@ end
 nstory = com.nstory;
 nblx = com.nblx;
 nbly = com.nbly;
-rows = cell(nnb * nlc, 9);
+rows = cell(nnb * nlc, 9 + 1);
 irow = 0;
 
 ids_story = nominal_brace.idstory;
@@ -68,7 +68,7 @@ for ist = nstory:-1:1
 end
 
 if irow == 0
-  body = cell(0, 9);
+  body = cell(0, 9 + 1);
 else
   body = rows(1:irow, :);
 end
@@ -104,8 +104,11 @@ return
       rows{irow, 6} = PRM.load_case_name(ilc);
       for ij_ = nz_cols
         icol = 7 + ipos_pair(ij_);
-        rows{irow, icol} = sprintf('%.1f', ...
-          rs0_all(im_pair(ij_), 1, ilc) * 1.d-3);
+        rows{irow, icol} = sprintf('%.1f', rs0_all(im_pair(ij_), ...
+          1, ilc) * 1.d-3);
+      end
+      if ilc < nlc
+        rows{irow, end} = PRM.CONT_MARKER;
       end
     end
   end

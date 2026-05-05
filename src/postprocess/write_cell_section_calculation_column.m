@@ -139,7 +139,7 @@ for i = 1:nstory
   sccbody{irow, 1} = sprintf('[ %-9s]  %.1f  [ %-9s]  %.1f', ...
     mat0_, F_top_, mat0_, F_bot_);
   sccbody{irow, ncol} = PRM.CONT_MARKER;
-  irow = irow + 1; % 空行（全フィールド空のため CSV 出力上も空行・スキップ可）
+  irow = irow + 1; % 空行（全フィールド空のため CSV 上も空行）
 
   for k_ = 1:length(cands_)
     inc = cands_(k_);
@@ -388,7 +388,7 @@ for i = 1:nstory
     sccbody{irow, 20} = sprintf('%.2f', myj_);
     sccbody{irow, ncol} = PRM.CONT_MARKER;
 
-    % === Row 10: fcS + Y柱脚 検定 (柱エントリ末尾。<RE> を付与) ===
+    % === Row 10: fcS + Y柱脚 検定 (柱エントリ末尾) ===
     irow = irow + 1;
     fcs_ = fcn(inm, 1, 2);
     sccbody{irow, 2} = sprintf('fcS  %.0f', fcs_);
@@ -410,6 +410,14 @@ for i = 1:nstory
     sccbody{irow, 19} = sprintf('%.2f', tau_yi);
     myi_ = max(total_yi, tau_yi);
     sccbody{irow, 20} = sprintf('%.2f', myi_);
+
+    % FD ランク = S 規準幅厚比超過。SS7 互換の警告を末尾に出力する
+    if has_drank && rk_v == PRM.COLUMN_RANK_FD
+      sccbody{irow, ncol} = PRM.CONT_MARKER;
+      irow = irow + 1;
+      sccbody{irow, 1} = ['　　　注意  695： S柱で幅厚比がS規準の' ...
+        '制限値を超えています。'];
+    end
 
   end
 end

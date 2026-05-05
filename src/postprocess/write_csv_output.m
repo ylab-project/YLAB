@@ -94,13 +94,13 @@ end
 
 %% 構造階高
 [fhhead, fhbody] = write_cell_floor_height(xvar, com, result, options);
-write_table(fout, '構造階高', fhhead, fhbody);
+write_table(fout, '構造階高', fhhead, fhbody, true);
 
 %% 柱梁断面リスト
 [gshead, gsbody, cshead, csbody] = write_cell_section_list(...
   xvar, com, options);
-write_table(fout, '柱断面リスト', cshead, csbody);
-write_table(fout, '梁断面リスト', gshead, gsbody);
+write_table(fout, '柱断面リスト', cshead, csbody, true);
+write_table(fout, '梁断面リスト', gshead, gsbody, true);
 
 %% 柱梁断面リスト(SS7用)
 [gshead, gsbody, cshead, csbody, cbshead, cbsbody] = ...
@@ -112,11 +112,12 @@ write_table(fout, '梁断面リスト', gshead, gsbody);
 [blhead, blbody] = write_cell_brace_section_list_ss7(...
   secb, stype, secdim, com.secmgr);
 
-write_table(fout, 'S柱断面', cshead, csbody);
-write_table(fout, 'メーカー製柱脚断面', cbshead, cbsbody);
-write_table(fout, 'S梁断面', gshead, gsbody);
-write_table(fout, '鉛直ブレース断面リスト', blhead, blbody);
-write_table(fout, '鉛直ブレース断面リスト(メーカー製品)', bshead, bsbody);
+write_table(fout, 'S柱断面', cshead, csbody, true);
+write_table(fout, 'メーカー製柱脚断面', cbshead, cbsbody, true);
+write_table(fout, 'S梁断面', gshead, gsbody, true);
+write_table(fout, '鉛直ブレース断面リスト', blhead, blbody, true);
+write_table(fout, '鉛直ブレース断面リスト(メーカー製品)', ...
+  bshead, bsbody, true);
 
 %% 仮定断面出力
 [gshead, gsbody, cshead, csbody, cbshead, cbsbody] = ...
@@ -130,12 +131,14 @@ write_table(fout, '鉛直ブレース断面リスト(メーカー製品)', bshea
 [bshead, bsbody] = write_cell_brace_manufacturer_section_list(...
   secb, stype, secdim0, com.secmgr);
 
-write_table(fout, 'S柱断面(仮定)', cshead, csbody);
-write_table(fout, 'メーカー製柱脚断面(仮定)', cbshead, cbsbody);
-write_table(fout, 'S梁断面(仮定)', gshead, gsbody);
-write_table(fout, '鉛直ブレース断面(鋼材)(仮定)', slhead, slbody);
-write_table(fout, '鉛直ブレース断面(引張ブレース)(仮定)', tbhead, tbbody);
-write_table(fout, '鉛直ブレース断面(メーカー製品)(仮定)', bshead, bsbody);
+write_table(fout, 'S柱断面(仮定)', cshead, csbody, true);
+write_table(fout, 'メーカー製柱脚断面(仮定)', cbshead, cbsbody, true);
+write_table(fout, 'S梁断面(仮定)', gshead, gsbody, true);
+write_table(fout, '鉛直ブレース断面(鋼材)(仮定)', slhead, slbody, true);
+write_table(fout, '鉛直ブレース断面(引張ブレース)(仮定)', ...
+  tbhead, tbbody, true);
+write_table(fout, '鉛直ブレース断面(メーカー製品)(仮定)', ...
+  bshead, bsbody, true);
 
 %% 断面剛性表
 [gphead, gpbody] = write_cell_girder_property(com, result);
@@ -144,17 +147,17 @@ write_table(fout, '梁剛性表,case=標準', gphead, gpbody);
 
 [cphead, cpbody] = write_cell_column_property(com, result);
 write_table(fout, '柱剛性表,case=標準', cphead, cpbody);
-write_table(fout, '鉛直ブレース剛性表,case=標準', bphead, bpbody);
+write_table(fout, '鉛直ブレース剛性表,case=標準', bphead, bpbody, true);
 
 %% 柱座屈長さ
 [cblhead, cblbody] = write_cell_column_buckling_length(com, result);
-write_table(fout, '柱座屈長さ,case=標準', cblhead, cblbody);
+write_table(fout, '柱座屈長さ,case=標準', cblhead, cblbody, true);
 
 %% 柱座屈長さ係数の自動計算
 if ~isempty(result.bkinfo) ...
     && options.consider_column_buckling_length_factor
   [bkh, bkb] = write_cell_column_buckling_length_factor(com, result);
-  write_table(fout, '柱座屈長さ係数の自動計算,case=標準', bkh, bkb);
+  write_table(fout, '柱座屈長さ係数の自動計算,case=標準', bkh, bkb, true);
 end
 
 %% 水平力分担表
@@ -168,7 +171,7 @@ end
 
 %% 保有耐力横補剛
 stgcell = write_cell_girder_stiffening(com, result);
-write_table(fout, '保有耐力横補剛', stgcell.head, stgcell.body);
+write_table(fout, '保有耐力横補剛', stgcell.head, stgcell.body, true);
 
 %% 節点重量表
 [nwhead, nwbody] = write_cell_nodal_weight(com, result);
@@ -176,41 +179,41 @@ write_table(fout, '節点重量表(固定+積載)', nwhead, nwbody);
 
 %% 等価節点荷重
 [nlhead, nlbody] = write_cell_nodal_equiv_load(com, result, false);
-write_table(fout, '等価節点荷重,case=G+P', nlhead, nlbody);
+write_table(fout, '等価節点荷重,case=G+P', nlhead, nlbody, true);
 
 %% 変位量（重心位置）
 for icase = 1:nlc
   [cdhead, cdbody] = write_cell_center_displacement(com, result, icase);
   write_table(fout, sprintf('変位量(重心位置)(一次),case=%s', ...
-    loadcase.name{icase}), cdhead, cdbody);
+    loadcase.name{icase}), cdhead, cdbody, true);
 end
 
 %% 変位量（節点）
 for icase = 1:nlc
   [ndhead, ndbody] = write_cell_nodal_displacement(com, result, icase);
   write_table(fout, sprintf('変位量(節点)(一次),case=%s', ...
-    loadcase.name{icase}), ndhead, ndbody);
+    loadcase.name{icase}), ndhead, ndbody, true);
 end
 
 %% 梁応力表
 for icase = 1:nlc
   [gflhead, gflbody] = write_cell_girder_force_list(com, result, icase);
   write_table(fout, sprintf('梁応力表(一次),case=%s', ...
-    loadcase.name{icase}), gflhead, gflbody);
+    loadcase.name{icase}), gflhead, gflbody, true);
 end
 
 %% 柱応力表
 for icase = 1:nlc
   [cflhead, cflbody] = write_cell_column_force_list(com, result, icase);
   write_table(fout, sprintf('柱応力表(一次),case=%s', ...
-    loadcase.name{icase}), cflhead, cflbody);
+    loadcase.name{icase}), cflhead, cflbody, true);
 end
 
 %% 鉛直ブレース応力表
 for icase = 1:nlc
   [bflhead, bflbody] = write_cell_brace_force_list(com, result, icase);
   write_table(fout, sprintf('鉛直ブレース応力表(一次),case=%s', ...
-    loadcase.name{icase}), bflhead, bflbody);
+    loadcase.name{icase}), bflhead, bflbody, true);
 end
 
 %% 水平ブレース応力表
@@ -218,14 +221,14 @@ for icase = 1:nlc
   [hbflhead, hbflbody] = write_cell_horizontal_brace_force_list(...
     com, result, icase);
   write_table(fout, sprintf('水平ブレース応力表(一次),case=%s', ...
-    loadcase.name{icase}), hbflhead, hbflbody);
+    loadcase.name{icase}), hbflhead, hbflbody, true);
 end
 
 %% 支点応力表
 for icase = 1:nlc
   [rflhead, rflbody] = write_cell_reaction_force_list(com, result, icase);
   write_table(fout, sprintf('支点応力表(一次),case=%s', ...
-    loadcase.name{icase}), rflhead, rflbody);
+    loadcase.name{icase}), rflhead, rflbody, true);
 end
 
 %% 梁設計応力表
@@ -289,17 +292,17 @@ write_table(fout, '柱設計応力表(組合せ前)', dciflhead, dciflbody);
 %% S梁検定比一覧
 [asrghead, asrgbody] = write_cell_allowable_stress_ratio_girder(...
   com, result);
-write_table(fout, 'S梁検定比一覧', asrghead, asrgbody);
+write_table(fout, 'S梁検定比一覧', asrghead, asrgbody, true);
 
 %% S柱検定比一覧
 [asrchead, asrcbody] = write_cell_allowable_stress_ratio_column(...
   com, result);
-write_table(fout, 'S柱検定比一覧', asrchead, asrcbody);
+write_table(fout, 'S柱検定比一覧', asrchead, asrcbody, true);
 
 %% 鉛直ブレース検定比一覧
 [asrbhead, asrbbody] = write_cell_allowable_stress_ratio_brace(...
   com, result);
-write_table(fout, '鉛直ブレース検定比一覧', asrbhead, asrbbody);
+write_table(fout, '鉛直ブレース検定比一覧', asrbhead, asrbbody, true);
 
 %% S梁断面算定表
 scgbody = write_cell_section_calculation_girder(com, result, options);
@@ -311,7 +314,7 @@ write_table(fout, 'S柱断面算定表', [], sccbody);
 
 %% 鉛直ブレース断面算定表
 scbbody = write_cell_section_calculation_brace(com, result);
-write_table(fout, '鉛直ブレース断面算定表', [], scbbody);
+write_table(fout, '鉛直ブレース断面算定表', [], scbbody, true);
 
 %% 層間変形角
 if options.do_legacy_output
@@ -323,7 +326,7 @@ for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
   [sdrhead, sdrbody] = write_cell_interstory_drift(com, ...
     result, options, icase);
   write_table(fout, sprintf('層間変形角%scase=%s', sep, ...
-    loadcase.name{icase}), sdrhead, sdrbody);
+    loadcase.name{icase}), sdrhead, sdrbody, true);
 end
 
 %% 柱梁耐力比
@@ -333,18 +336,18 @@ for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
   end
   cgscell = write_cell_column_gider_strength(com, result, icase);
   write_table(fout, sprintf('柱梁耐力比%scase=%s', sep, ...
-    loadcase.name{icase}), cgscell.head, cgscell.body);
+    loadcase.name{icase}), cgscell.head, cgscell.body, true);
 end
 
 %% 鉄骨数量
 [sch, scb] = write_cell_steel_cost_column(com, result);
 write_table(fout, '柱の部位ごと数量(鉄骨)', sch, scb);
 [sgh, sgb] = write_cell_steel_cost_girder(com, result);
-write_table(fout, '大梁の部位ごと数量(鉄骨)', sgh, sgb);
+write_table(fout, '大梁の部位ごと数量(鉄骨)', sgh, sgb, true);
 [sbh, sbb] = write_cell_steel_cost_brace(com, result, cost);
-write_table(fout, '鉛直ブレースの部位ごと数量(鉄骨)', sbh, sbb);
+write_table(fout, '鉛直ブレースの部位ごと数量(鉄骨)', sbh, sbb, true);
 [shh, shb] = write_cell_steel_cost_hbrace(com, result, cost);
-write_table(fout, '水平ブレースの部位ごと数量(鉄骨)', shh, shb);
+write_table(fout, '水平ブレースの部位ごと数量(鉄骨)', shh, shb, true);
 
 %% 部位別集計表(鉄骨)
 [smh, smb] = write_cell_steel_cost_summary(com, options, cost, secdim);
@@ -356,18 +359,22 @@ fclose('all');
 return
 end
 
-function write_table(fout, name, head, body)
+function write_table(fout, name, head, body, auto_marker)
 %write_table - テーブル出力（body空なら全体をスキップ）
 %
-%   write_table(fout, name, head, body) は、
-%   body が空でない場合のみテーブルを出力する。
+%   write_table(fout, name, head, body, auto_marker) は、
+%   body が空でない場合のみテーブルを出力する。auto_marker=true のとき
+%   は各物理行=1論理行（A パターン）として行末に <RE> を自動付与する。
 %
 %   入力引数:
-%     fout - ファイル識別子
-%     name - テーブル名（name= に続く文字列）
-%     head - ヘッダ部セル配列（空可）
-%     body - データ部セル配列
+%     fout        - ファイル識別子
+%     name        - テーブル名（name= に続く文字列）
+%     head        - ヘッダ部セル配列（空可）
+%     body        - データ部セル配列
+%     auto_marker - 自動 marker 付与フラグ (省略時false。
+%                   true=Aパターン、false=① 明示管理 / B パターン)
 %
+if nargin < 5, auto_marker = false; end
 if size(body, 1) == 0
   return
 end
@@ -380,7 +387,7 @@ if size(body, 1) == 0
 end
 fprintf(fout, '\n\n');
 fprintf(fout, 'name=%s\n', name);
-write_csv_from_cell(fout, head, body);
+write_csv_from_cell(fout, head, body, true, auto_marker);
 
 return
 end

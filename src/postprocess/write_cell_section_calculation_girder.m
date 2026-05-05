@@ -14,14 +14,15 @@ function scgbody = write_cell_section_calculation_girder( ...
 %     options - 出力オプション構造体
 %
 %   出力引数:
-%     scgbody - 断面算定表のボディ行セル配列 [nrow×15]
+%     scgbody - 断面算定表のボディ行セル配列 [nrow×16]
+%               （15列のデータ + 末尾1列の連結マーカー列）
 
 % 定数
 nng = com.num.nominal_girder;
 nlc = com.nlc;
 nstory = com.nstory;
 mb = 23;
-ncol = 15;
+ncol = 16;
 FB_EQ_TOL = 0.05; % fb==Ft判定許容差(N/mm2)
 
 % 共通配列
@@ -251,7 +252,8 @@ for i = 1:nstory
       scgbody{irow,15} = sprintf('λ %d', ceil(lam_));
 
       % --- 端部行（端部に設ける補剛本数 + 限界Lb） ---
-      if has_slr
+      % 補剛数0のときSS7は端部行を出力しないため省略する
+      if ns_ > 0 && has_slr
         irow = irow + 1;
         scgbody{irow,11} = '端部';
         lbreq2_ = slratio.lbreq2(ig1);
@@ -290,7 +292,7 @@ for i = 1:nstory
       irow = irow + 1;
       scgbody(irow, :) = {'', '左端', 'JOINT', '中央', ...
         'JOINT', '右端', '左/-仕口-/右', '', '', '左端', ...
-        'JOINT', '中央', 'JOINT', '右端', '左/-仕口-/右'};
+        'JOINT', '中央', 'JOINT', '右端', '左/-仕口-/右', ''};
 
       % ========== データ行 ==========
       if has_axial
@@ -356,16 +358,13 @@ for i = 1:nstory
       Ci_ = C(ig1, 1, ilc);
       Cc_ = C(igc, 3, clc);
       Cj_ = C(ig2, 2, jlc);
-      if abs(fbn(inm, 1, ilc) - fti_) > FB_EQ_TOL ...
-          && abs(Ci_ - 1) > C_TOL
+      if abs(fbn(inm,1,ilc) - fti_) > FB_EQ_TOL && abs(Ci_-1) > C_TOL
         scgbody{irow, 10} = sprintf('%.3f', Ci_);
       end
-      if abs(fbn(inm, 2, clc) - ftc_) > FB_EQ_TOL ...
-          && abs(Cc_ - 1) > C_TOL
+      if abs(fbn(inm,2,clc) - ftc_) > FB_EQ_TOL && abs(Cc_-1) > C_TOL
         scgbody{irow, 12} = sprintf('%.3f', Cc_);
       end
-      if abs(fbn(inm, 3, jlc) - ftj_) > FB_EQ_TOL ...
-          && abs(Cj_ - 1) > C_TOL
+      if abs(fbn(inm,3,jlc) - ftj_) > FB_EQ_TOL && abs(Cj_-1) > C_TOL
         scgbody{irow, 14} = sprintf('%.3f', Cj_);
       end
 
@@ -479,6 +478,10 @@ return
 
   function reps = pick_representative(cands)
   %pick_representative - 符号グループごとに代表1部材を選定
+  %
+  %   reps = pick_representative(cands) は、候補名目梁番号配列を
+  %   断面符号でグループ化し、各グループから最大検定比を持つ
+  %   名目梁を1本ずつ選定して返す。
   %
   %   入力引数:
   %     cands - 候補名目梁番号の配列
