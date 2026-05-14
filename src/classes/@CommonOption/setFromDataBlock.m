@@ -1,6 +1,16 @@
 function options = setFromDataBlock(options, data)
-%SETFROMDATABLOCK この関数の概要をここに記述
-%   詳細説明をここに記述
+%setFromDataBlock - データブロックからCommonOptionのフィールドを設定する
+%
+%   options = setFromDataBlock(options, data) は、入力CSVから読み取った
+%   データブロック data の各行のキー（1列目）に応じて、options の
+%   対応するフィールドを更新して返す。
+%
+%   入力引数:
+%     options - CommonOption オブジェクト
+%     data    - データブロック (cell配列、1列目:項目名、2列目以降:値)
+%
+%   出力引数:
+%     options - 更新された CommonOption オブジェクト
 
 % --- 基本事項の設定 ---
 for i=1:size(data,1)
@@ -15,7 +25,7 @@ for i=1:size(data,1)
   end
 end
 
-% --- 構造計算用条件の設定---
+% --- 構造計算用条件の設定 ---
 for i=1:size(data,1)
   if ismissing(data{i,1})
     continue
@@ -118,7 +128,10 @@ for i=1:size(data,1)
     case '幅厚比の事前処理'
       options.do_limit_wtratio_section = (data{i,2}=='Y');
     case '柱部材長のとり方'
-      options.column_member_length_type = str2double(data{i,2});
+      p = data{i,2};
+      if ~ismissing(p)
+        options.column_member_length_type = p;
+      end
     case '設計ルート'
       p = data{i,2};
       if ~ismissing(p)
