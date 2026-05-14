@@ -33,8 +33,8 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz] = find_idxyz_girder(story_name, ...
-  frame_name, coord_name, baseline);
+[idx, idy, idz] = find_idxyz_girder(story_name, frame_name, ...
+  coord_name, baseline);
 
 % 梁部材番号
 idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder, ...
@@ -72,7 +72,7 @@ for i=1:n
   dhl_ = 0; dhr_ = 0;
   if ~ismissing(data{i,11}); dhl_ = data{i,11}; end
   if ~ismissing(data{i,12}); dhr_ = data{i,12}; end
-  material_name = data{i,9};
+  material_name = tochar(data{i,9});
   idm_ = iddd(matches(material.name, material_name));
   E_ = material.E(idm_);
 

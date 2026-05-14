@@ -17,7 +17,7 @@ height = nan(n,1);
 story_name = cell(n,2);
 for i=1:n
   name{i} = tochar(data{i,1});
-  story_name(i,:) = data(i,2:3);
+  story_name(i,:) = tochar(data(i,2:3));
   standard_height(i) = data{i,3};
   height(i) = data{i,4};
   if ismissing(height(i))
@@ -37,9 +37,8 @@ for i=1:n
   isdummy(i) = story.isdummy(idstory(i));
   idnominal(i) = story.idnominal(idstory(i));
 end
-floor = table(name, story_name, ...
-  standard_height, height, diff_height, ...
-  idstory, idz, isdummy, idnominal);
+floor = table(name, story_name, standard_height, height, ...
+  diff_height, idstory, idz, isdummy, idnominal);
 floor = sortrows(floor,'idz');
 
 % 層への階情報の追加
