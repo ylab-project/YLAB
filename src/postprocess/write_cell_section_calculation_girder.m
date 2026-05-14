@@ -10,7 +10,7 @@ function scgbody = write_cell_section_calculation_girder( ...
 %
 %   入力引数:
 %     com     - 共通オブジェクト
-%     result  - 解析結果構造体 (secdim, ration, fbn, fcn 等)
+%     result  - 解析結果構造体 (secdim, ration, fbn, fcn, 採用ケース等)
 %     options - 出力オプション構造体
 %
 %   出力引数:
@@ -42,6 +42,7 @@ fcn = result.fcn;
 stn = result.stn;
 stcn = result.stcn;
 C = result.C;
+girder_section_case = result.girderSectionCase;
 if options.consider_web_at_girder_center
   Zc = result.msprop.Zy;
 else
@@ -143,15 +144,10 @@ for i = 1:nstory
       ing = cands_(k_);
       inm = idnmg2nm(ing);
 
-      % 最大ケースの判定
-      tiebreak = zeros(1, nlc);
-      tiebreak(PRM.LT) = eps;
-      tiebreak(PRM.EXP) = eps;
-      tiebreak(PRM.EYP) = eps;
       isg = idnm2sg(ing);
-      max_lc = max([gri(ing,:); grc(ing,:); grj(ing,:)]);
-      [~, lc] = max(max_lc + tiebreak);
-      ilc = lc; clc = lc; jlc = lc;
+      ilc = girder_section_case.ilc(ing);
+      clc = girder_section_case.clc(ing);
+      jlc = girder_section_case.jlc(ing);
 
       % 箇所ごとの部材番号
       idsub = nominal_girder.idsub(ing, :);
@@ -367,10 +363,10 @@ for i = 1:nstory
       if abs(fbn(inm,1,ilc) - fti_) > FB_EQ_TOL && abs(Ci_-1) > C_TOL
         scgbody{irow, 10} = sprintf('%.3f', Ci_);
       end
-      if abs(fbn(inm,2,clc) - ftc_) > FB_EQ_TOL && abs(Cc_-1) > C_TOL
+      if abs(fbn(inm,3,clc) - ftc_) > FB_EQ_TOL && abs(Cc_-1) > C_TOL
         scgbody{irow, 12} = sprintf('%.3f', Cc_);
       end
-      if abs(fbn(inm,3,jlc) - ftj_) > FB_EQ_TOL && abs(Cj_-1) > C_TOL
+      if abs(fbn(inm,2,jlc) - ftj_) > FB_EQ_TOL && abs(Cj_-1) > C_TOL
         scgbody{irow, 14} = sprintf('%.3f', Cj_);
       end
 
@@ -383,8 +379,8 @@ for i = 1:nstory
         scgbody{irow,6} = sprintf('%.1f', -dfn(inm,7,jlc)*1e-3);
         scgbody{irow, 9} = 'fb';
         scgbody{irow,10} = sprintf('%.1f', fbn(inm,1,ilc));
-        scgbody{irow,12} = sprintf('%.1f', fbn(inm,2,clc));
-        scgbody{irow,14} = sprintf('%.1f', fbn(inm,3,jlc));
+        scgbody{irow,12} = sprintf('%.1f', fbn(inm,3,clc));
+        scgbody{irow,14} = sprintf('%.1f', fbn(inm,2,jlc));
       end
 
       % --- M ---
@@ -401,8 +397,8 @@ for i = 1:nstory
       else
         scgbody{irow, 9} = 'fb';
         scgbody{irow,10} = sprintf('%.1f', fbn(inm,1,ilc));
-        scgbody{irow,12} = sprintf('%.1f', fbn(inm,2,clc));
-        scgbody{irow,14} = sprintf('%.1f', fbn(inm,3,jlc));
+        scgbody{irow,12} = sprintf('%.1f', fbn(inm,3,clc));
+        scgbody{irow,14} = sprintf('%.1f', fbn(inm,2,jlc));
       end
 
       % --- Q ---

@@ -164,6 +164,15 @@ if coptions.consider_stress_ratio
     beta, lcdir, idmc2st, com.member.column.onfg_x, ...
     com.member.column.onfg_y, Cn, nomgc, com.column_buckling_K);
 
+  % S梁断面算定表の表示用採用ケース
+  tiebreak = zeros(1, size(gri, 2));
+  tiebreak(PRM.LT) = eps;
+  tiebreak(PRM.EXP) = eps;
+  tiebreak(PRM.EYP) = eps;
+  [~, girderSectionCase.ilc] = max(gri + tiebreak, [], 2);
+  [~, girderSectionCase.clc] = max(grc + tiebreak, [], 2);
+  [~, girderSectionCase.jlc] = max(grj + tiebreak, [], 2);
+
   % 正確な細長比を算出
   [lambday, lambdaz] = calc_lambda(A, Iy, Iz, mtype, mstype, lkx, lky);
 
@@ -185,6 +194,9 @@ else
   lkx = lm; lky = [lm lm lm];
   lambday = []; lambdaz = []; ration = [];
   bkinfo = []; id_center_sel = [];
+  girderSectionCase.ilc = [];
+  girderSectionCase.clc = [];
+  girderSectionCase.jlc = [];
   gr = []; gs = []; cr = []; cs = []; bn = [];
 
 end
@@ -458,6 +470,7 @@ result.cyl = cyl;
 result.felement = felement;
 result.state = state;
 result.id_center_sel = id_center_sel;
+result.girderSectionCase = girderSectionCase;
 result.nomgc = nomgc;
 return
 end
