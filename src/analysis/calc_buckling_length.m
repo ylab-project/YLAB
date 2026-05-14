@@ -84,10 +84,13 @@ for inc = 1:nnc
   isself = false(nme,1); isself(idme) = true;
 
   % 接続部材番号（方向は呼び出し側で解決済み）
+  % 柱は脚→頭の順に登録されている前提で、上階柱は柱頭節点を始点と
+  % する柱、下階柱は柱脚節点を終点とする柱に限定する。これにより、
+  % 節点同一化で同じ節点へ終端する隣柱（兄弟柱）を除外できる。
   mga = immm((js==jei | je==jei) & is_girder);
   mgb = immm((js==jsi | je==jsi) & is_girder);
-  mca = immm((js==jei | je==jei) & mtype==PRM.COLUMN & ~isself);
-  mcb = immm((js==jsi | je==jsi) & mtype==PRM.COLUMN & ~isself);
+  mca = immm(js==jei & mtype==PRM.COLUMN & ~isself);
+  mcb = immm(je==jsi & mtype==PRM.COLUMN & ~isself);
 
   % 複数柱接続エラー
   if length(mca) > 1
