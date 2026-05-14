@@ -1,23 +1,27 @@
-function member_column = set_member_column_p2_block(dbc, com, isdummy_node)
-%set_member_column_p2_block - 柱部材に断面番号・節点番号・変数番号を設定
-%   （P2ブロック処理）
+function member_column = set_member_column_p2_block(~, com, ~)
+%set_member_column_p2_block - 柱部材に断面・節点・変数番号を設定(P2)
 %
-% P1ブロックで作成された柱部材テーブルに対し、断面マッチングと
-% 節点番号の割り当てを行う。無効な節点を持つ柱は削除される。
+%   member_column = set_member_column_p2_block(~, com, ~) は、
+%   P1ブロックで作成された柱部材テーブルに対し、断面マッチングと
+%   節点番号の割り当てを行います。無効な節点を持つ柱は削除されます。
 %
-% 入力:
-%   dbc: データブロックコントローラ（インターフェース互換用）
-%   com: 共通データ構造体
-%   isdummy_node: ダミー節点フラグ（インターフェース互換用）
+%   入力引数:
+%     第1引数 - 未使用（呼び出し側互換のため）
+%     com     - 共通データ構造体（member.column, section.column,
+%               story.idnominal, node, nsecc を参照）
+%     第3引数 - 未使用（呼び出し側互換のため）
 %
-% 出力:
-%   member_column: 柱部材テーブル
-%     .idsecc  - 断面番号
-%     .idnode1 - 柱脚節点番号
-%     .idnode2 - 柱頭節点番号
-%     .idvar   - 変数番号 [n×MAX_NSVAR]
+%   出力引数:
+%     member_column - 柱部材テーブル。以下のフィールドを追加・更新:
+%                       .idsecc  - 断面番号
+%                       .idnode1 - 柱脚節点番号
+%                       .idnode2 - 柱頭節点番号
+%                       .idvar   - 変数番号 [n×MAX_NSVAR]
+%                       .cz_std  - 通り心ベース方向余弦Z成分
+%                                  （斜め柱の投影補正用）
 %
-% See also: set_member_column_p1_block, find_idnode_from_idxyz
+%   参考:
+%     set_member_column_p1_block, find_idnode_from_idxyz
 
 % 共通配列の取得
 member_column  = com.member.column;   % P1で作成された柱部材テーブル
@@ -67,8 +71,8 @@ for i=1:n
       end
     end
   else
-    error('柱断面 %s が見つかりません (階: %s)', ...
-      section_name{i}, member_column.floor_name{i});
+    error('柱断面 %s が見つかりません (階: %s)', section_name{i}, ...
+      member_column.floor_name{i});
   end
 end
 
@@ -85,7 +89,7 @@ idnode1 = find_idnode_from_idxyz(idx(:,1), idy(:,1), idz(:,1), node);
 idnode2 = find_idnode_from_idxyz(idx(:,2), idy(:,2), idz(:,2), node);  
 
 % ダミー節点の処理
-% 節点が見つからない(=0)柱に対し、接続する他の柱から節点を継承するか削除する
+% 節点が見つからない(=0)柱は、接続する他の柱から節点を継承するか削除する
 iddd = 1:n;                   % 部材インデックス
 isremoved = false(n,1);       % 削除フラグ
 for i=1:n
@@ -123,11 +127,25 @@ for i=1:n
   idvar(i,:) = section_column.idvar(idsecc(i),:);
 end
 
+% 通り心ベース方向余弦のZ成分（斜め柱の投影補正用）
+% node.z_standard は標準階高ベースの通り心Z座標で preprocess 後不変
+cz_std = nan(n,1);
+isvalid_node = idnode1 > 0 & idnode2 > 0;
+in1 = idnode1(isvalid_node);
+in2 = idnode2(isvalid_node);
+zs = node.z_standard;
+dx = node.x(in2) - node.x(in1);
+dy = node.y(in2) - node.y(in1);
+dz = zs(in2) - zs(in1);
+L_std = sqrt(dx.^2 + dy.^2 + dz.^2);
+cz_std(isvalid_node) = dz ./ L_std;
+
 % 結果をテーブルに格納し、無効な柱を除去
 member_column.idsecc = idsecc;
 member_column.idnode1 = idnode1;
 member_column.idnode2 = idnode2;
 member_column.idvar = idvar;
+member_column.cz_std = cz_std;
 member_column = member_column(~isremoved,:);
 
 return

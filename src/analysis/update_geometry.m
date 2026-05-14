@@ -68,7 +68,7 @@ idm2n = [member.property.idnode1 member.property.idnode2];
 idm2s = member.property.idsec;
 idmc2s = idm2s(mtype==PRM.COLUMN);
 idmc2st = member.column.idstory;
-% idmc2sc = member.column.idsecc;
+cz_std = member.column.cz_std;  % 通り心ベース方向余弦Z成分
 mcstype = stype(idmc2s);  % 柱断面タイプ
 idmc2sf1x = member.column.idsec_face1x;
 idmc2sf2x = member.column.idsec_face2x;
@@ -154,12 +154,10 @@ if options.consider_allowable_stress_at_face
   gcyl = cyl(mtype==PRM.GIRDER,:);
   lf.girder = comp_face_length_girder(secdim, idmg2sfl, ...
     idmg2sfr, idscb2s, cbs.Df, gcxl, gcyl, idmg2n, idsup2n);
-  ccxl = cxl(mtype==PRM.COLUMN,:);
-  ccyl = cyl(mtype==PRM.COLUMN,:);
   [lf.columnx, lf.columny] = comp_face_length_column(...
     secdim, stdh, member_column.idz, member_girder.level, stype, ...
     idmc2sf1x, idmc2sf2x, idmc2sf1y, idmc2sf2y, idmc2st, ...
-    idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, gcxl, gcyl, ccxl, ccyl);
+    idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, gcxl, gcyl, cz_std);
 end
 
 %---
@@ -170,17 +168,12 @@ lr.columny = zeros(nmec,2);
 if options.consider_rigid_zone
   % 梁外形
   sdimgm = secdim(idmg2sg,1:4);
-  % 柱断面情報
-  % sdimcm = secdim(idmc2sc,1:4);    % 柱断面寸法
   gdir = member.girder.idir;      % 梁方向
-  % 柱剛域（mcstype と idmc2s を追加で渡す）
-  % 柱の方向余弦を取得（斜め柱の投影補正用）
-  ccxl = cxl(mtype==PRM.COLUMN,:);
-  ccyl = cyl(mtype==PRM.COLUMN,:);
+  % 柱剛域
   [lr.columnx, lr.columny] = calc_rigid_zone_column( ...
     secdim, stdh, member_girder.level, mgstype, idmc2mf1x, idmc2mf2x, ...
     idmc2mf1y, idmc2mf2y, idmc2st, idmg2sg, idsg2s, mcstype, idmc2s, ...
-    ccxl, ccyl);
+    cz_std);
   % 柱剛域（直接入力値で上書き）
   if isfield(member, 'column_rigid_zone_direct')
     rzd = member.column_rigid_zone_direct;
