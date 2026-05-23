@@ -10,12 +10,15 @@ function scgbody = write_cell_section_calculation_girder( ...
 %
 %   入力引数:
 %     com     - 共通オブジェクト
-%     result  - 解析結果構造体 (secdim, ration, fbn, fcn, 採用ケース等)
+%     result  - 解析結果構造体 (secdim, ration, fbn, fcn, nomgc 等)
 %     options - 出力オプション構造体
 %
 %   出力引数:
 %     scgbody - 断面算定表のボディ行セル配列 [nrow×16]
 %               （15列のデータ + 末尾1列の連結マーカー列）
+%
+%   備考:
+%     - 中央位置は result.nomgc.xc_design(ing) を参照する。
 
 % 定数
 nng = com.num.nominal_girder;
@@ -306,7 +309,7 @@ for i = 1:nstory
         scgbody{irow, 6} = sprintf('%.1f', Asc(im2)*1e-2);
         scgbody{irow, 9} = '位置';
         scgbody{irow,10} = sprintf('%.0f', lfg(ig1, 1));
-        scgbody{irow,12} = sprintf('%.0f', lm_ / 2);
+        scgbody{irow,12} = sprintf('%.0f', result.nomgc.xc_design(ing));
         scgbody{irow,14} = sprintf('%.0f', lfg(ig2, 2));
       end
 
@@ -319,7 +322,7 @@ for i = 1:nstory
       if ~has_axial
         scgbody{irow, 9} = '位置';
         scgbody{irow,10} = sprintf('%.0f', lfg(ig1, 1));
-        scgbody{irow,12} = sprintf('%.0f', lm_ / 2);
+        scgbody{irow,12} = sprintf('%.0f', result.nomgc.xc_design(ing));
         scgbody{irow,14} = sprintf('%.0f', lfg(ig2, 2));
       end
       if has_axial
