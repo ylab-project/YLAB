@@ -24,8 +24,8 @@ ke(1,7) = -kn;
 ke(7,1) = -kn;
 ke(7,7) = kn;
 
-% ねじり剛性（stif_beam_matrixと同じ J/100 補正）
-kt = G * (J / 100) / L0;
+% ねじり剛性（factor_J による微小化は呼び出し元で適用済み）
+kt = G * J / L0;
 ke(4,4) = kt;
 ke(4,10) = -kt;
 ke(10,4) = -kt;

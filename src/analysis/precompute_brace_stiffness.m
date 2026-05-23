@@ -1,6 +1,6 @@
 function br_stif = precompute_brace_stiffness(A, ...
   cxl, cyl, lm, Em, JJ, Gm, xr, yr, idn2df, idm2n1, ...
-  idm2n2, mtype, stype, idm2s, is_tension_only)
+  idm2n2, mtype, stype, idm2s, is_tension_only, factor_J)
 %precompute_brace_stiffness - 全ブレース剛性の事前計算
 %
 %   br_stif = precompute_brace_stiffness(...) は、
@@ -22,6 +22,7 @@ function br_stif = precompute_brace_stiffness(A, ...
 %     stype - 断面種別 [nsec×1]
 %     idm2s - 部材-断面変換 [nme×1]
 %     is_tension_only - 引張のみ判定 [nme×1]
+%     factor_J - 捩り剛性増減率 [nme×1]（0 は微小化対象）
 %
 %   出力引数:
 %     br_stif - 構造体配列 [nbr×1]
@@ -57,13 +58,17 @@ br_stif(nbr) = struct('im', 0, 'ke', zeros(12), ...
   'tt', zeros(2, 12), 'kn', 0, 'ndi', zeros(1, 12), ...
   'is_tb', false);
 
+% 捩り剛性増減率（0 は STIFF_IGNORE_FACTOR に置換、数値問題回避）
+J_fac = factor_J;
+J_fac(J_fac == 0) = PRM.STIFF_IGNORE_FACTOR;
+
 for idx = 1:nbr
   im = id_br(idx);
   li = lm(im); Ai = A(im); Ei = Em(im);
   kn_i = Ei * Ai / li;
 
   % 局所座標系ke（軸+ねじり）
-  ke = stif_truss_matrix(li, Ai, Ei, JJ(im), Gm(im));
+  ke = stif_truss_matrix(li, Ai, Ei, JJ(im) * J_fac(im), Gm(im));
 
   % 局所系→全体系変換
   t_ = [cxl(im,:); cyl(im,:); czl(im,:)];

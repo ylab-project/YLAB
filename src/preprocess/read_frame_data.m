@@ -1344,10 +1344,10 @@ if nmehb > 0
     member_horizontal_brace.tctype == PRM.BRACE_TENSION;
 end
 
-% 捩り剛性増減率の初期値（梁=0=考慮OFF、それ以外=1=通常値）
+% 捩り剛性増減率の初期値（SS7 §5.2 準拠で全部材 0=微小化）
 % 入力セクション「梁/柱の捩り剛性増減率」で該当部材が上書きされる
-factor_J = ones(nme, 1);
-factor_J(type==PRM.GIRDER) = 0;
+% 0 のまま残った部材は stif_sys_matrix で STIFF_IGNORE_FACTOR 倍される
+factor_J = zeros(nme, 1);
 
 % 結果の保存
 member_property = table(type, idir, idmeg, idmec, idmeb, ...

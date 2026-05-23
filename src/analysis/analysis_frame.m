@@ -420,10 +420,13 @@ else
   iter_max = 1;
 end
 
+%% 捩り剛性増減率（ブレース・梁柱で共通利用）
+factor_J = com.member.property.factor_J;
+
 %% ブレース剛性の事前計算（軸剛性はブレース長さ L = 内法）
 br_stif = precompute_brace_stiffness(A, cxl, cyl, lm_stiff, ...
   Em, JJ, Gm, xr, yr, idn2df, idm2n1, idm2n2, mtype, ...
-  stype, idm2s, is_tension);
+  stype, idm2s, is_tension, factor_J);
 if has_tension_brace
   id_tb = find([br_stif.is_tb]);
   ntb = length(id_tb);
@@ -431,7 +434,6 @@ end
 
 %% 剛性行列の作成
 factor_Iz = options.factor_Iz;
-factor_J = com.member.property.factor_J;
 ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, ...
   cyl, lm_stiff, Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
   idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
