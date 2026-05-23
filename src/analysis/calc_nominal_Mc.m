@@ -2,10 +2,13 @@ function Mcn0 = calc_nominal_Mc(rs0, M0, Mc0, idmeg, ...
   idmg2m, idnmg2nm, lm, lf)
 %calc_nominal_Mc - 名目部材レベルの中央Mを算出
 %
-%   通し梁の中央Mを区分的放物線でケース別に算出し、
-%   名目部材レベル [nnm×1×nlc] で返す。
-%   符号規約は calc_member_force の Mc と同一
-%   （Mc = -M(L/2)）。
+%   Mcn0 = calc_nominal_Mc(rs0, M0, Mc0, idmeg, idmg2m, idnmg2nm,
+%   lm, lf) は、名目梁の内法中央（フェイス間中央）位置 M を
+%   ケース別に算出し、名目部材レベル [nnm×1×nlc] で返す。
+%   G+P（ilc=1）は分布荷重あり→放物線補間、地震（ilc>1）は
+%   分布荷重なし→線形補間で中央位置の M を求める。
+%   左右フェイス長が等しい通常節点では要素中央 L/2 と一致する。
+%   符号規約は calc_member_force の Mc と同一（Mc = -M(xc)）。
 %
 %   入力引数:
 %     rs0      [nme×12×nlc] - 部材応力（ケース別）
@@ -31,10 +34,6 @@ nng = size(idmeg, 1);
 for ing = 1:nng
   igs = idmeg(ing,:);
   igs(igs==0) = [];
-  nsub = length(igs);
-  if nsub <= 1
-    continue
-  end
 
   % 名目部材番号
   inm = idnmg2nm(ing);
