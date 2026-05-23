@@ -12,6 +12,8 @@ function scgbody = write_cell_section_calculation_girder( ...
 %     com     - 共通オブジェクト
 %     result  - 解析結果構造体 (secdim, ration, fbn, fcn, nomgc 等)
 %     options - 出力オプション構造体
+%               section_calc_all_members, consider_web_at_girder_center,
+%               consider_web_at_girder_end, output_girder_list_label
 %
 %   出力引数:
 %     scgbody - 断面算定表のボディ行セル配列 [nrow×16]
@@ -19,6 +21,7 @@ function scgbody = write_cell_section_calculation_girder( ...
 %
 %   備考:
 %     - 中央位置は result.nomgc.xc_design(ing) を参照する。
+%     - C 補正係数は上限値 2.3 に飽和したときのみ表示する。
 
 % 定数
 nng = com.num.nominal_girder;
@@ -353,25 +356,15 @@ for i = 1:nstory
       scgbody{irow, 4} = PRM.load_case_combo_name(clc);
       scgbody{irow, 6} = PRM.load_case_combo_name(jlc);
       scgbody{irow, 9} = 'C';
-      % C 補正係数: fb==Ft（補正が結果に効いていない）または
-      % C==1.0（無補正）のとき空白とする（SS7 互換表示）
+      % C 補正係数: 上限値 2.3 に達した（飽和した）ときのみ表示する
+      % （SS7 互換表示）。fb==Ft（横座屈低減が効いていない）も空白。
       ftdiv_ = [1.5 1 1 1 1];
-      fti_ = F(im1) / ftdiv_(ilc);
-      ftc_ = F(imc) / ftdiv_(clc);
-      ftj_ = F(im2) / ftdiv_(jlc);
-      C_TOL = 1e-3;
-      Ci_ = C(ig1, 1, ilc);
-      Cc_ = C(igc, 3, clc);
-      Cj_ = C(ig2, 2, jlc);
-      if abs(fbn(inm,1,ilc) - fti_) > FB_EQ_TOL && abs(Ci_-1) > C_TOL
-        scgbody{irow, 10} = sprintf('%.3f', Ci_);
-      end
-      if abs(fbn(inm,3,clc) - ftc_) > FB_EQ_TOL && abs(Cc_-1) > C_TOL
-        scgbody{irow, 12} = sprintf('%.3f', Cc_);
-      end
-      if abs(fbn(inm,2,jlc) - ftj_) > FB_EQ_TOL && abs(Cj_-1) > C_TOL
-        scgbody{irow, 14} = sprintf('%.3f', Cj_);
-      end
+      scgbody{irow, 10} = fmt_C(fbn(inm,1,ilc), F(im1)/ftdiv_(ilc), ...
+        C(ig1, 1, ilc), FB_EQ_TOL);
+      scgbody{irow, 12} = fmt_C(fbn(inm,3,clc), F(imc)/ftdiv_(clc), ...
+        C(igc, 3, clc), FB_EQ_TOL);
+      scgbody{irow, 14} = fmt_C(fbn(inm,2,jlc), F(im2)/ftdiv_(jlc), ...
+        C(ig2, 2, jlc), FB_EQ_TOL);
 
       if has_axial
         % --- N ---
@@ -505,6 +498,33 @@ return
       grp_ = cands(isg_list == uisg(u_));
       [~, best_] = max(max_ratio_all(grp_));
       reps(u_) = grp_(best_);
+    end
+
+    return
+  end
+
+  function s = fmt_C(fb, ft, Cv, fb_tol)
+  %fmt_C - C 補正係数の表示文字列を生成
+  %
+  %   s = fmt_C(fb, ft, Cv, fb_tol) は、C 補正係数が上限 2.3 に飽和
+  %   しており、かつ fb が ft と異なる（横座屈低減が効いている）
+  %   ときのみ '%.3f' で書式化した文字列を返す。それ以外は空文字。
+  %   SS7 の S梁断面算定表の C 列表示仕様に合わせる。
+  %
+  %   入力引数:
+  %     fb     - 許容曲げ応力度
+  %     ft     - 基準強度 / 短期係数
+  %     Cv     - C 補正係数値
+  %     fb_tol - fb==ft 判定許容差
+  %
+  %   出力引数:
+  %     s - 書式化文字列または空文字
+    C_MAX = 2.3;
+    C_TOL = 1e-3;
+    if abs(fb - ft) > fb_tol && abs(Cv - C_MAX) < C_TOL
+      s = sprintf('%.3f', Cv);
+    else
+      s = '';
     end
 
     return
