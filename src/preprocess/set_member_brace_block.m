@@ -518,7 +518,8 @@ return
     %     member_girder] = ...
     %     split_girder_for_kbrace_func(
     %       baseline, node, member_girder) は、
-    %   梁中点に中間節点を作成し、梁を2分割する。
+    %   K形ブレースの中間節点を確保する。梁中点位置に既存節点があれば
+    %   それを採用し、なければ中間節点を新規生成して梁を2分割する。
     %
     %   入力引数:
     %     baseline      - 通り線データ
@@ -538,25 +539,62 @@ return
                brace_type == PRM.BRACE_MEMBER_TYPE_K_LOWER);
     na = length(iab);
 
-    % 対象梁の取得と方向の判定
-    idg = zeros(na,1);
-    girder_idir = zeros(na,1);
+    % 中間節点配列の事前確保（既存節点採用分・新規生成分を統合）
+    idnode_mid_array = zeros(n,1);
+
+    % 中点位置に既存節点があるブレースを先行判定する。節点同一化・
+    % 軸振れ・寄り等で節点が通りから外れる場合に対応するため、通り
+    % 座標ではなく節点座標から中点を計算して node テーブルを直接
+    % 検索する。
+    existing_mid_node = zeros(na,1);
+    tol = 1e-6;
     for ia=1:na
-      tid = iab(ia);
+      nL = idnode_k_L(ia);
+      nR = idnode_k_R(ia);
+      xc_mid = (node.x(nL) + node.x(nR)) / 2;
+      yc_mid = (node.y(nL) + node.y(nR)) / 2;
+      zc_mid = (node.z(nL) + node.z(nR)) / 2;
+      in = find(abs(node.x - xc_mid) < tol ...
+              & abs(node.y - yc_mid) < tol ...
+              & abs(node.z - zc_mid) < tol, 1);
+      if ~isempty(in)
+        existing_mid_node(ia) = in;
+        idnode_mid_array(iab(ia)) = in;
+      end
+    end
+
+    % 新規中間節点が必要なブレースのみ抽出。全て既存節点で
+    % カバーされる場合は以降の処理を行わずに戻る。
+    ia_new = find(existing_mid_node == 0);
+    if isempty(ia_new)
+      return
+    end
+    iab_new = iab(ia_new);
+    na_new = length(iab_new);
+
+    % 対象梁の取得と方向の判定（新規生成対象のみ）
+    idg = zeros(na_new,1);
+    girder_idir = zeros(na_new,1);
+    for ia=1:na_new
+      tid = iab_new(ia);
       % K上形：上階の梁、K下形：下階の梁を取得
       if brace_type(tid) == PRM.BRACE_MEMBER_TYPE_K_UPPER
         idz_girder = idz(tid,[2 2]);  % 上階
       else
         idz_girder = idz(tid,[1 1]);  % 下階
       end
-      idg(ia) = find_idgirder_from_idxyz(idx(tid,:), idy(tid,:), ...
+      idg_ = find_idgirder_from_idxyz(idx(tid,:), idy(tid,:), ...
         idz_girder, member_girder, [], baseline);
+      if numel(idg_) ~= 1
+        error('K形ブレース対象梁が複数見つかりました。');
+      end
+      idg(ia) = idg_;
       girder_idir(ia) = member_girder.idir(idg(ia));
     end
 
-    % K形ブレース左右端点節点の取得（親スコープから）
-    idnode_k_L_ = idnode_k_L;
-    idnode_k_R_ = idnode_k_R;
+    % K形ブレース左右端点節点の取得（新規生成対象のみ）
+    idnode_k_L_ = idnode_k_L(ia_new);
+    idnode_k_R_ = idnode_k_R(ia_new);
 
     % 中間節点座標の計算（梁中点）
     x_mid = (node.x(idnode_k_L_)+node.x(idnode_k_R_))/2;
@@ -590,7 +628,7 @@ return
     % 通り線情報の設定とダミー通りの作成
     % 45度梁（PRM.XY）はX方向ダミー通りで代表させる
     for iu=1:length(idu2o)
-      tid = iab(idu2o(iu));
+      tid = iab_new(idu2o(iu));
       if girder_idir_unique(iu) == PRM.X ...
           || girder_idir_unique(iu) == PRM.XY
         % X方向梁・45度梁：X方向にダミー通り追加
@@ -670,9 +708,8 @@ return
       end
     end
 
-    % 中間節点配列の作成（親スコープ配列に格納）
-    idnode_mid_array = zeros(n,1);
-    idnode_mid_array(iab) = idnode_mid(ido2u);
+    % 既存節点採用分は冒頭で設定済み、新規生成分のみ追加で代入
+    idnode_mid_array(iab_new) = idnode_mid(ido2u);
 
     % 分割梁兄弟ポインタのセット
     nmg_orig = size(member_girder, 1);
@@ -768,6 +805,8 @@ return
 
     % 元のテーブルと追加テーブルを結合
     tb_out = [tb_in; tb_add];
+
+    return
   end
 
   function [idnode_L, idnode_R, idnode_L_far, idnode_R_far] = ...
@@ -810,5 +849,7 @@ return
       idz_for_far, node_data);
     idnode_R_far = find_idnode_from_idxyz(idx(ib,2), idy(ib,2), ...
       idz_for_far, node_data);
+
+    return
   end
 end
