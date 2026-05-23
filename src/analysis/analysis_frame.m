@@ -340,9 +340,13 @@ lm_brace_buckling = calc_brace_buckling_length(member.brace, ...
 lm_stiff = lm;
 
 %% 柱・梁・ブレースを結合して全部材の荷重計算用部材長を作成
-lm_weight = lm;  % 初期値（ブレースはこのまま節点間距離を使用）
+% ブレース重量は物理量なので解析モデルのブレース取り付き位置
+% オプションに依らず常に物理ブレース長（SS7 3.8.1 デフォルトルール）
+% を使う
+lm_weight = lm;
 lm_weight(mtype==PRM.COLUMN) = lm_column_weight;
 lm_weight(mtype==PRM.GIRDER) = lm_girder_weight;
+lm_weight(mtype==PRM.BRACE) = lm_brace_buckling;
 
 %% BRB単位重量の取得
 brace_unit_weight = calc_brb_unit_weight(com.section.brace, ...
