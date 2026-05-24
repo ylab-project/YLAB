@@ -288,7 +288,10 @@ for im = 1:nme
 
     fg(in1, :) = fg(in1, :) + [fi_force; fi_moment]';
     fg(in2, :) = fg(in2, :) + [fj_force; fj_moment]';
-    m0m = wv(3)*li_m^2/8;  % M0も実際の部材長を使用
+    % 柱面間 [a, L-b] に等分布する荷重の単純梁中央 M (SS7 互換)
+    % M(L/2) = w * (L²/8 - (a² + b²)/4)
+    % SS7 マニュアル 4.1.1(1) 式 4.5: 自重は柱面間 L で計算
+    m0m = wv(3)*(li_m^2/8 - (a^2 + b_^2)/4);
     M0(im) = m0m;
   elseif mtype(im) == PRM.BRACE
     % === ブレースの処理 ===

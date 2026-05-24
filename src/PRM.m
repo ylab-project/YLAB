@@ -132,7 +132,7 @@ classdef PRM
     BRACE_TENSION_COMPRESSION = 1002  % 引張圧縮
 
     %% 物理定数
-    GRAVITY = 9.8         % 重力加速度 [m/s2]
+    GRAVITY = 9.80665     % 標準重力加速度 [m/s2]
     RHOS = 7.85           % 鋼材密度 [t/m3]
     ES   = 205000         % 鋼材ヤング係数 [N/mm2]
     RHORC = 2.5           % RC密度 [t/m3]（24.5 kN/m3）
