@@ -1,11 +1,11 @@
 function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
-  js, je, is_girder, lnm, lm, Em, mejoint, nominal, ...
+  js, je, is_girder, lnm, lm, lm_bk, Em, mejoint, nominal, ...
   idmc2nc, options, beta, ilc, col_idstory, onfg, kcUser)
 %calc_buckling_length - 柱部材の座屈長さを計算する（1方向分）
 %
 %   [lk, kc, bkinfo] = calc_buckling_length(Iy,
-%   mtype, js, je, is_girder, lnm, lm, Em, mejoint,
-%   nominal, idmc2nc, options, beta, ilc,
+%   mtype, js, je, is_girder, lnm, lm, lm_bk, Em,
+%   mejoint, nominal, idmc2nc, options, beta, ilc,
 %   col_idstory, onfg, kcUser) は、
 %   構造骨組みにおける柱部材の座屈長さを算出する。
 %   呼び出し側で方向別の引数を準備し、本関数を
@@ -18,7 +18,10 @@ function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
 %     je          - 部材終端節点番号 [nme×1]
 %     is_girder   - 該当方向の梁マスク [nme×1]
 %     lnm         - 通し部材の構造心間距離 [nme×1]
-%     lm          - セグメント芯間距離 [nme×1]
+%     lm          - セグメント芯間距離（構造心間、控除前）[nme×1]
+%                   S柱断面算定表の Lb1/Lb2 表示用
+%     lm_bk       - セグメント芯間距離（D/2 控除後）[nme×1]
+%                   柱座屈長さ表・Lk 算定用
 %     Em          - ヤング係数 [nme×1]
 %     mejoint     - 接合条件 [nme×2]（柱脚,柱頭）
 %     nominal     - 名目部材情報 (struct)
@@ -55,14 +58,13 @@ bk_sumIcBot = zeros(1,nnc);
 bk_sumIgTop = zeros(1,nnc);
 bk_sumIgBot = zeros(1,nnc);
 
-% 横補剛間隔（横補剛点判定付き、節点間距離ベース）
+% 控除前（S柱断面算定表 Lb1/Lb2 表示用）と控除後（Lk 算定用）の
+% 2系統を 1 回の境界判定走査で同時に算出する
 lmc = lm(mtype==PRM.COLUMN);
+lmc_bk = lm_bk(mtype==PRM.COLUMN);
 onfg_col = onfg;
-lbcn = calc_nominal_lb_column(lmc, nominal_column, js, je, ...
-  is_girder, onfg_col, idmc2m);
-
-% 通し柱の最大補剛間隔
-lbcnmax = lbcn.max;
+[lbc_nominal, lbc_nominal_bk] = calc_nominal_lb_column(lmc, lmc_bk, ...
+  nominal_column, js, je, is_girder, onfg_col, idmc2m);
 
 % 剛比計算用の部材長（構造心間距離）
 lmn = lnm;
@@ -195,7 +197,7 @@ end
 
 % 結果の整理
 kc = kcn(idmc2nc(:,1));
-lbmax = lbcnmax(idmc2nc(:,1));
+lbmax = lbc_nominal_bk.max(idmc2nc(:,1));
 
 % 座屈長さの初期化（梁面からの長さ）
 % 自動計算OFFでも kcn=1 またはユーザー指定K値になっているため常に K×Lb
@@ -213,7 +215,8 @@ bkinfo.GA = Gast(:);
 bkinfo.GB = Gbst(:);
 bkinfo.kcRaw = kcn_raw(:);
 bkinfo.kc = kcn(:);
-bkinfo.lbcnmax = lbcnmax(:);
+bkinfo.lbc_nominal = lbc_nominal;
+bkinfo.lbc_nominal_bk = lbc_nominal_bk;
 
 return
 
@@ -349,11 +352,11 @@ function x = bisect_vectorized(A, B, a_init, b_init, tol, maxIter)
 %   係数方程式を同時に解く。
 %
 %   入力引数:
-%     A      - 係数ベクトル A = GA.*GB
-%     B      - 係数ベクトル B = GA+GB
-%     a_init - 区間の下限
-%     b_init - 区間の上限
-%     tol    - 収束判定用許容誤差
+%     A       - 係数ベクトル A = GA.*GB
+%     B       - 係数ベクトル B = GA+GB
+%     a_init  - 区間の下限
+%     b_init  - 区間の上限
+%     tol     - 収束判定用許容誤差
 %     maxIter - 最大反復回数
 %
 %   出力引数:

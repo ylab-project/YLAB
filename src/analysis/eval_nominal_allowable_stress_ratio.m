@@ -2,9 +2,9 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
   fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, ...
   id_center_sel] = eval_nominal_allowable_stress_ratio(msdim, ...
   stn, stcn, A, Iy, Iz, C, mtype, stype, dir_girder, Em, Fm, ...
-  idm2n, lb, lm, lnm, mejoint, nominal, isgmirrored, idmg2ng, ...
-  idmc2nc, options, beta, lcdir, col_idstory, onfg_x, onfg_y, ...
-  Cn, nomgc, column_buckling_K)
+  idm2n, lb, lm, lm_bk, lnm, mejoint, nominal, isgmirrored, ...
+  idmg2ng, idmc2nc, options, beta, lcdir, col_idstory, ...
+  onfg_x, onfg_y, Cn, nomgc, column_buckling_K)
 %eval_nominal_allowable_stress_ratio - 名目部材の許容応力度比を算定する
 %
 %   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij,
@@ -12,9 +12,10 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %     bkinfo, id_center_sel] =
 %     eval_nominal_allowable_stress_ratio(msdim, stn,
 %     stcn, A, Iy, Iz, C, mtype, stype, dir_girder, Em,
-%     Fm, idm2n, lb, lm, lnm, mejoint, nominal,
+%     Fm, idm2n, lb, lm, lm_bk, lnm, mejoint, nominal,
 %     isgmirrored, idmg2ng, idmc2nc, options, beta,
-%     lcdir, col_idstory, onfg_x, onfg_y, Cn, nomgc) は、
+%     lcdir, col_idstory, onfg_x, onfg_y, Cn, nomgc,
+%     column_buckling_K) は、
 %   方向別に calc_buckling_length を2回呼び出して柱座屈長さ
 %   係数を算定し、許容応力度および各端部の許容応力度比を返す。
 %
@@ -32,7 +33,8 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %     Fm          - 基準強度 [nme×1]
 %     idm2n       - 部材→節点番号 [nme×2]
 %     lb          - 補剛間隔配列 [nme×3]
-%     lm          - 芯間距離（元の部材長）[nme×1]
+%     lm          - 芯間距離（構造心間、控除前、Lb 表示用）[nme×1]
+%     lm_bk       - 芯間距離（D/2 控除後、Lk 算定用）[nme×1]
 %     lnm         - 通し部材長 [nme×1]
 %     mejoint     - 部材端接合条件 [nme×4]
 %     nominal     - 名目部材情報 (struct)
@@ -63,6 +65,8 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %     lky           - Y方向座屈長さ（梁は補剛長）[nme×3]
 %     ration        - 位置・成分別応力比 [nnm×ncomp×nlc]
 %     bkinfo        - 座屈長さ係数の中間値 (struct)
+%                     .lbc_nominal.x / .y       : 控除前テーブル
+%                     .lbc_nominal.bk.x / .bk.y : 控除後テーブル
 %     id_center_sel - 梁中央位置の選択インデックス [nng×nlc]
 
 % 共通配列
@@ -89,13 +93,13 @@ ilc_y = lcdir==PRM.EYP | lcdir==PRM.EYN;
 
 % X方向の座屈長さ係数
 [lk_x, kcx, bkinfox] = calc_buckling_length(Iy, mtype, ...
-  idm2n1, idm2n2, is_gx, lnm, lm, Em, mejoint(:,[1 2]), ...
+  idm2n1, idm2n2, is_gx, lnm, lm, lm_bk, Em, mejoint(:,[1 2]), ...
   nominal, idmc2nc, options, beta, ilc_x, col_idstory, onfg_x, ...
   column_buckling_K.Kx);
 
 % Y方向の座屈長さ係数
 [lk_y, kcy, bkinfoy] = calc_buckling_length(Iy, mtype, ...
-  idm2n1, idm2n2, is_gy, lnm, lm, Em, mejoint(:,[3 4]), ...
+  idm2n1, idm2n2, is_gy, lnm, lm, lm_bk, Em, mejoint(:,[3 4]), ...
   nominal, idmc2nc, options, beta, ilc_y, col_idstory, onfg_y, ...
   column_buckling_K.Ky);
 
@@ -121,8 +125,10 @@ bkinfo.kcxRaw = bkinfox.kcRaw;
 bkinfo.kcyRaw = bkinfoy.kcRaw;
 bkinfo.kcx = bkinfox.kc;
 bkinfo.kcy = bkinfoy.kc;
-bkinfo.lbcnmaxX = bkinfox.lbcnmax;
-bkinfo.lbcnmaxY = bkinfoy.lbcnmax;
+bkinfo.lbc_nominal.x = bkinfox.lbc_nominal;
+bkinfo.lbc_nominal.y = bkinfoy.lbc_nominal;
+bkinfo.lbc_nominal.bk.x = bkinfox.lbc_nominal_bk;
+bkinfo.lbc_nominal.bk.y = bkinfoy.lbc_nominal_bk;
 
 % 許容圧縮応力度の算定
 fc = calc_fc(A, Iy, Iz, clam, mtype, stype, Fm, lkx, lky);
@@ -170,8 +176,14 @@ for ilc = 1:nlc_
 end
 
 % 許容応力度比の算定
-[ration, fcn, fbn] = calc_nominal_allowable_stress_ratio(...
-  stn, stcn, ftn, fcn, fbn, fsn, nmtype, nomgc.Ncn, A);
+% calc_nominal_allowable_stress_ratio は内部で fcn/fbn を
+% 引張時に ftn で上書きした値を返すが、これは応力比計算用
+% の中間値であり、出力層 (S柱/S梁断面算定表) で表示する
+% fcL/fcS, fbL/fbS は座屈低減後の本来の許容応力を要求する
+% ため、戻り値は受け取らずに呼び出し側スコープの fcn/fbn
+% (純粋値) を維持する。
+ration = calc_nominal_allowable_stress_ratio(stn, stcn, ...
+  ftn, fcn, fbn, fsn, nmtype, nomgc.Ncn, A);
 
 % TB応力比の上書き（N/Ta）
 ration = calc_nominal_allowable_stress_ratio_tension_brace(...

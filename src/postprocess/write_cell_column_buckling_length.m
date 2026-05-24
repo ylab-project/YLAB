@@ -9,7 +9,7 @@ function [cblhead, cblbody] = write_cell_column_buckling_length( ...
 %
 %   入力引数:
 %     com    - 共通データ構造体（部材・節点・断面情報）
-%     result - 解析結果構造体（kcx/kcy, lkx/lky, lbmax_x/y等）
+%     result - 解析結果構造体（kcx/kcy, lkx/lky, lbc_nominal等）
 %
 %   出力引数:
 %     cblhead - 表のヘッダ行セル配列 [3×14]
@@ -36,9 +36,9 @@ lky = result.lky;
 lambday = result.lambday;
 lambdaz = result.lambdaz;
 
-% 最大横補剛間隔（方向別）
-lbmax_x = result.lbmax_x;
-lbmax_y = result.lbmax_y;
+% 最大横補剛間隔（方向別、控除後）
+lbmax_x = result.lbc_nominal.bk.x.max;
+lbmax_y = result.lbc_nominal.bk.y.max;
 
 % ID変換
 idnm2x = column.idx(nominal_column.idmec(:,1),1);
