@@ -63,8 +63,31 @@ for i=1:n
       if isscalar(valid_candidates)
         idsecc(i) = valid_candidates(1);
       elseif isempty(valid_candidates)
-        error('柱断面 %s が配置範囲内に見つかりません (階: %s)', ...
-          section_name{i}, member_column.floor_name{i});
+        % 配置範囲外救済: 配置範囲内に候補が無い場合、最も近い
+        % 範囲外の断面を採用する。下方向（柱脚より下の階）を優先し、
+        % 下方向に候補が無い場合のみ上方向（柱頭より上の階）を採用。
+        % 距離が同じ複数候補が残ったときは、より下階のものを採用。
+        below = candidate_stories < z_bottom;
+        above = candidate_stories > z_top;
+        if any(below)
+          % 下方向距離: 範囲外（above側）は inf として最小選択から除外
+          d = z_bottom - candidate_stories;
+          d(~below) = inf;
+          mask = below & (d == min(d));
+        elseif any(above)
+          % 上方向距離: 範囲外（below側）は inf として最小選択から除外
+          d = candidate_stories - z_top;
+          d(~above) = inf;
+          mask = above & (d == min(d));
+        else
+          error('柱断面 %s が配置範囲内に見つかりません (階: %s)', ...
+            section_name{i}, member_column.floor_name{i});
+        end
+        % 同距離候補のうち最小階番号（=下階）を採用
+        cand_ids = id(mask);
+        cand_sty = candidate_stories(mask);
+        [~, jmin] = min(cand_sty);
+        idsecc(i) = cand_ids(jmin);
       else
         error('柱断面 %s が配置範囲内に複数見つかりました (階: %s)', ...
           section_name{i}, member_column.floor_name{i});
