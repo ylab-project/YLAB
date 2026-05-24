@@ -199,10 +199,8 @@ end
 kc = kcn(idmc2nc(:,1));
 lbmax = lbc_nominal_bk.max(idmc2nc(:,1));
 
-% 座屈長さの初期化（梁面からの長さ）
-% 自動計算OFFでも kcn=1 またはユーザー指定K値になっているため常に K×Lb
-lk = zeros(nme,1);
-lk(:) = lm;
+% 非柱部材は lm_bk（控除後部材長）を座屈長とする（柱は次行で上書き）
+lk = lm_bk(:);
 lk(mtype==PRM.COLUMN) = kc.*lbmax;
 
 % 座屈長さ係数の中間値
