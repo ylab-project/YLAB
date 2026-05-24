@@ -50,6 +50,7 @@ ration = abs(result.ration);
 lfcx = result.lf.columnx;
 lfcy = result.lf.columny;
 lm_nominal = result.lm_nominal;
+lbc_nominal = result.lbc_nominal;
 cri_all = result.cri;
 crj_all = result.crj;
 csi_all = result.csi;
@@ -92,15 +93,10 @@ has_drank = isfield(result, 'rank') && isfield(result.rank, 'section');
 ocl_ = options.output_column_list_label;
 secc_order = zeros(nnc, 1);
 if ~isempty(ocl_)
-  for inc_ = 1:nnc
-    name_ = secc.name{idnm2sc(inc_)};
-    pos_ = find(matches(ocl_, name_), 1);
-    if ~isempty(pos_)
-      secc_order(inc_) = pos_;
-    else
-      secc_order(inc_) = numel(ocl_) + idnm2sc(inc_);
-    end
-  end
+  names_ = secc.name(idnm2sc);
+  [found_, pos_] = ismember(names_(:), ocl_(:));
+  secc_order(found_) = pos_(found_);
+  secc_order(~found_) = numel(ocl_) + idnm2sc(~found_);
 else
   secc_order(:) = idnm2sc;
 end
@@ -109,13 +105,14 @@ end
 sccbody = cell(mb * nnc, ncol);
 iccc = 1:nnc;
 irow = 0;
+
 for i = 1:nstory
   ist = nstory - i + 1;
   mask_ = idnm2story == ist & nominal_column.is_allowable_stress;
   cands_ = iccc(mask_);
   % SS7 互換: 符号 → Y → X → Z 順
-  sort_key_ = [secc_order(cands_), idnm2y(cands_), ...
-    idnm2x(cands_), idnm2z(cands_)];
+  sort_key_ = [secc_order(cands_), idnm2y(cands_), idnm2x(cands_), ...
+    idnm2z(cands_)];
   [~, ord_] = sortrows(sort_key_);
   cands_ = cands_(ord_);
   if ~options.section_calc_all_members
@@ -152,34 +149,14 @@ for i = 1:nstory
     inm = idnmc2nm(inc);
 
     % --- 最大ケースの判定 ---
-    cri_x = cri(inc, [1 2 3]) + [eps eps 0];
-    cri_y = cri(inc, [1 4 5]) + [eps eps 0];
-    crj_x = crj(inc, [1 2 3]) + [eps eps 0];
-    crj_y = crj(inc, [1 4 5]) + [eps eps 0];
-    csi_x = csi(inc, [1 2 3]) + [eps eps 0];
-    csi_y = csi(inc, [1 4 5]) + [eps eps 0];
-    csj_x = csj(inc, [1 2 3]) + [eps eps 0];
-    csj_y = csj(inc, [1 4 5]) + [eps eps 0];
-    [~, ilx] = max(cri_x);
-    [~, ily] = max(cri_y);
-    [~, jlx] = max(crj_x);
-    [~, jly] = max(crj_y);
-    [~, isx] = max(csi_x);
-    [~, isy] = max(csi_y);
-    [~, jsx] = max(csj_x);
-    [~, jsy] = max(csj_y);
-    if ily > 1
-      ily = ily + 2;
-    end
-    if jly > 1
-      jly = jly + 2;
-    end
-    if isy > 1
-      isy = isy + 2;
-    end
-    if jsy > 1
-      jsy = jsy + 2;
-    end
+    ilx = pick_max_case(cri, inc, false);
+    ily = pick_max_case(cri, inc, true);
+    jlx = pick_max_case(crj, inc, false);
+    jly = pick_max_case(crj, inc, true);
+    isx = pick_max_case(csi, inc, false);
+    isy = pick_max_case(csi, inc, true);
+    jsx = pick_max_case(csj, inc, false);
+    jsy = pick_max_case(csj, inc, true);
 
     % --- 箇所ごとの部材番号 ---
     idsub = nominal_column.idsub(inc, :);
@@ -188,6 +165,15 @@ for i = 1:nstory
     ic2 = idnm2mc(inc, idsub(2));
     im2 = idmc2m(ic2);
     isc_ = idnm2sc(inc);
+
+    % 通し柱判定（idsub(2) = 名目柱に属するサブメンバー数）
+    n_chain = idsub(2);
+    is_through = n_chain > 1;
+    if is_through
+      % 中央断面諸量取得元 = 最下サブメンバー
+      ic_mid = idnm2mc(inc, 1);
+      im_mid = idmc2m(ic_mid);
+    end
 
     % === Row 1: 符号行 + 応力ヘッダ ===
     irow = irow + 1;
@@ -209,213 +195,171 @@ for i = 1:nstory
     sccbody{irow, ncol} = PRM.CONT_MARKER;
 
     % === Row 2: 断面行 + <X>柱頭 応力 ===
+    % 軸力 col index = 1（柱脚軸力で統一）。旧実装は柱頭側 7 を
+    % 使っていたが、SS7 S柱断面算定表は最大軸力（柱脚値）を表示
+    % する仕様のため、独立柱の自重分の微差は無視して 1 に統一する。
     irow = irow + 1;
-    is2_ = idsecc2sec(isc_);
-    stype_ = stype(is2_);
-    dim_ = secdim(is2_, :);
-    idsl_ = secdim(is2_, 6);
-    idsec_ = secdim(is2_, 7);
-    sl_ = secmgr.secList.list{idsl_};
-    sym_ = sl_.symbol{idsec_};
-    secname_ = format_steel_cost_dim(stype_, dim_, sym_);
-    if has_drank
-      is_r = idsecc2sec(isc_);
-      rk_v = result.rank.section(is_r);
-      if rk_v >= 1 && rk_v <= numel(PRM.MEMBER_RANK_NAME)
-        rk_s = PRM.MEMBER_RANK_NAME{rk_v};
-      else
-        rk_s = '';
-      end
+    [name_, ~, rk_v] = make_section_label(isc_);
+    sccbody{irow, 1} = name_;
+    write_stress_row(irow, '<X>柱頭', lfcx(ic2, 2), ...
+      stress_spec_top_x, 1, jlx);
+
+    if ~is_through
+      % === 独立柱: 応力 4 + 検定ヘッダ + 検定 4 ===
+
+      % 部材長 + 柱脚 X 応力
+      irow = irow + 1;
+      write_length_label(irow, im1);
+      write_stress_row(irow, '柱脚', lfcx(ic1, 1), stress_spec_bot_x, ...
+        1, ilx);
+
+      % 方向ヘッダ + <Y>柱頭 応力
+      irow = irow + 1;
+      write_direction_label(irow);
+      write_stress_row(irow, '<Y>柱頭', lfcy(ic2, 2), ...
+        stress_spec_top_y, 1, jly);
+
+      % Lk/h + 柱脚 Y 応力
+      irow = irow + 1;
+      write_lkh_label(irow, ic1);
+      write_stress_row(irow, '柱脚', lfcy(ic1, 1), stress_spec_bot_y, ...
+        1, ily);
+
+      % Lk + 検定ヘッダ
+      irow = irow + 1;
+      write_lk_label(irow, im1);
+      write_check_header(irow);
+
+      % iy + <X>柱頭 検定
+      irow = irow + 1;
+      write_iy_label(irow, im1);
+      write_check_row(irow, '<X>柱頭', Zy(im2), A(im2), Asy(im2), ...
+        fbn(inm, 2, jlx), ration(inm, 7, jlx), ration(inm, 11, jlx), ...
+        ration(inm, 12, jlx), ration(inm, 9, jsx));
+
+      % λ + 柱脚 X 検定
+      irow = irow + 1;
+      write_lambda_label(irow, im1);
+      write_check_row(irow, '柱脚', Zy(im1), A(im1), Asy(im1), ...
+        fbn(inm, 1, ilx), ration(inm, 1, ilx), ration(inm, 5, ilx), ...
+        ration(inm, 6, ilx), ration(inm, 9, isx));
+
+      % fcL + <Y>柱頭 検定
+      irow = irow + 1;
+      write_fcl_label(irow);
+      write_check_row(irow, '<Y>柱頭', Zy(im2), A(im2), Asz(im2), ...
+        fbn(inm, 2, jly), ration(inm, 7, jly), ration(inm, 11, jly), ...
+        ration(inm, 12, jly), ration(inm, 8, jsy));
+
+      % fcS + 柱脚 Y 検定（柱エントリ末尾、CONT_MARKER は付与しない）
+      irow = irow + 1;
+      write_fcs_label(irow);
+      write_check_row(irow, '柱脚', Zz(im1), A(im1), Asy(im1), ...
+        fbn(inm, 1, ily), ration(inm, 1, ily), ration(inm, 5, ily), ...
+        ration(inm, 6, ily), ration(inm, 8, isy));
+      sccbody{irow, ncol} = '';
+
     else
-      rk_s = '';
+      % === 通し柱: 応力 4 + 中央 2 + 検定ヘッダ + 検定 4 + 中央 2 ===
+      %   col 1-7 のラベル列は SS7 互換に row 2-10 に詰める。
+      %   中央行 (row 3,6,10,13) の応力/検定値は解析層が未計算で、
+      %   断面諸量 (Zy/Zz, A) のみを SS7 マニュアル準拠で出力する。
+      %   col 7 の補剛数/Lb1/Lb2 は LTB 用 ℓb として
+      %   λ最大方向に直交する梁の補剛を出力する。
+
+      % λx ≷ λy で対の方向の lbc_nominal を選択
+      % λx > λy → y方向梁の補剛、λy > λx → x方向梁の補剛
+      if lambday(im1) > lambdaz(im1)
+        lbc_sel = lbc_nominal.y(inc, :);
+      else
+        lbc_sel = lbc_nominal.x(inc, :);
+      end
+
+      % 部材長 + 中央 X 応力（値は未出力）
+      irow = irow + 1;
+      write_length_label(irow, im1);
+      sccbody{irow, 10} = '中央';
+      sccbody{irow, ncol} = PRM.CONT_MARKER;
+
+      % 方向ヘッダ + 補剛数 + 柱脚 X 応力
+      irow = irow + 1;
+      write_direction_label(irow);
+      if lbc_sel.count > 1
+        sccbody{irow, 7} = sprintf('補剛数 %d', lbc_sel.count - 1);
+      end
+      write_stress_row(irow, '柱脚', lfcx(ic1, 1), stress_spec_bot_x, ...
+        1, ilx);
+
+      % Lk/h + Lb2 + <Y>柱頭 応力
+      irow = irow + 1;
+      write_lkh_label(irow, ic1);
+      if lbc_sel.count > 1
+        sccbody{irow, 7} = sprintf('Lb2 %.0f', lbc_sel.ie);
+      end
+      write_stress_row(irow, '<Y>柱頭', lfcy(ic2, 2), ...
+        stress_spec_top_y, 1, jly);
+
+      % Lk + Lb1 + 中央 Y 応力（値は未出力）
+      irow = irow + 1;
+      write_lk_label(irow, im1);
+      if lbc_sel.count > 1
+        sccbody{irow, 7} = sprintf('Lb1 %.0f', lbc_sel.is);
+      end
+      sccbody{irow, 10} = '中央';
+      sccbody{irow, ncol} = PRM.CONT_MARKER;
+
+      % iy + 柱脚 Y 応力
+      irow = irow + 1;
+      write_iy_label(irow, im1);
+      write_stress_row(irow, '柱脚', lfcy(ic1, 1), stress_spec_bot_y, ...
+        1, ily);
+
+      % λ + 検定ヘッダ
+      irow = irow + 1;
+      write_lambda_label(irow, im1);
+      write_check_header(irow);
+
+      % fcL + <X>柱頭 検定
+      irow = irow + 1;
+      write_fcl_label(irow);
+      write_check_row(irow, '<X>柱頭', Zy(im2), A(im2), Asy(im2), ...
+        fbn(inm, 2, jlx), ration(inm, 7, jlx), ration(inm, 11, jlx), ...
+        ration(inm, 12, jlx), ration(inm, 9, jsx));
+
+      % fcS + 中央 X 検定（Zy/A のみ）
+      irow = irow + 1;
+      write_fcs_label(irow);
+      sccbody{irow, 10} = '中央';
+      sccbody{irow, 11} = sprintf('%.0f', Zy(im_mid) * 1e-3);
+      sccbody{irow, 12} = sprintf('%.1f', A(im_mid) * 1e-2);
+      sccbody{irow, ncol} = PRM.CONT_MARKER;
+
+      % 柱脚 X 検定
+      irow = irow + 1;
+      write_check_row(irow, '柱脚', Zy(im1), A(im1), Asy(im1), ...
+        fbn(inm, 1, ilx), ration(inm, 1, ilx), ration(inm, 5, ilx), ...
+        ration(inm, 6, ilx), ration(inm, 9, isx));
+
+      % <Y>柱頭 検定
+      irow = irow + 1;
+      write_check_row(irow, '<Y>柱頭', Zy(im2), A(im2), Asz(im2), ...
+        fbn(inm, 2, jly), ration(inm, 7, jly), ration(inm, 11, jly), ...
+        ration(inm, 12, jly), ration(inm, 8, jsy));
+
+      % 中央 Y 検定（Zz/A のみ）
+      irow = irow + 1;
+      sccbody{irow, 10} = '中央';
+      sccbody{irow, 11} = sprintf('%.0f', Zz(im_mid) * 1e-3);
+      sccbody{irow, 12} = sprintf('%.1f', A(im_mid) * 1e-2);
+      sccbody{irow, ncol} = PRM.CONT_MARKER;
+
+      % 柱脚 Y 検定（柱エントリ末尾、CONT_MARKER は付与しない）
+      irow = irow + 1;
+      write_check_row(irow, '柱脚', Zz(im1), A(im1), Asy(im1), ...
+        fbn(inm, 1, ily), ration(inm, 1, ily), ration(inm, 5, ily), ...
+        ration(inm, 6, ily), ration(inm, 8, isy));
+      sccbody{irow, ncol} = '';
     end
-    sccbody{irow, 1} = sprintf('%s [%s]', secname_, rk_s);
-    sccbody{irow, 10} = '<X>柱頭';
-    sccbody{irow, 11} = sprintf('%.0f', lfcx(ic2, 2));
-    d71_ = -dfn(inm, 7, 1) * 1e-3;
-    sccbody{irow, 12} = sprintf('%.0f', d71_);
-    d111_ = dfn(inm, 11, 1) * 1e-6;
-    sccbody{irow, 13} = sprintf('%.0f', d111_);
-    d91_ = dfn(inm, 9, 1) * 1e-3;
-    sccbody{irow, 14} = sprintf('%.0f', d91_);
-    sccbody{irow, 16} = PRM.load_case_combo_name(jlx);
-    d7jlx_ = -dfn(inm, 7, jlx) * 1e-3;
-    sccbody{irow, 17} = sprintf('%.0f', d7jlx_);
-    d11jlx_ = dfn(inm, 11, jlx) * 1e-6;
-    sccbody{irow, 18} = sprintf('%.0f', d11jlx_);
-    d9jlx_ = dfn(inm, 9, jlx) * 1e-3;
-    sccbody{irow, 19} = sprintf('%.0f', d9jlx_);
-    sccbody{irow, ncol} = PRM.CONT_MARKER;
-
-    % === Row 3: 部材長 + 柱脚 応力 ===
-    irow = irow + 1;
-    lm1_ = lm_nominal(im1);
-    sccbody{irow, 1} = sprintf('部材長 %.0f', lm1_);
-    sccbody{irow, 10} = '柱脚';
-    sccbody{irow, 11} = sprintf('%.0f', lfcx(ic1, 1));
-    d11_ = -dfn(inm, 1, 1) * 1e-3;
-    sccbody{irow, 12} = sprintf('%.0f', d11_);
-    d51_ = -dfn(inm, 5, 1) * 1e-6;
-    sccbody{irow, 13} = sprintf('%.0f', d51_);
-    d31_ = dfn(inm, 3, 1) * 1e-3;
-    sccbody{irow, 14} = sprintf('%.0f', d31_);
-    sccbody{irow, 16} = PRM.load_case_combo_name(ilx);
-    d1ilx_ = -dfn(inm, 1, ilx) * 1e-3;
-    sccbody{irow, 17} = sprintf('%.0f', d1ilx_);
-    d5ilx_ = -dfn(inm, 5, ilx) * 1e-6;
-    sccbody{irow, 18} = sprintf('%.0f', d5ilx_);
-    d3ilx_ = dfn(inm, 3, ilx) * 1e-3;
-    sccbody{irow, 19} = sprintf('%.0f', d3ilx_);
-    sccbody{irow, ncol} = PRM.CONT_MARKER;
-
-    % === Row 4: 方向ヘッダ + <Y>柱頭 応力 ===
-    irow = irow + 1;
-    sccbody{irow, 2} = '<X>';
-    sccbody{irow, 5} = '<Y>';
-    sccbody{irow, 10} = '<Y>柱頭';
-    sccbody{irow, 11} = sprintf('%.0f', lfcy(ic2, 2));
-    d71y_ = -dfn(inm, 7, 1) * 1e-3;
-    sccbody{irow, 12} = sprintf('%.0f', d71y_);
-    d121_ = dfn(inm, 12, 1) * 1e-6;
-    sccbody{irow, 13} = sprintf('%.0f', d121_);
-    d81_ = -dfn(inm, 8, 1) * 1e-3;
-    sccbody{irow, 14} = sprintf('%.0f', d81_);
-    sccbody{irow, 16} = PRM.load_case_combo_name(jly);
-    d7jly_ = -dfn(inm, 7, jly) * 1e-3;
-    sccbody{irow, 17} = sprintf('%.0f', d7jly_);
-    d12jly_ = dfn(inm, 12, jly) * 1e-6;
-    sccbody{irow, 18} = sprintf('%.0f', d12jly_);
-    d8jly_ = -dfn(inm, 8, jly) * 1e-3;
-    sccbody{irow, 19} = sprintf('%.0f', d8jly_);
-    sccbody{irow, ncol} = PRM.CONT_MARKER;
-
-    % === Row 5: Lk/h + Y柱脚 応力 ===
-    irow = irow + 1;
-    sccbody{irow, 1} = 'Lk/h';
-    sccbody{irow, 2} = sprintf('%.2f', kcx(ic1));
-    sccbody{irow, 5} = sprintf('%.2f', kcy(ic1));
-    sccbody{irow, 10} = '柱脚';
-    sccbody{irow, 11} = sprintf('%.0f', lfcy(ic1, 1));
-    d11y_ = -dfn(inm, 1, 1) * 1e-3;
-    sccbody{irow, 12} = sprintf('%.0f', d11y_);
-    d61_ = -dfn(inm, 6, 1) * 1e-6;
-    sccbody{irow, 13} = sprintf('%.0f', d61_);
-    d21_ = -dfn(inm, 2, 1) * 1e-3;
-    sccbody{irow, 14} = sprintf('%.0f', d21_);
-    sccbody{irow, 16} = PRM.load_case_combo_name(ily);
-    d1ily_ = -dfn(inm, 1, ily) * 1e-3;
-    sccbody{irow, 17} = sprintf('%.0f', d1ily_);
-    d6ily_ = -dfn(inm, 6, ily) * 1e-6;
-    sccbody{irow, 18} = sprintf('%.0f', d6ily_);
-    d2ily_ = -dfn(inm, 2, ily) * 1e-3;
-    sccbody{irow, 19} = sprintf('%.0f', d2ily_);
-    sccbody{irow, ncol} = PRM.CONT_MARKER;
-
-    % === Row 6: Lk + 検定ヘッダ ===
-    irow = irow + 1;
-    sccbody{irow, 1} = 'Lk';
-    sccbody{irow, 2} = sprintf('%.0f', lkx(im1));
-    sccbody{irow, 5} = sprintf('%.0f', lky(im1, 1));
-    sccbody(irow, 11:20) = {'Z', 'A', 'Aw', 'fb', 'σc/fc', ...
-      'σbx/fb', 'σby/fb', 'TOTAL', 'τ/fs', '組合せ'};
-    sccbody{irow, ncol} = PRM.CONT_MARKER;
-
-    % === Row 7: iy + <X>柱頭 検定 ===
-    irow = irow + 1;
-    sccbody{irow, 1} = 'iy';
-    sccbody{irow, 2} = sprintf('%.2f', iy_(im1) * 1e-1);
-    sccbody{irow, 5} = sprintf('%.2f', iz_(im1) * 1e-1);
-    total_xj = ration(inm, 7, jlx) + ration(inm, 11, jlx) ...
-      + ration(inm, 12, jlx);
-    tau_xj = ration(inm, 9, jsx);
-    sccbody{irow, 10} = '<X>柱頭';
-    sccbody{irow, 11} = sprintf('%.0f', Zy(im2) * 1e-3);
-    sccbody{irow, 12} = sprintf('%.1f', A(im2) * 1e-2);
-    sccbody{irow, 13} = sprintf('%.1f', Asy(im2) * 1e-2);
-    sccbody{irow, 14} = sprintf('%.0f', fbn(inm, 2, jlx));
-    r7jlx_ = ration(inm, 7, jlx);
-    sccbody{irow, 15} = sprintf('%.2f', r7jlx_);
-    r11jlx_ = ration(inm, 11, jlx);
-    sccbody{irow, 16} = sprintf('%.2f', r11jlx_);
-    r12jlx_ = ration(inm, 12, jlx);
-    sccbody{irow, 17} = sprintf('%.2f', r12jlx_);
-    sccbody{irow, 18} = sprintf('%.2f', total_xj);
-    sccbody{irow, 19} = sprintf('%.2f', tau_xj);
-    mxj_ = max(total_xj, tau_xj);
-    sccbody{irow, 20} = sprintf('%.2f', mxj_);
-    sccbody{irow, ncol} = PRM.CONT_MARKER;
-
-    % === Row 8: λ + 柱脚 検定 ===
-    irow = irow + 1;
-    sccbody{irow, 1} = 'λ';
-    sccbody{irow, 2} = sprintf('%.1f', lambday(im1));
-    sccbody{irow, 5} = sprintf('%.1f', lambdaz(im1));
-    total_xi = ration(inm, 1, ilx) + ration(inm, 5, ilx) ...
-      + ration(inm, 6, ilx);
-    tau_xi = ration(inm, 9, isx);
-    sccbody{irow, 10} = '柱脚';
-    sccbody{irow, 11} = sprintf('%.0f', Zy(im1) * 1e-3);
-    sccbody{irow, 12} = sprintf('%.1f', A(im1) * 1e-2);
-    sccbody{irow, 13} = sprintf('%.1f', Asy(im1) * 1e-2);
-    sccbody{irow, 14} = sprintf('%.0f', fbn(inm, 1, ilx));
-    r1ilx_ = ration(inm, 1, ilx);
-    sccbody{irow, 15} = sprintf('%.2f', r1ilx_);
-    r5ilx_ = ration(inm, 5, ilx);
-    sccbody{irow, 16} = sprintf('%.2f', r5ilx_);
-    r6ilx_ = ration(inm, 6, ilx);
-    sccbody{irow, 17} = sprintf('%.2f', r6ilx_);
-    sccbody{irow, 18} = sprintf('%.2f', total_xi);
-    sccbody{irow, 19} = sprintf('%.2f', tau_xi);
-    mxi_ = max(total_xi, tau_xi);
-    sccbody{irow, 20} = sprintf('%.2f', mxi_);
-    sccbody{irow, ncol} = PRM.CONT_MARKER;
-
-    % === Row 9: fcL + <Y>柱頭 検定 ===
-    irow = irow + 1;
-    fcl_ = fcn(inm, 1, 1);
-    sccbody{irow, 2} = sprintf('fcL  %.0f', fcl_);
-    total_yj = ration(inm, 7, jly) + ration(inm, 11, jly) ...
-      + ration(inm, 12, jly);
-    tau_yj = ration(inm, 8, jsy);
-    sccbody{irow, 10} = '<Y>柱頭';
-    sccbody{irow, 11} = sprintf('%.0f', Zy(im2) * 1e-3);
-    sccbody{irow, 12} = sprintf('%.1f', A(im2) * 1e-2);
-    sccbody{irow, 13} = sprintf('%.1f', Asz(im2) * 1e-2);
-    sccbody{irow, 14} = sprintf('%.0f', fbn(inm, 2, jly));
-    r7jly_ = ration(inm, 7, jly);
-    sccbody{irow, 15} = sprintf('%.2f', r7jly_);
-    r11jly_ = ration(inm, 11, jly);
-    sccbody{irow, 16} = sprintf('%.2f', r11jly_);
-    r12jly_ = ration(inm, 12, jly);
-    sccbody{irow, 17} = sprintf('%.2f', r12jly_);
-    sccbody{irow, 18} = sprintf('%.2f', total_yj);
-    sccbody{irow, 19} = sprintf('%.2f', tau_yj);
-    myj_ = max(total_yj, tau_yj);
-    sccbody{irow, 20} = sprintf('%.2f', myj_);
-    sccbody{irow, ncol} = PRM.CONT_MARKER;
-
-    % === Row 10: fcS + Y柱脚 検定 (柱エントリ末尾) ===
-    irow = irow + 1;
-    fcs_ = fcn(inm, 1, 2);
-    sccbody{irow, 2} = sprintf('fcS  %.0f', fcs_);
-    total_yi = ration(inm, 1, ily) + ration(inm, 5, ily) ...
-      + ration(inm, 6, ily);
-    tau_yi = ration(inm, 8, isy);
-    sccbody{irow, 10} = '柱脚';
-    sccbody{irow, 11} = sprintf('%.0f', Zz(im1) * 1e-3);
-    sccbody{irow, 12} = sprintf('%.1f', A(im1) * 1e-2);
-    sccbody{irow, 13} = sprintf('%.1f', Asy(im1) * 1e-2);
-    sccbody{irow, 14} = sprintf('%.0f', fbn(inm, 1, ily));
-    r1ily_ = ration(inm, 1, ily);
-    sccbody{irow, 15} = sprintf('%.2f', r1ily_);
-    r5ily_ = ration(inm, 5, ily);
-    sccbody{irow, 16} = sprintf('%.2f', r5ily_);
-    r6ily_ = ration(inm, 6, ily);
-    sccbody{irow, 17} = sprintf('%.2f', r6ily_);
-    sccbody{irow, 18} = sprintf('%.2f', total_yi);
-    sccbody{irow, 19} = sprintf('%.2f', tau_yi);
-    myi_ = max(total_yi, tau_yi);
-    sccbody{irow, 20} = sprintf('%.2f', myi_);
 
     % FD ランク = S 規準幅厚比超過。SS7 互換の警告を末尾に出力する
     if has_drank && rk_v == PRM.COLUMN_RANK_FD
@@ -430,6 +374,101 @@ end
 sccbody = sccbody(1:irow, :);
 
 return
+
+  function write_stress_row(irow_, label, lf_val, spec_, lc1, lc2)
+  %write_stress_row - 応力行 1 行を埋める（col 10-19, 25）
+  %
+  %   write_stress_row(irow_, label, lf_val, spec_, lc1, lc2) は、
+  %   S柱断面算定表の応力行 1 行に長期/組合せ時の N, M, Q を
+  %   埋める。spec_ は stress_spec_* 関数が返す成分仕様。
+  %   外側スコープの dfn, inm, sccbody, ncol を共有する。
+  %
+  %   入力引数:
+  %     irow_  - 書き込み行番号
+  %     label  - 位置ラベル（'<X>柱頭' 等）
+  %     lf_val - 長期軸力比 lfc
+  %     spec_  - 応力成分仕様（n_idx/m_idx/q_idx/sign_n/sign_m/sign_q）
+  %     lc1    - 長期側荷重ケース番号
+  %     lc2    - 組合せ側荷重ケース番号
+  %
+  %   備考:
+  %     col 10:ラベル / 11:lfc / 12-14:設計時力 (N/M/Q) /
+  %     16:ケース名 / 17-19:組合せ時力 / 25:CONT_MARKER
+    ni = spec_.n_idx;
+    mi = spec_.m_idx;
+    qi = spec_.q_idx;
+    sn = spec_.sign_n;
+    sm = spec_.sign_m;
+    sq = spec_.sign_q;
+    sccbody{irow_, 10} = label;
+    sccbody{irow_, 11} = sprintf('%.0f', lf_val);
+    sccbody{irow_, 12} = sprintf('%.0f', sn * dfn(inm, ni, lc1) * 1e-3);
+    sccbody{irow_, 13} = sprintf('%.0f', sm * dfn(inm, mi, lc1) * 1e-6);
+    sccbody{irow_, 14} = sprintf('%.0f', sq * dfn(inm, qi, lc1) * 1e-3);
+    sccbody{irow_, 16} = PRM.load_case_combo_name(lc2);
+    sccbody{irow_, 17} = sprintf('%.0f', sn * dfn(inm, ni, lc2) * 1e-3);
+    sccbody{irow_, 18} = sprintf('%.0f', sm * dfn(inm, mi, lc2) * 1e-6);
+    sccbody{irow_, 19} = sprintf('%.0f', sq * dfn(inm, qi, lc2) * 1e-3);
+    sccbody{irow_, ncol} = PRM.CONT_MARKER;
+    return
+  end
+
+  function write_check_row(irow_, label, Z_val, A_val, Aw_val, ...
+    fb_val, r_n, r_bx, r_by, tau)
+  %write_check_row - 検定行 1 行を埋める（col 10-20, 25）
+  %
+  %   write_check_row(irow_, label, Z_val, A_val, Aw_val,
+  %     fb_val, r_n, r_bx, r_by, tau) は、S柱断面算定表の
+  %   検定行 1 行に断面諸量と各応力比・合算値を埋める。
+  %   外側スコープの sccbody, ncol を共有する。
+  %
+  %   入力引数:
+  %     irow_  - 書き込み行番号
+  %     label  - 位置ラベル（'<X>柱頭' 等）
+  %     Z_val  - 断面係数 Z [mm3]
+  %     A_val  - 断面積 A [mm2]
+  %     Aw_val - せん断有効断面積 Aw [mm2]
+  %     fb_val - 許容曲げ応力度 fb [N/mm2]
+  %     r_n    - 軸応力比 σc/fc
+  %     r_bx   - 曲げ応力比 σbx/fb
+  %     r_by   - 曲げ応力比 σby/fb
+  %     tau    - せん断応力比 τ/fs
+  %
+  %   備考:
+  %     col 10:ラベル / 11:Z / 12:A / 13:Aw / 14:fb /
+  %     15:σc/fc / 16:σbx/fb / 17:σby/fb / 18:TOTAL / 19:τ/fs /
+  %     20:max(TOTAL,τ/fs) / 25:CONT_MARKER
+    total = r_n + r_bx + r_by;
+    sccbody{irow_, 10} = label;
+    sccbody{irow_, 11} = sprintf('%.0f', Z_val * 1e-3);
+    sccbody{irow_, 12} = sprintf('%.1f', A_val * 1e-2);
+    sccbody{irow_, 13} = sprintf('%.1f', Aw_val * 1e-2);
+    sccbody{irow_, 14} = sprintf('%.0f', fb_val);
+    sccbody{irow_, 15} = sprintf('%.2f', r_n);
+    sccbody{irow_, 16} = sprintf('%.2f', r_bx);
+    sccbody{irow_, 17} = sprintf('%.2f', r_by);
+    sccbody{irow_, 18} = sprintf('%.2f', total);
+    sccbody{irow_, 19} = sprintf('%.2f', tau);
+    sccbody{irow_, 20} = sprintf('%.2f', max(total, tau));
+    sccbody{irow_, ncol} = PRM.CONT_MARKER;
+    return
+  end
+
+  function write_check_header(irow_)
+  %write_check_header - 検定行のカラムヘッダを書き込む（col 11-20）
+  %
+  %   write_check_header(irow_) は、S柱断面算定表の検定行群の
+  %   直前に置くカラムヘッダ（Z/A/Aw/fb/σc/fc/σbx/fb/σby/fb/
+  %   TOTAL/τ/fs/組合せ）を書き込む。外側スコープの sccbody,
+  %   ncol を共有する。
+  %
+  %   入力引数:
+  %     irow_ - 書き込み行番号
+    sccbody(irow_, 11:20) = {'Z', 'A', 'Aw', 'fb', 'σc/fc', ...
+      'σbx/fb', 'σby/fb', 'TOTAL', 'τ/fs', '組合せ'};
+    sccbody{irow_, ncol} = PRM.CONT_MARKER;
+    return
+  end
 
   function reps = pick_representative(cands)
   %pick_representative - 符号グループごとに代表1部材を選定する
@@ -457,6 +496,246 @@ return
       reps(u_) = grp_(best_);
     end
 
+    return
+  end
+
+  function ilc = pick_max_case(table_, inc_, is_y)
+  %pick_max_case - 最大検定比ケース番号を返す（Y は +2 補正込み）
+  %
+  %   ilc = pick_max_case(table_, inc_, is_y) は、cri/crj/csi/csj
+  %   テーブルから X 方向（[1 2 3] 列）または Y 方向（[1 4 5] 列）
+  %   の最大検定比ケース番号を返す。eps による同値解消と、
+  %   Y 方向ケース番号の +2 補正を内部で行う。
+  %
+  %   入力引数:
+  %     table_ - cri/crj/csi/csj のいずれか [nnc×nlc]
+  %     inc_   - 名目柱番号
+  %     is_y   - true で Y 方向、false で X 方向
+  %
+  %   出力引数:
+  %     ilc - 最大検定比ケース番号（X: 1-3, Y: 1, 4, 5）
+    if is_y
+      vals_ = table_(inc_, [1 4 5]) + [eps eps 0];
+    else
+      vals_ = table_(inc_, [1 2 3]) + [eps eps 0];
+    end
+    [~, ilc] = max(vals_);
+    if is_y && ilc > 1
+      ilc = ilc + 2;
+    end
+    return
+  end
+
+  function [name_, rank_str, rank_v] = make_section_label(isc_)
+  %make_section_label - 断面名と判定ランクラベル/値を返す
+  %
+  %   [name_, rank_str, rank_v] = make_section_label(isc_) は、
+  %   柱断面番号 isc_ に対応する断面表示文字列と、判定ランクの
+  %   表示用文字列および数値を返す。判定ランクが未設定の場合、
+  %   rank_v=0, rank_str='' を返す。外側スコープの idsecc2sec,
+  %   stype, secdim, secmgr, has_drank, result を共有する。
+  %
+  %   入力引数:
+  %     isc_ - 柱断面番号
+  %
+  %   出力引数:
+  %     name_     - 断面表示文字列（'<断面名> [<ランク>]' 形式）
+  %     rank_str  - 判定ランク文字列（'FA' 等。無ければ空）
+  %     rank_v    - 判定ランク数値（無ければ 0）
+    is2_ = idsecc2sec(isc_);
+    stype_ = stype(is2_);
+    dim_ = secdim(is2_, :);
+    idsl_ = secdim(is2_, 6);
+    idsec_ = secdim(is2_, 7);
+    sl_ = secmgr.secList.list{idsl_};
+    sym_ = sl_.symbol{idsec_};
+    secname_ = format_steel_cost_dim(stype_, dim_, sym_);
+    if has_drank
+      rank_v = result.rank.section(is2_);
+      if rank_v >= 1 && rank_v <= numel(PRM.MEMBER_RANK_NAME)
+        rank_str = PRM.MEMBER_RANK_NAME{rank_v};
+      else
+        rank_str = '';
+      end
+    else
+      rank_v = 0;
+      rank_str = '';
+    end
+    name_ = sprintf('%s [%s]', secname_, rank_str);
+    return
+  end
+
+  function write_length_label(irow_, im_)
+  %write_length_label - 部材長ラベルを col 1 に書き込む
+  %
+  %   write_length_label(irow_, im_) は、部材番号 im_ の部材長
+  %   lm_nominal(im_) を col 1 に '部材長 <値>' として書き込む。
+  %   外側スコープの sccbody, lm_nominal を共有する。
+  %
+  %   入力引数:
+  %     irow_ - 書き込み行番号
+  %     im_   - 部材番号
+    sccbody{irow_, 1} = sprintf('部材長 %.0f', lm_nominal(im_));
+    return
+  end
+
+  function write_direction_label(irow_)
+  %write_direction_label - 方向ヘッダ <X>/<Y> を col 2, 5 に書く
+  %
+  %   write_direction_label(irow_) は、断面算定表の方向ヘッダ
+  %   '<X>' を col 2 に、'<Y>' を col 5 に書き込む。
+  %   外側スコープの sccbody を共有する。
+  %
+  %   入力引数:
+  %     irow_ - 書き込み行番号
+    sccbody{irow_, 2} = '<X>';
+    sccbody{irow_, 5} = '<Y>';
+    return
+  end
+
+  function write_lkh_label(irow_, ic_)
+  %write_lkh_label - Lk/h ラベルと値を col 1, 2, 5 に書き込む
+  %
+  %   write_lkh_label(irow_, ic_) は、柱部材番号 ic_ の座屈長係数
+  %   kcx/kcy を col 1 に 'Lk/h' ラベル、col 2/5 に値として書き込む。
+  %   外側スコープの sccbody, kcx, kcy を共有する。
+  %
+  %   入力引数:
+  %     irow_ - 書き込み行番号
+  %     ic_   - 柱部材番号
+    sccbody{irow_, 1} = 'Lk/h';
+    sccbody{irow_, 2} = sprintf('%.2f', kcx(ic_));
+    sccbody{irow_, 5} = sprintf('%.2f', kcy(ic_));
+    return
+  end
+
+  function write_lk_label(irow_, im_)
+  %write_lk_label - Lk ラベルと値を col 1, 2, 5 に書き込む
+  %
+  %   write_lk_label(irow_, im_) は、部材番号 im_ の座屈長 lkx/lky
+  %   を col 1 に 'Lk' ラベル、col 2/5 に値として書き込む。
+  %   外側スコープの sccbody, lkx, lky を共有する。
+  %
+  %   入力引数:
+  %     irow_ - 書き込み行番号
+  %     im_   - 部材番号
+    sccbody{irow_, 1} = 'Lk';
+    sccbody{irow_, 2} = sprintf('%.0f', lkx(im_));
+    sccbody{irow_, 5} = sprintf('%.0f', lky(im_, 1));
+    return
+  end
+
+  function write_iy_label(irow_, im_)
+  %write_iy_label - 断面 2 次半径 iy/iz を col 1, 2, 5 に書き込む
+  %
+  %   write_iy_label(irow_, im_) は、部材番号 im_ の断面 2 次半径
+  %   iy_/iz_ を [cm] 単位で col 1 に 'iy' ラベル、col 2/5 に値
+  %   として書き込む。外側スコープの sccbody, iy_, iz_ を共有する。
+  %
+  %   入力引数:
+  %     irow_ - 書き込み行番号
+  %     im_   - 部材番号
+    sccbody{irow_, 1} = 'iy';
+    sccbody{irow_, 2} = sprintf('%.2f', iy_(im_) * 1e-1);
+    sccbody{irow_, 5} = sprintf('%.2f', iz_(im_) * 1e-1);
+    return
+  end
+
+  function write_lambda_label(irow_, im_)
+  %write_lambda_label - 細長比 λ を col 1, 2, 5 に書き込む
+  %
+  %   write_lambda_label(irow_, im_) は、部材番号 im_ の細長比
+  %   lambday/lambdaz を col 1 に 'λ' ラベル、col 2/5 に値として
+  %   書き込む。外側スコープの sccbody, lambday, lambdaz を共有する。
+  %
+  %   入力引数:
+  %     irow_ - 書き込み行番号
+  %     im_   - 部材番号
+    sccbody{irow_, 1} = 'λ';
+    sccbody{irow_, 2} = sprintf('%.1f', lambday(im_));
+    sccbody{irow_, 5} = sprintf('%.1f', lambdaz(im_));
+    return
+  end
+
+  function write_fcl_label(irow_)
+  %write_fcl_label - 長期側許容圧縮応力度 fcL ラベルを col 2 に書く
+  %
+  %   write_fcl_label(irow_) は、長期側許容圧縮応力度
+  %   fcn(inm, 1, 1) を col 2 に 'fcL <値>' として書き込む。
+  %   外側スコープの sccbody, fcn, inm を共有する。
+  %
+  %   入力引数:
+  %     irow_ - 書き込み行番号
+    sccbody{irow_, 2} = sprintf('fcL  %.0f', fcn(inm, 1, 1));
+    return
+  end
+
+  function write_fcs_label(irow_)
+  %write_fcs_label - 短期側許容圧縮応力度 fcS ラベルを col 2 に書く
+  %
+  %   write_fcs_label(irow_) は、短期側許容圧縮応力度
+  %   fcn(inm, 1, 2) を col 2 に 'fcS <値>' として書き込む。
+  %   外側スコープの sccbody, fcn, inm を共有する。
+  %
+  %   入力引数:
+  %     irow_ - 書き込み行番号
+    sccbody{irow_, 2} = sprintf('fcS  %.0f', fcn(inm, 1, 2));
+    return
+  end
+
+  function s = stress_spec_top_x
+  %stress_spec_top_x - <X>柱頭の応力成分仕様
+  %
+  %   s = stress_spec_top_x は、<X>柱頭の応力行に書き出す N/M/Q の
+  %   成分インデックスと符号を struct で返す。write_stress_row の
+  %   spec_ 引数として使う。
+  %
+  %   出力引数:
+  %     s - 応力成分仕様 struct（n_idx/m_idx/q_idx/sign_n/sign_m/sign_q）
+    s = struct('n_idx', 1, 'm_idx', 11, 'q_idx', 9, ...
+      'sign_n', -1, 'sign_m', +1, 'sign_q', +1);
+    return
+  end
+
+  function s = stress_spec_bot_x
+  %stress_spec_bot_x - 柱脚 X 応力行の成分仕様
+  %
+  %   s = stress_spec_bot_x は、柱脚 X 方向の応力行に書き出す N/M/Q
+  %   の成分インデックスと符号を struct で返す。write_stress_row の
+  %   spec_ 引数として使う。
+  %
+  %   出力引数:
+  %     s - 応力成分仕様 struct（n_idx/m_idx/q_idx/sign_n/sign_m/sign_q）
+    s = struct('n_idx', 1, 'm_idx', 5, 'q_idx', 3, 'sign_n', -1, ...
+      'sign_m', -1, 'sign_q', +1);
+    return
+  end
+
+  function s = stress_spec_top_y
+  %stress_spec_top_y - <Y>柱頭の応力成分仕様
+  %
+  %   s = stress_spec_top_y は、<Y>柱頭の応力行に書き出す N/M/Q の
+  %   成分インデックスと符号を struct で返す。write_stress_row の
+  %   spec_ 引数として使う。
+  %
+  %   出力引数:
+  %     s - 応力成分仕様 struct（n_idx/m_idx/q_idx/sign_n/sign_m/sign_q）
+    s = struct('n_idx', 1, 'm_idx', 12, 'q_idx', 8, ...
+      'sign_n', -1, 'sign_m', +1, 'sign_q', -1);
+    return
+  end
+
+  function s = stress_spec_bot_y
+  %stress_spec_bot_y - 柱脚 Y 応力行の成分仕様
+  %
+  %   s = stress_spec_bot_y は、柱脚 Y 方向の応力行に書き出す N/M/Q
+  %   の成分インデックスと符号を struct で返す。write_stress_row の
+  %   spec_ 引数として使う。
+  %
+  %   出力引数:
+  %     s - 応力成分仕様 struct（n_idx/m_idx/q_idx/sign_n/sign_m/sign_q）
+    s = struct('n_idx', 1, 'm_idx', 6, 'q_idx', 2, 'sign_n', -1, ...
+      'sign_m', -1, 'sign_q', -1);
     return
   end
 end
