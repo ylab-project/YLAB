@@ -158,6 +158,11 @@ classdef PRM
     BRACE_FOUNDATION_GIRDER_TOP = 1     % 梁上端
     BRACE_FOUNDATION_GIRDER_CENTER = 2  % 梁中心
 
+    %% S梁の軸力を考慮した検定（SS7マニュアル 2.5.4 準拠）
+    S_GIRDER_AXIAL_NONE = 1   % しない
+    S_GIRDER_AXIAL_ALL  = 2   % する（すべて）
+    S_GIRDER_AXIAL_AUTO = 3   % する（軸力が生じた梁のみ）(初期値)
+
     %% ペナルティ指標
     PENALTY_SUM_TOTAL = 0     % 総和
     PENALTY_MAXIMUM = 1       % 最大値

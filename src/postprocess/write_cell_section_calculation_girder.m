@@ -13,7 +13,8 @@ function scgbody = write_cell_section_calculation_girder( ...
 %     result  - 解析結果構造体 (secdim, ration, fbn, fcn, nomgc 等)
 %     options - 出力オプション構造体
 %               section_calc_all_members, consider_web_at_girder_center,
-%               consider_web_at_girder_end, output_girder_list_label
+%               consider_web_at_girder_end, output_girder_list_label,
+%               s_girder_axial_design（軸力考慮検定の有無）
 %
 %   出力引数:
 %     scgbody - 断面算定表のボディ行セル配列 [nrow×16]
@@ -165,8 +166,18 @@ for i = 1:nstory
       igc = idnm2mg(ing, idsub_nomgc(3));
       imc = idmg2m(igc);
 
-      % 軸力有無
-      has_axial = any(stn(inm, [1 7], 1) ~= 0);
+      % 軸力有無の判定（SS7マニュアル 2.5.4 準拠）
+      % 1: しない / 2: する(すべて) / 3: する(軸力が生じた梁のみ)
+      switch options.s_girder_axial_design
+        case PRM.S_GIRDER_AXIAL_NONE
+          has_axial = false;
+        case PRM.S_GIRDER_AXIAL_ALL
+          has_axial = true;
+        case PRM.S_GIRDER_AXIAL_AUTO
+          % 1 kN 未満は軸力なし扱い（SS7 マニュアル 2.5.4）
+          N_max = max(abs(dfn(inm, [1 7], :)), [], 'all');
+          has_axial = N_max >= 1000;
+      end
 
       % 梁エントリの開始行を記録（最終行以外は CONT_MARKER で連結し、
       % SS7 と同じ単一論理行ブロックとして cmp7 で照合できるようにする）
@@ -266,13 +277,12 @@ for i = 1:nstory
         scgbody{irow,11} = '端部';
         lbreq2_ = slratio.lbreq2(ig1);
         if lbreq2_ > 0
-          n_left_ = ceil(2 * slratio.lbmy(ig1, 1) / lbreq2_);
-          n_right_ = ceil(2 * slratio.lbmy(ig1, 2) / lbreq2_);
+          nl_ = ceil(2 * slratio.lbmy(ig1, 1) / lbreq2_);
+          nr_ = ceil(2 * slratio.lbmy(ig1, 2) / lbreq2_);
         else
-          n_left_ = 0; n_right_ = 0;
+          nl_ = 0; nr_ = 0;
         end
-        scgbody{irow,12} = sprintf( ...
-          '(左) %d本 (右) %d本', n_left_, n_right_);
+        scgbody{irow,12} = sprintf('(左) %d本 (右) %d本', nl_, nr_);
         if slratio.lbmax(ig1) > lbreq2_
           scgbody{irow,15} = sprintf('限界Lb %.0f*', lbreq2_);
         else

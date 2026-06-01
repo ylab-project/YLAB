@@ -96,7 +96,7 @@ classdef CommonOption
     % せん断変形
     consider_shear_deformation (1,1) logical = true
 
-    % 梁の弱軸曲げ剛性 Iz の係数（0=考慮OFF=微小化、非0=その値を Iz に乗じる）
+    % 梁の弱軸曲げ剛性 Iz の係数（0=考慮OFF=微小化、非0=Iz に乗じる値）
     % 既存挙動（梁一律微小化）は 0 で表現。SS7 の梁水平面内変形の考慮の
     % 詳細モード（鉛直/水平 × 3モード + 個別指定）は未対応
     factor_Iz (1,1) double = 0
@@ -145,6 +145,10 @@ classdef CommonOption
 
     % 曲げの設計におけるウェブの考慮（梁端部）
     consider_web_at_girder_end (1,1) logical = false
+
+    % S梁の軸力を考慮した検定（SS7マニュアル 2.5.4 準拠）
+    % 1=しない, 2=する(すべて), 3=する(軸力が生じた梁のみ)(初期値)
+    s_girder_axial_design (1,1) double = PRM.S_GIRDER_AXIAL_AUTO
 
     % 最適化計算オプション
     penalty_method = PRM.PENALTY_MAXIMUM;

@@ -112,6 +112,16 @@ for i=1:size(data,1)
       options.consider_web_at_girder_end = (data{i,2}=='Y');
     case 'SN材H形鋼の幅厚比制限値の考慮'
       options.consider_SNH_WTRATIO = (data{i,2}=='Y');
+    case 'S梁の軸力を考慮した検定'
+      p = data{i,2};
+      if ~ismissing(p)
+        if ~ismember(p, [PRM.S_GIRDER_AXIAL_NONE, ...
+            PRM.S_GIRDER_AXIAL_ALL, PRM.S_GIRDER_AXIAL_AUTO])
+          error(['S梁の軸力を考慮した検定は 1/2/3 ' ...
+            'のいずれかを指定してください']);
+        end
+        options.s_girder_axial_design = p;
+      end
     case '保有耐力横補剛の事前処理'
       options.do_limit_slr_section = (data{i,2}=='Y');
     case '保有耐力接合（仕口）の事前処理'
