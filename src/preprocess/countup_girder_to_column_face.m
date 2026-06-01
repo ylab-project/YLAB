@@ -1,20 +1,21 @@
 function [idmeg2secl, idmeg2secr] = countup_girder_to_column_face(com)
 %countup_girder_to_column_face - 梁端部に対面する柱断面IDを取得
 %
-% 各梁の両端（i端・j端）に接続する柱の断面IDを取得する。
-% 梁荷重計算用の部材長（柱面間内法長さ）の算出に使用する。
+%   [idmeg2secl, idmeg2secr] = countup_girder_to_column_face(com) は、
+%   各梁の両端（i端・j端）に接続する柱の断面IDを取得する。
+%   梁荷重計算用の部材長（柱面間内法長さ）の算出に使用する。
 %
-% Inputs:
-%   com - 共通オブジェクト
+%   入力引数:
+%     com - 共通オブジェクト
 %
-% Outputs:
-%   idmeg2secl - 梁i端に対面する柱断面ID [nmeg×ncol]
-%   idmeg2secr - 梁j端に対面する柱断面ID [nmeg×ncol]
-%                ncol: 最大接続柱本数（節点同一化により複数柱が接続する場合に対応）
+%   出力引数:
+%     idmeg2secl - 梁i端に対面する柱断面ID [nmeg×ncol]
+%     idmeg2secr - 梁j端に対面する柱断面ID [nmeg×ncol]
+%                  ncol: 最大接続柱本数（節点同一化で複数柱接続に対応）
 %
-% Note:
-%   柱が存在しない場合は0が格納される。
-%   呼び出し側では ids(ids>0) でフィルタリングして使用すること。
+%   備考:
+%     - 柱が存在しない場合は0が格納される。
+%     - 呼び出し側では ids(ids>0) でフィルタリングして使用する。
 
 % 共通定数
 nmec = com.nmec;
@@ -45,11 +46,14 @@ idmeg2secl = zeros(nmeg, ncol);
 idmeg2secr = zeros(nmeg, ncol);
 
 % 各梁について対面柱を探索
+% 配列先頭が下層柱（梁を下から支える柱）になるよう、
+% idu=2（柱上端=下層柱）→ idu=1（柱下端=上層柱）の順で格納する。
+% 下流の calc_face_deduct（最初の一致を採用）で下層柱が優先される。
 for ig = 1:nmeg
   for ilr = 1:2  % 1:i端, 2:j端
     iddd = zeros(1, ncol);
     idx = 0;
-    for idu = 1:2  % 1:柱下端, 2:柱上端
+    for idu = 2:-1:1  % 2:柱上端マッチ(下層柱)→ 1:柱下端マッチ(上層柱)
       % 梁端部節点と一致する柱端部を持つ柱を検索
       idmec = iccc(any(idmec2n(:,idu)==idmeg2n(ig,ilr),2));
 

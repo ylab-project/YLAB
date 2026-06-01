@@ -768,23 +768,32 @@ return
     tb_in.idpair(expand_idx) = (n + (1:ntb_add))';
 
     % 追加ブレースの節点接続処理
+    % ik_ は K形ブレース専用カウンタ。idnode_k_R/L 等は K形のみで
+    % 構築されているため、BOTH 通し番号 ie とは別に K 形分岐内で
+    % 進める。外側スコープの ik と区別するため末尾アンダースコアを
+    % 付与。K下形は現状 idnode_k_* を参照しないが、K上形と通し番号を
+    % 共有するため将来の参照追加に備えて同様にインクリメントする。
+    ik_ = 0;
     for ie = 1:ntb_add
       % K上形の場合
       if brace_type_expand(ie) == PRM.BRACE_MEMBER_TYPE_K_UPPER
+        ik_ = ik_ + 1;
         % 右側：下柱脚→中間節点（BOTH_R、node1=下柱脚）
         tb_add.pair(ie) = PRM.BRACE_MEMBER_PAIR_BOTH_R;
         idnode_mid_ = idnode_mid_array_expand(ie);
         tb_add.idnode2(ie) = idnode_mid_;
-        % idnode_k_Rを上端に持つ柱の下端を取得
-        idc_right = find(member_column.idnode2 == idnode_k_R(ie), 1);
+        % idnode_k_R(ik_) を上端に持つ柱の下端を取得
+        idc_right = find(member_column.idnode2 == idnode_k_R(ik_), 1);
         if ~isempty(idc_right)
           tb_add.idnode1(ie) = member_column.idnode1(idc_right);
         else
-          tb_add.idnode1(ie) = idnode_k_R(ie);
+          tb_add.idnode1(ie) = idnode_k_R(ik_);
         end
 
       % K下形の場合
       elseif brace_type_expand(ie) == PRM.BRACE_MEMBER_TYPE_K_LOWER
+        % K上形と通し番号を共有するためここでもインクリメント
+        ik_ = ik_ + 1;
         % 右側：中間→上柱頭(R_far)（BOTH_L、／）
         tb_add.pair(ie) = PRM.BRACE_MEMBER_PAIR_BOTH_L;
         idnode_mid_ = idnode_mid_array_expand(ie);

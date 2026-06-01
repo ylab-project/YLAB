@@ -2,40 +2,41 @@ function [mglevel, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
   update_geometry(secdim, baseline, node, story, floor, ...
   section, member, cbs, options, idsup2n)
 %update_geometry - 構造モデルの幾何学的特性を更新
-%   [mglevel, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
-%   update_geometry(secdim, baseline, node, story, floor, ...
-%   section, member, cbs, options, idsup2n) は、部材レベル、座標、
-%   フェイス長、剛域長などの幾何学的特性を計算・更新します。
+%
+%   [mglevel, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] =
+%     update_geometry(secdim, baseline, node, story, floor,
+%     section, member, cbs, options, idsup2n) は、部材レベル、座標、
+%   フェイス長、剛域長などの幾何学的特性を計算・更新する。
 %
 %   入力引数:
-%     secdim - 断面寸法 [nsec×4]
+%     secdim   - 断面寸法 [nsec×ncol]
 %     baseline - 基準線データ構造体
-%     node - 節点データ構造体
-%     story - 階データ構造体
-%     floor - 床データ構造体
-%     section - 断面データ構造体
-%     member - 部材データ構造体
-%     cbs - 基礎柱データ構造体
-%     options - オプション設定構造体
-%     idsup2n - 支点節点ID [nsup×1]
+%     node     - 節点データ構造体
+%     story    - 階データ構造体
+%     floor    - 床データ構造体
+%     section  - 断面データ構造体
+%     member   - 部材データ構造体
+%     cbs      - 基礎柱データ構造体
+%     options  - オプション設定構造体
+%     idsup2n  - 支点節点ID [nsup×1]
 %
 %   出力引数:
-%     mglevel - 梁レベル [nmeg×1]
-%     zcoord - Z座標 [nnode×1]
-%     nodez - 節点Z座標 [nnode×1]
-%     cxl - 部材の方向余弦（X方向） [nme×2]
-%     cyl - 部材の方向余弦（Y方向） [nme×2]
-%     lm - 部材長 [nme×1]
-%     lf - フェイス長構造体
-%           .girder - 梁フェイス長 [nmeg×2]
-%           .columnx - 柱X方向フェイス長 [nmec×2]
-%           .columny - 柱Y方向フェイス長 [nmec×2]
-%     lr - 剛域長構造体
-%           .girder - 梁剛域長 [nmeg×2]
-%           .columnx - 柱X方向剛域長 [nmec×2]
-%           .columny - 柱Y方向剛域長 [nmec×2]
-%     story - 更新された階データ構造体
-%     floor - 更新された床データ構造体
+%     mglevel - 梁レベル調整値（下げが負） [nmeg×1]
+%     zcoord  - 基準線Z座標配列
+%     nodez   - 節点Z座標 [nnode×1]
+%     cxl     - 部材の方向余弦（X方向） [nme×3]
+%     cyl     - 部材の方向余弦（Y方向） [nme×3]
+%     lm      - 部材長（構造心間距離） [nme×1]
+%     lf      - フェイス長構造体
+%               .girder  - 梁フェイス長 [nmeg×2]
+%               .columnx - 柱X方向フェイス長 [nmec×2]
+%               .columny - 柱Y方向フェイス長 [nmec×2]
+%     lr      - 剛域長構造体
+%               .girder  - 梁剛域長 [nmeg×2]
+%               .columnx - 柱X方向剛域長 [nmec×2]
+%               .columny - 柱Y方向剛域長 [nmec×2]
+%     story   - 更新された階データ構造体
+%     floor   - 更新された床データ構造体
 
 %TODO update_geometry_zと統合する。
 %---
@@ -138,7 +139,7 @@ cxl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcxl;
 cyl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcyl;
 
 if options.do_autoupdate_floor_height
-  % ブレース長の算出（SS7 3.8.1）
+  % ブレース部材長の算出（構造心間の斜め距離）
   lm_brace = calc_brace_length(member_brace, member_girder, node);
   lm(mtype==PRM.BRACE) = lm_brace;
 end

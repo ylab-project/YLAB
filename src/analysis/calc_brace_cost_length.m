@@ -1,6 +1,6 @@
-function lm_brace_cost = calc_brace_cost_length(...
-  member_brace, member_girder, member_column, ...
-  node, stype_sec, idsecc2sec, idsecg2sec, secdim)
+function lm_brace_cost = calc_brace_cost_length(member_brace, ...
+  member_girder, member_column, node, stype_sec, idsecc2sec, ...
+  idsecg2sec, secdim)
 %calc_brace_cost_length - ブレース積算用部材長を算出
 %
 %   lm_brace_cost = calc_brace_cost_length(
@@ -27,14 +27,14 @@ function lm_brace_cost = calc_brace_cost_length(...
 % 水平距離
 Lx_all = calc_brace_Lx(member_brace, node);
 
-% 梁せいの取得（上層の梁せいで内法を決定）
+% 梁せい（断面種別ごと、梁ごと）
 Hg = zeros(size(secdim,1), 1);
 Hg(stype_sec==PRM.WFS) = secdim(stype_sec==PRM.WFS, 1);
 Hg(stype_sec==PRM.RCRS) = secdim(stype_sec==PRM.RCRS, 2);
 idmg2s = idsecg2sec(member_girder.idsecg);
 Hg_gir = Hg(idmg2s);
 
-% 柱幅の取得（断面種別ごと）
+% 柱幅（断面種別ごと、柱ごと）
 Dc = zeros(size(secdim, 1), 1);
 Dc(stype_sec == PRM.HSS) = secdim(stype_sec == PRM.HSS, 1);
 Dc(stype_sec == PRM.RCRS) = secdim(stype_sec == PRM.RCRS, 3);
@@ -44,7 +44,7 @@ Dc_col = Dc(idmc2s);
 % 梁レベル調整
 glv = member_girder.level;
 
-% 接続梁・柱・ブレース節点
+% ブレース両端の接続梁・柱・節点
 brc_idmeg1 = member_brace.idmeg1;
 brc_idmeg2 = member_brace.idmeg2;
 brc_idmec1 = member_brace.idmec1;
@@ -52,7 +52,6 @@ brc_idmec2 = member_brace.idmec2;
 idnode1 = member_brace.idnode1;
 idnode2 = member_brace.idnode2;
 
-% 初期化
 nmeb = length(member_brace.idme);
 lm_brace_cost = zeros(nmeb, 1);
 
@@ -81,12 +80,12 @@ for ib = 1:nmeb
 
   % --- 水平内法距離 ---
   Lx = Lx_all(ib);
-  ist_lo = min(node.idstory(in1), node.idstory(in2));
-  ist_hi = max(node.idstory(in1), node.idstory(in2));
-  D1 = col_depth_in_range(brc_idmec1(ib,:), ...
-    Dc_col, member_column, ist_lo, ist_hi);
-  D2 = col_depth_in_range(brc_idmec2(ib,:), ...
-    Dc_col, member_column, ist_lo, ist_hi);
+  % ブレース本体の存在階の柱を採用する（接続形態に依存しない統一ルール）
+  brace_story = min(node.idstory(in1), node.idstory(in2));
+  D1 = col_depth_in_brace_story(brc_idmec1(ib,:), Dc_col, ...
+    member_column, brace_story);
+  D2 = col_depth_in_brace_story(brc_idmec2(ib,:), Dc_col, ...
+    member_column, brace_story);
   Lx_inner = Lx - D1 / 2 - D2 / 2;
 
   % --- 積算長さ ---
@@ -96,21 +95,22 @@ end
 return
 end
 
-function D = col_depth_in_range(idc_raw, ...
-  Dc_col, member_column, ist_lo, ist_hi)
-%col_depth_in_range - フロア範囲内の柱幅を返す
+function D = col_depth_in_brace_story(idc_raw, Dc_col, ...
+  member_column, brace_story)
+%col_depth_in_brace_story - ブレース存在階の柱幅を返す
 %
-%   D = col_depth_in_range(idc_raw, Dc_col,
-%     member_column, ist_lo, ist_hi) は、
-%   柱IDリスト中でブレースのフロア範囲内にある
-%   柱の幅を返す。該当なしは0。
+%   D = col_depth_in_brace_story(idc_raw, Dc_col,
+%     member_column, brace_story) は、柱IDリスト中で
+%   ブレース本体の存在階に伸びる柱の幅を返す。
+%   接続形態（K上型・K下型・X形）に依存せず、ガセット
+%   プレートが取り付くブレース存在階の柱を選ぶことで
+%   SS7と整合する。該当なしは0。
 %
 %   入力引数:
 %     idc_raw       - 柱部材ID（0含む）
 %     Dc_col        - 柱幅配列
 %     member_column - 柱部材テーブル
-%     ist_lo        - ブレース下端ストーリID
-%     ist_hi        - ブレース上端ストーリID
+%     brace_story   - ブレース存在階のidfloor
 %
 %   出力引数:
 %     D - 柱幅
@@ -118,8 +118,7 @@ function D = col_depth_in_range(idc_raw, ...
 D = 0;
 idc = idc_raw(idc_raw > 0);
 for ic = idc
-  idf = member_column.idfloor(ic);
-  if idf >= ist_lo && idf <= ist_hi
+  if member_column.idfloor(ic) == brace_story
     D = Dc_col(ic);
     return
   end

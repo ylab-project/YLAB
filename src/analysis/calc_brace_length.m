@@ -63,9 +63,9 @@ for ib = 1:nmeb
   end
 
   Lz = node.z(in2) - node.z(in1) + max_glv2 - max_glv1;
-
-  % --- 斜め距離（部材長） ---
   Lz_all(ib) = Lz;
+
+  % 斜め距離（部材長）
   lm_brace(ib) = sqrt(Lx_all(ib)^2 + Lz^2);
 end
 
