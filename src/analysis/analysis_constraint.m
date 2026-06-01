@@ -244,8 +244,6 @@ end
 if coptions.consider_slenderness_ratio
   lbwfs = lb(idmwfs2m,:);
   lmwfs = lnm(idmwfs2m);
-  % jointwfs = mejoint(idmwfs2m,:);
-  % igthrough = com.member.girder_through.idmeg;
   [conslr, slratio] = calc_girder_stiffening(msdimwfs, ...
     Ag, Izg, Zyg, Zpyg, lbwfs, lmwfs, Fg, slr);
   conslr = conslr+coptions.alfa_slenderness_ratio;
@@ -344,8 +342,6 @@ end
 %% 出力引数に応じた結果の設定
 if nargout==3
   restoration.slratio = slratio;
-  % restoration.st = st;
-  % restoration.stc = stc;
   restoration.C = C;
   restoration.vix = vix;
   restoration.viy = viy;
@@ -382,7 +378,6 @@ result.bnij = bnij;
 result.form = congdef;
 result.wid_thick = conwtg;
 result.wid_c = conwtc;
-% result.wid_gl = conwtglb;
 result.fr = conslr;
 result.deflect = condrift;
 result.concgsr = concgsr;
@@ -403,7 +398,6 @@ result.wtratio = wtratio;
 if ~isempty(wtratio)
   result.rank.section = wtratio.drank_sec;
 end
-% result.idRpsNode = cgsr;
 result.standardGap_gc = congapstd;
 result.Hgapval = conhgapvar;
 result.Hgapsec = conhgapsec;
@@ -447,6 +441,8 @@ result.lb = lb;
 result.lf = lf;
 result.lr = lr;
 result.lm = lm;
+% ブレース部はSS7マニュアル3.8.1の内法長さ（座屈長算定用）
+result.lm_buckling = lmem.buckling;
 result.lkx = lkx;
 result.lky = lky;
 result.lm_weight = lm_weight;

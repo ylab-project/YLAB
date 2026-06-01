@@ -63,7 +63,12 @@ bnmax = max(bnij,[],2);
 asrbbody = cell(nsb,3);
 ibbb = 1:nmb;
 irow = 0;
-for isb = 1:nsb
+
+% SS7 仕様に合わせ符号昇順で出力（secb の登録順ではない）
+[~, sort_idx] = sort(secb.name);
+
+for k = 1:nsb
+  isb = sort_idx(k);
   irow = irow+1;
   asrbbody{irow,1} = sprintf('%s', secb.name{isb});
 

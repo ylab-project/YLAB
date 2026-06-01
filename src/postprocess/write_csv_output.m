@@ -314,7 +314,7 @@ write_table(fout, 'S柱断面算定表', [], sccbody);
 
 %% 鉛直ブレース断面算定表
 scbbody = write_cell_section_calculation_brace(com, result);
-write_table(fout, '鉛直ブレース断面算定表', [], scbbody, true);
+write_table(fout, '鉛直ブレース断面算定表', [], scbbody);
 
 %% 層間変形角
 if options.do_legacy_output

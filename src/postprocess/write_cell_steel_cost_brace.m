@@ -83,6 +83,15 @@ body = body(1:irow, :);
 return
 
   function add_row(inb)
+  %add_row - 1名目ブレース分の body 行を追記
+  %
+  %   add_row(inb) は、名目ブレース番号 inb に対応する
+  %   body 行を1行追記する。積算対象外（idsec=0）と
+  %   メーカー製品（BRB, OTS）はスキップする。
+  %   K形・X形は2本合計の L・W を1行に出力する。
+  %
+  %   入力引数:
+  %     inb - 名目ブレース番号
     ibij = nominal_brace.idmeb(inb, :);
     nz_cols = find(ibij > 0);
     npair = length(nz_cols);
@@ -95,6 +104,12 @@ return
 
     is = idsec_brc(ib1);
     stype_ = stype(is);
+
+    % メーカー製品（BRB, OTS）は別セクション（4.4.6）で出力するためスキップ
+    if ismember(stype_, [PRM.BRB, PRM.OTS])
+      return
+    end
+
     idsb = brace.idsecb(ib1);
     idslist = secdim(is, 6);
     idsection = secdim(is, 7);
