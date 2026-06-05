@@ -80,7 +80,9 @@ end
 % --- ブレースの水平力（Q_nbから集計）---
 Q_nb = result.Q_nb(:, ilc) / 1000;  % N→kN
 nb = com.nominal.brace;
-nb_idstory = nb.idstory;
+% 跨ぐ階 membership は分析層で算出済み（result）。多層ブレースの水平力
+% を跨ぐ各階に計上するため、配置階単一値ではなくこれを参照する。
+brace_in_story = result.brace_in_story;
 
 % 名目ブレースのフレーム通りインデックス
 if idir_eq == 1
@@ -124,8 +126,8 @@ for i = 1:nstory
     idx_c = is_target_col & (midstory == ist) & (col_idframe == ifr);
     Qc_frame(ifr) = sum(Fh_col(idx_c));
 
-    % ブレースの水平力（Q_nbから集計）
-    idx_nb = (nb_idstory == ist) & (nb_idframe == ifr);
+    % ブレースの水平力（跨ぐ階に計上した Q_nb を集計）
+    idx_nb = brace_in_story(:, ist) & (nb_idframe == ifr);
     Qw_frame(ifr) = sum(Q_nb(idx_nb));
   end
 

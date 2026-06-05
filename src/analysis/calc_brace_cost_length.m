@@ -80,12 +80,13 @@ for ib = 1:nmeb
 
   % --- 水平内法距離 ---
   Lx = Lx_all(ib);
-  % ブレース本体の存在階の柱を採用する（接続形態に依存しない統一ルール）
-  brace_story = min(node.idstory(in1), node.idstory(in2));
-  D1 = col_depth_in_brace_story(brc_idmec1(ib,:), Dc_col, ...
-    member_column, brace_story);
-  D2 = col_depth_in_brace_story(brc_idmec2(ib,:), Dc_col, ...
-    member_column, brace_story);
+  % 端点側へ伸びる柱を接続形態・階番号に依存せず選ぶ。下端(in1)は
+  % 上昇柱(idnode1==in1)、上端(in2)は下降柱(idnode2==in2)を採用し、
+  % 多層ブレースで上下端の階が離れても各端点の柱幅を正しく減算する。
+  D1 = col_depth_at_brace_end(brc_idmec1(ib,:), Dc_col, ...
+    member_column, in1, true);
+  D2 = col_depth_at_brace_end(brc_idmec2(ib,:), Dc_col, ...
+    member_column, in2, false);
   Lx_inner = Lx - D1 / 2 - D2 / 2;
 
   % --- 積算長さ ---
@@ -95,22 +96,25 @@ end
 return
 end
 
-function D = col_depth_in_brace_story(idc_raw, Dc_col, ...
-  member_column, brace_story)
-%col_depth_in_brace_story - ブレース存在階の柱幅を返す
+function D = col_depth_at_brace_end(idc_raw, Dc_col, ...
+  member_column, innode, is_ascend)
+%col_depth_at_brace_end - ブレース端点に接続する柱の幅を返す
 %
-%   D = col_depth_in_brace_story(idc_raw, Dc_col,
-%     member_column, brace_story) は、柱IDリスト中で
-%   ブレース本体の存在階に伸びる柱の幅を返す。
-%   接続形態（K上型・K下型・X形）に依存せず、ガセット
-%   プレートが取り付くブレース存在階の柱を選ぶことで
-%   SS7と整合する。該当なしは0。
+%   D = col_depth_at_brace_end(idc_raw, Dc_col,
+%     member_column, innode, is_ascend) は、ブレース端点
+%   innode からブレース本体側へ伸びる柱の幅を返す。
+%   is_ascend が真なら innode を下端(idnode1)とする上昇柱、
+%   偽なら innode を上端(idnode2)とする下降柱を選ぶ。
+%   接続形態・階番号に依存せず節点接続のみで判定するため、
+%   多層ブレースやダミー層でも端点側の柱を正しく選べる。
+%   該当なしは0。
 %
 %   入力引数:
 %     idc_raw       - 柱部材ID（0含む）
 %     Dc_col        - 柱幅配列
 %     member_column - 柱部材テーブル
-%     brace_story   - ブレース存在階のidfloor
+%     innode        - ブレース端点の節点番号
+%     is_ascend     - true:上昇柱(下端) / false:下降柱(上端)
 %
 %   出力引数:
 %     D - 柱幅
@@ -118,7 +122,12 @@ function D = col_depth_in_brace_story(idc_raw, Dc_col, ...
 D = 0;
 idc = idc_raw(idc_raw > 0);
 for ic = idc
-  if member_column.idfloor(ic) == brace_story
+  if is_ascend
+    is_match = member_column.idnode1(ic) == innode;
+  else
+    is_match = member_column.idnode2(ic) == innode;
+  end
+  if is_match
     D = Dc_col(ic);
     return
   end

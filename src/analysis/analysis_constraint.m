@@ -138,6 +138,10 @@ isgmirrored = com.member.girder.ismirrored;  % 梁の左右反転フラグ
 % 名目ブレースごとの水平力成分Q
 Q_nb = calc_Q_nominal_brace(com, rs0, cxl, cyl);
 
+% 各名目ブレースが跨ぐ階（多層ブレースの水平力を跨ぐ各階に計上する
+% ため、βおよび水平力分担表 writer が共通参照する）
+brace_in_story = calc_brace_story_membership(com);
+
 %% 許容応力度比制約
 if coptions.consider_stress_ratio
   % ブレース水平力分担率の算出
@@ -352,6 +356,7 @@ if nargout==3
   result.cxl = cxl;
   result.cyl = cyl;
   result.Q_nb = Q_nb;
+  result.brace_in_story = brace_in_story;
   return
 end
 result.ncon = [length(gr) length(gs) length(cr) ...
@@ -405,6 +410,7 @@ result.rs = rs;
 result.rs0 = rs0;
 result.beta = beta;
 result.Q_nb = Q_nb;
+result.brace_in_story = brace_in_story;
 result.Mc = Mc;
 result.Mc0 = Mc0;
 result.dfn = dfn;

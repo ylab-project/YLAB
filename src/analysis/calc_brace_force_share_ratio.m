@@ -52,8 +52,9 @@ col_type(is_col) = column.type(mp.idmec(is_col));
 is_target_col = is_col & (col_type == PRM.COLUMN_STANDARD ...
   | col_type == PRM.COLUMN_FOR_BRACE_BODY);
 
-% 名目ブレースの階インデックス
-nb_idstory = com.nominal.brace.idstory;
+% 各名目ブレースが跨ぐ階の判定（多層ブレースは idz スパンで展開）。
+% 水平力分担表 writer と共通のロジックを用いるため分析層ヘルパに集約。
+brace_in_story = calc_brace_story_membership(com);
 
 % ダミー層→従属層のマップ
 isdummy = com.story.isdummy;
@@ -85,8 +86,8 @@ for ilc = 1:nlc
     idx_col = is_target_col & (midstory == ist);
     Qc = sum(Fh_col(idx_col));
 
-    % ブレースの水平力（Q_nbを層集計）
-    Qb = sum(Q_nb(nb_idstory == ist, ilc));
+    % ブレースの水平力（跨ぐ階に計上した Q_nb を層集計）
+    Qb = sum(Q_nb(brace_in_story(:, ist), ilc));
 
     % 層せん断力
     Qi = Qc + Qb;
