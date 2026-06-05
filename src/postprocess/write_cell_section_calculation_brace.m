@@ -27,9 +27,9 @@ secmgr = com.secmgr;
 secdim = result.secdim;
 rs0_all = result.rs0;
 rs_all = result.rs;
-% L 値は SS7 マニュアル 3.8.1 のブレース長さ（内法長さ）
-% を使用する。result.lm は構造心間距離（剛性表・応力表で
-% 表示される「部材長 mm」と同じ）。
+% L 値は SS7 マニュアル 3.8.1 のブレース長さ（内法長さ）を
+% 使用する。剛性表・応力表で表示される「部材長 mm」（構造心
+% 間距離）とは異なる値である。
 lm = result.lm_buckling;
 lkx = result.lkx;
 bnij = result.bnij;
@@ -481,8 +481,7 @@ return
   %
   %   output_member_brb(inb, isb) は、BRB1呼称分の断面符号行・
   %   空白継続行・ラベル行・Ag/L1データ行を scbbody に追記する。
-  %   空白継続行は SS7 と論理ブロック構造を一致させるために
-  %   挿入する。
+  %   Lk>Lkmax の場合はブロック末尾に警告714行も追記する。
   %
   %   入力引数:
   %     inb - 呼称ブレースインデックス
@@ -513,7 +512,7 @@ return
     scbbody{irow, 8} = sprintf('%s [ %s ]', type_label_, brb_type_str_);
     scbbody{irow, ncol} = PRM.CONT_MARKER;
 
-    % 空白継続行（SS7 と論理ブロック構造を一致させるため）
+    % 空白継続行（SS7 は符号行とラベル行の間に空行を置く）
     irow = irow + 1;
     scbbody{irow, ncol} = PRM.CONT_MARKER;
 
@@ -566,6 +565,8 @@ return
         hit_ = find(brace.pair(ibij_nz_) == targets_(ilr_,1) ...
           | brace.pair(ibij_nz_) == targets_(ilr_,2), 1);
         if isempty(hit_)
+          scbbody{irow, 7} = get_pos_label_lr(ilr_, ib1_);
+          scbbody{irow, 18} = ' ----';
           continue
         end
         ib_ = ibij_nz_(hit_);
@@ -580,23 +581,30 @@ return
       % 位置ラベル
       scbbody{irow, 7} = get_pos_label(ib_);
 
-      % L（部材長）、Lk（座屈長）
+      % L（内法長さ）、Lk（座屈長）。Lk>Lkmax は SS7 同様 * を付す
       scbbody{irow, 8} = sprintf('%.0f', lm(im_));
-      scbbody{irow, 9} = sprintf('%.0f', lkx(im_));
+      if lkx(im_) > Lkmax_
+        lk_str_ = sprintf('%.0f*', lkx(im_));
+      else
+        lk_str_ = sprintf('%.0f', lkx(im_));
+      end
+      scbbody{irow, 9} = lk_str_;
 
       % Lft, sft（許容引張応力度。BRB は F/1.5 / F）
       scbbody{irow, 10} = sprintf('%.0f', F_ / 1.5);
       scbbody{irow, 11} = sprintf('%.0f', F_);
 
-      % NL（G+P成分）
-      scbbody{irow, 12} = sprintf('%.0f', rs0_all(im_, 1, 1) * 1e-3);
+      % NL（G+P成分）。SS7 は応力を絶対値方向へ切り上げ表示
+      scbbody{irow, 12} = sprintf('%.0f', ...
+        ceil_abs_(rs0_all(im_, 1, 1) * 1e-3));
 
-      % NK値
+      % NK値。SS7 は応力を絶対値方向へ切り上げ表示
       [nkp_, nkn_] = get_nk(ib_, im_);
-      scbbody{irow, 16} = sprintf('%.0f', nkp_);
-      scbbody{irow, 17} = sprintf('%.0f', nkn_);
+      scbbody{irow, 16} = sprintf('%.0f', ceil_abs_(nkp_));
+      scbbody{irow, 17} = sprintf('%.0f', ceil_abs_(nkn_));
 
-      % ケース・検定比（BRB は引張・圧縮で同じ ft を使う）
+      % ケース＝決定ケース。σt/ft・σc/fc は引張側・圧縮側の
+      % 全ケース独立最大（SS7 出力編 7.4.5）
       [c_ilc_, rt_, rc_] = calc_ratios_brb(im_, Ag_cm2_ * 1e2, F_);
       scbbody{irow, 18} = PRM.load_case_combo_name(c_ilc_);
       if rt_ > 0
@@ -606,15 +614,26 @@ return
         scbbody{irow, 20} = sprintf('%.2f ', ceil(rc_ * 100) / 100);
       end
     end
+
+    % 警告714: 座屈拘束ブレースの Lk>Lkmax（存在斜材で判定）
+    ims_ = brace.idme(ibij_(nz_cols_));
+    over_lk_ = any(lkx(ims_) > Lkmax_);
+    if over_lk_
+      % 直前行（L1行）を継続行化し、警告行をブロック終端にする
+      scbbody{irow, ncol} = PRM.CONT_MARKER;
+      irow = irow + 1;
+      scbbody{irow, 1} = ['警告  714： 座屈拘束ブレースで座屈' ...
+        '長さ（Lk）が限界座屈長さ（Lkmax）を超えています。'];
+    end
   end
 
-  function [c_ilc, rt_case, rc_case] = calc_ratios_brb(im, A, F)
+  function [c_ilc, max_rt, max_rc] = calc_ratios_brb(im, A, F)
   %calc_ratios_brb - BRBの検定比計算
   %
-  %   [c_ilc, rt_case, rc_case] = calc_ratios_brb(im, A, F) は、
-  %   全荷重ケースについて引張・圧縮の検定比を求め、最大ケースの
-  %   情報を返す。BRBは引張・圧縮ともに ft（長期 F/1.5、短期 F）
-  %   を許容応力度として用いる。
+  %   [c_ilc, max_rt, max_rc] = calc_ratios_brb(im, A, F) は、
+  %   全荷重ケースについて引張・圧縮の検定比を求め、決定ケース
+  %   番号と引張側・圧縮側それぞれの最大検定比を返す。BRBは引張・
+  %   圧縮ともに ft（長期 F/1.5、短期 F）を許容応力度として用いる。
   %
   %   入力引数:
   %     im - 部材インデックス
@@ -622,9 +641,9 @@ return
   %     F  - F値 [N/mm^2]
   %
   %   出力引数:
-  %     c_ilc   - 最大検定比となる荷重ケース番号
-  %     rt_case - 当該ケースの引張検定比
-  %     rc_case - 当該ケースの圧縮検定比
+  %     c_ilc  - 最大検定比となる荷重ケース番号
+  %     max_rt - 全ケースの引張検定比最大値
+  %     max_rc - 全ケースの圧縮検定比最大値
     nlc_ = size(rs_all, 3);
     rt_ = zeros(1, nlc_);
     rc_ = zeros(1, nlc_);
@@ -647,8 +666,8 @@ return
     tiebreak_(PRM.EXP) = eps;
     tiebreak_(PRM.EYP) = eps;
     [~, c_ilc] = max(overall_ + tiebreak_);
-    rt_case = rt_(c_ilc);
-    rc_case = rc_(c_ilc);
+    max_rt = max(rt_);
+    max_rc = max(rc_);
   end
 
   function str = format_brb_type_string(symbol, shape, D, t)
@@ -668,6 +687,20 @@ return
   %     str - 連結後の文字列
     str = sprintf('製品記号：%s (%s型)  座屈拘束鋼管：φ－%.1f×%4.1f', ...
       symbol, shape, D, t);
+  end
+
+  function v = ceil_abs_(x)
+  %ceil_abs_ - 絶対値方向への切り上げ（SS7 応力表示の丸め）
+  %
+  %   v = ceil_abs_(x) は、x を絶対値が大きくなる向きに整数へ
+  %   切り上げて返す。SS7 出力編 A.9「応力は切り上げ」に従う。
+  %
+  %   入力引数:
+  %     x - 丸め対象の数値
+  %
+  %   出力引数:
+  %     v - 絶対値方向へ切り上げた整数値
+    v = sign(x) * ceil(abs(x));
   end
 
   function flag = is_no_tension_side_(ib_)

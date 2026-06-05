@@ -83,6 +83,9 @@ member_column.idnominal = idnominal_column;
 member_column.isprimary = isprimary_column;
 member_column.idsecc = idsecc;
 idsec = com.section.column.idsec(idsecc);
+% isthrough/idconnected は countup でのみ使用。下流へ持ち越さない
+member_column.isthrough = [];
+member_column.idconnected = [];
 com.member.column = member_column;
 com.member.property.idsec(member_column.idme) = idsec;
 com.member.property.idsecc(member_column.idme) = idsecc;

@@ -78,9 +78,13 @@ for i = 1:nfl
         for inc = inc_list(:).'
           n_chain = nominal_column.idsub(inc, 2);
           chain_ics = nominal_column.idmec(inc, 1:n_chain);
-          ic_bottom = chain_ics(1);
           ic_top = chain_ics(end);
-          if idsec_col(ic_bottom) == 0
+          % ブレース脚部柱は FOUNDATION/BODY 分割で最下が基礎部
+          % (断面未定義) のため、基礎部を除く最下メンバーを参照する。
+          is_steel_member = column.type(chain_ics) ~= ...
+            PRM.COLUMN_FOR_BRACE_FOUNDATION;
+          ic_bottom = chain_ics(find(is_steel_member, 1));
+          if isempty(ic_bottom) || idsec_col(ic_bottom) == 0
             continue
           end
 

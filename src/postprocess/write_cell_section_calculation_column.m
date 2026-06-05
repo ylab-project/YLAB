@@ -166,9 +166,9 @@ for i = 1:nstory
     im2 = idmc2m(ic2);
     isc_ = idnm2sc(inc);
 
-    % 通し柱判定（idsub(2) = 名目柱に属するサブメンバー数）
-    n_chain = idsub(2);
-    is_through = n_chain > 1;
+    % 通し柱判定（nominal_column.isthrough = 入力通し柱由来で
+    % 束ねた名目柱。ブレース脚分割は countup で除外済み）
+    is_through = nominal_column.isthrough(inc);
     if is_through
       % 中央断面諸量取得元 = 最下サブメンバー
       ic_mid = idnm2mc(inc, 1);
@@ -386,13 +386,13 @@ return
   %   入力引数:
   %     irow_  - 書き込み行番号
   %     label  - 位置ラベル（'<X>柱頭' 等）
-  %     lf_val - 長期軸力比 lfc
+  %     lf_val - 梁フェイス長 [mm]（lf.columnx/y の柱頭または柱脚値）
   %     spec_  - 応力成分仕様（n_idx/m_idx/q_idx/sign_n/sign_m/sign_q）
   %     lc1    - 長期側荷重ケース番号
   %     lc2    - 組合せ側荷重ケース番号
   %
   %   備考:
-  %     col 10:ラベル / 11:lfc / 12-14:設計時力 (N/M/Q) /
+  %     col 10:ラベル / 11:フェイス長 / 12-14:設計時力 (N/M/Q) /
   %     16:ケース名 / 17-19:組合せ時力 / 25:CONT_MARKER
     ni = spec_.n_idx;
     mi = spec_.m_idx;

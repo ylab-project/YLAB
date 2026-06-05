@@ -139,9 +139,14 @@ for i = 1:nstory
     mask_ = idnm2story == ist & idnm2dir == idir ...
       & idnm2stype == PRM.WFS & nominal_girder.is_allowable_stress;
     cands_ = iggg(mask_);
-    % SS7 互換: 符号 → Y → X → Z 順
-    sort_key_ = [secg_order(cands_), idnm2y(cands_), ...
-      idnm2x(cands_), idnm2z(cands_)];
+    % SS7 互換: X方向梁はY通り優先、Y方向梁はX通り優先
+    if idir == PRM.X
+      sort_key_ = [secg_order(cands_), idnm2y(cands_), ...
+        idnm2x(cands_), idnm2z(cands_)];
+    else
+      sort_key_ = [secg_order(cands_), idnm2x(cands_), ...
+        idnm2y(cands_), idnm2z(cands_)];
+    end
     [~, ord_] = sortrows(sort_key_);
     cands_ = cands_(ord_);
     if ~options.section_calc_all_members

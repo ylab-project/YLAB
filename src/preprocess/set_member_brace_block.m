@@ -415,7 +415,7 @@ return
         if pair_type == PRM.BRACE_MEMBER_PAIR_BOTH_L ...
             || pair_type == PRM.BRACE_MEMBER_PAIR_BOTH
           iac_L = find_idcolumn_from_idxyz(idx(tid_,[1 1]), ...
-            idy(tid_,[1 1]), idz(tid_,:), member_column);
+            idy(tid_,[1 1]), [idz(tid_,1), idz(tid_,1)+1], member_column);
           icnt = icnt + 1;
           iac_all(icnt) = iac_L;
           idnode_template_all(icnt) = member_column.idnode1(iac_L);
@@ -425,7 +425,7 @@ return
         if pair_type == PRM.BRACE_MEMBER_PAIR_BOTH_R ...
             || pair_type == PRM.BRACE_MEMBER_PAIR_BOTH
           iac_R = find_idcolumn_from_idxyz(idx(tid_,[2 2]), ...
-            idy(tid_,[2 2]), idz(tid_,:), member_column);
+            idy(tid_,[2 2]), [idz(tid_,1), idz(tid_,1)+1], member_column);
           icnt = icnt + 1;
           iac_all(icnt) = iac_R;
           idnode_template_all(icnt) = member_column.idnode1(iac_R);
@@ -435,14 +435,14 @@ return
         % X形：ペアに応じた柱を分割
         if pair_type == PRM.BRACE_MEMBER_PAIR_L
           iac_L = find_idcolumn_from_idxyz(idx(tid_,[1 1]), ...
-            idy(tid_,[1 1]), idz(tid_,:), member_column);
+            idy(tid_,[1 1]), [idz(tid_,1), idz(tid_,1)+1], member_column);
           icnt = icnt + 1;
           iac_all(icnt) = iac_L;
           idnode_template_all(icnt) = member_column.idnode1(iac_L);
           Dtarget_all(icnt) = Dtarget(ib);
         elseif pair_type == PRM.BRACE_MEMBER_PAIR_R
           iac_R = find_idcolumn_from_idxyz(idx(tid_,[2 2]), ...
-            idy(tid_,[2 2]), idz(tid_,:), member_column);
+            idy(tid_,[2 2]), [idz(tid_,1), idz(tid_,1)+1], member_column);
           icnt = icnt + 1;
           iac_all(icnt) = iac_R;
           idnode_template_all(icnt) = member_column.idnode1(iac_R);
@@ -450,9 +450,9 @@ return
         elseif pair_type == PRM.BRACE_MEMBER_PAIR_BOTH
           % BOTH：左右両方の柱を分割
           iac_L = find_idcolumn_from_idxyz(idx(tid_,[1 1]), ...
-            idy(tid_,[1 1]), idz(tid_,:), member_column);
+            idy(tid_,[1 1]), [idz(tid_,1), idz(tid_,1)+1], member_column);
           iac_R = find_idcolumn_from_idxyz(idx(tid_,[2 2]), ...
-            idy(tid_,[2 2]), idz(tid_,:), member_column);
+            idy(tid_,[2 2]), [idz(tid_,1), idz(tid_,1)+1], member_column);
           icnt = icnt + 1;
           iac_all(icnt) = iac_L;
           idnode_template_all(icnt) = member_column.idnode1(iac_L);

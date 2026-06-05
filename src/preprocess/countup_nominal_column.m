@@ -120,9 +120,21 @@ for inc=1:nnmc
   is_allowable_stress(inc) = isscas(idsecc_);
 end
 
+% 通し柱判定（梁 countup_nominal_girder と対称）。束ね かつ
+% チェーン全部材が通常柱（ブレース脚分割 FOUNDATION/BODY を除外）
+isthrough = false(nnmc, 1);
+for inc = 1:nnmc
+  if idsub(inc, 2) > 1
+    ids_ = idmec(inc, 1:idsub(inc, 2));
+    isthrough(inc) = ~any( ...
+      member_column.type(ids_) == PRM.COLUMN_FOR_BRACE_FOUNDATION ...
+      | member_column.type(ids_) == PRM.COLUMN_FOR_BRACE_BODY);
+  end
+end
+
 % 結果の保存
-nominal_column = table(idmec, idsub, ...
-  is_girder_connected, is_brace_connected, is_allowable_stress);
+nominal_column = table(idmec, idsub, isthrough, is_girder_connected, ...
+  is_brace_connected, is_allowable_stress);
 return
 end
 
