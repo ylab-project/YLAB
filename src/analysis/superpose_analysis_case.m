@@ -1,24 +1,40 @@
-function [rs, Mc, rvec, cgsrn, dfm0] = superpose_analysis_case(...
-  rs0, Mc0, rvec0, lcdir, idmc2m, idmg2m, lm, lf, stress_factor)
-% 解析（荷重）ケースの重ね合わせ
+function [rs, Mc, rvec, cgsrn] = superpose_analysis_case(...
+  rs0, Mc0, rvec0, lcdir, stress_factor)
+%superpose_analysis_case - 解析（荷重）ケースの重ね合わせ
+%
+%   [rs, Mc, rvec, cgsrn] = superpose_analysis_case(rs0, Mc0,
+%   rvec0, lcdir, stress_factor) は、長期ケースと地震時ケースを重ね
+%   合わせ、短期の組合せ応力を求める。地震時応力には方向別に
+%   stress_factor を乗じて割り増す。フェース補正は行わず、rs は
+%   節点端ベースの応力として返す（フェース補正は df 側の責務）。
+%
+%   入力引数:
+%     rs0 - ケース別の節点端部材応力 [nm×12×nlc]
+%     Mc0 - ケース別の部材中央曲げ [nm×nlc]
+%     rvec0 - ケース別の断面力ベクトル [ns6×nlc]
+%     lcdir - 各ケースの方向コード（PRM.LT/EXP/EXN/EYP/EYN）[nlc×1]
+%     stress_factor - 地震時設計応力の割増係数 [nm×1]
+%
+%   出力引数:
+%     rs - 重ね合わせ後の節点端部材応力 [nm×12×nlc]
+%     Mc - 重ね合わせ後の部材中央曲げ [nm×nlc]
+%     rvec - 重ね合わせ後の断面力ベクトル [ns6×nlc]
+%     cgsrn - 柱梁耐力比用の軸力（地震時は1.5倍）[nm×nlc]
+%
+%   備考:
+%     - 第3次元のインデックスは方向コード（PRM.LT/EXP等）に対応
+%     - C補正係数の算定もこの節点端Mを用いる（SS7整合）
 
 % 定数
 nlc = length(lcdir);
 nm = size(rs0,1);
-% nmg = size(idmg2m,1);
 
 % 配列
-lg = lm(idmg2m);
-lc = lm(idmc2m);
-lfg = lf.girder;
-lfcx = lf.columnx;
-lfcy = lf.columny;
 rs = zeros(nm,12,nlc);
 Mc = zeros(nm,nlc);
 ns6 = size(rvec0,1);
 rvec = zeros(ns6,nlc);
 cgsrn = zeros(nm,nlc);
-dfm0 = rs0;
 
 % 長期
 for ilc = 1:nlc
@@ -46,29 +62,8 @@ for ilc = 1:nlc
   end
   rs0_ = rs0(:,:,ilc);
 
-  % 梁フェースモーメントの計算（長期は節点位置）
-  Mgi = rs0_(idmg2m,5);
-  Mgj = rs0_(idmg2m,11);
-  Mgfi = Mgi.*(lg-lfg(:,1))./lg-Mgj.*lfg(:,1)./lg;
-  Mgfj = Mgj.*(lg-lfg(:,2))./lg-Mgi.*lfg(:,2)./lg;
-  rs0_(idmg2m,5) = Mgfi;
-  rs0_(idmg2m,11) = Mgfj;
-
-  % 柱フェースモーメント（X）の計算（長期は節点位置）
-  Mcxi = rs0_(idmc2m,5);
-  Mcxj = rs0_(idmc2m,11);
-  Mcxfi = Mcxi.*(lc-lfcx(:,1))./lc-Mcxj.*lfcx(:,1)./lc;
-  Mcxfj = Mcxj.*(lc-lfcx(:,2))./lc-Mcxi.*lfcx(:,2)./lc;
-  rs0_(idmc2m,5) = Mcxfi;
-  rs0_(idmc2m,11) = Mcxfj;
-
-  % 柱フェースモーメント（Y）の計算（長期は節点位置）
-  Mcyi = rs0_(idmc2m,6);
-  Mcyj = rs0_(idmc2m,12);
-  Mcyfi = Mcyi.*(lc-lfcy(:,1))./lc-Mcyj.*lfcy(:,1)./lc;
-  Mcyfj = Mcyj.*(lc-lfcy(:,2))./lc-Mcyi.*lfcy(:,2)./lc;
-  rs0_(idmc2m,6) = Mcyfi;
-  rs0_(idmc2m,12) = Mcyfj;
+  % フェース補正は行わない（df 側の責務）。rs は節点端ベース。
+  % C補正係数算定もこの節点端Mを用いる（SS7整合）。
 
   % 設計応力割増
   for j=1:12
@@ -80,10 +75,6 @@ for ilc = 1:nlc
   Mc(:,id) = Mc0(:,ilc)+Mc(:,1);
   rvec(:,id) = rvec(:,ilc)+rvec0(:,1);
   cgsrn(:,id) = 1.5*rs0(:,1,ilc)+rs0(:,1,1);
-
-  % 結果の保存
-  dfm0(:,:,ilc) = rs0_;
 end
 return
 end
-

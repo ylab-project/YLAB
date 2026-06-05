@@ -586,7 +586,7 @@ rs0 = correct_kbrace_shear(rs0, node.type, member_girder, ...
 
 %% 荷重ケースの重ね合わせ
 [rs, Mc, rvec, cgsrn] = superpose_analysis_case(rs0, ...
-  Mc0, rvec0, lcdir, idmc2m, idmg2m, lm, lf, stress_factor);
+  Mc0, rvec0, lcdir, stress_factor);
 
 %% state 構造体の構築
 state.sup.islifted = isuplifted;

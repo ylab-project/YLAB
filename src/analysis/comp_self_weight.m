@@ -3,38 +3,40 @@ function sw = comp_self_weight(A, lm_weight, lm, member_property, ...
   brace_unit_weight, Df_foundation, idsup2n, rho_rc_member)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
-% 柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを計算する。
+%   sw = comp_self_weight(A, lm_weight, lm, member_property, msdim, ...
+%   slab, nnode, mejoint, face_deduct, options, member_column, ...
+%   brace_unit_weight, Df_foundation, idsup2n, rho_rc_member) は、
+%   柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを
+%   計算する。梁の等価節点荷重は、柱面間に荷重が分布することを
+%   考慮し、荷重重心位置に基づく偏心配分を行う（SS7方式）。
 %
-% 梁の等価節点荷重は、柱面間に荷重が分布することを考慮し、
-% 荷重重心位置に基づく偏心配分を行う（SS7方式）。
+%   入力引数:
+%     A               - 断面積配列
+%     lm_weight       - 荷重計算用部材長配列（等価節点荷重用）
+%     lm              - 実際の部材長配列（CMQ計算用）
+%     member_property - 部材プロパティ構造体
+%     msdim           - 部材断面寸法配列
+%     slab            - スラブ情報構造体（RC梁の重複スラブ控除用、
+%                       .width/.thickness/.width_lower/.thickness_lower）
+%     nnode           - 全節点数
+%     mejoint         - 結合条件配列
+%     face_deduct     - 梁の柱面減算量 [nmeg x 2]（列1: i端, 列2: j端）
+%     options         - オプション構造体
+%     member_column   - 柱部材構造体
+%     brace_unit_weight - ブレース単位重量 [nmeb x 1] N/mm
+%                         （BRB: メーカー値, 他: 0）
+%     Df_foundation   - 基礎柱面寸法配列 [nsec×1]（統一断面ID→Df）
+%     idsup2n         - 支点節点IDの配列 [nsup×1]
+%     rho_rc_member   - RC密度 [nme×1] t/m3（Fc依存）
 %
-% Inputs:
-%   A               - 断面積配列
-%   lm_weight       - 荷重計算用部材長配列（等価節点荷重用）
-%   lm              - 実際の部材長配列（CMQ計算用）
-%   member_property - 部材プロパティ構造体
-%   msdim           - 部材断面寸法配列
-%   slab            - スラブ情報構造体（RC梁の重複スラブ控除用、
-%                     .width/.thickness/.width_lower/.thickness_lower）
-%   nnode           - 全節点数
-%   mejoint         - 結合条件配列
-%   face_deduct     - 梁の柱面減算量 [nmeg x 2]（列1: i端, 列2: j端）
-%   options         - オプション構造体
-%   member_column   - 柱部材構造体
-%   brace_unit_weight - ブレース単位重量 [nmeb x 1] N/mm
-%                       （BRB: メーカー値, 他: 0）
-%   Df_foundation     - 基礎柱面寸法配列 [nsec×1]（統一断面ID→Df）
-%   idsup2n           - 支点節点IDの配列 [nsup×1]
-%   rho_rc_member     - RC密度 [nme×1] t/m3（Fc依存）
-%
-% Outputs:
-%   sw - 結果構造体
-%        .f   : 等価節点荷重 (nnode, 6)
-%        .fc  : 柱の等価節点荷重 (nnode, 6)
-%        .fg  : 梁の等価節点荷重 (nnode, 6)
-%        .fw  : ブレースの等価節点荷重 (nnode, 6)
-%        .ar  : 要素座標系の固定端反力
-%        .M0  : 単純梁モーメント
+%   出力引数:
+%     sw - 結果構造体
+%          .f   : 等価節点荷重 (nnode, 6)
+%          .fc  : 柱の等価節点荷重 (nnode, 6)
+%          .fg  : 梁の等価節点荷重 (nnode, 6)
+%          .fw  : ブレースの等価節点荷重 (nnode, 6)
+%          .ar  : 要素座標系の固定端反力
+%          .M0  : 単純梁モーメント
 
 % 共通配列
 cxl = member_property.cxl;
@@ -141,8 +143,12 @@ if options.consider_finishing_material
   wfrcc = rcc(:,1)*4*options.finishing_material_rc_column;
   wf(mtype==PRM.COLUMN&stype==PRM.RCRS) = wfrcc;
   % RC梁(両側仕上)
+  % スラブが取り付く側面は仕上が不要なため、自重側で算出済みの
+  % 左右スラブ厚を周長から控除する（式4.9 の -Ls・t 相当、左右別）
   rcg = msdim(mtype==PRM.GIRDER&stype==PRM.RCRS,1:2);
-  wfrcg = (rcg(:,1)+rcg(:,2)*2)*options.finishing_material_rc_girder;
+  ded_f = t_left(is_rc) + t_right(is_rc);
+  wfrcg = (rcg(:,1) + rcg(:,2)*2 - ded_f) ...
+    * options.finishing_material_rc_girder;
   wf(mtype==PRM.GIRDER&stype==PRM.RCRS) = wfrcg;
 end
 w = w+wf;
