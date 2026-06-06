@@ -276,14 +276,16 @@ for i = 1:nstory
       scgbody{irow,15} = sprintf('λ %d', ceil(lam_));
 
       % --- 端部行（端部に設ける補剛本数 + 限界Lb） ---
-      % 補剛数0のときSS7は端部行を出力しないため省略する
-      if ns_ > 0 && has_slr
+      % 補剛数>0、または横補剛NG（必要補剛数>0）で端部行を出力。
+      % 補剛0でもNGなら SS7 は端部配置行を表示するため含める。
+      if (ns_ > 0 || nreq_ > 0) && has_slr
         irow = irow + 1;
         scgbody{irow,11} = '端部';
         lbreq2_ = slratio.lbreq2(ig1);
+        % 端部本数: Myを超える範囲を端部限界Lb間隔で配置する切上げ本数
         if lbreq2_ > 0
-          nl_ = ceil(2 * slratio.lbmy(ig1, 1) / lbreq2_);
-          nr_ = ceil(2 * slratio.lbmy(ig1, 2) / lbreq2_);
+          nl_ = ceil(slratio.lbmy(ig1, 1) / lbreq2_);
+          nr_ = ceil(slratio.lbmy(ig1, 2) / lbreq2_);
         else
           nl_ = 0; nr_ = 0;
         end
