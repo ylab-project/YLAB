@@ -127,10 +127,8 @@ for i = 1:n
   if through_floor(i) ~= PRM.BRACE_THROUGH_AUTO
     continue
   end
-  if brace_type(i) ~= PRM.BRACE_MEMBER_TYPE_X
-    continue
-  end
-  % 上方向に走査し梁がなければ延長
+  % 上方向に走査し梁がなければ延長する。idz(i,2) は X/K上/K下
+  % のいずれも多層spanの上端なので形状で分岐しない。
   while idz(i,2) < nz_max
     idg_ = find_idgirder_from_idxyz(idx(i,:), idy(i,:), ...
       idz(i,[2 2]), member_girder, [], baseline);
@@ -585,8 +583,8 @@ return
       end
       idg_ = find_idgirder_from_idxyz(idx(tid,:), idy(tid,:), ...
         idz_girder, member_girder, [], baseline);
-      if numel(idg_) ~= 1
-        error('K形ブレース対象梁が複数見つかりました。');
+      if numel(idg_) ~= 1 || idg_ <= 0
+        error('K形ブレース対象梁を一意に特定できません。');
       end
       idg(ia) = idg_;
       girder_idir(ia) = member_girder.idir(idg(ia));
@@ -782,12 +780,16 @@ return
         tb_add.pair(ie) = PRM.BRACE_MEMBER_PAIR_BOTH_R;
         idnode_mid_ = idnode_mid_array_expand(ie);
         tb_add.idnode2(ie) = idnode_mid_;
-        % idnode_k_R(ik_) を上端に持つ柱の下端を取得
-        idc_right = find(member_column.idnode2 == idnode_k_R(ik_), 1);
+        % 右脚基部は右側の最下段＝柱分割BODY柱(idx(:,2))の下端
+        % (=1FL-BRACE-JOINT)。idnode_k_R の柱上端探索は多層で上段柱
+        % (2FL)を拾い右脚が1層化するため使わない（左脚 BOTH_L と対称）。
+        idc_right = find(member_column.idx(:,1) == tb_add.idx(ie,2) ...
+          & member_column.idy(:,1) == tb_add.idy(ie,2) ...
+          & member_column.type == PRM.COLUMN_FOR_BRACE_BODY, 1);
         if ~isempty(idc_right)
           tb_add.idnode1(ie) = member_column.idnode1(idc_right);
         else
-          tb_add.idnode1(ie) = idnode_k_R(ik_);
+          tb_add.idnode1(ie) = idnode_k_R_far(ik_);
         end
 
       % K下形の場合
