@@ -512,10 +512,6 @@ return
     scbbody{irow, 8} = sprintf('%s [ %s ]', type_label_, brb_type_str_);
     scbbody{irow, ncol} = PRM.CONT_MARKER;
 
-    % 空白継続行（SS7 は符号行とラベル行の間に空行を置く）
-    irow = irow + 1;
-    scbbody{irow, ncol} = PRM.CONT_MARKER;
-
     % 配置・列ラベル行
     irow = irow + 1;
     scbbody{irow, 1} = sprintf('[%s', nominal_brace.floor_name{inb});
@@ -578,17 +574,25 @@ return
       end
       im_ = brace.idme(ib_);
 
+      % 検定比を先に求める。Lk 列の記入要否（圧縮検定の有無）に
+      % rc_ を用いるため、L/Lk 記入より前に算定する。
+      [c_ilc_, rt_, rc_] = calc_ratios_brb(im_, Ag_cm2_ * 1e2, F_);
+
       % 位置ラベル
       scbbody{irow, 7} = get_pos_label(ib_);
 
-      % L（内法長さ）、Lk（座屈長）。Lk>Lkmax は SS7 同様 * を付す
+      % L（内法長さ）。Lk（座屈長）は圧縮検定が生じる側のみ記入
+      % する。SS7 は引張のみ・軸力なし側の Lk を空欄とする。
+      % Lk>Lkmax は SS7 同様 * を付す。
       scbbody{irow, 8} = sprintf('%.0f', lm(im_));
-      if lkx(im_) > Lkmax_
-        lk_str_ = sprintf('%.0f*', lkx(im_));
-      else
-        lk_str_ = sprintf('%.0f', lkx(im_));
+      if rc_ > 0
+        if lkx(im_) > Lkmax_
+          lk_str_ = sprintf('%.0f*', lkx(im_));
+        else
+          lk_str_ = sprintf('%.0f', lkx(im_));
+        end
+        scbbody{irow, 9} = lk_str_;
       end
-      scbbody{irow, 9} = lk_str_;
 
       % Lft, sft（許容引張応力度。BRB は F/1.5 / F）
       scbbody{irow, 10} = sprintf('%.0f', F_ / 1.5);
@@ -605,7 +609,6 @@ return
 
       % ケース＝決定ケース。σt/ft・σc/fc は引張側・圧縮側の
       % 全ケース独立最大（SS7 出力編 7.4.5）
-      [c_ilc_, rt_, rc_] = calc_ratios_brb(im_, Ag_cm2_ * 1e2, F_);
       scbbody{irow, 18} = PRM.load_case_combo_name(c_ilc_);
       if rt_ > 0
         scbbody{irow, 19} = sprintf('%.2f ', ceil(rt_ * 100) / 100);
