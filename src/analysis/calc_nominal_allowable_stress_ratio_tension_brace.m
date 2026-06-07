@@ -1,5 +1,4 @@
-function ration = ...
-  calc_nominal_allowable_stress_ratio_tension_brace(...
+function ration = calc_nominal_allowable_stress_ratio_tension_brace(...
   ration, stn, nominal, stype, A, msdim)
 %calc_nominal_allowable_stress_ratio_tension_brace - TB応力比をN/Taで上書き
 %
@@ -10,8 +9,8 @@ function ration = ...
 %   TB名目ブレースに対し、N/Taに相当する値をセットする。
 %
 %   入力引数:
-%     ration  - 応力比配列 [nnm×13×nlc]
-%     stn     - 名目応力配列 [nnm×13×nlc]
+%     ration  - 応力比配列 [nnm×18×nlc]
+%     stn     - 名目応力配列 [nnm×ncomp×nlc]
 %     nominal - 名目部材データ構造体
 %     stype   - 断面タイプ配列 [nme×1]
 %     A       - 断面積配列 [nme×1]
@@ -41,10 +40,8 @@ for imb = 1:length(ibbb)
     end
     % ration = σ/fa = N/Ta
     for ilc = 1:nlc
-      ration(inm, 1, ilc) = ...
-        stn(inm, 1, ilc) / fa_tb;
-      ration(inm, 7, ilc) = ...
-        stn(inm, 7, ilc) / fa_tb;
+      ration(inm, 1, ilc) = stn(inm, 1, ilc) / fa_tb;
+      ration(inm, 7, ilc) = stn(inm, 7, ilc) / fa_tb;
     end
     break
   end

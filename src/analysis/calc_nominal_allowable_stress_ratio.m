@@ -5,8 +5,8 @@ function [ration, fcn, fbn] = calc_nominal_allowable_stress_ratio(...
 % 定数
 [nnm, ~, nlc] = size(st);
 
-% 初期化
-ration = zeros(nnm,14,nlc);
+% 初期化（15-18列はS柱組合せ応力度比 柱脚X/Y・柱頭X/Y）
+ration = zeros(nnm,18,nlc);
 
 for ilc = 1:nlc
   if (ilc==1)
@@ -57,6 +57,20 @@ for ilc = 1:nlc
 
     switch nmtype(inm)
       case PRM.COLUMN
+        % 組合せ応力度比 sqrt(σ^2+3τ^2)/ft（角形・円形鋼管等）
+        %   σ = 軸+両曲げの縁応力度（端部ごとの絶対値和）
+        %   τ = 端部せん断応力度（X方向=9列, Y方向=8列）
+        %   断面算定表に表示する内訳値。検定比一覧には用いない。
+        ftc = ftn(inm,ilc_);
+        sgb = abs(st(inm,1,ilc)) + abs(st(inm,5,ilc)) + abs(st(inm,6,ilc));
+        sgt = abs(st(inm,1,ilc)) + abs(st(inm,11,ilc)) ...
+          + abs(st(inm,12,ilc));
+        tcx = abs(st(inm,9,ilc));
+        tcy = abs(st(inm,8,ilc));
+        ration(inm,15,ilc) = sqrt(sgb^2 + 3*tcx^2) / ftc;
+        ration(inm,16,ilc) = sqrt(sgb^2 + 3*tcy^2) / ftc;
+        ration(inm,17,ilc) = sqrt(sgt^2 + 3*tcx^2) / ftc;
+        ration(inm,18,ilc) = sqrt(sgt^2 + 3*tcy^2) / ftc;
       case PRM.GIRDER
         % 中央σb/fb — 引張時はfb=ft（引張正）
         if Ncn(inm,ilc) > 0

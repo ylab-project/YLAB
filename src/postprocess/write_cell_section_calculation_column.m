@@ -234,29 +234,29 @@ for i = 1:nstory
       irow = irow + 1;
       write_iy_label(irow, im1);
       write_check_row(irow, '<X>柱頭', Zy(im2), A(im2), Asy(im2), ...
-        fbn(inm, 2, jlx), ration(inm, 7, jlx), ration(inm, 11, jlx), ...
-        ration(inm, 12, jlx), ration(inm, 9, jsx));
+        fbn(inm, 2, jlx), ration(inm, 1, jlx), ration(inm, 11, jlx), ...
+        ration(inm, 12, jlx), ration(inm, 9, jsx), ration(inm, 17, jlx));
 
       % λ + 柱脚 X 検定
       irow = irow + 1;
       write_lambda_label(irow, im1);
       write_check_row(irow, '柱脚', Zy(im1), A(im1), Asy(im1), ...
         fbn(inm, 1, ilx), ration(inm, 1, ilx), ration(inm, 5, ilx), ...
-        ration(inm, 6, ilx), ration(inm, 9, isx));
+        ration(inm, 6, ilx), ration(inm, 9, isx), ration(inm, 15, ilx));
 
       % fcL + <Y>柱頭 検定
       irow = irow + 1;
       write_fcl_label(irow);
       write_check_row(irow, '<Y>柱頭', Zy(im2), A(im2), Asz(im2), ...
-        fbn(inm, 2, jly), ration(inm, 7, jly), ration(inm, 11, jly), ...
-        ration(inm, 12, jly), ration(inm, 8, jsy));
+        fbn(inm, 2, jly), ration(inm, 1, jly), ration(inm, 11, jly), ...
+        ration(inm, 12, jly), ration(inm, 8, jsy), ration(inm, 18, jly));
 
       % fcS + 柱脚 Y 検定（柱エントリ末尾、CONT_MARKER は付与しない）
       irow = irow + 1;
       write_fcs_label(irow);
       write_check_row(irow, '柱脚', Zz(im1), A(im1), Asy(im1), ...
         fbn(inm, 1, ily), ration(inm, 1, ily), ration(inm, 5, ily), ...
-        ration(inm, 6, ily), ration(inm, 8, isy));
+        ration(inm, 6, ily), ration(inm, 8, isy), ration(inm, 16, ily));
       sccbody{irow, ncol} = '';
 
     else
@@ -323,8 +323,8 @@ for i = 1:nstory
       irow = irow + 1;
       write_fcl_label(irow);
       write_check_row(irow, '<X>柱頭', Zy(im2), A(im2), Asy(im2), ...
-        fbn(inm, 2, jlx), ration(inm, 7, jlx), ration(inm, 11, jlx), ...
-        ration(inm, 12, jlx), ration(inm, 9, jsx));
+        fbn(inm, 2, jlx), ration(inm, 1, jlx), ration(inm, 11, jlx), ...
+        ration(inm, 12, jlx), ration(inm, 9, jsx), ration(inm, 17, jlx));
 
       % fcS + 中央 X 検定（Zy/A のみ）
       irow = irow + 1;
@@ -338,13 +338,13 @@ for i = 1:nstory
       irow = irow + 1;
       write_check_row(irow, '柱脚', Zy(im1), A(im1), Asy(im1), ...
         fbn(inm, 1, ilx), ration(inm, 1, ilx), ration(inm, 5, ilx), ...
-        ration(inm, 6, ilx), ration(inm, 9, isx));
+        ration(inm, 6, ilx), ration(inm, 9, isx), ration(inm, 15, ilx));
 
       % <Y>柱頭 検定
       irow = irow + 1;
       write_check_row(irow, '<Y>柱頭', Zy(im2), A(im2), Asz(im2), ...
-        fbn(inm, 2, jly), ration(inm, 7, jly), ration(inm, 11, jly), ...
-        ration(inm, 12, jly), ration(inm, 8, jsy));
+        fbn(inm, 2, jly), ration(inm, 1, jly), ration(inm, 11, jly), ...
+        ration(inm, 12, jly), ration(inm, 8, jsy), ration(inm, 18, jly));
 
       % 中央 Y 検定（Zz/A のみ）
       irow = irow + 1;
@@ -357,7 +357,7 @@ for i = 1:nstory
       irow = irow + 1;
       write_check_row(irow, '柱脚', Zz(im1), A(im1), Asy(im1), ...
         fbn(inm, 1, ily), ration(inm, 1, ily), ration(inm, 5, ily), ...
-        ration(inm, 6, ily), ration(inm, 8, isy));
+        ration(inm, 6, ily), ration(inm, 8, isy), ration(inm, 16, ily));
       sccbody{irow, ncol} = '';
     end
 
@@ -414,13 +414,14 @@ return
   end
 
   function write_check_row(irow_, label, Z_val, A_val, Aw_val, ...
-    fb_val, r_n, r_bx, r_by, tau)
+    fb_val, r_n, r_bx, r_by, tau, combined)
   %write_check_row - 検定行 1 行を埋める（col 10-20, 25）
   %
   %   write_check_row(irow_, label, Z_val, A_val, Aw_val,
-  %     fb_val, r_n, r_bx, r_by, tau) は、S柱断面算定表の
-  %   検定行 1 行に断面諸量と各応力比・合算値を埋める。
-  %   外側スコープの sccbody, ncol を共有する。
+  %     fb_val, r_n, r_bx, r_by, tau, combined) は、S柱断面
+  %   算定表の検定行 1 行に断面諸量と各応力比・合算値を埋める。
+  %   検定比は SS7 互換で切り上げ（ceil）表示する。外側スコープの
+  %   sccbody, ncol を共有する。
   %
   %   入力引数:
   %     irow_  - 書き込み行番号
@@ -433,23 +434,26 @@ return
   %     r_bx   - 曲げ応力比 σbx/fb
   %     r_by   - 曲げ応力比 σby/fb
   %     tau    - せん断応力比 τ/fs
+  %     combined - 組合せ応力比 sqrt(σ^2+3τ^2)/ft（分析層算定値）
   %
   %   備考:
   %     col 10:ラベル / 11:Z / 12:A / 13:Aw / 14:fb /
   %     15:σc/fc / 16:σbx/fb / 17:σby/fb / 18:TOTAL / 19:τ/fs /
-  %     20:max(TOTAL,τ/fs) / 25:CONT_MARKER
+  %     20:組合せ / 25:CONT_MARKER
     total = r_n + r_bx + r_by;
+    % 検定比は SS7 互換で小数2桁切り上げ表示(丸め規則を一元化)
+    fmt2 = @(r) sprintf('%.2f', ceil(r * 100) / 100);
     sccbody{irow_, 10} = label;
     sccbody{irow_, 11} = sprintf('%.0f', Z_val * 1e-3);
     sccbody{irow_, 12} = sprintf('%.1f', A_val * 1e-2);
     sccbody{irow_, 13} = sprintf('%.1f', Aw_val * 1e-2);
     sccbody{irow_, 14} = sprintf('%.0f', fb_val);
-    sccbody{irow_, 15} = sprintf('%.2f', r_n);
-    sccbody{irow_, 16} = sprintf('%.2f', r_bx);
-    sccbody{irow_, 17} = sprintf('%.2f', r_by);
-    sccbody{irow_, 18} = sprintf('%.2f', total);
-    sccbody{irow_, 19} = sprintf('%.2f', tau);
-    sccbody{irow_, 20} = sprintf('%.2f', max(total, tau));
+    sccbody{irow_, 15} = fmt2(r_n);
+    sccbody{irow_, 16} = fmt2(r_bx);
+    sccbody{irow_, 17} = fmt2(r_by);
+    sccbody{irow_, 18} = fmt2(total);
+    sccbody{irow_, 19} = fmt2(tau);
+    sccbody{irow_, 20} = fmt2(combined);
     sccbody{irow_, ncol} = PRM.CONT_MARKER;
     return
   end
