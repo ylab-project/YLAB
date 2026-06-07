@@ -142,10 +142,15 @@ Q_nb = calc_Q_nominal_brace(com, rs0, cxl, cyl);
 % ため、βおよび水平力分担表 writer が共通参照する）
 brace_in_story = calc_brace_story_membership(com);
 
+% 水平力分担表相当の階別・フレーム別集計（柱座屈長さ補正βと水平力
+% 分担表出力が共通参照する正本）。出力でも使うため制約評価の外で生成
+frame_shear_ratio = calc_frame_shear_ratio(com, rs0, cxl, cyl, ...
+  Q_nb, brace_in_story);
+
 %% 許容応力度比制約
 if coptions.consider_stress_ratio
-  % ブレース水平力分担率の算出
-  beta = calc_brace_force_share_ratio(com, rs0, cxl, cyl, Q_nb);
+  % ブレース水平力分担率の算出（出力階解決後の [story×lc]）
+  beta = calc_brace_force_share_ratio(frame_shear_ratio);
 
   % ブレース・柱の座屈長さ用部材長を算出
   % ブレース分は analysis_frame で算出済みの lmem.buckling を流用
@@ -357,6 +362,7 @@ if nargout==3
   result.cyl = cyl;
   result.Q_nb = Q_nb;
   result.brace_in_story = brace_in_story;
+  result.frame_shear_ratio = frame_shear_ratio;
   return
 end
 result.ncon = [length(gr) length(gs) length(cr) ...
@@ -411,6 +417,7 @@ result.rs0 = rs0;
 result.beta = beta;
 result.Q_nb = Q_nb;
 result.brace_in_story = brace_in_story;
+result.frame_shear_ratio = frame_shear_ratio;
 result.Mc = Mc;
 result.Mc0 = Mc0;
 result.dfn = dfn;
