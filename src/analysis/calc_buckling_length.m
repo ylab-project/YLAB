@@ -128,9 +128,10 @@ for inc = 1:nnc
     [ispin_self, ispin_other] = check_pinjoint(mga, je(ima));
     gga(ispin_self) = 0;
     gga(ispin_other) = gga(ispin_other)*0.5;
-    bk_sumIgTop(inc) = min(sum(gga), BK_MAX_IG_LG);
-    if bk_sumIgTop(inc)>0
-      Ga = (gc+gca)/bk_sumIgTop(inc);
+    sumIgTop = sum(gga);
+    bk_sumIgTop(inc) = min(sumIgTop, BK_MAX_IG_LG);
+    if sumIgTop>0
+      Ga = (gc+gca)/sumIgTop;
     else
       Ga = 10.0;
     end
@@ -144,9 +145,10 @@ for inc = 1:nnc
     [ispin_self, ispin_other] = check_pinjoint(mgb, js(imb));
     ggb(ispin_self) = 0;
     ggb(ispin_other) = ggb(ispin_other)*0.5;
-    bk_sumIgBot(inc) = min(sum(ggb), BK_MAX_IG_LG);
-    if bk_sumIgBot(inc)>0
-      Gb = (gc+gcb)/bk_sumIgBot(inc);
+    sumIgBot = sum(ggb);
+    bk_sumIgBot(inc) = min(sumIgBot, BK_MAX_IG_LG);
+    if sumIgBot>0
+      Gb = (gc+gcb)/sumIgBot;
     else
       Gb = 10.0;
     end
