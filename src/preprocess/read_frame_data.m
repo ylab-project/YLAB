@@ -651,7 +651,7 @@ end
 function  variable = set_variable_block(dbc)
 data = dbc.get_data_block('設計変数');
 n = size(data,1);
-nmax = PRM.MAX_NVAR;
+nmax = max(PRM.MAX_NVAR, n);
 name = cell(nmax,1);
 isvar = nan(nmax,1);
 value = zeros(nmax,1);

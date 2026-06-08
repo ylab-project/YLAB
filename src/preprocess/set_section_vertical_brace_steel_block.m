@@ -71,7 +71,6 @@ end
 mvar = PRM.MAX_NSVAR;
 variable = cell(n,mvar);
 idvar = zeros(n,mvar);
-iddd = 1:PRM.MAX_NVAR;
 nvar = com.nvar;
 nvrows = sum(~isnan(design_variable.isvar));
 
@@ -80,11 +79,12 @@ for i=1:n
   cdata = data(i,3:(2+ndvar));
   variable(i,1:ndvar) = tochar(cdata);
   for j=1:ndvar
-    idvar_ = iddd( ...
-      matches(design_variable.name, variable{i,j}));
+    idvar_ = find_design_variable_id(design_variable, variable{i,j});
     if isempty(idvar_)
       % 変数追加
       nvrows = nvrows+1;
+      design_variable = ensure_design_variable_capacity( ...
+        design_variable, nvrows);
       nvar = nvar+1;
       design_variable(nvrows,:) = ...
         {variable{i,j}, 0, false, nvar};
