@@ -85,6 +85,9 @@ if nargout==2
   slratio.lbreq1 = lbreq1;
   slratio.lbreq2 = lbreq2;
   slratio.lbmy = lbmy;
+  slratio.isOkEqual = rrr1 >= 1;
+  slratio.isOkEnd = rrr2 >= 1;
+  slratio.isOk = conslr <= 0;
   % % 復元用：次の条件を満たす必要あり
   % %   "iy>=iyreq1" 
   % %   または 

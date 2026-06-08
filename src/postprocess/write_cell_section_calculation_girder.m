@@ -250,14 +250,20 @@ for i = 1:nstory
       if has_slr
         nreq_ = abs(slratio.nreq(ig1));
         lam_ = slratio.lambda(ig1);
+        is_ok_equal_ = slratio.isOkEqual(ig1);
+        is_ok_end_ = slratio.isOkEnd(ig1);
+        is_ok_slr_ = slratio.isOk(ig1);
       else
         nreq_ = 0;
         Iz_ = result.msprop.Iz(im1);
         iy_ = sqrt(Iz_ / A(im1));
         lam_ = lm_ / iy_;
+        is_ok_equal_ = true;
+        is_ok_end_ = true;
+        is_ok_slr_ = true;
       end
       % 等間隔配置の限界Lbを最大Lbが超える場合は補剛不能を示す *
-      if has_slr && slratio.lbmax(ig1) > slratio.lbreq1(ig1)
+      if ~is_ok_equal_
         scgbody{irow,12} = sprintf('必要補剛数(等) %.0f本*', nreq_);
       else
         scgbody{irow,12} = sprintf('必要補剛数(等) %.0f本', nreq_);
@@ -265,9 +271,8 @@ for i = 1:nstory
       scgbody{irow,15} = sprintf('λ %d', ceil(lam_));
 
       % --- 端部行（端部に設ける補剛本数 + 限界Lb） ---
-      % 補剛数>0、または横補剛NG（必要補剛数>0）で端部行を出力。
-      % 補剛0でもNGなら SS7 は端部配置行を表示するため含める。
-      if (ns_ > 0 || nreq_ > 0) && has_slr
+      % 均等配置で満足しなかった場合に端部行を出力する。
+      if ~is_ok_equal_
         irow = irow + 1;
         scgbody{irow,11} = '端部';
         lbreq2_ = slratio.lbreq2(ig1);
@@ -279,7 +284,7 @@ for i = 1:nstory
           nl_ = 0; nr_ = 0;
         end
         scgbody{irow,12} = sprintf('(左) %d本 (右) %d本', nl_, nr_);
-        if slratio.lbmax(ig1) > lbreq2_
+        if ~is_ok_end_
           scgbody{irow,15} = sprintf('限界Lb %.0f*', lbreq2_);
         else
           scgbody{irow,15} = sprintf('限界Lb %.0f', lbreq2_);
@@ -460,22 +465,10 @@ for i = 1:nstory
       end
 
       % --- 注意行（横補剛が制限値未達のとき） ---
-      if nreq_ > 0 && any(girder.slr_is_target(ig1, :))
-        if F_ == 235
-          cc1_ = 250; cc2_ = 65;
-        else
-          cc1_ = 200; cc2_ = 50;
-        end
-        H_ = dim_(1); Afg_ = dim_(2) * dim_(4);
-        Iz_ = result.msprop.Iz(im1);
-        iy_ = sqrt(Iz_ / A(im1));
-        lbreq2_ = min(cc1_*Afg_/H_, cc2_*iy_);
-        lblr_ = max(lb(ing, :));
-        if lblr_ > lbreq2_
-          irow = irow + 1;
-          scgbody{irow, 1} = ['注意  676： S梁で横補剛が基準解説書の' ...
-            '制限値を満たしていません。'];
-        end
+      if ~is_ok_slr_
+        irow = irow + 1;
+        scgbody{irow, 1} = ['注意  676： S梁で横補剛が基準解説書の' ...
+          '制限値を満たしていません。'];
       end
 
       % この梁エントリの最終行以外を CONT_MARKER 連結
