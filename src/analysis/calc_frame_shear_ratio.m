@@ -84,6 +84,10 @@ Qw_Qcw_total = zeros(nstory, nlc);
 frame_ratio = zeros(nstory, nframe_max, nlc);
 nframe = zeros(nlc, 1);
 
+% ブレースの跨ぐ階はループ不変。find は一度だけ実行し、加力方向で
+% 変わる f_col のみループ内で引く。
+[b_row, s_col] = find(brace_in_story);
+
 % 荷重ケースごとに集計(地震ケースのみ。長期は0のまま)
 for ilc = 1:nlc
   switch lcdir(ilc)
@@ -121,7 +125,6 @@ for ilc = 1:nlc
   end
 
   % フレーム別のブレース負担水平力を集計(跨ぐ階を展開して1パス)
-  [b_row, s_col] = find(brace_in_story);
   f_col = nb_idframe(b_row);
   sel_b = f_col >= 1 & f_col <= nfr & s_col >= 1 & s_col <= nstory;
   if any(sel_b)

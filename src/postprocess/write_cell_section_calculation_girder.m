@@ -14,7 +14,7 @@ function scgbody = write_cell_section_calculation_girder( ...
 %     options - 出力オプション構造体
 %               section_calc_all_members, consider_web_at_girder_center,
 %               consider_web_at_girder_end, output_girder_list_label,
-%               s_girder_axial_design（軸力考慮検定の有無）
+%               section_calc_all_members 等の出力制御
 %
 %   出力引数:
 %     scgbody - 断面算定表のボディ行セル配列 [nrow×16]
@@ -171,18 +171,7 @@ for i = 1:nstory
       igc = idnm2mg(ing, idsub_nomgc(3));
       imc = idmg2m(igc);
 
-      % 軸力有無の判定（SS7マニュアル 2.5.4 準拠）
-      % 1: しない / 2: する(すべて) / 3: する(軸力が生じた梁のみ)
-      switch options.s_girder_axial_design
-        case PRM.S_GIRDER_AXIAL_NONE
-          has_axial = false;
-        case PRM.S_GIRDER_AXIAL_ALL
-          has_axial = true;
-        case PRM.S_GIRDER_AXIAL_AUTO
-          % 1 kN 未満は軸力なし扱い（SS7 マニュアル 2.5.4）
-          N_max = max(abs(dfn(inm, [1 7], :)), [], 'all');
-          has_axial = N_max >= 1000;
-      end
+      has_axial = result.girderSectionHasAxial(ing);
 
       % 梁エントリの開始行を記録（最終行以外は CONT_MARKER で連結し、
       % SS7 と同じ単一論理行ブロックとして cmp7 で照合できるようにする）
@@ -336,9 +325,9 @@ for i = 1:nstory
       % --- Z ---
       irow = irow + 1;
       scgbody{irow, 1} = 'Z';
-      scgbody{irow, 2} = sprintf('%.0f', Zij(im1)*1e-3);
-      scgbody{irow, 4} = sprintf('%.0f', Zc(imc)*1e-3);
-      scgbody{irow, 6} = sprintf('%.0f', Zij(im2)*1e-3);
+      scgbody{irow, 2} = sprintf('%.0f', ceil(Zij(im1)*1e-3));
+      scgbody{irow, 4} = sprintf('%.0f', ceil(Zc(imc)*1e-3));
+      scgbody{irow, 6} = sprintf('%.0f', ceil(Zij(im2)*1e-3));
       if ~has_axial
         scgbody{irow, 9} = '位置';
         scgbody{irow,10} = sprintf('%.0f', lfg(ig1, 1));
@@ -387,9 +376,10 @@ for i = 1:nstory
         % --- N ---
         irow = irow + 1;
         scgbody{irow, 1} = 'N';
-        scgbody{irow,2} = sprintf('%.1f', -dfn(inm,1,ilc)*1e-3);
-        scgbody{irow,4} = sprintf('%.1f', -result.nomgc.Ncn(inm,clc)*1e-3);
-        scgbody{irow,6} = sprintf('%.1f', -dfn(inm,7,jlc)*1e-3);
+        scgbody{irow,2} = fmt1(-dfn(inm,1,ilc)*1e-3);
+        nc_ = -result.nomgc.Ncn(inm,clc)*1e-3;
+        scgbody{irow,4} = fmt1(nc_);
+        scgbody{irow,6} = fmt1(-dfn(inm,7,jlc)*1e-3);
         scgbody{irow, 9} = 'fb';
         scgbody{irow,10} = sprintf('%.1f', fbn(inm,1,ilc));
         scgbody{irow,12} = sprintf('%.1f', fbn(inm,3,clc));
@@ -399,14 +389,15 @@ for i = 1:nstory
       % --- M ---
       irow = irow + 1;
       scgbody{irow, 1} = 'M';
-      scgbody{irow,2} = sprintf('%.1f', -dfn(inm,5,ilc)*1e-6);
-      scgbody{irow,4} = sprintf('%.1f', -result.nomgc.Mcn(inm,clc)*1e-6);
-      scgbody{irow,6} = sprintf('%.1f', dfn(inm,11,jlc)*1e-6);
+      scgbody{irow,2} = fmt1(-dfn(inm,5,ilc)*1e-6);
+      mc_ = -result.nomgc.Mcn(inm,clc)*1e-6;
+      scgbody{irow,4} = fmt1(mc_);
+      scgbody{irow,6} = fmt1(dfn(inm,11,jlc)*1e-6);
       if has_axial
         scgbody{irow, 9} = 'σc/fc';
-        scgbody{irow,10} = sprintf('%.2f', ration(inm,1,ilc));
-        scgbody{irow,12} = sprintf('%.2f', abs(ration(inm,14,clc)));
-        scgbody{irow,14} = sprintf('%.2f', ration(inm,7,jlc));
+        scgbody{irow,10} = fmt_r(ration(inm,1,ilc));
+        scgbody{irow,12} = fmt_r(abs(ration(inm,14,clc)));
+        scgbody{irow,14} = fmt_r(ration(inm,7,jlc));
       else
         scgbody{irow, 9} = 'fb';
         scgbody{irow,10} = sprintf('%.1f', fbn(inm,1,ilc));
@@ -417,49 +408,56 @@ for i = 1:nstory
       % --- Q ---
       irow = irow + 1;
       scgbody{irow, 1} = 'Q';
-      scgbody{irow,2} = sprintf('%.1f', dfn(inm,3,ilc)*1e-3);
-      scgbody{irow,6} = sprintf('%.1f', dfn(inm,9,jlc)*1e-3);
+      scgbody{irow,2} = fmt1(dfn(inm,3,ilc)*1e-3);
+      scgbody{irow,6} = fmt1(dfn(inm,9,jlc)*1e-3);
       if has_axial
         scgbody{irow, 9} = 'σb/fb';
-        scgbody{irow,10} = sprintf('%.2f', ration(inm,5,ilc));
-        scgbody{irow,12} = sprintf('%.2f', ration(inm,13,clc));
-        scgbody{irow,14} = sprintf('%.2f', ration(inm,11,jlc));
+        scgbody{irow,10} = fmt_r(ration(inm,5,ilc));
+        scgbody{irow,12} = fmt_r(ration(inm,13,clc));
+        scgbody{irow,14} = fmt_r(ration(inm,11,jlc));
       else
         scgbody{irow, 9} = 'σb/fb';
-        scgbody{irow,10} = sprintf('%.2f', gri(ing,ilc));
-        scgbody{irow,12} = sprintf('%.2f', grc(ing,clc));
-        scgbody{irow,14} = sprintf('%.2f', grj(ing,jlc));
+        scgbody{irow,10} = fmt_r(gri(ing,ilc));
+        scgbody{irow,12} = fmt_r(grc(ing,clc));
+        scgbody{irow,14} = fmt_r(grj(ing,jlc));
       end
 
       if has_axial
         % --- σc ---
         irow = irow + 1;
         scgbody{irow, 1} = 'σc';
-        scgbody{irow, 2} = sprintf('%.1f', abs(stn(inm,1,ilc)));
+        scgbody{irow, 2} = fmt1(abs(stn(inm,1,ilc)));
         Ncn_c = result.nomgc.Ncn(inm, clc);
-        scgbody{irow, 4} = sprintf('%.1f', abs(Ncn_c/A(imc)));
-        scgbody{irow, 6} = sprintf('%.1f', abs(stn(inm,7,jlc)));
+        scgbody{irow, 4} = fmt1(abs(Ncn_c/A(imc)));
+        scgbody{irow, 6} = fmt1(abs(stn(inm,7,jlc)));
         scgbody{irow, 9} = 'TOTAL';
-        scgbody{irow,10} = sprintf('%.2f', gri(ing,ilc));
-        scgbody{irow,12} = sprintf('%.2f', grc(ing,clc));
-        scgbody{irow,14} = sprintf('%.2f', grj(ing,jlc));
+        scgbody{irow,10} = fmt_r(gri(ing,ilc));
+        scgbody{irow,12} = fmt_r(grc(ing,clc));
+        scgbody{irow,14} = fmt_r(grj(ing,jlc));
       end
 
       % --- σb ---
       irow = irow + 1;
       scgbody{irow, 1} = 'σb';
-      scgbody{irow, 2} = sprintf('%.1f', abs(stn(inm,5,ilc)));
-      scgbody{irow, 4} = sprintf('%.1f', abs(stcn(inm,clc)));
-      scgbody{irow, 6} = sprintf('%.1f', abs(stn(inm,11,jlc)));
+      scgbody{irow, 2} = fmt1(abs(stn(inm,5,ilc)));
+      scgbody{irow, 4} = fmt1(abs(stcn(inm,clc)));
+      scgbody{irow, 6} = fmt1(abs(stn(inm,11,jlc)));
       scgbody{irow, 9} = 'τ/fs';
-      scgbody{irow,10} = sprintf('%.2f', gsi(ing,ilc));
-      scgbody{irow,14} = sprintf('%.2f', gsj(ing,jlc));
+      scgbody{irow,10} = fmt_r(gsi(ing,ilc));
+      scgbody{irow,14} = fmt_r(gsj(ing,jlc));
 
       % --- τ ---
       irow = irow + 1;
       scgbody{irow, 1} = 'τ';
-      scgbody{irow, 2} = sprintf('%.1f', abs(stn(inm,3,ilc)));
-      scgbody{irow, 6} = sprintf('%.1f', abs(stn(inm,9,jlc)));
+      scgbody{irow, 2} = fmt1(abs(stn(inm,3,ilc)));
+      scgbody{irow, 6} = fmt1(abs(stn(inm,9,jlc)));
+
+      % --- 警告行（曲げ検定比が1.0を超えるとき, SS7互換） ---
+      if max([gri(ing,ilc), grc(ing,clc), grj(ing,jlc)]) > 1.0
+        irow = irow + 1;
+        scgbody{irow, 1} = ['　　　警告  672： S梁で曲げ応力度が' ...
+          '許容曲げ応力度を超えています。'];
+      end
 
       % --- 注意行（横補剛が制限値未達のとき） ---
       if nreq_ > 0 && any(girder.slr_is_target(ig1, :))
@@ -542,6 +540,32 @@ return
       s = sprintf('%.3f', Cv);
     else
       s = '';
+    end
+
+    return
+  end
+
+  function s = fmt1(x)
+  %fmt1 - 応力を絶対値方向へ小数1桁切り上げて文字列化（SS7出力編A.9）
+  %
+  %   s = fmt1(x) は S梁断面算定表の応力表示。丸め・文字列化は共通
+  %   ヘルパ fmt_ceil_abs に委譲し、小数1桁で切り上げ表示する。
+    s = fmt_ceil_abs(x, 1);
+
+    return
+  end
+
+  function s = fmt_r(r)
+  %fmt_r - 検定比を SS7 互換で小数2桁切り上げ表示する
+  %
+  %   s = fmt_r(r) は検定比 r を小数2桁で切り上げ（ceil_ratio）した
+  %   文字列を返す。1.0 を超える（NG）場合は SS7 互換で末尾に '*' を
+  %   付す。切り上げ規則は検定比一覧・S柱断面算定表と統一する。
+    rc = ceil_ratio(r);
+    if rc > 1.0
+      s = sprintf('%.2f*', rc);
+    else
+      s = sprintf('%.2f', rc);
     end
 
     return

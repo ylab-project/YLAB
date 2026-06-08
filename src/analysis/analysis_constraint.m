@@ -28,7 +28,7 @@ nng = size(com.nominal.girder.idmeg,1);      % 名目梁数
 nnc = size(com.nominal.column.idmec,1);      % 名目柱数
 
 % ID配列の取得
-idn2z = com.node.idz;                         % 節点→Z座標
+idn2st = com.node.idstory;                    % 節点→層番号
 idc2n = [com.member.column.idnode1 ...        % 柱→節点番号 [nc×2]
   com.member.column.idnode2];
 idfl2s = com.floor.idstory;                   % 階→層番号
@@ -182,6 +182,26 @@ if coptions.consider_stress_ratio
   [~, girderSectionCase.clc] = max(grc + tiebreak, [], 2);
   [~, girderSectionCase.jlc] = max(grj + tiebreak, [], 2);
 
+  % S梁断面算定表の軸力検定表示有無
+  switch options.s_girder_axial_design
+    case PRM.S_GIRDER_AXIAL_NONE
+      girderSectionHasAxial = false(nng, 1);
+    case PRM.S_GIRDER_AXIAL_ALL
+      girderSectionHasAxial = true(nng, 1);
+    case PRM.S_GIRDER_AXIAL_AUTO
+      inm = nominal.girder.idnominal(:);
+      ilc = girderSectionCase.ilc(:);
+      clc = girderSectionCase.clc(:);
+      jlc = girderSectionCase.jlc(:);
+      one = ones(nng, 1);
+      sz = size(dfn);
+      ni = dfn(sub2ind(sz, inm, one, ilc));
+      nj = dfn(sub2ind(sz, inm, 7 * one, jlc));
+      nc = nomgc.Ncn(sub2ind(size(nomgc.Ncn), inm, clc));
+      N_max = max(abs([ni, nj, nc]), [], 2);
+      girderSectionHasAxial = N_max >= 1000;
+  end
+
   % 正確な細長比を算出
   [lambday, lambdaz] = calc_lambda(A, Iy, Iz, mtype, mstype, lkx, lky);
 
@@ -206,15 +226,18 @@ else
   girderSectionCase.ilc = [];
   girderSectionCase.clc = [];
   girderSectionCase.jlc = [];
+  girderSectionHasAxial = [];
   gr = []; gs = []; cr = []; cs = []; bn = [];
 
 end
 
 %% 層間変形角制約
 if coptions.consider_inter_story
-  [condrift, drift_angle, drift_idcolumn, drift_dx, drift_dy] = ...
+  [condrift, drift_angle, drift_idcolumn, drift_dx, drift_dy, ...
+    drift_height, drift_delta_x, drift_delta_y] = ...
     eval_interstory_drift(dnode, column_floor_height, ...
-    lcdir, dmax, idfl2s, idmc2st, idc2n, idn2z, options);
+    lcdir, dmax, idfl2s, idmc2st, idc2n, idn2st, ...
+    com.floor.standard_height, options);
   condrift = condrift+coptions.alfa_inter_story;
 else
   condrift = [];
@@ -222,6 +245,9 @@ else
   drift_idcolumn = [];
   drift_dx = [];
   drift_dy = [];
+  drift_height = [];
+  drift_delta_x = [];
+  drift_delta_y = [];
 end
 
 %% 梁中央たわみ制約（名目梁単位）
@@ -361,7 +387,6 @@ if nargout==3
   result.cxl = cxl;
   result.cyl = cyl;
   result.Q_nb = Q_nb;
-  result.brace_in_story = brace_in_story;
   result.frame_shear_ratio = frame_shear_ratio;
   return
 end
@@ -404,6 +429,9 @@ result.drift.angle = drift_angle;
 result.drift.idcolumn = drift_idcolumn;
 result.drift.dx = drift_dx;
 result.drift.dy = drift_dy;
+result.drift.height = drift_height;
+result.drift.delta_x = drift_delta_x;
+result.drift.delta_y = drift_delta_y;
 result.deflection_angle = gdef_angle;
 result.wtratio = wtratio;
 if ~isempty(wtratio)
@@ -416,7 +444,6 @@ result.rs = rs;
 result.rs0 = rs0;
 result.beta = beta;
 result.Q_nb = Q_nb;
-result.brace_in_story = brace_in_story;
 result.frame_shear_ratio = frame_shear_ratio;
 result.Mc = Mc;
 result.Mc0 = Mc0;
@@ -479,6 +506,7 @@ result.felement = felement;
 result.state = state;
 result.id_center_sel = id_center_sel;
 result.girderSectionCase = girderSectionCase;
+result.girderSectionHasAxial = girderSectionHasAxial;
 result.nomgc = nomgc;
 return
 end
