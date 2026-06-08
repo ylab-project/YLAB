@@ -546,7 +546,8 @@ com.nlc = size(loadcase,1);
 fnode = set_nodal_force_block(dbc, com);
 
 %% 追加節点荷重
-faddnode = set_additive_nodal_force_block(dbc, com);
+[faddnode, faddnode_report_excl] = ...
+  set_additive_nodal_force_block(dbc, com);
 
 %% 要素荷重
 [felement, ar, M0] = set_girder_force_block(dbc, com);
@@ -554,6 +555,7 @@ faddnode = set_additive_nodal_force_block(dbc, com);
 %% 荷重ベクトルの保存
 com.fnode = fnode;
 com.faddnode = faddnode;
+com.faddnode_report_excl = faddnode_report_excl;
 com.felement = felement;
 com.ar = ar;
 com.M0 = M0;
@@ -2430,7 +2432,11 @@ return
 end
 
 %--------------------------------------------------------------------------
-function fnode = set_additive_nodal_force_block(dbc, com)
+function [fnode, fnode_excl] = set_additive_nodal_force_block(dbc, com)
+%set_additive_nodal_force_block - 追加節点荷重を読み込む
+%   同一節点・同一ケースで2回目に出現する行（SS7変換の2巡目。片持梁
+%   先端Qo相当）は等価節点荷重の帳票で非計上とするため fnode_excl に
+%   分離する。fnode は解析用に全量（1巡目+2巡目）を保持する。
 data = dbc.get_data_block('追加節点荷重');
 n = size(data,1);
 
@@ -2444,6 +2450,8 @@ node = com.node; nnode = com.nnode;
 loadcase = com.loadcase; nlc = com.nlc; iddlc = 1:nlc;
 f = zeros(n,6);
 fnode = zeros(nnode, 6, nlc);
+fnode_excl = zeros(nnode, 6, nlc);
+seen = false(nnode, nlc);
 lcase = zeros(n,1);
 idx = zeros(n,1); iddx = 1:com.nblx;
 idy = zeros(n,1); iddy = 1:com.nbly;
@@ -2457,8 +2465,15 @@ for i=1:n
   idnode(i) = iddn((node.idx==idx(i))&(node.idy==idy(i)) ...
     &(node.idz==idz(i)));
   f(i,:) = cell2mat(data(i,5:10));
-  in = idnode(i);
-  fnode(in, :, lcase(i)) = fnode(in, :, lcase(i)) + reshape(f(i,:), 1, 6);
+  in = idnode(i); lc = lcase(i);
+  fadd = reshape(f(i,:), 1, 6);
+  fnode(in, :, lc) = fnode(in, :, lc) + fadd;
+  % 2回目の出現は帳票非計上分として分離（解析は全量を保持）
+  if seen(in, lc)
+    fnode_excl(in, :, lc) = fnode_excl(in, :, lc) + fadd;
+  else
+    seen(in, lc) = true;
+  end
   % 剛床偏心 Mz は node_to_dof_vec で集約時に加算する
 end
 
