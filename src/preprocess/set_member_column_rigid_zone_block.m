@@ -8,7 +8,9 @@ function rigid_zone = set_member_column_rigid_zone_block(dbc, com)
 %   rigid_zone - 構造体
 %     .x  - X方向剛域 [nmec×2]（列1:柱脚, 列2:柱頭）
 %     .y  - Y方向剛域 [nmec×2]（列1:柱脚, 列2:柱頭）
-%     NaN: 自動計算を使用、数値: 直接入力値
+%     NaN: 自動計算を使用、0以上の数値: 直接入力値(mm)
+%     入力値 -1 はSS7仕様で「自動計算値を採用」を意味し、NaNに変換する
+%     （SS7入力マニュアル 表9.5.2 剛域・柱）
 
 data = dbc.get_data_block('柱の剛域');
 n = size(data,1);
@@ -50,9 +52,17 @@ for i = 1:n
   lr_top = data{i,8};               % 柱頭(mm)
   lr_bottom = data{i,9};            % 柱脚(mm)
 
+  % SS7仕様: -1 は「自動計算値を採用」。NaNに変換し自動計算へ委ねる
+  if isequal(lr_top, -1)
+    lr_top = NaN;
+  end
+  if isequal(lr_bottom, -1)
+    lr_bottom = NaN;
+  end
+
   % 範囲内の柱を特定（既存関数を活用）
-  idmec_list = find_idcolumn_from_idxyz(...
-    idx_search(i,:), idy_search(i,:), idz_search(i,:), member_column);
+  idmec_list = find_idcolumn_from_idxyz(idx_search(i,:), ...
+    idy_search(i,:), idz_search(i,:), member_column);
 
   % 剛域値の適用
   for j = 1:length(idmec_list)
