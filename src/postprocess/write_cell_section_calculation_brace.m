@@ -599,13 +599,13 @@ return
       scbbody{irow, 11} = sprintf('%.0f', F_);
 
       % NL（G+P成分）。SS7 は応力を絶対値方向へ切り上げ表示
-      scbbody{irow, 12} = sprintf('%.0f', ...
-        ceil_abs_(rs0_all(im_, 1, 1) * 1e-3));
+      nl_ = ceil_abs(rs0_all(im_, 1, 1) * 1e-3, 0);
+      scbbody{irow, 12} = sprintf('%.0f', nl_);
 
       % NK値。SS7 は応力を絶対値方向へ切り上げ表示
       [nkp_, nkn_] = get_nk(ib_, im_);
-      scbbody{irow, 16} = sprintf('%.0f', ceil_abs_(nkp_));
-      scbbody{irow, 17} = sprintf('%.0f', ceil_abs_(nkn_));
+      scbbody{irow, 16} = sprintf('%.0f', ceil_abs(nkp_, 0));
+      scbbody{irow, 17} = sprintf('%.0f', ceil_abs(nkn_, 0));
 
       % ケース＝決定ケース。σt/ft・σc/fc は引張側・圧縮側の
       % 全ケース独立最大（SS7 出力編 7.4.5）
@@ -690,20 +690,6 @@ return
   %     str - 連結後の文字列
     str = sprintf('製品記号：%s (%s型)  座屈拘束鋼管：φ－%.1f×%4.1f', ...
       symbol, shape, D, t);
-  end
-
-  function v = ceil_abs_(x)
-  %ceil_abs_ - 絶対値方向への切り上げ（SS7 応力表示の丸め）
-  %
-  %   v = ceil_abs_(x) は、x を絶対値が大きくなる向きに整数へ
-  %   切り上げて返す。SS7 出力編 A.9「応力は切り上げ」に従う。
-  %
-  %   入力引数:
-  %     x - 丸め対象の数値
-  %
-  %   出力引数:
-  %     v - 絶対値方向へ切り上げた整数値
-    v = sign(x) * ceil(abs(x));
   end
 
   function flag = is_no_tension_side_(ib_)

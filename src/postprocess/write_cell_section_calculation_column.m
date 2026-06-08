@@ -330,8 +330,8 @@ for i = 1:nstory
       irow = irow + 1;
       write_fcs_label(irow);
       sccbody{irow, 10} = '中央';
-      sccbody{irow, 11} = sprintf('%.0f', Zy(im_mid) * 1e-3);
-      sccbody{irow, 12} = sprintf('%.1f', A(im_mid) * 1e-2);
+      sccbody{irow, 11} = fmt_ceil_abs(Zy(im_mid) * 1e-3, 0);
+      sccbody{irow, 12} = fmt_ceil_abs(A(im_mid) * 1e-2, 1);
       sccbody{irow, ncol} = PRM.CONT_MARKER;
 
       % 柱脚 X 検定
@@ -349,8 +349,8 @@ for i = 1:nstory
       % 中央 Y 検定（Zz/A のみ）
       irow = irow + 1;
       sccbody{irow, 10} = '中央';
-      sccbody{irow, 11} = sprintf('%.0f', Zz(im_mid) * 1e-3);
-      sccbody{irow, 12} = sprintf('%.1f', A(im_mid) * 1e-2);
+      sccbody{irow, 11} = fmt_ceil_abs(Zz(im_mid) * 1e-3, 0);
+      sccbody{irow, 12} = fmt_ceil_abs(A(im_mid) * 1e-2, 1);
       sccbody{irow, ncol} = PRM.CONT_MARKER;
 
       % 柱脚 Y 検定（柱エントリ末尾、CONT_MARKER は付与しない）
@@ -402,13 +402,13 @@ return
     sq = spec_.sign_q;
     sccbody{irow_, 10} = label;
     sccbody{irow_, 11} = sprintf('%.0f', lf_val);
-    sccbody{irow_, 12} = sprintf('%.0f', sn * dfn(inm, ni, lc1) * 1e-3);
-    sccbody{irow_, 13} = sprintf('%.0f', sm * dfn(inm, mi, lc1) * 1e-6);
-    sccbody{irow_, 14} = sprintf('%.0f', sq * dfn(inm, qi, lc1) * 1e-3);
+    sccbody{irow_, 12} = fmt_ceil_abs(sn * dfn(inm, ni, lc1) * 1e-3, 0);
+    sccbody{irow_, 13} = fmt_ceil_abs(sm * dfn(inm, mi, lc1) * 1e-6, 0);
+    sccbody{irow_, 14} = fmt_ceil_abs(sq * dfn(inm, qi, lc1) * 1e-3, 0);
     sccbody{irow_, 16} = PRM.load_case_combo_name(lc2);
-    sccbody{irow_, 17} = sprintf('%.0f', sn * dfn(inm, ni, lc2) * 1e-3);
-    sccbody{irow_, 18} = sprintf('%.0f', sm * dfn(inm, mi, lc2) * 1e-6);
-    sccbody{irow_, 19} = sprintf('%.0f', sq * dfn(inm, qi, lc2) * 1e-3);
+    sccbody{irow_, 17} = fmt_ceil_abs(sn * dfn(inm, ni, lc2) * 1e-3, 0);
+    sccbody{irow_, 18} = fmt_ceil_abs(sm * dfn(inm, mi, lc2) * 1e-6, 0);
+    sccbody{irow_, 19} = fmt_ceil_abs(sq * dfn(inm, qi, lc2) * 1e-3, 0);
     sccbody{irow_, ncol} = PRM.CONT_MARKER;
     return
   end
@@ -442,11 +442,11 @@ return
   %     20:組合せ / 25:CONT_MARKER
     total = r_n + r_bx + r_by;
     % 検定比は SS7 互換で小数2桁切り上げ表示(丸め規則を一元化)
-    fmt2 = @(r) sprintf('%.2f', ceil(r * 100) / 100);
+    fmt2 = @(r) sprintf('%.2f', ceil_ratio(r));
     sccbody{irow_, 10} = label;
-    sccbody{irow_, 11} = sprintf('%.0f', Z_val * 1e-3);
-    sccbody{irow_, 12} = sprintf('%.1f', A_val * 1e-2);
-    sccbody{irow_, 13} = sprintf('%.1f', Aw_val * 1e-2);
+    sccbody{irow_, 11} = fmt_ceil_abs(Z_val * 1e-3, 0);
+    sccbody{irow_, 12} = fmt_ceil_abs(A_val * 1e-2, 1);
+    sccbody{irow_, 13} = fmt_ceil_abs(Aw_val * 1e-2, 1);
     sccbody{irow_, 14} = sprintf('%.0f', fb_val);
     sccbody{irow_, 15} = fmt2(r_n);
     sccbody{irow_, 16} = fmt2(r_bx);
@@ -608,8 +608,8 @@ return
   %     irow_ - 書き込み行番号
   %     ic_   - 柱部材番号
     sccbody{irow_, 1} = 'Lk/h';
-    sccbody{irow_, 2} = sprintf('%.2f', kcx(ic_));
-    sccbody{irow_, 5} = sprintf('%.2f', kcy(ic_));
+    sccbody{irow_, 2} = fmt_ceil_abs(kcx(ic_), 2);
+    sccbody{irow_, 5} = fmt_ceil_abs(kcy(ic_), 2);
     return
   end
 
@@ -624,8 +624,8 @@ return
   %     irow_ - 書き込み行番号
   %     im_   - 部材番号
     sccbody{irow_, 1} = 'Lk';
-    sccbody{irow_, 2} = sprintf('%.0f', lkx(im_));
-    sccbody{irow_, 5} = sprintf('%.0f', lky(im_, 1));
+    sccbody{irow_, 2} = fmt_ceil_abs(lkx(im_), 0);
+    sccbody{irow_, 5} = fmt_ceil_abs(lky(im_, 1), 0);
     return
   end
 
@@ -656,8 +656,8 @@ return
   %     irow_ - 書き込み行番号
   %     im_   - 部材番号
     sccbody{irow_, 1} = 'λ';
-    sccbody{irow_, 2} = sprintf('%.1f', lambday(im_));
-    sccbody{irow_, 5} = sprintf('%.1f', lambdaz(im_));
+    sccbody{irow_, 2} = fmt_ceil_abs(lambday(im_), 1);
+    sccbody{irow_, 5} = fmt_ceil_abs(lambdaz(im_), 1);
     return
   end
 
@@ -670,7 +670,7 @@ return
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
-    sccbody{irow_, 2} = sprintf('fcL  %.0f', fcn(inm, 1, 1));
+    sccbody{irow_, 2} = sprintf('fcL  %.0f', ceil_abs(fcn(inm, 1, 1), 0));
     return
   end
 
@@ -683,7 +683,7 @@ return
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
-    sccbody{irow_, 2} = sprintf('fcS  %.0f', fcn(inm, 1, 2));
+    sccbody{irow_, 2} = sprintf('fcS  %.0f', ceil_abs(fcn(inm, 1, 2), 0));
     return
   end
 
