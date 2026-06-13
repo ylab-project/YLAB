@@ -507,20 +507,34 @@ idmeg2n = [com.member.girder.idnode1 com.member.girder.idnode2];
 idmec2n = [com.member.column.idnode1 com.member.column.idnode2];
 idmeg2sec = com.section.girder.idsec(com.member.girder.idsecg);
 idmeg2dir = com.member.girder.idir;
-
-% 計算の準備（同一方向の梁本数上限を十分大きく確保）
-MAX_N = 99;
-idmec2seg1x = zeros(nmec, MAX_N);
-idmec2seg1y = zeros(nmec, MAX_N);
-idmec2seg2x = zeros(nmec, MAX_N);
-idmec2seg2y = zeros(nmec, MAX_N);
-
-idmec2meg1x = zeros(nmec, MAX_N);
-idmec2meg1y = zeros(nmec, MAX_N);
-idmec2meg2x = zeros(nmec, MAX_N);
-idmec2meg2y = zeros(nmec, MAX_N);
 iggg = 1:nmeg;
+
+% 最大接続梁本数を調査
 max_n = 0;
+for ic = 1:nmec
+  for ilr = 1:2
+    for idir = [PRM.X PRM.Y]
+      % idir==PRM.XY（45度梁）は両方向に含める
+      idmeg = iggg(any(idmeg2n==idmec2n(ic,ilr)...
+        &(idmeg2dir==idir | idmeg2dir==PRM.XY),2));
+      max_n = max(max_n, length(idmeg));
+    end
+  end
+end
+
+% 最低2列は確保
+max_n = max(max_n, 2);
+
+% 計算の準備
+idmec2seg1x = zeros(nmec, max_n);
+idmec2seg1y = zeros(nmec, max_n);
+idmec2seg2x = zeros(nmec, max_n);
+idmec2seg2y = zeros(nmec, max_n);
+
+idmec2meg1x = zeros(nmec, max_n);
+idmec2meg1y = zeros(nmec, max_n);
+idmec2meg2x = zeros(nmec, max_n);
+idmec2meg2y = zeros(nmec, max_n);
 
 % 関係する変数の数え上げ
 for ic = 1:nmec
@@ -533,8 +547,7 @@ for ic = 1:nmec
 
       % 節点の格納
       n = length(idmeg);
-      max_n = max(max_n, n);
-      iddd = zeros(1, MAX_N);
+      iddd = zeros(1, max_n);
       if n > 0
         iddd(1:n) = idmeg2sec(idmeg);
       end
@@ -542,36 +555,33 @@ for ic = 1:nmec
         case 1
           switch idir
             case PRM.X
-              idmec2meg1x(ic,1:n) = idmeg(1:n);
+              if n > 0
+                idmec2meg1x(ic,1:n) = idmeg(1:n);
+              end
               idmec2seg1x(ic,:) = iddd;
             case PRM.Y
-              idmec2meg1y(ic,1:n) = idmeg(1:n);
+              if n > 0
+                idmec2meg1y(ic,1:n) = idmeg(1:n);
+              end
               idmec2seg1y(ic,:) = iddd;
           end
         case 2
           switch idir
             case PRM.X
-              idmec2meg2x(ic,1:n) = idmeg(1:n);
+              if n > 0
+                idmec2meg2x(ic,1:n) = idmeg(1:n);
+              end
               idmec2seg2x(ic,:) = iddd;
             case PRM.Y
-              idmec2meg2y(ic,1:n) = idmeg(1:n);
+              if n > 0
+                idmec2meg2y(ic,1:n) = idmeg(1:n);
+              end
               idmec2seg2y(ic,:) = iddd;
           end
       end
     end
   end
 end
-
-% 実際に使われた最大列数にリサイズ
-max_n = max(max_n, 2);
-idmec2seg1x = idmec2seg1x(:, 1:max_n);
-idmec2seg1y = idmec2seg1y(:, 1:max_n);
-idmec2seg2x = idmec2seg2x(:, 1:max_n);
-idmec2seg2y = idmec2seg2y(:, 1:max_n);
-idmec2meg1x = idmec2meg1x(:, 1:max_n);
-idmec2meg1y = idmec2meg1y(:, 1:max_n);
-idmec2meg2x = idmec2meg2x(:, 1:max_n);
-idmec2meg2y = idmec2meg2y(:, 1:max_n);
 
 return
 end

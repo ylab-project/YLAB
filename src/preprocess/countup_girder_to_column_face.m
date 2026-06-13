@@ -31,10 +31,12 @@ iccc = 1:nmec;
 maxcol = 0;
 for ig = 1:nmeg
   for ilr = 1:2  % 1:i端, 2:j端
+    nface = 0;
     for idu = 1:2  % 1:柱下端, 2:柱上端
       idmec = iccc(any(idmec2n(:,idu)==idmeg2n(ig,ilr),2));
-      maxcol = max(maxcol, length(idmec));
+      nface = nface + length(idmec);
     end
+    maxcol = max(maxcol, nface);
   end
 end
 
