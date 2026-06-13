@@ -26,7 +26,13 @@ nstory = com.nstory;
 nominal_column = com.nominal.column;
 column = com.member.column;
 secc = com.section.column;
-lm_nominal = result.lm_bk_nominal;
+if isfield(result, 'lm_bk_nominal_x')
+  lm_nominal_x = result.lm_bk_nominal_x;
+  lm_nominal_y = result.lm_bk_nominal_y;
+else
+  lm_nominal_x = result.lm_bk_nominal;
+  lm_nominal_y = result.lm_bk_nominal;
+end
 
 % 座屈長さ係数・座屈長さ・細長比
 kcx = result.kcx;
@@ -85,9 +91,9 @@ for i = 1:nstory
         isc = column.idsecc(ic1);
         cblbody{irow,4} = make_section_symbol(secc, isc);
 
-        % 部材長（節点間距離、x方向・y方向共通）
-        cblbody{irow,5} = sprintf('%.0f', lm_nominal(im1));
-        cblbody{irow,6} = sprintf('%.0f', lm_nominal(im1));
+        % 部材長（方向別のD/2控除後）
+        cblbody{irow,5} = sprintf('%.0f', lm_nominal_x(im1));
+        cblbody{irow,6} = sprintf('%.0f', lm_nominal_y(im1));
 
         % 最大横補剛間隔（x方向、y方向）
         cblbody{irow,7} = sprintf('%.0f', lbmax_x(inc));

@@ -1,10 +1,10 @@
 function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
-  js, je, is_girder, lnm, lm, lm_bk, Em, mejoint, nominal, ...
+  js, je, is_girder, wg, lnm, lm, lm_bk, Em, mejoint, nominal, ...
   idmc2nc, options, beta, ilc, col_idstory, onfg, kcUser)
 %calc_buckling_length - 柱部材の座屈長さを計算する（1方向分）
 %
 %   [lk, kc, bkinfo] = calc_buckling_length(Iy,
-%   mtype, js, je, is_girder, lnm, lm, lm_bk, Em,
+%   mtype, js, je, is_girder, wg, lnm, lm, lm_bk, Em,
 %   mejoint, nominal, idmc2nc, options, beta, ilc,
 %   col_idstory, onfg, kcUser) は、
 %   構造骨組みにおける柱部材の座屈長さを算出する。
@@ -17,6 +17,8 @@ function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
 %     js          - 部材始端節点番号 [nme×1]
 %     je          - 部材終端節点番号 [nme×1]
 %     is_girder   - 該当方向の梁マスク [nme×1]
+%     wg          - 梁剛比の平面振れ角重み cos2θ [nme×1]
+%                   （SS7互換: 水平面内の振れ角のみ考慮）
 %     lnm         - 通し部材の構造心間距離 [nme×1]
 %     lm          - セグメント芯間距離（構造心間、控除前）[nme×1]
 %                   S柱断面算定表の Lb1/Lb2 表示用
@@ -94,23 +96,15 @@ for inc = 1:nnc
   mca = immm(js==jei & mtype==PRM.COLUMN & ~isself);
   mcb = immm(je==jsi & mtype==PRM.COLUMN & ~isself);
 
-  % 複数柱接続エラー
-  if length(mca) > 1
-    error('節点に上側から2本以上の柱が接続しています');
-  end
-  if length(mcb) > 1
-    error('節点に下側から2本以上の柱が接続しています');
-  end
-
   % 柱の剛比計算
   gc = Iy(imb)/lmni;
   if ~isempty(mca)
-    gca = Iy(mca)/lmn(mca);
+    gca = sum(Iy(mca)./lmn(mca));
   else
     gca = 0;
   end
   if ~isempty(mcb)
-    gcb = Iy(mcb)/lmn(mcb);
+    gcb = sum(Iy(mcb)./lmn(mcb));
   else
     gcb = 0;
   end
@@ -124,7 +118,7 @@ for inc = 1:nnc
   if isempty(mga) || mejoint(ima,2)==PRM.PIN
     Ga = 10.0;
   else
-    gga = Iy(mga)./lnm(mga);
+    gga = wg(mga).*Iy(mga)./lnm(mga);
     [ispin_self, ispin_other] = check_pinjoint(mga, je(ima));
     gga(ispin_self) = 0;
     gga(ispin_other) = gga(ispin_other)*0.5;
@@ -141,7 +135,7 @@ for inc = 1:nnc
   if isempty(mgb) || mejoint(ima,1)==PRM.PIN
     Gb = 10.0;
   else
-    ggb = Iy(mgb)./lnm(mgb);
+    ggb = wg(mgb).*Iy(mgb)./lnm(mgb);
     [ispin_self, ispin_other] = check_pinjoint(mgb, js(imb));
     ggb(ispin_self) = 0;
     ggb(ispin_other) = ggb(ispin_other)*0.5;

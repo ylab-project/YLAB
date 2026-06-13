@@ -57,7 +57,6 @@ mdir = com.member.property.idir;              % 部材方向
 mtype = com.member.property.type;             % 部材タイプ
 mstype = com.member.property.section_type;    % 部材断面タイプ
 idme2stype = com.member.property.section_type; % 部材→断面タイプ
-mgdir = com.member.girder.idir;               % 梁方向
 M0 = com.M0;                                   % 付加曲げモーメント
 secmgr = com.secmgr;                          % 断面管理オブジェクト
 nominal = com.nominal;                         % 名目部材データ
@@ -92,6 +91,15 @@ cxl(mtype==PRM.BRACE,:) = bcxl;
 cyl(mtype==PRM.BRACE,:) = bcyl;
 cxl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcxl;
 cyl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcyl;
+
+% 梁剛比の平面振れ角重み（柱座屈長さ係数算定用）
+% SS7互換: 水平面内の振れ角のみ cos2θ を乗じ、鉛直傾きは考慮しない
+ch2 = cxl(:,1).^2 + cxl(:,2).^2;             % 水平成分の2乗和
+ch2(ch2==0) = 1;                             % 鉛直部材のゼロ割防止
+wgx = cxl(:,1).^2./ch2;                      % X方向への cos2θ
+wgy = cxl(:,2).^2./ch2;                      % Y方向への cos2θ
+[dir_girder_actual, is_gx_girder, is_gy_girder] = ...
+  classify_girder_plane_direction(wgx(idmg2m), wgy(idmg2m));
 
 % 解析結果から断面諸元を取得
 A = msprop.A;                                 % 断面積
@@ -154,24 +162,31 @@ if coptions.consider_stress_ratio
 
   % ブレース・柱の座屈長さ用部材長を算出
   % ブレース分は analysis_frame で算出済みの lmem.buckling を流用
-  lm_bk = lm;
-  lm_bk(mtype==PRM.BRACE) = lmem.buckling(mtype==PRM.BRACE);
+  lm_bk_x = lm;
+  lm_bk_y = lm;
+  lm_bk_x(mtype==PRM.BRACE) = lmem.buckling(mtype==PRM.BRACE);
+  lm_bk_y(mtype==PRM.BRACE) = lmem.buckling(mtype==PRM.BRACE);
   if options.column_member_length_type == 1
     % コンクリートとの重複を除く（RC梁D/2控除）
-    lm_bk(mtype==PRM.COLUMN) = calc_column_buckling_segment_length( ...
+    lm_bk_x(mtype==PRM.COLUMN) = calc_column_buckling_segment_length( ...
       com.member.column, com.member.girder, com.nominal.column, ...
       com.section.property.type, com.section.girder.idsec, secdim, ...
-      lm(mtype==PRM.COLUMN));
+      lm(mtype==PRM.COLUMN), is_gx_girder);
+    lm_bk_y(mtype==PRM.COLUMN) = calc_column_buckling_segment_length( ...
+      com.member.column, com.member.girder, com.nominal.column, ...
+      com.section.property.type, com.section.girder.idsec, secdim, ...
+      lm(mtype==PRM.COLUMN), is_gy_girder);
   end
 
   % 許容応力度比計算
   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, fcn, fbn, ...
     fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, id_center_sel] = ...
     eval_nominal_allowable_stress_ratio(msdim, stn, stcn, A, Iy, ...
-    Iz, C, mtype, mstype, mgdir, Em, Fm, idm2n, lb, lm, lm_bk, ...
-    lnm, mejoint, nominal, isgmirrored, idmg2mng, idmc2mnc, ...
-    options, beta, lcdir, idmc2st, com.member.column.onfg_x, ...
-    com.member.column.onfg_y, Cn, nomgc, com.column_buckling_K);
+    Iz, C, mtype, mstype, dir_girder_actual, wgx, wgy, Em, Fm, ...
+    idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, ...
+    isgmirrored, idmg2mng, idmc2mnc, options, beta, lcdir, ...
+    idmc2st, com.member.column.onfg_x, com.member.column.onfg_y, ...
+    Cn, nomgc, com.column_buckling_K);
 
   % S梁断面算定表の表示用採用ケース
   tiebreak = zeros(1, size(gri, 2));
@@ -212,7 +227,8 @@ if coptions.consider_stress_ratio
   cs = max([reshape([csi; csj],nnc,[])],[],2) + coptions.alfa_stress_ratio;
   bn = max(bnij,[],2)+coptions.alfa_stress_ratio;
 else
-  lm_bk = lm;
+  lm_bk_x = lm;
+  lm_bk_y = lm;
   beta = [];
   gri = []; grj = []; grc = [];
   cri = []; crj = [];
@@ -487,10 +503,15 @@ result.lkx = lkx;
 result.lky = lky;
 result.lm_weight = lm_weight;
 result.lm_nominal = lnm;
-lm_bk_nom = lm_bk;
-lm_bk_nom(mtype==PRM.COLUMN) = calc_nominal_column_length( ...
-  com.nominal.column, lm_bk(mtype==PRM.COLUMN));
-result.lm_bk_nominal = lm_bk_nom;
+lm_bk_nom_x = lm_bk_x;
+lm_bk_nom_y = lm_bk_y;
+lm_bk_nom_x(mtype==PRM.COLUMN) = calc_nominal_column_length( ...
+  com.nominal.column, lm_bk_x(mtype==PRM.COLUMN));
+lm_bk_nom_y(mtype==PRM.COLUMN) = calc_nominal_column_length( ...
+  com.nominal.column, lm_bk_y(mtype==PRM.COLUMN));
+result.lm_bk_nominal = lm_bk_nom_x;
+result.lm_bk_nominal_x = lm_bk_nom_x;
+result.lm_bk_nominal_y = lm_bk_nom_y;
 result.cbs = cbs;
 result.baseline = baseline;
 result.node = node;
