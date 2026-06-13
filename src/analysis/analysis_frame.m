@@ -598,7 +598,7 @@ end
 state.tb.is_tension = is_tension(com.member.brace.idme);
 
 %% 設計応力の計算
-df0 = calc_design_force(rs0, lcdir, idmc2m, idmg2m, lm, lf);
+df0 = calc_design_force(rs0, lcdir, idmc2m, idmg2m, lm, lf, cxl, cyl);
 dfn0 = calc_nominal_design_force(df0, nominal_property);
 % SS7: 設計用せん断力 Q_D = Q_L + n*Q_E の割増率 n は、
 % RC造梁のみに適用する（S造梁は対象外。S造は6.4、RC造は6.9参照）

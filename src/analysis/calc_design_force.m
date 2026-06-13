@@ -1,5 +1,5 @@
 function df0 = calc_design_force(...
-  rs0, lcdir, idmc2m, idmg2m, lm, lf)
+  rs0, lcdir, idmc2m, idmg2m, lm, lf, cxl, cyl)
 %calc_design_force - 部材応力rsから設計応力dfへの変換
 %
 %   フェイスモーメントの補正およびi端軸力の符号反転を行い、
@@ -14,7 +14,8 @@ lc = lm(idmc2m);
 lfg = lf.girder;
 
 % i端軸力の符号反転（局所座標系の圧縮正→引張正）
-df0 = rs0;
+rs = convert_column_force_for_design(rs0, cxl, cyl, idmc2m);
+df0 = rs;
 df0(:,1,:) = -df0(:,1,:);
 
 % フェイスモーメントの計算

@@ -140,12 +140,10 @@ for im = targetset(:)'
   ke = stif_beam_matrix(li, Ai, Asyi, Aszi, Iyi, Izi, Ji, Ei, Gi, ...
     lrxi, lryi, jointi, kcbi, flag);
 
+  % 剛域を考慮した座標変換（柱は回転断面基底の面で適用）
   if any([lrxi lryi] > 0)
-    tr = eye(12);
-    tr(3,5) = -lrxi(1);
-    tr(9,11) = lrxi(2);
-    tr(2,6) =  lryi(1);
-    tr(8,12) = -lryi(2);
+    tr = calc_rigid_zone_transform(lrxi, lryi, cxl(im,:), ...
+      cyl(im,:), czl(im,:), mtype(im)==PRM.COLUMN);
     ke = tr' * ke * tr;
   end
 

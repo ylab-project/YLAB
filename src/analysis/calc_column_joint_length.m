@@ -1,7 +1,5 @@
-function [joint_top, joint_bottom] = ...
-  calc_column_joint_length(...
-    member_column, member_girder, node, ...
-    stype_sec, idsecg2sec, secdim)
+function [joint_top, joint_bottom] = calc_column_joint_length( ...
+  member_column, member_girder, node, stype_sec, idsecg2sec, secdim)
 %calc_column_joint_length - 柱仕口部長さを算出
 %
 %   [joint_top, joint_bottom] =
@@ -11,9 +9,9 @@ function [joint_top, joint_bottom] = ...
 %   SS7マニュアル 4.4.1 に基づき柱頭・柱脚の
 %   仕口部長さを算出する。
 %
-%   仕口部の長さは、ノードに接続する４方向の梁の
-%   最上部から最下部までの鉛直距離として定義される。
-%   斜行梁は鉛直方向の投影長さで計算する。
+%   仕口部の長さは、ノードに接続する４方向の梁の最上部から
+%   最下部までの鉛直距離を、柱軸方向へ投影した長さとする。
+%   斜行梁は梁せいを鉛直方向へ投影してから計算する。
 %
 %   入力引数:
 %     member_column - 柱部材構造体
@@ -31,14 +29,15 @@ nmec = length(member_column.idme);
 
 % 梁せい取得（S梁のみ: 鉄骨積算の仕口部はS梁で決まる）
 Hs = zeros(size(secdim, 1), 1);
-Hs(stype_sec == PRM.WFS) = ...
-  secdim(stype_sec == PRM.WFS, 1);
+Hs(stype_sec == PRM.WFS) = secdim(stype_sec == PRM.WFS, 1);
 idmg2s = idsecg2sec(member_girder.idsecg);
 Hg = Hs(idmg2s);
 
 % 梁の鉛直投影せい（斜行梁の補正）
-Hg_proj = calc_projected_depth(...
-  Hg, member_girder, node);
+Hg_proj = calc_projected_depth(Hg, member_girder, node);
+
+% 柱軸方向への投影係数（斜め柱の補正）
+col_proj = column_axial_projection(member_column.cz_std);
 
 % 梁レベル調整
 glv = member_girder.level;
@@ -51,19 +50,15 @@ idgy2 = member_column.idmeg_face2y;
 
 % BRACE2→BRACE1対応マップ
 ctype = member_column.type;
-is_brace2 = ...
-  ctype == PRM.COLUMN_FOR_BRACE_BODY;
-is_brace1 = ...
-  ctype == PRM.COLUMN_FOR_BRACE_FOUNDATION;
+is_brace2 = ctype == PRM.COLUMN_FOR_BRACE_BODY;
+is_brace1 = ctype == PRM.COLUMN_FOR_BRACE_FOUNDATION;
 brace1_pair = zeros(nmec, 1);
 for ic = 1:nmec
   if ~is_brace2(ic)
     continue
   end
   nom_id = member_column.idnominal(ic, 1);
-  ic_b1 = find(...
-    member_column.idnominal(:,1) == nom_id ...
-    & is_brace1, 1);
+  ic_b1 = find(member_column.idnominal(:, 1) == nom_id & is_brace1, 1);
   if ~isempty(ic_b1)
     brace1_pair(ic) = ic_b1;
   end
@@ -82,7 +77,7 @@ for ic = 1:nmec
   idg = [idgx2(ic,:) idgy2(ic,:)];
   idg = idg(idg > 0);
   if ~isempty(idg)
-    joint_top(ic) = joint_length(idg);
+    joint_top(ic) = joint_length(idg) * col_proj(ic);
   end
 
   % --- 柱脚: face1 の梁 ---
@@ -95,7 +90,7 @@ for ic = 1:nmec
   idg = [idgx1(ic_f1,:) idgy1(ic_f1,:)];
   idg = idg(idg > 0);
   if ~isempty(idg)
-    joint_bottom(ic) = joint_length(idg);
+    joint_bottom(ic) = joint_length(idg) * col_proj(ic);
   end
 end
 
@@ -109,8 +104,7 @@ return
   end
 end
 
-function Hg_proj = calc_projected_depth(...
-  Hg, member_girder, node)
+function Hg_proj = calc_projected_depth(Hg, member_girder, node)
 %calc_projected_depth - 斜行梁の鉛直投影せい
 %
 %   Hg_proj = calc_projected_depth(Hg,
