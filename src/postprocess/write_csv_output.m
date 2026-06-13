@@ -330,8 +330,9 @@ for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
 end
 
 %% 柱梁耐力比
+% SS7と同様に対象接合部があれば常時出力する（オプションは制約のみ）
 for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
-  if ~options.coptions.consider_joint_strength_ratio
+  if com.ncgsr==0
     break
   end
   cgscell = write_cell_column_gider_strength(com, result, icase);

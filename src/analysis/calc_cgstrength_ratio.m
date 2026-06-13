@@ -31,6 +31,8 @@ cgsr.sgx = zeros(ncgsr,2);
 cgsr.sgy = zeros(ncgsr,2);
 cgsr.scx = zeros(ncgsr,4);
 cgsr.scy = zeros(ncgsr,4);
+cgsr.idmc_upper = zeros(ncgsr,1);  % 上柱の部材番号（帳票の種別表示用）
+cgsr.idmc_lower = zeros(ncgsr,1);  % 下柱の部材番号（帳票の種別表示用）
 
 % cosθ補正係数の計算
 nmember = size(idm2n,1);
@@ -47,6 +49,8 @@ if nargin >= 10 && ~isempty(cxl)
   cos_y(isnan(cos_y)) = 1;
 else
   % cxlが指定されていない場合は補正なし
+  cx = ones(nmember,1);
+  cy = ones(nmember,1);
   cos_x = ones(nmember,1);
   cos_y = ones(nmember,1);
 end
@@ -59,10 +63,14 @@ for icg = 1:ncgsr
 
   % 左右の梁（cosθ補正適用）
   % 45度梁（PRM.XY）は両方向に含める
-  isgx1 = isconnected2&mtype==PRM.GIRDER&(medir==PRM.X|medir==PRM.XY);
-  isgy1 = isconnected2&mtype==PRM.GIRDER&(medir==PRM.Y|medir==PRM.XY);
-  isgx2 = isconnected1&mtype==PRM.GIRDER&(medir==PRM.X|medir==PRM.XY);
-  isgy2 = isconnected1&mtype==PRM.GIRDER&(medir==PRM.Y|medir==PRM.XY);
+  % 左右判定は相手端の座標で行う（SS7互換）。方向余弦の符号により
+  % 節点順が検討方向と逆向きの斜め梁でも左右を正しく振り分ける
+  isgirx = mtype==PRM.GIRDER&(medir==PRM.X|medir==PRM.XY);
+  isgiry = mtype==PRM.GIRDER&(medir==PRM.Y|medir==PRM.XY);
+  isgx1 = isgirx&((isconnected2&cx>=0)|(isconnected1&cx<0));
+  isgx2 = isgirx&((isconnected1&cx>=0)|(isconnected2&cx<0));
+  isgy1 = isgiry&((isconnected2&cy>=0)|(isconnected1&cy<0));
+  isgy2 = isgiry&((isconnected1&cy>=0)|(isconnected2&cy<0));
   sgxl = sum(Zpy(isgx1).*Fm(isgx1).*cos_x(isgx1)*1.1);
   sgxr = sum(Zpy(isgx2).*Fm(isgx2).*cos_x(isgx2)*1.1);
   sgyl = sum(Zpy(isgy1).*Fm(isgy1).*cos_y(isgy1)*1.1);
@@ -72,6 +80,14 @@ for icg = 1:ncgsr
   % TODO 柱の耐力の方向成分を考える必要があるが保留
   isc1  = isconnected2&mtype==PRM.COLUMN;
   isc2  = isconnected1&mtype==PRM.COLUMN;
+  imc_upper = find(isc2, 1);
+  imc_lower = find(isc1, 1);
+  if ~isempty(imc_upper)
+    cgsr.idmc_upper(icg) = imc_upper;
+  end
+  if ~isempty(imc_lower)
+    cgsr.idmc_lower(icg) = imc_lower;
+  end
   scx1p = sum(vix(isc1(idmc2m),1).*Zpy(isc1).*Fm(isc1)*1.1);
   scx1n = sum(vix(isc1(idmc2m),2).*Zpy(isc1).*Fm(isc1)*1.1);
   scx2p = sum(vix(isc2(idmc2m),1).*Zpy(isc2).*Fm(isc2)*1.1);

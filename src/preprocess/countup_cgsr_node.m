@@ -39,8 +39,10 @@ for icg = 1:ncgsr
   in = idnode(icg);
   isconnected = any(idm2n==in,2);
   % 45度梁（PRM.XY）は両方向に含める
-  idmofgx = immm(isconnected&(medir==PRM.X|medir==PRM.XY)&mtype==PRM.GIRDER);
-  idmofgy = immm(isconnected&(medir==PRM.Y|medir==PRM.XY)&mtype==PRM.GIRDER);
+  isgx = isconnected&(medir==PRM.X|medir==PRM.XY)&mtype==PRM.GIRDER;
+  isgy = isconnected&(medir==PRM.Y|medir==PRM.XY)&mtype==PRM.GIRDER;
+  idmofgx = immm(isgx);
+  idmofgy = immm(isgy);
   idmofc = immm(isconnected&mtype==PRM.COLUMN);
   
   % S材とRC材が混在する節点は除外
@@ -56,8 +58,9 @@ for icg = 1:ncgsr
   end
 
   % 柱または梁が取り付かない節点は除外
+  % 柱1本（上柱なし等）の中間階節点はSS7と同様に検討対象とする
   nmofc = length(idmofc);
-  if (isempty(idmofgx)&&isempty(idmofgy)) || nmofc < 2
+  if (isempty(idmofgx)&&isempty(idmofgy)) || nmofc < 1
     istarget(icg) = false;
     continue
   end

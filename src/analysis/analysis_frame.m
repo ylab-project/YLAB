@@ -115,6 +115,7 @@ matpr = com.material.pr;
 matG = com.material.G;
 matisSN = com.material.isSN;
 matsteel_grade = com.material.steel_grade;
+matname = com.material.name;
 floor = com.floor;
 % fvec = com.feqvec;
 jdof = com.node.dof;
@@ -201,6 +202,8 @@ Gm = zeros(nme,1); Gm(idm2mat>0) = matG(idm2mat(idm2mat>0));
 isSNm = zeros(nme,1); isSNm(idm2mat>0) = matisSN(idm2mat(idm2mat>0));
 steel_grade_m = zeros(nme,1);
 steel_grade_m(idm2mat>0) = matsteel_grade(idm2mat(idm2mat>0));
+material_name_m = repmat({''}, nme, 1);
+material_name_m(idm2mat>0) = matname(idm2mat(idm2mat>0));
 
 % 水平ブレース
 for isechb = 1:nsechb
@@ -218,6 +221,7 @@ msprop.pr = prm;
 msprop.G = Gm;
 msprop.isSN = isSNm;
 msprop.steel_grade = steel_grade_m;
+msprop.material_name = material_name_m;
 
 % 構造体への変換
 msprop = table2struct(msprop,"ToScalar",true);
@@ -656,8 +660,8 @@ end
 % buckling はブレース座屈長用（暫定。後日 lnom.buckling に整理）
 lm_buckling = lm;
 lm_buckling(mtype==PRM.BRACE) = lm_brace_buckling;
-lmem = struct('geom', lm, 'stiff', lm_stiff, ...
-  'buckling', lm_buckling, 'weight', lm_weight);
+lmem = struct('geom', lm, 'stiff', lm_stiff, 'buckling', ...
+  lm_buckling, 'weight', lm_weight);
 % -------------------------------------------------------------------------
   function dnode = trans_dvec2dnode(ilcset, dnode, dvec)
   %trans_dvec2dnode - 解ベクトルから節点変位への変換（剛床考慮）
