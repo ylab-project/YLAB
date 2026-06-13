@@ -1,13 +1,13 @@
 function ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
   cxl, cyl, lm, Em, Gm, xr, yr, lrxm, lrym, cbstiff, ...
   mtype, idn2df, idf2n, idm2n1, idm2n2, idm2scb, joint, ...
-  ndf, nbw, flag, br_stif, factor_Iz, factor_J)
+  ndf, nbw, flag, br_stif, hstiff_type, factor_J)
 %stif_sys_matrix - 全体剛性行列の組立（帯行列形式）
 %
 %   ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, cyl, lm, ...
 %     Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, idn2df, idf2n, ...
 %     idm2n1, idm2n2, idm2scb, joint, ndf, nbw, flag, br_stif, ...
-%     factor_Iz, factor_J) は、各部材の要素剛性行列を組立て全体剛性
+%     hstiff_type, factor_J) は、各部材の要素剛性行列を組立て全体剛性
 %   行列を帯行列形式で返す。梁はstif_beam_matrix、ブレースは br_stif
 %   事前計算 ke を用いる。
 %
@@ -30,17 +30,18 @@ function ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
 %     nbw         - 帯幅
 %     flag        - 剛性行列計算フラグ
 %     br_stif     - ブレース剛性構造体配列（空可）
-%     factor_Iz   - 梁の弱軸剛性 Iz の係数（スカラー、0=考慮OFF）
+%     hstiff_type - 梁水平面内変形の考慮（PRM.GIRDER_HSTIFF_*）
 %     factor_J    - 捩り剛性 J の係数 [nm×1]（0=考慮OFF）
 %
 %   出力引数:
 %     ksmat - 全体剛性行列（帯行列形式）[ndf×nbw]
 %
 %   備考:
-%     - factor_Iz=0 / factor_J(im)=0 の場合、該当剛性を
-%       PRM.STIFF_IGNORE_FACTOR 倍して微小化（SS7互換、完全 0 は
-%       数値問題）。Iz は梁のみ（mtype==PRM.GIRDER）に factor_Iz を
-%       適用、柱は通常値。J は部材種別不問で factor_J に従う。
+%     - hstiff_type は梁のみ（mtype==PRM.GIRDER）に適用し、柱は通常値。
+%       ZERO は Iz を PRM.STIFF_IGNORE_FACTOR 倍して微小化（SS7互換、
+%       完全 0 は数値問題）、ACTUAL は原断面、RIGID は Iz=Iy×1000・
+%       Asy 大値化で水平面内剛体扱いとする。
+%     - factor_J(im)=0 の場合も同様に微小化。J は部材種別不問。
 %     - 剛域長が部材長以上の場合、剛性をscale倍で実質固結化する。
 
 % 剛域長が部材長以上の場合の剛性スケール
@@ -54,14 +55,23 @@ z = zeros(3,3);
 xrm = [xr(idm2n1) xr(idm2n2)];
 yrm = [yr(idm2n1) yr(idm2n2)];
 
-% Iz/J 係数の事前展開（ループ内分岐を排除し単純乗算で済ませる）
-% 梁: factor_Iz==0 なら STIFF_IGNORE_FACTOR、非0 なら factor_Iz。柱: 1
-% 0 を完全 0 にせず微小値で代用するのは数値問題回避のため
+% Iz/Asy/J 係数の事前展開（ループ内分岐を排除し単純乗算で済ませる）
+% 梁水平面内変形の考慮: ZERO は微小化（完全 0 は数値問題のため
+% 微小値で代用）、ACTUAL は原断面のまま、RIGID は Iz=Iy×1000 と
+% Asy 大値化（Asy=∞ 相当）で水平面内を剛体扱いとする。柱: 1
 Iz_fac = ones(nm, 1);
-if factor_Iz == 0
-  Iz_fac(mtype == PRM.GIRDER) = PRM.STIFF_IGNORE_FACTOR;
-else
-  Iz_fac(mtype == PRM.GIRDER) = factor_Iz;
+Asy_fac = ones(nm, 1);
+isg = mtype == PRM.GIRDER;
+switch hstiff_type
+  case PRM.GIRDER_HSTIFF_ZERO
+    Iz_fac(isg) = PRM.STIFF_IGNORE_FACTOR;
+  case PRM.GIRDER_HSTIFF_ACTUAL
+    % 原断面の剛性（係数1のまま）
+  case PRM.GIRDER_HSTIFF_RIGID
+    Iz_fac(isg) = 1000*Iy(isg)./max(Iz(isg), eps);
+    Asy_fac(isg) = 1e6;
+  otherwise
+    error('梁水平面内変形の考慮の指定が不正です: %g', hstiff_type);
 end
 J_fac = factor_J;
 J_fac(J_fac == 0) = PRM.STIFF_IGNORE_FACTOR;
@@ -87,7 +97,7 @@ for im = 1:nm
 
     % 局所系剛性行列
     li = lm(im); Ai = A(im);
-    Asyi = Asy(im); Aszi = Asz(im);
+    Asyi = Asy(im) * Asy_fac(im); Aszi = Asz(im);
     Iyi = Iy(im);
     Izi = Iz(im) * Iz_fac(im);
     Ji = JJ(im) * J_fac(im);

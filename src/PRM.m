@@ -163,6 +163,11 @@ classdef PRM
     S_GIRDER_AXIAL_ALL  = 2   % する（すべて）
     S_GIRDER_AXIAL_AUTO = 3   % する（軸力が生じた梁のみ）(初期値)
 
+    %% 梁水平面内変形の考慮（SS7マニュアル 2.3 応力計算条件 準拠）
+    GIRDER_HSTIFF_ZERO = 1    % 剛性を0とする（微小化）(初期値)
+    GIRDER_HSTIFF_ACTUAL = 2  % 原断面の剛性を考慮（Iz=Izo, Asy=Asyo）
+    GIRDER_HSTIFF_RIGID = 3   % 変形しない（Iz=Iy×1000, Asy=∞）
+
     %% ペナルティ指標
     PENALTY_SUM_TOTAL = 0     % 総和
     PENALTY_MAXIMUM = 1       % 最大値

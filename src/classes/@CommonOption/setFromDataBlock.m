@@ -68,6 +68,16 @@ for i=1:size(data,1)
       end
     case '柱・梁せん断変形の考慮'
       options.consider_shear_deformation = (data{i,2}=='Y');
+    case '梁水平面内変形の考慮'
+      p = data{i,2};
+      if ~ismissing(p)
+        if ~ismember(p, [PRM.GIRDER_HSTIFF_ZERO, ...
+            PRM.GIRDER_HSTIFF_ACTUAL, PRM.GIRDER_HSTIFF_RIGID])
+          error(['梁水平面内変形の考慮は 1/2/3 ' ...
+            'のいずれかを指定してください']);
+        end
+        options.girder_horizontal_stiffness_type = p;
+      end
     case '横座屈の考慮'
       options.consider_lateral_torsional_buckling = (data{i,2}=='Y');
     case '柱座屈長さ係数の自動計算'

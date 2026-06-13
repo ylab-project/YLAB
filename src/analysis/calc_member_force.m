@@ -1,7 +1,7 @@
 function [rs, Mc, rvec] = calc_member_force(ilcset, ...
   dvec, rs, ~, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, ...
   Em, Gm, lm, lrxm, lrym, flag, member_property, node, ...
-  ~, cbstiff, ~, idm2scb, joint, br_stif, factor_Iz)
+  ~, cbstiff, ~, idm2scb, joint, br_stif, hstiff_type)
 %calc_member_force - 部材応力の計算
 %
 %   [rs, Mc, rvec] = calc_member_force( ...
@@ -9,7 +9,7 @@ function [rs, Mc, rvec] = calc_member_force(ilcset, ...
 %     A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm, ...
 %     lrxm, lrym, flag, member_property, ...
 %     node, ~, cbstiff, ~, idm2scb, ...
-%     joint, br_stif, factor_Iz) は、
+%     joint, br_stif, hstiff_type) は、
 %   各部材の変位から部材端応力を計算する。
 %   通常部材は梁要素剛性行列、ブレースはトラス変換で処理する。
 %
@@ -41,7 +41,7 @@ function [rs, Mc, rvec] = calc_member_force(ilcset, ...
 %     idm2scb  - 部材→複合梁マッピング [nme×1]
 %     joint    - 接合条件 [nme×4]
 %     br_stif  - ブレース剛性構造体配列（空可）
-%     factor_Iz - 梁の弱軸剛性 Iz の係数（スカラー、0=考慮OFF）
+%     hstiff_type - 梁水平面内変形の考慮（PRM.GIRDER_HSTIFF_*）
 %
 %   出力引数:
 %     rs   - 部材端応力 [nme×12×nlc]
@@ -50,7 +50,7 @@ function [rs, Mc, rvec] = calc_member_force(ilcset, ...
 %
 %   備考:
 %     - 応力側は剛性側（stif_sys_matrix）と異なり微小化せず完全 0 を
-%       許容する（factor_Iz=0 で梁 Iz=0、factor_J(im)=0 で J=0）。
+%       許容する（ZERO で梁 Iz=0、factor_J(im)=0 で J=0）。
 %     - factor_J は member_property.factor_J から取得。
 
 % 共通配列
@@ -101,10 +101,23 @@ tg_cache = cell(nme, 1);
 t_cache = cell(nme, 1);
 ndi_cache = cell(nme, 1);
 
-% Iz/J 係数の事前展開（応力側は微小化せず完全 0 を許容）
-% 梁: factor_Iz をそのまま乗算（0 なら Iz 寄与 0）。柱: 1
+% Iz/Asy/J 係数の事前展開（応力側は微小化せず完全 0 を許容）
+% 梁水平面内変形の考慮: ZERO は Iz 寄与 0、ACTUAL は原断面のまま、
+% RIGID は剛性側と同じ Iz=Iy×1000・Asy 大値化で整合をとる。柱: 1
 Iz_fac = ones(nme, 1);
-Iz_fac(mtype == PRM.GIRDER) = factor_Iz;
+Asy_fac = ones(nme, 1);
+isg = mtype == PRM.GIRDER;
+switch hstiff_type
+  case PRM.GIRDER_HSTIFF_ZERO
+    Iz_fac(isg) = 0;
+  case PRM.GIRDER_HSTIFF_ACTUAL
+    % 原断面の剛性（係数1のまま）
+  case PRM.GIRDER_HSTIFF_RIGID
+    Iz_fac(isg) = 1000*Iy(isg)./max(Iz(isg), eps);
+    Asy_fac(isg) = 1e6;
+  otherwise
+    error('梁水平面内変形の考慮の指定が不正です: %g', hstiff_type);
+end
 J_fac = member_property.factor_J;
 
 for im = targetset(:)'
@@ -112,7 +125,7 @@ for im = targetset(:)'
   lryi = lrym(im, :);
   li = lm(im);
   t_local = [cxl(im, :); cyl(im, :); czl(im, :)];
-  Ai = A(im); Asyi = Asy(im); Aszi = Asz(im);
+  Ai = A(im); Asyi = Asy(im) * Asy_fac(im); Aszi = Asz(im);
   Iyi = Iy(im);
   Izi = Iz(im) * Iz_fac(im);
   Ji = JJ(im) * J_fac(im);

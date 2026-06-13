@@ -433,11 +433,11 @@ if has_tension_brace
 end
 
 %% 剛性行列の作成
-factor_Iz = options.factor_Iz;
+hstiff_type = options.girder_horizontal_stiffness_type;
 ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, ...
   cyl, lm_stiff, Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
   idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
-  nbw, flag, br_stif, factor_Iz, factor_J);
+  nbw, flag, br_stif, hstiff_type, factor_J);
 
 %% 初期化
 isuplifted = false(nsup, nlc);
@@ -554,7 +554,7 @@ end
 [rs, Mc] = calc_member_force(1:nlc, dvec, [], frvec, ...
   sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm_stiff, ...
   lrxm, lrym, flag, member_property, node, material, ...
-  cbstiff, idm2mat, idm2scb, mejoint, br_stif, factor_Iz);
+  cbstiff, idm2mat, idm2scb, mejoint, br_stif, hstiff_type);
 
 % 斜め柱応力を全体系XY方向に変換（SS7互換）
 rs = trans_column_force_global_xy(rs, cxl, cyl, idmc2m);
