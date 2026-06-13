@@ -20,8 +20,6 @@ function [head, body] = write_cell_girder_force_list(com, result, icase)
 
 %% 定数
 ng = com.nmeg;
-nblx = com.nblx;
-nbly = com.nbly;
 nstory = com.nstory;
 
 %% 共通配列
@@ -66,32 +64,9 @@ processed = false(ng,1);
 %% 層ごとに梁を処理（上階から下階へ）
 for i = 1:nstory
   ist = nstory-i+1;
-  % X方向梁（idir=1）と45度梁（idir=PRM.XY）を処理
-  for iy = 1:nbly
-    for ix = 1:nblx
-      ig_list = iggg(girder.idstory==ist & girder.idx(:,1)==ix & ...
-        girder.idy(:,1)==iy & ...
-        (girder.idir==PRM.X | girder.idir==PRM.XY));
-      if isempty(ig_list)
-        continue;
-      end
-      for idxIg = 1:numel(ig_list)
-        add_row(ig_list(idxIg));
-      end
-    end
-  end
-  % Y方向梁（idir=2）を処理（45度梁は既に上で処理済み）
-  for ix = 1:nblx
-    for iy = 1:nbly
-      ig_list = iggg(girder.idstory==ist & girder.idx(:,1)==ix & ...
-        girder.idy(:,1)==iy & girder.idir==PRM.Y);
-      if isempty(ig_list)
-        continue;
-      end
-      for idxIg = 1:numel(ig_list)
-        add_row(ig_list(idxIg));
-      end
-    end
+  ig_list = iggg(girder.idstory==ist);
+  for idxIg = 1:numel(ig_list)
+    add_row(ig_list(idxIg));
   end
 end
 
@@ -171,14 +146,14 @@ return
     body{row_idx,5} = make_section_symbol(secg, isg);
     body{row_idx,6} = seq_;
     % 応力値（部材長、M[kNm]、Q[kN]、N[kN]）
-    body{row_idx,7} = sprintf('%.0f', lm(im));
-    body{row_idx,8} = sprintf('%.1f', -rs(im,5)*1.d-6);
-    body{row_idx,9} = sprintf('%.1f', Mc(ig_)*1.d-6);
-    body{row_idx,10} = sprintf('%.1f', -rs(im,11)*1.d-6);
-    body{row_idx,11} = sprintf('%.1f', rs(im,3)*1.d-3);
+    body{row_idx,7} = fmt_ceil_abs(lm(im), 0);
+    body{row_idx,8} = fmt_ceil_abs(-rs(im,5)*1.d-6, 1);
+    body{row_idx,9} = fmt_ceil_abs(Mc(ig_)*1.d-6, 1);
+    body{row_idx,10} = fmt_ceil_abs(-rs(im,11)*1.d-6, 1);
+    body{row_idx,11} = fmt_ceil_abs(rs(im,3)*1.d-3, 1);
     body{row_idx,12} = '';
-    body{row_idx,13} = sprintf('%.1f', rs(im,9)*1.d-3);
-    body{row_idx,14} = sprintf('%.1f', rs(im,1)*1.d-3);
-    body{row_idx,15} = sprintf('%.1f', rs(im,7)*1.d-3);
+    body{row_idx,13} = fmt_ceil_abs(rs(im,9)*1.d-3, 1);
+    body{row_idx,14} = fmt_ceil_abs(rs(im,1)*1.d-3, 1);
+    body{row_idx,15} = fmt_ceil_abs(rs(im,7)*1.d-3, 1);
   end
 end
