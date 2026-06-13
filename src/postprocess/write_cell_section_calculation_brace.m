@@ -25,8 +25,8 @@ nominal_brace = com.nominal.brace;
 stype = com.section.property.type;
 secmgr = com.secmgr;
 secdim = result.secdim;
-rs0_all = result.rs0;
-rs_all = result.rs;
+dfn0_all = result.dfn0;
+dfn_all = result.dfn;
 % L 値は SS7 マニュアル 3.8.1 のブレース長さ（内法長さ）を
 % 使用する。剛性表・応力表で表示される「部材長 mm」（構造心
 % 間距離）とは異なる値である。
@@ -51,7 +51,7 @@ idm2s = com.member.property.idsec;
 is_bsteel = ismember(stype, [PRM.BWFS PRM.BHSS PRM.BHSR]);
 
 % 早期リターン
-if com.nsecb == 0 || isempty(rs0_all)
+if com.nsecb == 0 || isempty(dfn0_all)
   scbbody = cell(0, ncol);
   return
 end
@@ -165,35 +165,35 @@ scbbody = scbbody(1:irow, :);
 return
 
   function [ir, pm] = write_header_if_needed(ir, pm, ...
-      is_steel_arg, is_brb_arg, isb_arg, ib1_arg)
+      isSteel, isBrb, isb, ib1)
   %write_header_if_needed - 材料ヘッダ行を出力
   %
-  %   [ir, pm] = write_header_if_needed(ir, pm, is_steel_arg, ...
-  %     is_brb_arg, isb_arg, ib1_arg) は、必要に応じて材料情報の
+  %   [ir, pm] = write_header_if_needed(ir, pm, isSteel, ...
+  %     isBrb, isb, ib1) は、必要に応じて材料情報の
   %   ヘッダ行を1行追加し、更新後の行カウンタと識別キーを返す。
   %
   %   入力引数:
   %     ir           - 現在の行カウンタ
   %     pm           - 直前に出力した材料識別キー
-  %     is_steel_arg - 鋼材ブレース判定フラグ
-  %     is_brb_arg   - BRB判定フラグ
-  %     isb_arg      - 断面リストインデックス
-  %     ib1_arg      - 代表部材インデックス
+  %     isSteel - 鋼材ブレース判定フラグ
+  %     isBrb   - BRB判定フラグ
+  %     isb     - 断面リストインデックス
+  %     ib1     - 代表部材インデックス
   %
   %   出力引数:
   %     ir - 更新後の行カウンタ
   %     pm - 更新後の材料識別キー
-    if is_steel_arg || is_brb_arg
-      idsl_ = secb.id_section_list(isb_arg);
+    if isSteel || isBrb
+      idsl_ = secb.id_section_list(isb);
       mat_ = secmgr.secList.material_name{idsl_, 1};
-      F_hdr_ = msprop_F(brace.idme(ib1_arg));
+      F_hdr_ = msprop_F(brace.idme(ib1));
       hkey_ = sprintf('%s_%.0f', mat_, F_hdr_);
     else
       hkey_ = 'TB';
     end
     if ~strcmp(hkey_, pm)
       ir = ir + 1;
-      if is_steel_arg || is_brb_arg
+      if isSteel || isBrb
         scbbody{ir, 1} = sprintf(' 鉄骨： [ %-9s]  Ｆ値   %.0f', ...
           mat_, F_hdr_);
       else
@@ -204,27 +204,27 @@ return
     end
   end
 
-  function output_member_tb(inb_, isb_)
+  function output_member_tb(inb, isb)
   %output_member_tb - TB（メーカー製品引張ブレース）用の出力処理
   %
-  %   output_member_tb(inb_, isb_) は、TBブレース1呼称分の
+  %   output_member_tb(inb, isb) は、TBブレース1呼称分の
   %   断面符号行・ラベル行・Ab/Aeデータ行を scbbody に追記する。
   %
   %   入力引数:
-  %     inb_ - 呼称ブレースインデックス
-  %     isb_ - 断面リストインデックス
-    ibij_ = nominal_brace.idmeb(inb_, :);
+  %     inb - 呼称ブレースインデックス
+  %     isb - 断面リストインデックス
+    ibij_ = nominal_brace.idmeb(inb, :);
     nz_cols_ = find(ibij_ > 0);
     ib1_ = ibij_(nz_cols_(1));
     im1_ = brace.idme(ib1_);
-    itb_ = isb2itb(isb_);
+    itb_ = isb2itb(isb);
 
     % 断面プロパティ
     idsec_ = idm2s(im1_);
     A_cm2_ = secdim(idsec_, 2) * 1e-2;
     Ae_cm2_ = secdim(idsec_, 3) * 1e-2;
     Ta_kN_ = secdim(idsec_, 4);
-    sec_name_ = secb.name{isb_};
+    sec_name_ = secb.name{isb};
     type_name_ = tblist.label{itb_};
     HTB_str_ = tblist.HTB{itb_};
     GP_str_ = tblist.GP{itb_};
@@ -239,11 +239,11 @@ return
 
     % 配置・列ラベル行
     irow = irow + 1;
-    scbbody{irow, 1} = sprintf('[%s', nominal_brace.floor_name{inb_});
-    scbbody{irow, 3} = nominal_brace.frame_name{inb_, 1};
-    scbbody{irow, 4} = nominal_brace.coord_name{inb_, 1};
+    scbbody{irow, 1} = sprintf('[%s', nominal_brace.floor_name{inb});
+    scbbody{irow, 3} = nominal_brace.frame_name{inb, 1};
+    scbbody{irow, 4} = nominal_brace.coord_name{inb, 1};
     scbbody{irow, 5} = '-';
-    scbbody{irow, 6} = sprintf('%s]', nominal_brace.coord_name{inb_, 2});
+    scbbody{irow, 6} = sprintf('%s]', nominal_brace.coord_name{inb, 2});
     scbbody{irow, 8} = 'L';
     scbbody{irow, 9} = 'LNac';
     scbbody{irow, 10} = 'LNat';
@@ -302,7 +302,8 @@ return
       scbbody{irow, 12} = sprintf('%.0f', Ta_kN_);
 
       % NL（G+P成分）
-      scbbody{irow, 13} = sprintf('%.0f', rs0_all(im_, 1, 1) * 1e-3);
+      nl_ = get_axial_force_init(inb, ib_) * 1e-3;
+      scbbody{irow, 13} = sprintf('%.0f', nl_);
 
       % 最大検定比のケース
       tiebreak_ = zeros(1, size(bnij, 2));
@@ -313,7 +314,7 @@ return
       ratio_ = bnij(ib_, c_ilc_) + 1;
 
       % NK値
-      [nkp_, nkn_] = get_nk(ib_, im_);
+      [nkp_, nkn_] = get_nk(inb, ib_);
       scbbody{irow, 17} = sprintf('%.0f', nkp_);
       scbbody{irow, 18} = sprintf('%.0f', nkn_);
 
@@ -325,16 +326,16 @@ return
     end
   end
 
-  function output_member_steel(inb_, isb_)
+  function output_member_steel(inb, isb)
   %output_member_steel - 鋼材ブレース（BWFS/BHSS/BHSR）用の出力処理
   %
-  %   output_member_steel(inb_, isb_) は、鋼材ブレース1呼称分の
+  %   output_member_steel(inb, isb) は、鋼材ブレース1呼称分の
   %   断面符号行・ラベル行・Ab/Aeデータ行を scbbody に追記する。
   %
   %   入力引数:
-  %     inb_ - 呼称ブレースインデックス
-  %     isb_ - 断面リストインデックス
-    ibij_ = nominal_brace.idmeb(inb_, :);
+  %     inb - 呼称ブレースインデックス
+  %     isb - 断面リストインデックス
+    ibij_ = nominal_brace.idmeb(inb, :);
     nz_cols_ = find(ibij_ > 0);
     ib1_ = ibij_(nz_cols_(1));
     im1_ = brace.idme(ib1_);
@@ -346,8 +347,8 @@ return
     A_cm2_ = A_mm2_ * 1e-2;
     Ae_cm2_ = A_cm2_;
     F_ = msprop_F(im1_);
-    inm_ = nominal_brace.idnominal(inb_);
-    sec_name_ = secb.name{isb_};
+    inm_ = nominal_brace.idnominal(inb);
+    sec_name_ = secb.name{isb};
 
     % Λ（限界細長比）
     E_ = 205000;
@@ -364,11 +365,11 @@ return
 
     % 配置・列ラベル行
     irow = irow + 1;
-    scbbody{irow, 1} = sprintf('[%s', nominal_brace.floor_name{inb_});
-    scbbody{irow, 3} = nominal_brace.frame_name{inb_, 1};
-    scbbody{irow, 4} = nominal_brace.coord_name{inb_, 1};
+    scbbody{irow, 1} = sprintf('[%s', nominal_brace.floor_name{inb});
+    scbbody{irow, 3} = nominal_brace.frame_name{inb, 1};
+    scbbody{irow, 4} = nominal_brace.coord_name{inb, 1};
     scbbody{irow, 5} = '-';
-    scbbody{irow, 6} = sprintf('%s]', nominal_brace.coord_name{inb_, 2});
+    scbbody{irow, 6} = sprintf('%s]', nominal_brace.coord_name{inb, 2});
     scbbody{irow, 8} = 'L';
     scbbody{irow, 9} = sprintf('%s', 'λ');
     scbbody{irow, 10} = 'Lfc';
@@ -427,7 +428,7 @@ return
       im_ = brace.idme(ib_);
 
       % 引張なし側の判定
-      if is_no_tension_side_(ib_)
+      if is_no_tension_side_(inb, ib_)
         scbbody{irow, 7} = get_pos_label(ib_);
         scbbody{irow, 21} = ' ----';
         continue
@@ -458,16 +459,17 @@ return
       scbbody{irow, 13} = sprintf('%.0f', ftn(inm_, 2));
 
       % NL（G+P成分）
-      scbbody{irow, 14} = sprintf('%.0f', rs0_all(im_, 1, 1) * 1e-3);
+      nl_ = get_axial_force_init(inb, ib_) * 1e-3;
+      scbbody{irow, 14} = sprintf('%.0f', nl_);
 
       % NK値
-      [nkp_, nkn_] = get_nk(ib_, im_);
+      [nkp_, nkn_] = get_nk(inb, ib_);
       scbbody{irow, 18} = sprintf('%.0f', nkp_);
       scbbody{irow, 19} = sprintf('%.0f', nkn_);
 
       % ケース・検定比
-      [c_ilc_, rt_, rc_] = calc_ratios_steel(im_, A_mm2_, F_, Lfc_, ...
-        is_tonly_);
+      [c_ilc_, rt_, rc_] = calc_ratios_steel(inb, ib_, A_mm2_, F_, ...
+        Lfc_, is_tonly_);
       scbbody{irow, 20} = PRM.load_case_combo_name(c_ilc_);
       scbbody{irow, 21} = sprintf('%.2f ', ceil(rt_ * 100) / 100);
       if ~is_tonly_ && rc_ > 0
@@ -576,7 +578,7 @@ return
 
       % 検定比を先に求める。Lk 列の記入要否（圧縮検定の有無）に
       % rc_ を用いるため、L/Lk 記入より前に算定する。
-      [c_ilc_, rt_, rc_] = calc_ratios_brb(im_, Ag_cm2_ * 1e2, F_);
+      [c_ilc_, rt_, rc_] = calc_ratios_brb(inb, ib_, Ag_cm2_ * 1e2, F_);
 
       % 位置ラベル
       scbbody{irow, 7} = get_pos_label(ib_);
@@ -599,11 +601,11 @@ return
       scbbody{irow, 11} = sprintf('%.0f', F_);
 
       % NL（G+P成分）。SS7 は応力を絶対値方向へ切り上げ表示
-      nl_ = ceil_abs(rs0_all(im_, 1, 1) * 1e-3, 0);
+      nl_ = ceil_abs(get_axial_force_init(inb, ib_) * 1e-3, 0);
       scbbody{irow, 12} = sprintf('%.0f', nl_);
 
       % NK値。SS7 は応力を絶対値方向へ切り上げ表示
-      [nkp_, nkn_] = get_nk(ib_, im_);
+      [nkp_, nkn_] = get_nk(inb, ib_);
       scbbody{irow, 16} = sprintf('%.0f', ceil_abs(nkp_, 0));
       scbbody{irow, 17} = sprintf('%.0f', ceil_abs(nkn_, 0));
 
@@ -630,28 +632,29 @@ return
     end
   end
 
-  function [c_ilc, max_rt, max_rc] = calc_ratios_brb(im, A, F)
+  function [c_ilc, max_rt, max_rc] = calc_ratios_brb(inb, ib, A, F)
   %calc_ratios_brb - BRBの検定比計算
   %
-  %   [c_ilc, max_rt, max_rc] = calc_ratios_brb(im, A, F) は、
+  %   [c_ilc, max_rt, max_rc] = calc_ratios_brb(inb, ib, A, F) は、
   %   全荷重ケースについて引張・圧縮の検定比を求め、決定ケース
   %   番号と引張側・圧縮側それぞれの最大検定比を返す。BRBは引張・
   %   圧縮ともに ft（長期 F/1.5、短期 F）を許容応力度として用いる。
   %
   %   入力引数:
-  %     im - 部材インデックス
-  %     A  - 断面積 [mm^2]
-  %     F  - F値 [N/mm^2]
+  %     inb - 呼称ブレースインデックス
+  %     ib  - ブレース部材インデックス
+  %     A   - 断面積 [mm^2]
+  %     F   - F値 [N/mm^2]
   %
   %   出力引数:
   %     c_ilc  - 最大検定比となる荷重ケース番号
   %     max_rt - 全ケースの引張検定比最大値
   %     max_rc - 全ケースの圧縮検定比最大値
-    nlc_ = size(rs_all, 3);
+    nlc_ = size(dfn_all, 3);
     rt_ = zeros(1, nlc_);
     rc_ = zeros(1, nlc_);
     for ilc_ = 1:nlc_
-      N_ = rs_all(im, 1, ilc_);
+      N_ = get_axial_force_combo(inb, ib, ilc_);
       if ilc_ == 1
         ft_ = F / 1.5;
       else
@@ -692,46 +695,51 @@ return
       symbol, shape, D, t);
   end
 
-  function flag = is_no_tension_side_(ib_)
+  function flag = is_no_tension_side_(inb, ib)
   %is_no_tension_side_ - 引張なし側の判定
   %
-  %   flag = is_no_tension_side_(ib_) は、当該ブレース部材の
+  %   flag = is_no_tension_side_(inb, ib) は、当該ブレース片の
   %   全荷重ケースで軸力が0なら true を返す。
   %
   %   入力引数:
-  %     ib_ - ブレース部材インデックス
+  %     inb - 呼称ブレースインデックス
+  %     ib  - ブレース部材インデックス
   %
   %   出力引数:
   %     flag - 引張なし側であれば true
-    im_ = brace.idme(ib_);
-    flag = all(rs_all(im_, 1, :) == 0);
+    nlc_ = size(dfn_all, 3);
+    force_ = zeros(1, nlc_);
+    for ilc_ = 1:nlc_
+      force_(ilc_) = get_axial_force_combo(inb, ib, ilc_);
+    end
+    flag = all(force_ == 0);
   end
 
-  function label_ = get_type_label(ib_, stype_)
+  function label_ = get_type_label(ib, stype)
   %get_type_label - TYPE行のラベル生成
   %
-  %   label_ = get_type_label(ib_, stype_) は、部材形状（X/K上/
+  %   label_ = get_type_label(ib, stype) は、部材形状（X/K上/
   %   K下）と引張・圧縮属性を組合せたラベル文字列を返す。
   %
   %   入力引数:
-  %     ib_    - ブレース部材インデックス
-  %     stype_ - 断面種別（PRM定数）
+  %     ib    - ブレース部材インデックス
+  %     stype - 断面種別（PRM定数）
   %
   %   出力引数:
   %     label_ - TYPE行に表示するラベル文字列
-    if stype_ == PRM.TB
+    if stype == PRM.TB
       tc_str_ = '引張のみ';
-    elseif is_tension(ib_)
+    elseif is_tension(ib)
       tc_str_ = '引張のみ';
     else
       tc_str_ = '引張・圧縮有効';
     end
-    switch brace.type(ib_)
+    switch brace.type(ib)
       case PRM.BRACE_MEMBER_TYPE_X
-        if brace.idpair(ib_) ~= ib_
+        if brace.idpair(ib) ~= ib
           % BOTH展開によるペアあり: X形（両方）
           label_ = sprintf('X形(%s)', tc_str_);
-        elseif brace.pair(ib_) == PRM.BRACE_MEMBER_PAIR_L
+        elseif brace.pair(ib) == PRM.BRACE_MEMBER_PAIR_L
           label_ = sprintf('X形(／)(%s)', tc_str_);
         else
           label_ = sprintf('X形(＼)(%s)', tc_str_);
@@ -745,35 +753,35 @@ return
     end
   end
 
-  function label_ = get_pos_label(ib_)
+  function label_ = get_pos_label(ib)
   %get_pos_label - 位置ラベル生成（pair属性ベース）
   %
-  %   label_ = get_pos_label(ib_) は、ブレース部材の pair 属性と
+  %   label_ = get_pos_label(ib) は、ブレース部材の pair 属性と
   %   形状種別から位置ラベル（左下り/右下り/左側/右側）を返す。
   %   K下形は左右反転（左下がり=右側、右下がり=左側）する。
   %
   %   入力引数:
-  %     ib_ - ブレース部材インデックス
+  %     ib - ブレース部材インデックス
   %
   %   出力引数:
   %     label_ - 位置ラベル文字列
     pair_left_ = [PRM.BRACE_MEMBER_PAIR_L, PRM.BRACE_MEMBER_PAIR_BOTH_L];
-    switch brace.type(ib_)
+    switch brace.type(ib)
       case PRM.BRACE_MEMBER_TYPE_X
-        if ismember(brace.pair(ib_), pair_left_)
+        if ismember(brace.pair(ib), pair_left_)
           label_ = '左下り';
         else
           label_ = '右下り';
         end
       case PRM.BRACE_MEMBER_TYPE_K_UPPER
-        if ismember(brace.pair(ib_), pair_left_)
+        if ismember(brace.pair(ib), pair_left_)
           label_ = '左側';
         else
           label_ = '右側';
         end
       case PRM.BRACE_MEMBER_TYPE_K_LOWER
         % K下形: 左下がり=右側、右下がり=左側
-        if ismember(brace.pair(ib_), pair_left_)
+        if ismember(brace.pair(ib), pair_left_)
           label_ = '右側';
         else
           label_ = '左側';
@@ -783,78 +791,78 @@ return
     end
   end
 
-  function label_ = get_pos_label_lr(ilr_, ib_)
+  function label_ = get_pos_label_lr(ilr, ib)
   %get_pos_label_lr - 左右番号から位置ラベル生成
   %
-  %   label_ = get_pos_label_lr(ilr_, ib_) は、左右番号（1/2）と
+  %   label_ = get_pos_label_lr(ilr, ib) は、左右番号（1/2）と
   %   形状種別から位置ラベルを返す。X形対の片側欠落時など、
   %   pair属性が参照できない場合の代替として使用する。
   %
   %   入力引数:
-  %     ilr_ - 左右番号（1=左、2=右）
-  %     ib_  - 参照部材インデックス（形状判定用）
+  %     ilr - 左右番号（1=左、2=右）
+  %     ib  - 参照部材インデックス（形状判定用）
   %
   %   出力引数:
   %     label_ - 位置ラベル文字列
-    switch brace.type(ib_)
+    switch brace.type(ib)
       case PRM.BRACE_MEMBER_TYPE_X
-        if ilr_ == 1, label_ = '左下り';
+        if ilr == 1, label_ = '左下り';
         else,         label_ = '右下り'; end
       case {PRM.BRACE_MEMBER_TYPE_K_UPPER, PRM.BRACE_MEMBER_TYPE_K_LOWER}
-        if ilr_ == 1, label_ = '左側';
+        if ilr == 1, label_ = '左側';
         else,         label_ = '右側'; end
       otherwise
         label_ = '';
     end
   end
 
-  function [nkp, nkn] = get_nk(ib_, im_)
+  function [nkp, nkn] = get_nk(inb, ib)
   %get_nk - 地震時軸力の取得（両方向最大）
   %
-  %   [nkp, nkn] = get_nk(ib_, im_) は、X/Y方向の正側・負側に
+  %   [nkp, nkn] = get_nk(inb, ib) は、X/Y方向の正側・負側に
   %   ついてそれぞれ検定比最大のケースを選び、当該ケースの
   %   軸力を kN 単位で返す。
   %
   %   入力引数:
-  %     ib_ - ブレース部材インデックス（検定比参照用）
-  %     im_ - 全体部材インデックス（軸力参照用）
+  %     inb - 呼称ブレースインデックス
+  %     ib  - ブレース部材インデックス（検定比参照用）
   %
   %   出力引数:
   %     nkp - 正側ケース軸力 [kN]
   %     nkn - 負側ケース軸力 [kN]
-    bp_ = bnij(ib_, [PRM.EXP PRM.EYP]);
+    bp_ = bnij(ib, [PRM.EXP PRM.EYP]);
     [~, idp_] = max(bp_);
     idc_pos_ = [PRM.EXP PRM.EYP];
-    nkp = rs_all(im_, 1, idc_pos_(idp_)) * 1e-3;
+    nkp = get_axial_force_combo(inb, ib, idc_pos_(idp_)) * 1e-3;
 
-    bn_ = bnij(ib_, [PRM.EXN PRM.EYN]);
+    bn_ = bnij(ib, [PRM.EXN PRM.EYN]);
     [~, idn_] = max(bn_);
     idc_neg_ = [PRM.EXN PRM.EYN];
-    nkn = rs_all(im_, 1, idc_neg_(idn_)) * 1e-3;
+    nkn = get_axial_force_combo(inb, ib, idc_neg_(idn_)) * 1e-3;
   end
 
-  function name = format_shape_name(stype_, dim_)
+  function name = format_shape_name(stype, dim)
   %format_shape_name - 鋼材ブレースの断面形状名生成
   %
-  %   name = format_shape_name(stype_, dim_) は、断面種別と寸法
+  %   name = format_shape_name(stype, dim) は、断面種別と寸法
   %   配列から SS7 形式の形状名（H-../□-../○-..）を生成する。
   %
   %   入力引数:
-  %     stype_ - 断面種別（PRM.BWFS/BHSS/BHSR）
-  %     dim_   - 寸法行ベクトル（secdim の1行）
+  %     stype - 断面種別（PRM.BWFS/BHSS/BHSR）
+  %     dim   - 寸法行ベクトル（secdim の1行）
   %
   %   出力引数:
   %     name - 形状名文字列
     v = @(x) sprintf('%g', x);
-    switch stype_
+    switch stype
       case PRM.BWFS
-        name = sprintf('H-%s*%s*%s*%s*%s', v(dim_(1)), ...
-          v(dim_(2)), v(dim_(3)), v(dim_(4)), v(dim_(5)));
+        name = sprintf('H-%s*%s*%s*%s*%s', v(dim(1)), ...
+          v(dim(2)), v(dim(3)), v(dim(4)), v(dim(5)));
       case PRM.BHSS
-        name = sprintf('□-%s*%s*%s*%s', v(dim_(1)), v(dim_(1)), ...
-          v(dim_(2)), v(dim_(3)));
+        name = sprintf('□-%s*%s*%s*%s', v(dim(1)), v(dim(1)), ...
+          v(dim(2)), v(dim(3)));
       case PRM.BHSR
-        name = sprintf('○-%s*%s', v(dim_(1)), v(dim_(2)));
+        name = sprintf('○-%s*%s', v(dim(1)), v(dim(2)));
       otherwise
         name = '';
     end
@@ -885,43 +893,44 @@ return
   end
 
   function [c_ilc, max_rt, max_rc] = calc_ratios_steel( ...
-    im_, A_, F_, Lfc_, is_tonly_)
+    inb, ib, A, F, Lfc, is_tonly)
   %calc_ratios_steel - 鋼材ブレースの検定比計算
   %
-  %   [c_ilc, max_rt, max_rc] = calc_ratios_steel(im_, A_, F_, ...
-  %     Lfc_, is_tonly_) は、全荷重ケースの引張・圧縮検定比を
+  %   [c_ilc, max_rt, max_rc] = calc_ratios_steel(inb, ib, A, F, ...
+  %     Lfc, is_tonly) は、全荷重ケースの引張・圧縮検定比を
   %   求め、最大値と最大ケース番号を返す。引張のみ判定なら
   %   圧縮側はゼロのまま返す。
   %
   %   入力引数:
-  %     im_       - 全体部材インデックス
-  %     A_        - 断面積 [mm^2]
-  %     F_        - F値 [N/mm^2]
-  %     Lfc_      - 長期許容圧縮応力度 [N/mm^2]
-  %     is_tonly_ - 引張のみ判定フラグ
+  %     inb      - 呼称ブレースインデックス
+  %     ib       - ブレース部材インデックス
+  %     A        - 断面積 [mm^2]
+  %     F        - F値 [N/mm^2]
+  %     Lfc      - 長期許容圧縮応力度 [N/mm^2]
+  %     is_tonly - 引張のみ判定フラグ
   %
   %   出力引数:
   %     c_ilc  - 最大検定比となる荷重ケース番号
   %     max_rt - 全ケースの引張検定比最大値
   %     max_rc - 全ケースの圧縮検定比最大値
-    nlc_ = size(rs_all, 3);
+    nlc_ = size(dfn_all, 3);
     rt_ = zeros(1, nlc_);
     rc_ = zeros(1, nlc_);
-    Ae_ = A_;
+    Ae_ = A;
 
     for ilc_ = 1:nlc_
-      N_ = rs_all(im_, 1, ilc_);
+      N_ = get_axial_force_combo(inb, ib, ilc_);
       if ilc_ == 1
-        ft_ = F_ / 1.5;
-        fc_ = Lfc_;
+        ft_ = F / 1.5;
+        fc_ = Lfc;
       else
-        ft_ = F_;
-        fc_ = Lfc_ * 1.5;
+        ft_ = F;
+        fc_ = Lfc * 1.5;
       end
       if N_ < 0
         rt_(ilc_) = abs(N_) / (Ae_ * ft_);
-      elseif ~is_tonly_ && fc_ > 0
-        rc_(ilc_) = N_ / (A_ * fc_);
+      elseif ~is_tonly && fc_ > 0
+        rc_(ilc_) = N_ / (A * fc_);
       end
     end
 
@@ -933,6 +942,41 @@ return
     tiebreak_(PRM.EXP) = eps;
     tiebreak_(PRM.EYP) = eps;
     [~, c_ilc] = max(overall_ + tiebreak_);
+  end
+
+  function force = get_axial_force_init(inb, ib)
+  %get_axial_force_init - 名目ブレースの一次軸力を取得
+  %
+  %   force = get_axial_force_init(inb, ib) は、呼称ブレース内の
+  %   指定片に対応する dfn0 の軸力を部材応力表の符号で返す。
+    inm_ = nominal_brace.idnominal(inb);
+    icomp_ = get_axial_component(inb, ib);
+    force = -dfn0_all(inm_, icomp_, 1);
+  end
+
+  function force = get_axial_force_combo(inb, ib, ilc)
+  %get_axial_force_combo - 名目ブレースの組合せ軸力を取得
+  %
+  %   force = get_axial_force_combo(inb, ib, ilc) は、呼称
+  %   ブレース内の指定片に対応する dfn の軸力を返す。
+    inm_ = nominal_brace.idnominal(inb);
+    icomp_ = get_axial_component(inb, ib);
+    force = -dfn_all(inm_, icomp_, ilc);
+  end
+
+  function icomp = get_axial_component(inb, ib)
+  %get_axial_component - 名目ブレース内の片に対応する軸力列
+  %
+  %   icomp = get_axial_component(inb, ib) は、呼称ブレース内の
+  %   1片目を i端軸力列、2片目を j端軸力列へ対応させる。
+    ibij_ = nominal_brace.idmeb(inb, :);
+    nz_cols_ = find(ibij_ > 0);
+    ij_ = find(ibij_ == ib, 1);
+    if isscalar(nz_cols_) || ij_ == nz_cols_(1)
+      icomp = 1;
+    else
+      icomp = 7;
+    end
   end
 
 end
