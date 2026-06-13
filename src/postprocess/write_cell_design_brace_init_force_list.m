@@ -8,7 +8,7 @@ function [head, body] = write_cell_design_brace_init_force_list( ...
 %
 %   入力引数:
 %     com - 共通オブジェクト
-%     result - 結果構造体（rs0 を使用）
+%     result - 結果構造体（dfn0 を使用）
 %
 %   出力引数:
 %     head - ヘッダセル配列 [3×9]
@@ -17,8 +17,8 @@ function [head, body] = write_cell_design_brace_init_force_list( ...
 nominal_brace = com.nominal.brace;
 brace = com.member.brace;
 secb = com.section.brace;
-rs0_all = result.rs0;
-nlc = size(rs0_all, 3);
+dfn0_all = result.dfn0;
+nlc = size(dfn0_all, 3);
 
 % ヘッダ
 head = cell(3, 9);
@@ -29,7 +29,7 @@ head(3, 8:9) = {'kN', 'kN'};
 
 nnb = com.num.nominal_brace;
 body = cell(0, 9);
-if nnb == 0 || isempty(rs0_all)
+if nnb == 0 || isempty(dfn0_all)
   return
 end
 
@@ -79,14 +79,15 @@ return
     ibij = nominal_brace.idmeb(inb, :);
     nz_cols = find(ibij > 0);
     npair = length(nz_cols);
-    % 左右の部材番号とiposを先に決定（ij_ は idmeb の列番号 = 物理位置）
-    im_pair = zeros(1, 2);
+    % 左右の表示位置と dfn0 軸力列を先に決定
     ipos_pair = zeros(1, 2);
+    icomp_pair = zeros(1, 2);
+    inm = nominal_brace.idnominal(inb);
     for ij_ = nz_cols
       ib_ = ibij(ij_);
-      im_pair(ij_) = brace.idme(ib_);
       [ipos_pair(ij_), type_label_] = ...
         resolve_brace_position_label(brace, ib_, ij_, npair);
+      icomp_pair(ij_) = get_axial_component(nz_cols, ij_);
     end
 
     % 各荷重ケースの軸力を出力
@@ -104,12 +105,25 @@ return
       rows{irow, 6} = PRM.load_case_name(ilc);
       for ij_ = nz_cols
         icol = 7 + ipos_pair(ij_);
-        rows{irow, icol} = sprintf('%.1f', rs0_all(im_pair(ij_), ...
-          1, ilc) * 1.d-3);
+        icomp = icomp_pair(ij_);
+        rows{irow, icol} = sprintf('%.1f', -dfn0_all(inm, icomp, ilc) ...
+          * 1.d-3);
       end
       if ilc < nlc
         rows{irow, end} = PRM.CONT_MARKER;
       end
+    end
+  end
+
+  function icomp = get_axial_component(nz_cols_, ij_)
+  %get_axial_component - 名目ブレース内の左右片に対応する軸力列
+  %
+  %   icomp = get_axial_component(nz_cols_, ij_) は、名目ブレースの
+  %   1片目を dfn0 の i端軸力列、2片目を j端軸力列へ対応させる。
+    if isscalar(nz_cols_) || ij_ == nz_cols_(1)
+      icomp = 1;
+    else
+      icomp = 7;
     end
   end
 end
