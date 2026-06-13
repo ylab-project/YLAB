@@ -26,6 +26,7 @@ column = com.member.column;
 secc = com.section.column;
 lm = result.lm;
 rs0 = result.rs0;
+idmc2m = column.idme;
 
 %% 柱応力表(一次)
 head = { ...
@@ -45,6 +46,9 @@ if nc==0 || isempty(lm)
 end
 if isempty(rs0) || size(rs0,3)<icase
   return
+end
+if isfield(result, 'cxl') && ~isempty(result.cxl)
+  rs0 = convert_column_force_for_design(rs0, result.cxl, [], idmc2m);
 end
 rs = rs0(:,:,icase);
 body = cell(nc,ncol);
@@ -70,18 +74,18 @@ for i = 1:nfl
         body{irow,5} = idsub;
         im = column.idme(ic);
         body{irow,6} = sprintf('%.0f', lm(im));
-        body{irow,7} = sprintf('%.1f', -rs(im,11)*1.d-6);
+        body{irow,7} = fmt_ceil_abs(-rs(im,11)*1.d-6, 1);
         body{irow,8} = '';
-        body{irow,9} = sprintf('%.1f', -rs(im,5)*1.d-6);
-        body{irow,10} = sprintf('%.1f', rs(im,9)*1.d-3);
-        body{irow,11} = sprintf('%.1f', rs(im,3)*1.d-3);
-        body{irow,12} = sprintf('%.1f', -rs(im,12)*1.d-6);
+        body{irow,9} = fmt_ceil_abs(-rs(im,5)*1.d-6, 1);
+        body{irow,10} = fmt_ceil_abs(rs(im,9)*1.d-3, 1);
+        body{irow,11} = fmt_ceil_abs(rs(im,3)*1.d-3, 1);
+        body{irow,12} = fmt_ceil_abs(-rs(im,12)*1.d-6, 1);
         body{irow,13} = '';
-        body{irow,14} = sprintf('%.1f', -rs(im,6)*1.d-6);
-        body{irow,15} = sprintf('%.1f', -rs(im,8)*1.d-3);
-        body{irow,16} = sprintf('%.1f', -rs(im,2)*1.d-3);
-        body{irow,17} = sprintf('%.1f', rs(im,7)*1.d-3);
-        body{irow,18} = sprintf('%.1f', rs(im,1)*1.d-3);
+        body{irow,14} = fmt_ceil_abs(-rs(im,6)*1.d-6, 1);
+        body{irow,15} = fmt_ceil_abs(-rs(im,8)*1.d-3, 1);
+        body{irow,16} = fmt_ceil_abs(-rs(im,2)*1.d-3, 1);
+        body{irow,17} = fmt_ceil_abs(rs(im,7)*1.d-3, 1);
+        body{irow,18} = fmt_ceil_abs(rs(im,1)*1.d-3, 1);
       end
     end
   end
