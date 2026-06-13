@@ -560,8 +560,8 @@ end
   lrxm, lrym, flag, member_property, node, material, ...
   cbstiff, idm2mat, idm2scb, mejoint, br_stif, hstiff_type);
 
-% 斜め柱応力を全体系XY方向に変換（SS7互換）
-rs = trans_column_force_global_xy(rs, cxl, cyl, idmc2m);
+% 部材応力をSS7互換の表示基底へ変換
+rs = trans_member_force_global_basis(rs, cxl, cyl, mtype, idmc2m);
 
 rs0 = rs; Mc0 = Mc; rvec0 = rvec;
 
@@ -602,7 +602,7 @@ end
 state.tb.is_tension = is_tension(com.member.brace.idme);
 
 %% 設計応力の計算
-df0 = calc_design_force(rs0, lcdir, idmc2m, idmg2m, lm, lf, cxl, cyl);
+df0 = calc_design_force(rs0, lcdir, idmc2m, idmg2m, lm, lf);
 dfn0 = calc_nominal_design_force(df0, nominal_property);
 % SS7: 設計用せん断力 Q_D = Q_L + n*Q_E の割増率 n は、
 % RC造梁のみに適用する（S造梁は対象外。S造は6.4、RC造は6.9参照）

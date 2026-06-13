@@ -26,19 +26,17 @@ column = com.member.column;
 secc = com.section.column;
 lm = result.lm;
 rs0 = result.rs0;
-idmc2m = column.idme;
 
 %% 柱応力表(一次)
-head = { ...
-  '層', 'X軸', 'Y軸', '符号', '分割', '部材長', ...
-  'X方向', '', '', '', '', 'Y方向', ...
-  '', '', '', '', '柱頭N', '柱脚N'; ...
-  '', '', '', '', 'No.', '', ...
-  '柱頭M', '中央M', '柱脚M', '柱頭Q', '柱脚Q', '柱頭M', ...
-  '中央M', '柱脚M', '柱頭Q', '柱脚Q', '', ''; ...
-  '', '', '', '', '', 'mm',	...
-  'kNm', 'kNm', 'kNm', 'kN', 'kN', 'kNm', ...
-  'kNm', 'kNm', 'kN', 'kN', 'kN', 'kN'};
+head = cell(3, 18);
+head(1, 1:7) = {'層', 'X軸', 'Y軸', '符号', '分割', '部材長', 'X方向'};
+head(1, 12) = {'Y方向'};
+head(1, 17:18) = {'柱頭N', '柱脚N'};
+head(2, 5:12) = {'No.', '', '柱頭M', '中央M', '柱脚M', ...
+  '柱頭Q', '柱脚Q', '柱頭M'};
+head(2, 13:16) = {'中央M', '柱脚M', '柱頭Q', '柱脚Q'};
+head(3, 6:12) = {'mm', 'kNm', 'kNm', 'kNm', 'kN', 'kN', 'kNm'};
+head(3, 13:18) = {'kNm', 'kNm', 'kN', 'kN', 'kN', 'kN'};
 ncol = size(head,2);
 body = cell(0,ncol);
 if nc==0 || isempty(lm)
@@ -46,9 +44,6 @@ if nc==0 || isempty(lm)
 end
 if isempty(rs0) || size(rs0,3)<icase
   return
-end
-if isfield(result, 'cxl') && ~isempty(result.cxl)
-  rs0 = convert_column_force_for_design(rs0, result.cxl, [], idmc2m);
 end
 rs = rs0(:,:,icase);
 body = cell(nc,ncol);
@@ -59,8 +54,11 @@ for i = 1:nfl
   for iy = 1:nbly
     for ix = 1:nblx
       for iz = 1:nblz
-        ic = iccc(column.idfloor==ifl & ...
-          column.idx(:,1)==ix & column.idy(:,1)==iy & column.idz(:,1)==iz);
+        sel = column.idfloor == ifl;
+        sel = sel & column.idx(:, 1) == ix;
+        sel = sel & column.idy(:, 1) == iy;
+        sel = sel & column.idz(:, 1) == iz;
+        ic = iccc(sel);
         if isempty(ic)
           continue
         end

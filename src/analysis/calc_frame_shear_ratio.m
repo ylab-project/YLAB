@@ -44,6 +44,11 @@ midstory = mp.idstory;
 sign_cz = ones(size(cxl, 1), 1);
 sign_cz(cxl(:, 3) < 0) = -1;
 
+% 表示基底の柱せん断を全体系XY成分に戻す係数
+h = sqrt(cxl(:, 1).^2 + cxl(:, 2).^2);
+is_tilt = h >= 1e-6 & abs(cxl(:, 3)) >= 1e-6;
+coef = make_display_to_global_shear_coef(cxl, h, is_tilt);
+
 % 柱種別による加算対象判定(標準柱・ブレース柱BODYのみ)
 column = com.member.column;
 col_type = zeros(size(mtype));
@@ -110,12 +115,13 @@ for ilc = 1:nlc
   nframe(ilc) = nfr;
 
   % 柱の水平力成分(加力方向, kN, FEM符号)
-  % rs0 の斜め柱せん断は全体系XY成分へ換算済み。
+  % rs0 は表示基底のため、斜め柱せん断は全体系XYへ戻して集計する。
   N = rs0(:, 1, ilc);
+  [Qx, Qy] = recover_global_shear(rs0(:, :, ilc), coef, is_tilt);
   if idir_eq == 1
-    Fh_col = (N .* cxl(:, 1) - rs0(:, 3, ilc)) .* sign_cz / 1000;
+    Fh_col = (N .* cxl(:, 1) + Qx) .* sign_cz / 1000;
   else
-    Fh_col = (N .* cxl(:, 2) + rs0(:, 2, ilc)) .* sign_cz / 1000;
+    Fh_col = (N .* cxl(:, 2) + Qy) .* sign_cz / 1000;
   end
 
   % ブレースの水平力(跨ぐ階に計上, kN)
@@ -196,6 +202,58 @@ frame_shear_ratio.frame_ratio = frame_ratio;
 frame_shear_ratio.is_output_story = is_output_story;
 frame_shear_ratio.output_idstory = output_idstory;
 frame_shear_ratio.nframe = nframe;
+
+return
+end
+
+function coef = make_display_to_global_shear_coef(cxl, h, is_tilt)
+%make_display_to_global_shear_coef - 表示基底逆変換係数を作成
+%
+%   coef = make_display_to_global_shear_coef(cxl, h, is_tilt) は、
+%   回転断面表示基底の柱Qを全体系XYせん断へ戻す係数を返す。
+
+nme = size(cxl, 1);
+coef = zeros(nme, 5);
+if ~any(is_tilt)
+  return
+end
+
+ax = cxl(is_tilt, 1);
+ay = cxl(is_tilt, 2);
+az = cxl(is_tilt, 3);
+h2 = h(is_tilt).^2;
+one_minus_az = 1 - az;
+ex1 = az + ay.^2 ./ h2 .* one_minus_az;
+ex2 = -ax .* ay ./ h2 .* one_minus_az;
+ey1 = ex2;
+ey2 = az + ax.^2 ./ h2 .* one_minus_az;
+coef_x_my = ey2 + ay.^2 ./ az;
+coef_x_mx = ey1 + ax .* ay ./ az;
+coef_y_my = ex2 + ax .* ay ./ az;
+coef_y_mx = ex1 + ax.^2 ./ az;
+det = coef_x_my .* coef_y_mx - coef_x_mx .* coef_y_my;
+coef(is_tilt, :) = [coef_x_my, coef_x_mx, coef_y_my, coef_y_mx, det];
+
+return
+end
+
+function [Qx, Qy] = recover_global_shear(rs, coef, is_tilt)
+%recover_global_shear - 表示基底Qから全体系XYせん断を復元
+%
+%   [Qx, Qy] = recover_global_shear(rs, coef, is_tilt) は、柱の
+%   表示基底Q成分から全体系X/Yせん断を返す。鉛直柱は従来と同じ
+%   Qx=-row3, Qy=row2 として扱う。
+
+Qy = rs(:, 2);
+qx = rs(:, 3);
+if any(is_tilt)
+  a = rs(is_tilt, 2);
+  b = rs(is_tilt, 3);
+  c = coef(is_tilt, :);
+  Qy(is_tilt) = (c(:, 4) .* a + c(:, 2) .* b) ./ c(:, 5);
+  qx(is_tilt) = (c(:, 3) .* a + c(:, 1) .* b) ./ c(:, 5);
+end
+Qx = -qx;
 
 return
 end
