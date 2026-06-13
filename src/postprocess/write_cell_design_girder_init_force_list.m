@@ -16,8 +16,6 @@ function [dgiflhead, dgiflbody] = ...
 
 % 定数
 nng = com.num.nominal_girder;
-nblx = com.nblx;
-nbly = com.nbly;
 nstory = com.nstory;
 ncol = 24;
 
@@ -32,12 +30,9 @@ nlc = size(dfn0_all, 3);
 
 % ID変換
 nmeg1_ = nominal_girder.idmeg(:, 1);
-idnmg2x = girder.idx(nmeg1_, 1);
-idnmg2y = girder.idy(nmeg1_, 1);
 idnmg2story = girder.idstory(nmeg1_, 1);
 idnmg2mg = nominal_girder.idmeg;
 idnmg2nm = nominal_girder.idnominal;
-idnmg2dir = nominal_girder.idir;
 idmg2m = girder.idme;
 
 % --- ヘッダ（3行 x 24列）---
@@ -69,17 +64,9 @@ iggg = 1:nng;
 irow = 0;
 for i = 1:nstory
   ist = nstory - i + 1;
-  idir = 1;
-  for iy = 1:nbly
-    for ix = 1:nblx
-      print_body;
-    end
-  end
-  idir = 2;
-  for ix = 1:nblx
-    for iy = 1:nbly
-      print_body;
-    end
+  ing_list = iggg(idnmg2story == ist);
+  for idxIng = 1:numel(ing_list)
+    print_body(ing_list(idxIng));
   end
 end
 if irow == 0
@@ -89,25 +76,18 @@ else
 end
 
 return
-  function print_body
+  function print_body(ing)
   %print_body - 1 名目梁分の初期応力行を rows に書き出す
   %
-  %   print_body は、外側スコープの (ist, ix, iy, idir) に対応する
-  %   名目梁を検索し、各荷重ケース (1..nlc) について 1 物理行ずつ
+  %   print_body は、指定された名目梁について各荷重ケース (1..nlc)
+  %   の 1 物理行ずつを
   %   rows に書き込む。最終ケース以外には CONT_MARKER を付与する。
   %
   %   入力引数:
-  %     なし（外側スコープの ist, ix, iy, idir, nlc, dfn0_all,
-  %     Mcn0_all, idnmg2*, idmg2m, girder, secg, lm_nominal を参照）
+  %     ing - 名目梁番号
   %
   %   出力引数:
   %     なし（外側の rows と irow を更新）
-    ing = iggg(idnmg2story == ist & idnmg2x(:, 1) == ix ...
-      & idnmg2y(:, 1) == iy & idnmg2dir(:) == idir);
-    if isempty(ing)
-      return
-    end
-
     inm = idnmg2nm(ing);
     idsub = nominal_girder.idsub(ing, :);
     ig1 = idnmg2mg(ing, idsub(1));
