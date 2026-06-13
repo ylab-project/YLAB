@@ -85,8 +85,12 @@ frame_ratio = zeros(nstory, nframe_max, nlc);
 nframe = zeros(nlc, 1);
 
 % ブレースの跨ぐ階はループ不変。find は一度だけ実行し、加力方向で
-% 変わる f_col のみループ内で引く。
+% 変わる f_col のみループ内で引く。名目ブレースが1本のときは
+% brace_in_story が行ベクトルとなり find が行ベクトルを返すため、
+% accumarray の添字行列が崩れないよう列ベクトルに揃える。
 [b_row, s_col] = find(brace_in_story);
+b_row = b_row(:);
+s_col = s_col(:);
 
 % 荷重ケースごとに集計(地震ケースのみ。長期は0のまま)
 for ilc = 1:nlc
