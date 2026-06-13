@@ -161,12 +161,10 @@ if ~isempty(result.bkinfo) ...
 end
 
 %% 水平力分担表
-if com.nmeb > 0
-  for ilc = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
-    [fsrh, fsrb] = write_cell_force_share_ratio(com, result, ilc);
-    write_table(fout, sprintf('水平力分担表,case=%s', ...
-      loadcase.name{ilc}), fsrh, fsrb);
-  end
+for ilc = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
+  [fsrh, fsrb] = write_cell_force_share_ratio(com, result, ilc);
+  write_table(fout, sprintf('水平力分担表,case=%s', ...
+    loadcase.name{ilc}), fsrh, fsrb);
 end
 
 %% 保有耐力横補剛

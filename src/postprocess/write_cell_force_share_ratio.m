@@ -71,14 +71,19 @@ for i = 1:nstory
   end
 
   story_name = com.story.floor_name{ist};
+  story_written = false;
 
   % フレーム行
   for ifr = 1:nframe
+    if abs(fsr.Qcw(ist, ifr, ilc)) < 0.05
+      continue
+    end
     irow = irow + 1;
 
     % 階名は最初のフレームのみ
-    if ifr == 1
+    if ~story_written
       body{irow, 1} = story_name;
+      story_written = true;
     else
       body{irow, 1} = '';
     end

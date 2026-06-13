@@ -1,9 +1,9 @@
 function frame_shear_ratio = calc_frame_shear_ratio(com, rs0, ...
-  cxl, cyl, Q_nb, brace_in_story)
+  cxl, ~, Q_nb, brace_in_story)
 %calc_frame_shear_ratio - 水平力分担表相当の階別・フレーム別集計
 %
 %   frame_shear_ratio = calc_frame_shear_ratio(com, rs0, cxl, ...
-%   cyl, Q_nb, brace_in_story) は、各階・各フレーム・各荷重ケースの
+%   ~, Q_nb, brace_in_story) は、各階・各フレーム・各荷重ケースの
 %   柱負担水平力Qc・ブレース負担水平力Qwとそれらの比率を集計する。
 %   水平力分担表出力と柱座屈長さ係数補正βが共通参照する正本となる。
 %   出力対象階(is_output_story)とその参照階(output_idstory)も返す。
@@ -40,8 +40,7 @@ mp = com.member.property;
 mtype = mp.type;
 midstory = mp.idstory;
 
-% z軸方向余弦と断面位置補正係数
-czl = cross(cxl, cyl, 2);
+% 断面位置補正係数
 sign_cz = ones(size(cxl, 1), 1);
 sign_cz(cxl(:, 3) < 0) = -1;
 
@@ -111,11 +110,13 @@ for ilc = 1:nlc
   nframe(ilc) = nfr;
 
   % 柱の水平力成分(加力方向, kN, FEM符号)
+  % rs0 の斜め柱せん断は全体系XY成分へ換算済み。
   N = rs0(:, 1, ilc);
-  Qy = rs0(:, 2, ilc);
-  Qz = rs0(:, 3, ilc);
-  Fh_col = (N .* cxl(:, idir_eq) + Qy .* cyl(:, idir_eq) ...
-    + Qz .* czl(:, idir_eq)) .* sign_cz / 1000;
+  if idir_eq == 1
+    Fh_col = (N .* cxl(:, 1) - rs0(:, 3, ilc)) .* sign_cz / 1000;
+  else
+    Fh_col = (N .* cxl(:, 2) + rs0(:, 2, ilc)) .* sign_cz / 1000;
+  end
 
   % ブレースの水平力(跨ぐ階に計上, kN)
   Qb_nb = Q_nb(:, ilc) / 1000;
