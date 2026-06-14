@@ -14,12 +14,14 @@ end
 if do_parallel
   parfor i=1:nlist0
     xcell{i} = restore_individual(...
-      xlist0(i,:), idvlist(i), secdim0(:,:,i), secmgr, idstory2varH, options);
+      xlist0(i,:), idvlist(i), secdim0(:,:,i), secmgr, ...
+      idstory2varH, options);
   end
 else
   for i=1:nlist0
     xcell{i} = restore_individual(...
-      xlist0(i,:), idvlist(i), secdim0(:,:,i), secmgr, idstory2varH, options);
+      xlist0(i,:), idvlist(i), secdim0(:,:,i), secmgr, ...
+      idstory2varH, options);
   end
 end
 
@@ -37,7 +39,7 @@ end
 
 %--------------------------------------------------------------------------
 function xvar = restore_individual(...
-  xvar0, idvar, secdim, secmgr, idstory2varH, options)
+  xvar0, idvar, ~, secmgr, idstory2varH, options)
 
 % 準備
 % [nstory, mH] = size(idstory2varH);
@@ -75,7 +77,8 @@ for iv=1:nv
     % 動かさない変数
     continue
   end
-  [~, xup, xdw] = secmgr.enumerateNeighborH(xvar0, idvarH(iv), options, dH);
+  [~, xup, xdw] = secmgr.enumerateNeighborH(...
+    xvar0, idvarH(iv), options, dH);
   if ~isempty(xup)
     xu(iv) = round(xup(end,idvarH(iv))/50);
   end
@@ -86,9 +89,9 @@ end
 
 % 計算準備
 type_hsvar = options.coptions.alfa_girder_height_smooth_var;
-[Dmat, H, idtstory2H, Hmax, idtstory2Hmax] = ...
+[Dmat, ~, idtstory2H, ~, idtstory2Hmax] = ...
   Hdiff_matrix(xvar0, idstory2varH, options);
-[ntstory, naxis] = size(idtstory2H);
+[ntstory, ~] = size(idtstory2H);
 
 % --- 係数行列 ---
 % 目的関数
@@ -147,8 +150,9 @@ lpopt = optimoptions('intlinprog' ...
   );
 
 % 求解
-[ysol,fval,exitflag,output] = intlinprog(...
-  f,numel(f),A,b,Aeq,beq,lb,ub,y0,lpopt);
+intcon = 1:nv;
+[ysol,~,~,~] = intlinprog(...
+  f,intcon,A,b,Aeq,beq,lb,ub,y0,lpopt);
 Hsol = round(ysol(1:nv))*50;
 xvar = xvar0;
 xvar(idvarH) = Hsol;
