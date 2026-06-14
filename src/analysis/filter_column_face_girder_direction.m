@@ -19,7 +19,9 @@ idnode2 = member_girder.idnode2;
 dx = node.x(idnode2) - node.x(idnode1);
 dy = node.y(idnode2) - node.y(idnode1);
 
+is_xy = member_girder.is_gx & member_girder.is_gy;
 girderDir = member_girder.idir;
+girderDir(is_xy) = PRM.XY;
 
 % X方向リスト: 入力XラベルでY差を持つ梁のみ除外
 [idmeg1x, idsec1x] = filter_column_face_list( ...

@@ -56,6 +56,10 @@ member_column = com.member.column;
 member_brace = com.member.brace;
 % lgm = com.member.property.lm(com.member.girder.idme);
 
+[member_girder.is_gx, member_girder.is_gy] = ...
+  classify_girder_cxl_direction(member_girder.cxl);
+com.member.girder = member_girder;
+
 %% 変数配列
 [design_idvar, design_idsec, design_variable_type, ...
   design_variable_idpvar] = set_idvar_to_design(com);
@@ -96,7 +100,8 @@ com.num.nominal_column = nnz(idnominal_column(:,2)==1);
 col_in1 = member_column.idnode1;
 gir_in1 = member_girder.idnode1;
 gir_in2 = member_girder.idnode2;
-gir_idir = member_girder.idir;
+gir_isgx = member_girder.is_gx;
+gir_isgy = member_girder.is_gy;
 gir_isfg = member_girder.isfg;
 nmc_ = length(member_column.idme);
 onfg_x = false(nmc_, 1);
@@ -106,9 +111,8 @@ for ic = 1:nmc_
   is_conn = (gir_in1 == in | gir_in2 == in);
   is_fg = is_conn & gir_isfg;
   if any(is_fg)
-    dirs = gir_idir(is_fg);
-    onfg_x(ic) = any(dirs==PRM.X | dirs==PRM.XY);
-    onfg_y(ic) = any(dirs==PRM.Y | dirs==PRM.XY);
+    onfg_x(ic) = any(gir_isgx(is_fg));
+    onfg_y(ic) = any(gir_isgy(is_fg));
   end
 end
 com.member.column.onfg_x = onfg_x;
@@ -250,6 +254,9 @@ cgsr.idvoftw = cgsr_idvoftw;
 cgsr.idvoftf = cgsr_idvoftf;
 cgsr.idvofD = cgsr_idvofD;
 cgsr.idvoft = cgsr_idvoft;
+[cgsr.is_gx_member, cgsr.is_gy_member] = ...
+  expand_girder_direction_flags(com.nme, com.member.girder.idme, ...
+  com.member.girder.is_gx, com.member.girder.is_gy);
 com.cgsr = cgsr;
 com.ncgsr = length(cgsr_idnode);
 
@@ -506,17 +513,19 @@ nmeg = com.nmeg;
 idmeg2n = [com.member.girder.idnode1 com.member.girder.idnode2];
 idmec2n = [com.member.column.idnode1 com.member.column.idnode2];
 idmeg2sec = com.section.girder.idsec(com.member.girder.idsecg);
-idmeg2dir = com.member.girder.idir;
+idmeg2isgx = com.member.girder.is_gx;
+idmeg2isgy = com.member.girder.is_gy;
 iggg = 1:nmeg;
+dirs = [PRM.X PRM.Y];
+dir_flags = {idmeg2isgx, idmeg2isgy};
 
 % 最大接続梁本数を調査
 max_n = 0;
 for ic = 1:nmec
   for ilr = 1:2
-    for idir = [PRM.X PRM.Y]
-      % idir==PRM.XY（45度梁）は両方向に含める
-      idmeg = iggg(any(idmeg2n==idmec2n(ic,ilr)...
-        &(idmeg2dir==idir | idmeg2dir==PRM.XY),2));
+    for k = 1:2
+      is_target_dir = dir_flags{k};
+      idmeg = iggg(any(idmeg2n==idmec2n(ic,ilr) & is_target_dir,2));
       max_n = max(max_n, length(idmeg));
     end
   end
@@ -539,11 +548,11 @@ idmec2meg2y = zeros(nmec, max_n);
 % 関係する変数の数え上げ
 for ic = 1:nmec
   for ilr = 1:2
-    for idir = [PRM.X PRM.Y]
+    for k = 1:2
+      idir = dirs(k);
       % 対象変数の特定
-      % idir==PRM.XY（45度梁）は両方向に含める
-      idmeg = iggg(any(idmeg2n==idmec2n(ic,ilr)...
-        &(idmeg2dir==idir | idmeg2dir==PRM.XY),2));
+      is_target_dir = dir_flags{k};
+      idmeg = iggg(any(idmeg2n==idmec2n(ic,ilr) & is_target_dir,2));
 
       % 節点の格納
       n = length(idmeg);

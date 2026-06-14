@@ -9,8 +9,10 @@ nstory = com.nstory;
 idm2n = [com.member.property.idnode1 com.member.property.idnode2];
 idm2var = com.member.property.idvar;
 idn2s = com.node.idstory;
-medir = com.member.property.idir;
 mtype = com.member.property.type;
+idmeg2m = com.member.girder.idme;
+[is_gx_member, is_gy_member] = expand_girder_direction_flags( ...
+  nme, idmeg2m, com.member.girder.is_gx, com.member.girder.is_gy);
 % RC柱判定用
 section_type = com.member.property.section_type;
 
@@ -38,9 +40,8 @@ for icg = 1:ncgsr
   % 対象変数の特定
   in = idnode(icg);
   isconnected = any(idm2n==in,2);
-  % 45度梁（PRM.XY）は両方向に含める
-  isgx = isconnected&(medir==PRM.X|medir==PRM.XY)&mtype==PRM.GIRDER;
-  isgy = isconnected&(medir==PRM.Y|medir==PRM.XY)&mtype==PRM.GIRDER;
+  isgx = isconnected & is_gx_member & mtype==PRM.GIRDER;
+  isgy = isconnected & is_gy_member & mtype==PRM.GIRDER;
   idmofgx = immm(isgx);
   idmofgy = immm(isgy);
   idmofc = immm(isconnected&mtype==PRM.COLUMN);

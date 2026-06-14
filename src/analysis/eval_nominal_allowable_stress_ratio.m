@@ -1,7 +1,7 @@
 function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
   fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, ...
   id_center_sel] = eval_nominal_allowable_stress_ratio(msdim, ...
-  stn, stcn, A, Iy, Iz, C, mtype, stype, dir_girder, wgx, wgy, ...
+  stn, stcn, A, Iy, Iz, C, mtype, stype, is_gx, is_gy, wgx, wgy, ...
   Em, Fm, idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, ...
   isgmirrored, idmg2ng, idmc2nc, options, beta, lcdir, ...
   col_idstory, onfg_x, onfg_y, Cn, nomgc, column_buckling_K)
@@ -11,7 +11,7 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %     fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ration,
 %     bkinfo, id_center_sel] =
 %     eval_nominal_allowable_stress_ratio(msdim, stn,
-%     stcn, A, Iy, Iz, C, mtype, stype, dir_girder, wgx,
+%     stcn, A, Iy, Iz, C, mtype, stype, is_gx, is_gy, wgx,
 %     wgy, Em, Fm, idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint,
 %     nominal, isgmirrored, idmg2ng, idmc2nc, options,
 %     beta, lcdir, col_idstory, onfg_x, onfg_y, Cn,
@@ -28,7 +28,8 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %     C           - ねじり定数等 (struct)
 %     mtype       - 部材タイプ [nme×1]
 %     stype       - 断面タイプ [nme×1]
-%     dir_girder  - 梁の方向 [ng×1]
+%     is_gx       - X方向計算に寄与する梁部材 [nme×1]
+%     is_gy       - Y方向計算に寄与する梁部材 [nme×1]
 %     wgx, wgy    - 梁剛比のX/Y方向平面振れ角重み cos2θ [nme×1]
 %                   （SS7互換: 水平面内の振れ角のみ考慮）
 %     Em          - ヤング係数 [nme×1]
@@ -86,11 +87,7 @@ clam = pi*sqrt(Em./(0.6*Fm));
 ft = [Fm/1.5 Fm];
 fs = [Fm/(1.5*sqrt(3)) Fm/sqrt(3)];
 
-% 方向別入力の準備
-dir_full = zeros(nme, 1);
-dir_full(mtype==PRM.GIRDER) = dir_girder;
-is_gx = dir_full==PRM.X | dir_full==PRM.XY;
-is_gy = dir_full==PRM.Y | dir_full==PRM.XY;
+% 方向別入力の準備（is_gx/is_gy は呼び出し側で算定済み）
 ilc_x = lcdir==PRM.EXP | lcdir==PRM.EXN;
 ilc_y = lcdir==PRM.EYP | lcdir==PRM.EYN;
 

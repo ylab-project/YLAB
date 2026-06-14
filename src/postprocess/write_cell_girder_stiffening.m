@@ -50,12 +50,11 @@ iggg = 1:ng;
 irow = 0;
 for i = 1:nstory
   ist = nstory-i+1;
-  % X方向梁と45度梁を処理
+  % X方向梁を処理
   for iy = 1:nbly
     for ix = 1:nblx
       ig = iggg(girder.idstory==ist & girder.idx(:,1)==ix & ...
-        girder.idy(:,1)==iy & ...
-        (girder.idir==PRM.X | girder.idir==PRM.XY));
+        girder.idy(:,1)==iy & girder.idir==PRM.X);
       if isempty(ig) || gstype(ig) ~=PRM.WFS
         continue
       end
@@ -66,7 +65,7 @@ for i = 1:nstory
       print_row
     end
   end
-  % Y方向梁を処理（45度梁は既に上で処理済み）
+  % Y方向梁を処理
   for ix = 1:nblx
     for iy = 1:nbly
       ig = iggg(girder.idstory==ist & girder.idx(:,1)==ix & ...
@@ -93,27 +92,34 @@ return
     body{irow,4} = girder.coord_name{ig,2};
     isg = girder.idsecg(ig);
     body{irow,5} = make_section_symbol(secg, isg);
-    body{irow,6} = sprintf('%.0f', slratio.lg(ig));
-    if slratio.lb(ig,1)~=slratio.lg(ig)
-      body{irow,8} = sprintf('%.0f', slratio.lb(ig,1));
+    lg_ = slratio.lg(ig);
+    [lb1_, is_lb1_full] = ...
+      normalize_full_length_interval(slratio.lb(ig,1), lg_);
+    [lb2_, is_lb2_full] = ...
+      normalize_full_length_interval(slratio.lb(ig,2), lg_);
+    lbmax_ = normalize_full_length_interval(slratio.lbmax(ig), lg_);
+    body{irow,6} = fmt_ceil_abs(lg_, 0);
+    body{irow,7} = sprintf('%.0f', slratio.n(ig));
+    if ~is_lb1_full
+      body{irow,8} = fmt_ceil_abs(lb1_, 0);
     end
-    if slratio.lb(ig,2)~=slratio.lg(ig)
-      body{irow,11} = sprintf('%.0f', slratio.lb(ig,2));
+    if ~is_lb2_full
+      body{irow,11} = fmt_ceil_abs(lb2_, 0);
     end
-    body{irow,12} = sprintf('%.0f', slratio.lbmax(ig));
+    body{irow,12} = fmt_ceil_abs(lbmax_, 0);
     body{irow,13} = sprintf('%.0f', slratio.lambda(ig));
-    body{irow,14} = sprintf('%.0f', slratio.lbreq1(ig));
+    body{irow,14} = fmt_ceil_abs(slratio.lbreq1(ig), 0);
     % 必要n: 等間隔配置の限界Lbを最大Lbが超える場合は補剛不能を示す *
     nreq_str = sprintf('%d', slratio.nreq(ig));
     if slratio.lbmax(ig) > slratio.lbreq1(ig)
       nreq_str = [nreq_str '*'];
     end
     body{irow,15} = nreq_str;
-    body{irow,16} = sprintf('%.0f', slratio.lbmy(ig,1));
-    body{irow,17} = sprintf('%.0f', slratio.lbmy(ig,2));
+    body{irow,16} = fmt_ceil_abs(slratio.lbmy(ig,1), 0);
+    body{irow,17} = fmt_ceil_abs(slratio.lbmy(ig,2), 0);
     % 端部 限界Lb: Myを超える範囲にかかる横補剛間隔が限界Lbを超える場合 *
     % 補剛なし（n=0）時は最大Lbを横補剛間隔として評価
-    lbreq2_str = sprintf('%.0f', slratio.lbreq2(ig));
+    lbreq2_str = fmt_ceil_abs(slratio.lbreq2(ig), 0);
     if slratio.lbmax(ig) > slratio.lbreq2(ig)
       lbreq2_str = [lbreq2_str '*'];
     end
@@ -124,6 +130,17 @@ return
       judgement = 'NG';
     end
     body{irow,19} = judgement;
+  end
+
+  function [len, is_full_length] = normalize_full_length_interval( ...
+    len, full_len)
+  %normalize_full_length_interval - 全長相当の補剛間隔を部材長へ寄せる
+    is_full_length = abs(len - full_len) < 1;
+    if is_full_length
+      len = full_len;
+    end
+
+    return
   end
 
 end

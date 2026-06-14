@@ -53,7 +53,6 @@ idvarHgap = com.Hgap.idvar;                   % 梁せい差評価用変数番�
 idvarDgap = com.Dgap.idvar;                   % 柱外径差評価用変数番号
 idsecHgap = com.Hgap.idsec;                   % 梁せい差評価用断面番号
 lcdir = com.loadcase.dir;                     % 荷重ケースの方向
-mdir = com.member.property.idir;              % 部材方向
 mtype = com.member.property.type;             % 部材タイプ
 mstype = com.member.property.section_type;    % 部材断面タイプ
 idme2stype = com.member.property.section_type; % 部材→断面タイプ
@@ -94,12 +93,11 @@ cyl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcyl;
 
 % 梁剛比の平面振れ角重み（柱座屈長さ係数算定用）
 % SS7互換: 水平面内の振れ角のみ cos2θ を乗じ、鉛直傾きは考慮しない
-ch2 = cxl(:,1).^2 + cxl(:,2).^2;             % 水平成分の2乗和
-ch2(ch2==0) = 1;                             % 鉛直部材のゼロ割防止
-wgx = cxl(:,1).^2./ch2;                      % X方向への cos2θ
-wgy = cxl(:,2).^2./ch2;                      % Y方向への cos2θ
-[dir_girder_actual, is_gx_girder, is_gy_girder] = ...
-  classify_girder_plane_direction(wgx(idmg2m), wgy(idmg2m));
+[wgx, wgy] = calc_plane_direction_weights(cxl);
+is_gx_girder = com.member.girder.is_gx;
+is_gy_girder = com.member.girder.is_gy;
+is_gx_member = com.cgsr.is_gx_member;
+is_gy_member = com.cgsr.is_gy_member;
 
 % 解析結果から断面諸元を取得
 A = msprop.A;                                 % 断面積
@@ -182,7 +180,7 @@ if coptions.consider_stress_ratio
   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, fcn, fbn, ...
     fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, id_center_sel] = ...
     eval_nominal_allowable_stress_ratio(msdim, stn, stcn, A, Iy, ...
-    Iz, C, mtype, mstype, dir_girder_actual, wgx, wgy, Em, Fm, ...
+    Iz, C, mtype, mstype, is_gx_member, is_gy_member, wgx, wgy, Em, Fm, ...
     idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, ...
     isgmirrored, idmg2mng, idmc2mnc, options, beta, lcdir, ...
     idmc2st, com.member.column.onfg_x, com.member.column.onfg_y, ...
@@ -339,7 +337,7 @@ end
 %% 柱梁耐力比制約
 % 帳票出力用に常時計算し、制約への組込みのみオプションに従う
 [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, vix, viy, idncgsr, ...
-  idm2n, idmc2m, mdir, mtype, Fm, cxl);
+  idm2n, idmc2m, mtype, Fm, cxl, is_gx_member, is_gy_member);
 if coptions.consider_joint_strength_ratio
   concgsr = concgsr+coptions.alfa_joint_strength_ratio;
 else

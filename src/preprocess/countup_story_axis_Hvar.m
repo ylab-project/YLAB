@@ -11,7 +11,8 @@ idmeg2story = com.member.girder.idstory;
 idmeg2var = com.member.girder.idvar;
 idmeg2x = com.member.girder.idx;
 idmeg2y = com.member.girder.idy;
-idmeg2dir = com.member.girder.idir;
+idmeg2isgx = com.member.girder.is_gx;
+idmeg2isgy = com.member.girder.is_gy;
 idme_exclusion = com.exclusion.girder_smooth.idme;
 % idm2var = com.member.property.idvar;
 % idm2n1 = com.member.property.idnode1;
@@ -30,12 +31,10 @@ for ig=1:nmeg
   idx = idmeg2x(ig,:);
   idy = idmeg2y(ig,:);
   ids = idmeg2story(ig,:);
-  idir_ = idmeg2dir(ig);
-  % idir==PRM.XY（45度梁）は両方向に登録
-  if (idir_==PRM.X || idir_==PRM.XY)
+  if idmeg2isgx(ig)
     idvarHgx(idx(1):idx(2)-1,idy(1),ids) = idmeg2var(ig,1);
   end
-  if (idir_==PRM.Y || idir_==PRM.XY)
+  if idmeg2isgy(ig)
     idvarHgy(idx(1),idy(1):idy(2)-1,ids) = idmeg2var(ig,1);
   end
 end
