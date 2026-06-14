@@ -296,8 +296,18 @@ lnm(mtype==PRM.COLUMN) = calc_nominal_column_length( ...
 
 % 名目梁4検定位置のlb/xc/sub情報を算定
 lfg = lf.girder;
+stiffening_info = struct();
+if has_table_field(nominal_girder, 'stiffening_lb_end')
+  stiffening_info.lb_end = nominal_girder.stiffening_lb_end;
+end
+if has_table_field(nominal_girder, 'stiffening_xc')
+  stiffening_info.xc = nominal_girder.stiffening_xc;
+end
+if has_table_field(nominal_girder, 'stiffening_xc_bounds')
+  stiffening_info.xc_bounds = nominal_girder.stiffening_xc_bounds;
+end
 nomgc = calc_nominal_girder_check_interval(lbng, lm(mtype==PRM.GIRDER), ...
-  lfg, idmeg);
+  lfg, idmeg, stiffening_info);
 lbnc = update_lb_nominal_column(lm(mtype==PRM.COLUMN), ...
   lnm(mtype==PRM.COLUMN), nominal_column);
 idg2ng = member_girder.idnominal(:,1);

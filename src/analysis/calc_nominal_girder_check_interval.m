@@ -1,4 +1,5 @@
-function nomgc = calc_nominal_girder_check_interval(lbng, lmg, lfg, idmeg)
+function nomgc = calc_nominal_girder_check_interval( ...
+  lbng, lmg, lfg, idmeg, stiffening_info)
 %calc_nominal_girder_check_interval - 名目梁4検定位置の情報を算定
 %
 %   nomgc = calc_nominal_girder_check_interval(lbng, lmg, lfg, idmeg) は、
@@ -11,6 +12,7 @@ function nomgc = calc_nominal_girder_check_interval(lbng, lmg, lfg, idmeg)
 %     lmg   [nmg×1]    - 梁部材長（sub部材単位）
 %     lfg   [nmg×2]    - 梁フェイス長 [左, 右]
 %     idmeg [nng×nsub] - 名目梁→sub梁インデックス
+%     stiffening_info - 任意。入力横補剛の中央区間・端部Lb情報
 %
 %   出力引数:
 %     nomgc - 名目梁検定位置情報の構造体
@@ -19,11 +21,22 @@ function nomgc = calc_nominal_girder_check_interval(lbng, lmg, lfg, idmeg)
 %       .xc_design [nng×1] - 断面算定の中央位置（内法スパン中央）
 %       .idsub     [nng×4] - 属するsub番号(名目梁内)
 
+if nargin < 5
+  stiffening_info = struct();
+end
+
 nng = size(idmeg, 1);
 nomgc.lb = zeros(nng, 4);
 nomgc.xc = nan(nng, 3);
 nomgc.xc_design = zeros(nng, 1);
 nomgc.idsub = zeros(nng, 4);
+has_stiff_xc = isfield(stiffening_info, 'xc') ...
+  && size(stiffening_info.xc, 1) >= nng;
+has_stiff_xc_bounds = isfield(stiffening_info, 'xc_bounds') ...
+  && size(stiffening_info.xc_bounds, 1) >= nng;
+has_stiff_lbend = isfield(stiffening_info, 'lb_end') ...
+  && size(stiffening_info.lb_end, 1) >= nng;
+TOL = 1e-6;
 
 for ing = 1:nng
   igs = idmeg(ing,:);
@@ -44,6 +57,36 @@ for ing = 1:nng
 
   % xc（中央座屈区間）の算定
   xc_row = calc_xc_row(lnom, lb1, lb2, xc_center);
+  has_center_xc = false;
+  if has_stiff_xc_bounds
+    xc_bounds = stiffening_info.xc_bounds(ing, :);
+    xa = xc_bounds(1);
+    xb = xc_bounds(2);
+    has_center_xc = all(~ismissing(xc_bounds)) ...
+      && xa < xb && xb <= lnom + TOL ...
+      && xa <= xc_center + TOL && xc_center <= xb + TOL;
+  elseif has_stiff_xc
+    xc_spec = stiffening_info.xc(ing, :);
+    xa = xc_spec(1);
+    xb = lnom - xc_spec(2);
+    has_center_xc = all(~ismissing(xc_spec)) && all(xc_spec >= 0) ...
+      && xa < xb && xb <= lnom + TOL ...
+      && xa <= xc_center + TOL && xc_center <= xb + TOL;
+  end
+  if has_center_xc
+    xc_row = [xa xb nan];
+    if has_stiff_lbend
+      lbend_ = stiffening_info.lb_end(ing, :);
+      has_lbend = all(~ismissing(lbend_)) && all(lbend_ > 0);
+      if has_lbend
+        if abs(xc_center - xa) < TOL
+          xc_row = [max(xa - lbend_(2), 0) xa xb];
+        elseif abs(xc_center - xb) < TOL
+          xc_row = [xa xb min(xb + lbend_(4), lnom)];
+        end
+      end
+    end
+  end
   nomgc.xc(ing, :) = xc_row;
 
   % lb col3/col4: 中央L/Rのlb
@@ -71,7 +114,7 @@ for ing = 1:nng
     % 中央がsub境界と一致するか判定
     is_at_split = false;
     for k = 2:nsub
-      if abs(xc_center - sub_x0(k)) < 1e-6
+      if abs(xc_center - sub_x0(k)) < TOL
         is_at_split = true;
         nomgc.idsub(ing,3) = k-1;
         nomgc.idsub(ing,4) = k;

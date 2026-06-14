@@ -284,26 +284,36 @@ for i = 1:nstory
           nl_ = 0; nr_ = 0;
         end
         scgbody{irow,12} = sprintf('(左) %d本 (右) %d本', nl_, nr_);
+        lbreq2_str_ = fmt_ceil_abs(lbreq2_, 0);
+        lbreq2_suffix_ = '';
         if ~is_ok_end_
-          scgbody{irow,15} = sprintf('限界Lb %.0f*', lbreq2_);
-        else
-          scgbody{irow,15} = sprintf('限界Lb %.0f', lbreq2_);
+          lbreq2_suffix_ = '*';
         end
+        scgbody{irow,15} = ['限界Lb ' lbreq2_str_ lbreq2_suffix_];
       end
 
       % --- Lb値行（補剛数>0のとき） ---
       if ns_ > 0 && has_slr
         irow = irow + 1;
-        lb1_ = slratio.lb(ig1, 1);
-        lb4_ = slratio.lb(ig1, 2);
-        scgbody{irow, 7} = sprintf('%.0f', lb1_);
-        scgbody{irow,10} = sprintf('%.0f', lb4_);
-        if ns_ >= 2
-          lb_mid_ = lm_ / (ns_ + 1);
-          scgbody{irow,8} = sprintf('%.0f', lb_mid_);
-        end
-        if ns_ >= 3
-          scgbody{irow,9} = sprintf('%.0f', lb_mid_);
+        [ns_, lb_report_, has_report_lb_] = ...
+          get_stiffening_lb_report(nominal_girder, ing, ns_);
+        if has_report_lb_
+          for ilb_ = 1:ns_
+            scgbody{irow, 6 + ilb_} = ...
+              sprintf('%.0f', lb_report_(ilb_));
+          end
+        else
+          lb1_ = slratio.lb(ig1, 1);
+          lb4_ = slratio.lb(ig1, 2);
+          scgbody{irow, 7} = sprintf('%.0f', lb1_);
+          scgbody{irow,10} = sprintf('%.0f', lb4_);
+          if ns_ >= 2
+            lb_mid_ = lm_ / (ns_ + 1);
+            scgbody{irow,8} = sprintf('%.0f', lb_mid_);
+          end
+          if ns_ >= 3
+            scgbody{irow,9} = sprintf('%.0f', lb_mid_);
+          end
         end
       end
 

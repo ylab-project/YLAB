@@ -40,6 +40,19 @@ lbmax = lb0;
 ngs = size(girder_stiffening,1);
 idmeg = girder_stiffening.idmeg;
 lbgs = girder_stiffening.Lb;
+if has_table_field(girder_stiffening, 'Lb_end')
+  lbend_gs = girder_stiffening.Lb_end;
+else
+  lbend_gs = nan(ngs, 4);
+end
+if has_table_field(girder_stiffening, 'xc')
+  xcgs = girder_stiffening.xc;
+else
+  xcgs = nan(ngs, 2);
+end
+lbend_nom = nan(nng, 4);
+xc_nom = nan(nng, 2);
+xc_bounds_nom = nan(nng, 2);
 
 % 補剛間隔の読み取り
 has_stiff_entry = false(nmg, 1);
@@ -60,12 +73,20 @@ for i = 1:ngs
 
   % 結果の保存
   ngi = nnz(idmeg(i,:));
-  for j = 1:ngi
-    ig = idmeg(i,j);
+  igs = idmeg(i, 1:ngi);
+  for j = 1:numel(igs)
+    ig = igs(j);
     lb(ig,1:2) = [lb1 lb2];
     lbmax(ig) = lbmax_;
     has_stiff_entry(ig) = true;
     has_lbmax_entry(ig) = ~ismissing(lbmax_);
+  end
+  ing_list = member_girder.idnominal(igs, 1);
+  ing_list = unique(ing_list(ing_list > 0));
+  for j = 1:numel(ing_list)
+    ing = ing_list(j);
+    lbend_nom(ing, :) = lbend_gs(i, :);
+    xc_nom(ing, :) = xcgs(i, :);
   end
 end
 
@@ -206,10 +227,27 @@ end
 
 % 名目梁単位の補剛区間数（stiffening_lbの累積）
 nstiff_nom = zeros(nng, 1);
+stiffening_n = nan(nng, 1);
+stiffening_lb_report = nan(nng, 4);
 for ing = 1:nng
   isubs = ignominal(ing,:);
   isubs(isubs==0) = [];
   lnom = lgmn(isubs(1));
+  lbend_ = lbend_nom(ing, :);
+  xc_ = xc_nom(ing, :);
+  xa = xc_(1);
+  xb = lnom - xc_(2);
+  has_center_4 = all(~ismissing(lbend_)) && all(lbend_ > 0) ...
+    && all(~ismissing(xc_)) && all(xc_ >= 0) && xa < xb && xb <= lnom;
+  if has_center_4
+    xc_bounds_nom(ing, :) = [xa xb];
+    stiffening_n(ing) = 4;
+    % 帳票Lb1-4順: 入力 Lb_end=[左1 左2 右1 右2] の右ペアを反転
+    stiffening_lb_report(ing, :) = ...
+      [lbend_(1) lbend_(2) lbend_(4) lbend_(3)];
+    nstiff_nom(ing) = 5;
+    continue
+  end
   cum = cumsum(lbn(ing, :));
   nint = find(cum >= lnom - 0.5, 1, 'first');
   if isempty(nint)
@@ -221,6 +259,11 @@ end
 % 結果保存
 nominal_girder.nstiff = nstiff_nom;
 nominal_girder.stiffening_lb = lbn;
+nominal_girder.stiffening_lb_end = lbend_nom;
+nominal_girder.stiffening_xc = xc_nom;
+nominal_girder.stiffening_xc_bounds = xc_bounds_nom;
+nominal_girder.stiffening_n = stiffening_n;
+nominal_girder.stiffening_lb_report = stiffening_lb_report;
 member_girder.slr_is_target = is_target_slr;
 member_girder.slr_lb = slrlb;
 member_girder.slr_lbmax = slr_lbmax;

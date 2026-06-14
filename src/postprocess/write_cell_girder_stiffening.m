@@ -22,6 +22,7 @@ nstory = com.nstory;
 
 % 共通配列
 girder = com.member.girder;
+nominal_girder = com.nominal.girder;
 secg = com.section.girder;
 slratio = result.slratio;
 gstype = girder.section_type;
@@ -98,13 +99,22 @@ return
     [lb2_, is_lb2_full] = ...
       normalize_full_length_interval(slratio.lb(ig,2), lg_);
     lbmax_ = normalize_full_length_interval(slratio.lbmax(ig), lg_);
+    ing_ = girder.idnominal(ig, 1);
+    [n_, lb_report_, has_report_lb_] = ...
+      get_stiffening_lb_report(nominal_girder, ing_, slratio.n(ig));
     body{irow,6} = fmt_ceil_abs(lg_, 0);
-    body{irow,7} = sprintf('%.0f', slratio.n(ig));
-    if ~is_lb1_full
-      body{irow,8} = fmt_ceil_abs(lb1_, 0);
-    end
-    if ~is_lb2_full
-      body{irow,11} = fmt_ceil_abs(lb2_, 0);
+    body{irow,7} = sprintf('%.0f', n_);
+    if has_report_lb_
+      for ilb_ = 1:n_
+        body{irow,7 + ilb_} = fmt_ceil_abs(lb_report_(ilb_), 0);
+      end
+    else
+      if ~is_lb1_full
+        body{irow,8} = fmt_ceil_abs(lb1_, 0);
+      end
+      if ~is_lb2_full
+        body{irow,11} = fmt_ceil_abs(lb2_, 0);
+      end
     end
     body{irow,12} = fmt_ceil_abs(lbmax_, 0);
     body{irow,13} = sprintf('%.0f', slratio.lambda(ig));
@@ -117,10 +127,9 @@ return
     body{irow,15} = nreq_str;
     body{irow,16} = fmt_ceil_abs(slratio.lbmy(ig,1), 0);
     body{irow,17} = fmt_ceil_abs(slratio.lbmy(ig,2), 0);
-    % 端部 限界Lb: Myを超える範囲にかかる横補剛間隔が限界Lbを超える場合 *
-    % 補剛なし（n=0）時は最大Lbを横補剛間隔として評価
+    % 端部 限界Lb: 端部配置で満足しない場合のみ補剛不能を示す *
     lbreq2_str = fmt_ceil_abs(slratio.lbreq2(ig), 0);
-    if slratio.lbmax(ig) > slratio.lbreq2(ig)
+    if ~slratio.isOkEnd(ig)
       lbreq2_str = [lbreq2_str '*'];
     end
     body{irow,18} = lbreq2_str;
