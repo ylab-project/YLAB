@@ -1,6 +1,6 @@
 function [lm_girder_weight, face_deduct] = ...
   calc_girder_weight_length(...
-  member_girder, node, stype_sec, ...
+  member_girder, node, cxl, stype_sec, ...
   idsecg2sec, secdim, Df_foundation)
 %calc_girder_weight_length - 梁荷重計算用の部材長を算出
 %
@@ -11,7 +11,7 @@ function [lm_girder_weight, face_deduct] = ...
 %   小梁: 通り心間距離
 %
 % 斜め梁・節点上下移動の場合:
-%   鉛直方向はnode.zの差を使用し、水平移動量と合わせて実長を計算
+%   数量用の標準系座標 node.z_standard と標準系方向余弦 cxl を使う。
 %
 % 柱と梁の構造種別による場合分け:
 %   同種別（RC-RC, S-S）: 柱面まで
@@ -24,7 +24,8 @@ function [lm_girder_weight, face_deduct] = ...
 % Inputs:
 %   member_girder - 梁部材構造体
 %     （idme, idsecg, idsec_facel/r, isthrough, idnode1/2）
-%   node          - 節点構造体（x, y, z）
+%   node          - 節点構造体（x, y, z_standard）
+%   cxl           - 標準系の梁軸方向余弦 [nmeg×3]
 %   stype_sec     - 断面種別配列 [nsec×1]
 %   idsecg2sec    - 梁断面ID→統一断面IDの変換配列
 %   secdim        - 断面寸法配列 [nsec×ncol]
@@ -56,23 +57,15 @@ isthrough = member_girder.isthrough;  % [nmeg×3]
 idnode1 = member_girder.idnode1;
 idnode2 = member_girder.idnode2;
 
-% 梁端間の3D距離（node.zは実座標のため、同一層内の
-% 節点上下移動も異層の斜め梁も正しく処理できる）
-dz = abs(node.z(idnode2) - node.z(idnode1));
+% 梁端間の標準系3D距離
+dz = abs(node.z_standard(idnode2) - node.z_standard(idnode1));
 dx = node.x(idnode2) - node.x(idnode1);
 dy = node.y(idnode2) - node.y(idnode1);
 horizontal = sqrt(dx.^2 + dy.^2);
 lm_girder_weight = sqrt(dz.^2 + horizontal.^2);
 
-% 斜め梁の換算係数（水平方向→斜め方向）
-scale = ones(nmeg, 1);
-is_sloped = ...
-  horizontal > 0 & lm_girder_weight > horizontal;
-scale(is_sloped) = lm_girder_weight(is_sloped) ...
-  ./ horizontal(is_sloped);
-
-% 柱面減算量の初期化
-face_deduct = zeros(nmeg, 2);
+% 柱面寸法の初期化
+face_dimension = zeros(nmeg, 2);
 
 idsec_face = {idsec_facel, idsec_facer};
 for ig = 1:nmeg
@@ -80,25 +73,24 @@ for ig = 1:nmeg
     if isthrough(ig, iend)
       continue
     end
-    face_deduct(ig, iend) = calc_face_deduct( ...
+    face_dimension(ig, iend) = calc_face_dimension( ...
       idsec_face{iend}(ig,:), is_steel_g(ig), ...
-      is_steel_sec, Dc, Df_foundation, scale(ig));
-    lm_girder_weight(ig) = lm_girder_weight(ig) ...
-      - face_deduct(ig, iend);
+      is_steel_sec, Dc, Df_foundation);
   end
 end
+[face_deduct, ~, ~] = calc_girder_face_deduct(face_dimension, cxl);
+lm_girder_weight = lm_girder_weight - sum(face_deduct, 2);
 
 return
 end
 
-function d = calc_face_deduct(ids_row, ...
-  is_steel_g_, is_steel_sec_, ...
-  Dc, Df_foundation, scale_)
-%calc_face_deduct - 片端の柱面減算量を算出
+function face_dimension = calc_face_dimension(ids_row, ...
+  is_steel_g_, is_steel_sec_, Dc, Df_foundation)
+%calc_face_dimension - 片端の柱面寸法を算出
 %
-%   d = calc_face_deduct(ids_row, is_steel_g_,
-%   is_steel_sec_, Dc, Df_foundation, scale_)
-%   は、梁の片端について柱面減算量を算出する。
+%   face_dimension = calc_face_dimension(ids_row, is_steel_g_,
+%   is_steel_sec_, Dc, Df_foundation) は、
+%   梁の片端について数量控除対象の柱面寸法を算出する。
 %
 %   入力引数:
 %     ids_row       - 対面柱断面IDの行 [1×ncol]
@@ -106,24 +98,23 @@ function d = calc_face_deduct(ids_row, ...
 %     is_steel_sec_ - 断面ごとのS造判定 [nsec×1]
 %     Dc            - 柱せい配列 [nsec×1]
 %     Df_foundation - 基礎柱面寸法 [nsec×1]
-%     scale_        - 斜め梁換算係数 (scalar)
 %
 %   出力引数:
-%     d - 柱面減算量 (scalar)
+%     face_dimension - 柱面寸法 (scalar)
 
-d = 0;
+face_dimension = 0;
 ids = ids_row(ids_row > 0);
 for k = 1:length(ids)
   is_steel_c = is_steel_sec_(ids(k));
   if is_steel_g_ == is_steel_c
     % 同種別（S-S または RC-RC）: 柱面まで減算
-    d = Dc(ids(k)) / 2 * scale_;
+    face_dimension = Dc(ids(k));
     return;
   elseif ~is_steel_g_ && is_steel_c
     % RC梁-S柱: 基礎柱があれば基礎柱面まで減算
     Df = Df_foundation(ids(k));
     if Df > 0
-      d = Df / 2 * scale_;
+      face_dimension = Df;
     end
     return;
   end

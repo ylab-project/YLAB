@@ -107,8 +107,6 @@ nominal_column = com.nominal.column;
 nominal_property = com.nominal.property;
 M0 = com.M0;
 % comp_effect = com.member.girder.comp_effect;
-% cxl = com.member.property.cxl;
-% cyl = com.member.property.cyl;
 matE = com.material.E;
 matF = com.material.F;
 matpr = com.material.pr;
@@ -157,7 +155,6 @@ xr = com.node.xr;
 yr = com.node.yr;
 fnode = com.fnode;  % (nnode, 6, nlc)
 faddnode = com.faddnode;  % (nnode, 6, nlc)
-felement = com.felement;  % (nnode, 6, nlc)
 
 %% ---
 if (options.discretization)
@@ -261,8 +258,6 @@ cbstiff = cbs.stiff;
 [~, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
   update_geometry(secdim, baseline, node, story, floor, ...
   section, member, cbs, options, idsup2n);
-member_property.cxl = cxl;
-member_property.cyl = cyl;
 baseline.z.coord = zcoord;
 node.z = nodez;
 lrxm = zeros(nme,2);
@@ -316,7 +311,7 @@ lbnm(mtype==PRM.GIRDER,:) = nomgc.lb(idg2ng, :);
 lbnm(mtype==PRM.COLUMN,1:3) = lbnc;
 
 % 等価外力（要素荷重）の更新
-felement = update_felement(felement, ar, cxl, cyl, idm2n);
+felement = update_felement(ar, cxl, cyl, idm2n, nnode, nlc);
 
 %% 柱梁端部の結合条件
 % mejoint: 1:X柱脚, 2:X柱頭, 3:Y柱脚, 4:Y柱頭
@@ -343,7 +338,8 @@ end
 
 [lm_girder_weight, face_deduct] = ...
   calc_girder_weight_length(member_girder, com.node, ...
-  stype_sec, com.section.girder.idsec, secdim, Df_foundation);
+  member_property.cxl(idmg2m, :), stype_sec, ...
+  com.section.girder.idsec, secdim, Df_foundation);
 
 %% ブレース座屈長（SS7 3.8.1）
 lm_brace_buckling = calc_brace_buckling_length(member.brace, ...
@@ -377,8 +373,9 @@ rho_rc_member = rho_rc_sec(idm2s);
 %% 自重の計算
 if options.consider_self_weight && options.consider_finishing_material
   sw = comp_self_weight(A, lm_weight, lm, member_property, msdim, ...
-    slab, nnode, mejoint, face_deduct, options, member_column, ...
-    brace_unit_weight, Df_foundation, idsup2n, rho_rc_member);
+    slab, cxl, cyl, nnode, mejoint, face_deduct, options, ...
+    member_column, brace_unit_weight, Df_foundation, idsup2n, ...
+    rho_rc_member);
   ar(:,:,1) = ar(:,:,1)+sw.ar;
   M0(:,1)= M0(:,1)+sw.M0;
 else
@@ -567,7 +564,7 @@ end
 % 応力計算
 [rs, Mc] = calc_member_force(1:nlc, dvec, [], frvec, ...
   sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm_stiff, ...
-  lrxm, lrym, flag, member_property, node, material, ...
+  lrxm, lrym, flag, cxl, cyl, member_property, node, material, ...
   cbstiff, idm2mat, idm2scb, mejoint, br_stif, hstiff_type);
 
 % 部材応力をSS7互換の表示基底へ変換

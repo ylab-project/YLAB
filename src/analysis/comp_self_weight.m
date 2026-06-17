@@ -1,11 +1,12 @@
 function sw = comp_self_weight(A, lm_weight, lm, member_property, ...
-  msdim, slab, nnode, mejoint, face_deduct, options, member_column, ...
-  brace_unit_weight, Df_foundation, idsup2n, rho_rc_member)
+  msdim, slab, cxl, cyl, nnode, mejoint, face_deduct, options, ...
+  member_column, brace_unit_weight, Df_foundation, idsup2n, rho_rc_member)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
 %   sw = comp_self_weight(A, lm_weight, lm, member_property, msdim, ...
-%   slab, nnode, mejoint, face_deduct, options, member_column, ...
-%   brace_unit_weight, Df_foundation, idsup2n, rho_rc_member) は、
+%   slab, cxl, cyl, nnode, mejoint, face_deduct, options, ...
+%   member_column, brace_unit_weight, Df_foundation, idsup2n, ...
+%   rho_rc_member) は、
 %   柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを
 %   計算する。梁の等価節点荷重は、柱面間に荷重が分布することを
 %   考慮し、荷重重心位置に基づく偏心配分を行う（SS7方式）。
@@ -18,6 +19,7 @@ function sw = comp_self_weight(A, lm_weight, lm, member_property, ...
 %     msdim           - 部材断面寸法配列
 %     slab            - スラブ情報構造体（RC梁の重複スラブ控除用、
 %                       .width/.thickness/.width_lower/.thickness_lower）
+%     cxl,cyl         - 部材座標系の方向余弦
 %     nnode           - 全節点数
 %     mejoint         - 結合条件配列
 %     face_deduct     - 梁の柱面減算量 [nmeg x 2]（列1: i端, 列2: j端）
@@ -38,9 +40,6 @@ function sw = comp_self_weight(A, lm_weight, lm, member_property, ...
 %          .ar  : 要素座標系の固定端反力
 %          .M0  : 単純梁モーメント
 
-% 共通配列
-cxl = member_property.cxl;
-cyl = member_property.cyl;
 mtype = member_property.type;
 idme2j1 = member_property.idnode1;
 idme2j2 = member_property.idnode2;

@@ -1,17 +1,15 @@
-function [felement, ar, M0] = set_girder_force_block(dbc, com)
-%set_girder_force_block - 梁要素荷重を読み込み等価節点力を計算
+function [ar, M0] = set_girder_force_block(dbc, com)
+%set_girder_force_block - 梁要素荷重を読み込み要素座標系CMQを計算
 %
-%   [felement, ar, M0] = set_girder_force_block(dbc, com) は、
+%   [ar, M0] = set_girder_force_block(dbc, com) は、
 %   CSVの梁要素荷重ブロックからCMQを読み取り、
-%   要素座標系の等価節点力(ar,M0)と
-%   全体座標系の等価節点力(felement)を計算する。
+%   要素座標系の等価節点力(ar,M0)を計算する。
 %
 %   入力引数:
 %     dbc - DataBlockContainerオブジェクト
 %     com - 共通オブジェクト
 %
 %   出力引数:
-%     felement - 全体座標系の節点単位等価節点力 [nnode×6×nlc]
 %     ar       - 要素座標系の等価節点力 [nm×12×nlc]
 %     M0       - 単純梁中央モーメント [nm×nlc]
 %
@@ -24,16 +22,11 @@ n = size(data,1);
 % 共通定数
 nlc = com.nlc;
 nm = com.nme;
-nnode = com.nnode;
 
 % 共通配列
 baseline = com.baseline;
 member_girder = com.member.girder;
-js = com.member.girder.idnode1;
-je = com.member.girder.idnode2;
 loadcase = com.loadcase;
-cxl = member_girder.cxl;
-cyl = member_girder.cyl;
 idmg2m = member_girder.idme;
 
 % --- 分割梁の継続列対応 ---
@@ -98,12 +91,7 @@ end
 ar = zeros(nm,12,nlc);
 M0 = zeros(nm,nlc);
 
-% 部材座標第3軸
-czl = cross(cxl, cyl, 2);
-
 % 要素荷重のセット
-%   ※座標変換行列は[T]^Tなので注意
-felement = zeros(nnode, 6, nlc);
 for i = 1:n
   % 前行の継続で処理済みの行はスキップ
   if i > 1 && is_continued(i-1)
@@ -120,15 +108,13 @@ for i = 1:n
     assert(length(idmeg_all) == 2, '継続行ペア処理は2分割梁のみ対応');
 
     % 1行目 → 1番目の分割梁（i端側）
-    [felement, ar, M0] = apply_single_girder_force( ...
-      idmeg_all(1), arunit, data{i, 18}, ilc, felement, ...
-      ar, M0, idmg2m, cxl, cyl, czl, js, je);
+    [ar, M0] = apply_single_girder_force( ...
+      idmeg_all(1), arunit, data{i, 18}, ilc, ar, M0, idmg2m);
 
     % 2行目 → 2番目の分割梁（j端側）
     arunit_2nd = cell2mat(data(i+1, 6:17));
-    [felement, ar, M0] = apply_single_girder_force( ...
-      idmeg_all(2), arunit_2nd, data{i+1, 18}, ilc, ...
-      felement, ar, M0, idmg2m, cxl, cyl, czl, js, je);
+    [ar, M0] = apply_single_girder_force( ...
+      idmeg_all(2), arunit_2nd, data{i+1, 18}, ilc, ar, M0, idmg2m);
 
   elseif is_split(i)
     % 分割梁だが継続列なし: 未対応
@@ -138,9 +124,8 @@ for i = 1:n
     % 通常梁: 1部材に直接適用
     idmg = idmgs(i,1);
     if idmg == 0, continue, end
-    [felement, ar, M0] = apply_single_girder_force( ...
-      idmg, arunit, data{i, 18}, ilc, felement, ar, ...
-      M0, idmg2m, cxl, cyl, czl, js, je);
+    [ar, M0] = apply_single_girder_force( ...
+      idmg, arunit, data{i, 18}, ilc, ar, M0, idmg2m);
   end
 end
 
@@ -219,52 +204,30 @@ return
 end
 
 
-function [felement, ar, M0] = apply_single_girder_force( ...
-  ig, arunit, M0_val, ilc, felement, ar, M0, idmg2m, ...
-  cxl, cyl, czl, js, je)
+function [ar, M0] = apply_single_girder_force( ...
+  ig, arunit, M0_val, ilc, ar, M0, idmg2m)
 %apply_single_girder_force - 1部材に梁要素荷重を適用
 %
-%   [felement, ar, M0] = apply_single_girder_force(ig, arunit,
-%     M0_val, ilc, felement, ar, M0, idmg2m, cxl, cyl, czl,
-%     js, je) は、
-%   梁igの要素座標系CMQ(arunit)をar/M0に加算し、
-%   全体座標系に変換した節点単位等価節点力をfelementに加算する。
-%   剛床偏心 Mz は node_to_dof_vec で集約時に加算される。
+%   [ar, M0] = apply_single_girder_force(ig, arunit, M0_val,
+%     ilc, ar, M0, idmg2m) は、梁igの要素座標系CMQ(arunit)を
+%   ar/M0に加算する。
 %
 %   入力引数:
 %     ig      - 梁部材番号（梁インデックス）
 %     arunit  - 要素座標系CMQ [1×12]
 %     M0_val  - 単純梁中央モーメント（スカラー）
 %     ilc     - 荷重ケース番号
-%     felement - 全体座標系の節点単位等価節点力 [nnode×6×nlc]
 %     ar      - 要素座標系の等価節点力 [nm×12×nlc]
 %     M0      - 単純梁中央モーメント [nm×nlc]
 %     idmg2m  - 梁番号→全体部材番号の変換配列
-%     cxl,cyl,czl - 部材座標系の方向余弦
-%     js,je   - 部材のi端・j端節点番号
 %
 %   出力引数:
-%     felement - 更新後の節点単位等価節点力
 %     ar       - 更新後の要素座標系等価節点力
 %     M0       - 更新後の単純梁中央モーメント
 
 idm = idmg2m(ig);
 ar(idm,:,ilc) = ar(idm,:,ilc) + arunit;
 M0(idm, ilc) = M0(idm, ilc) + M0_val;
-
-tt = [cxl(ig,:)' cyl(ig,:)' czl(ig,:)'];
-
-% felement: i端
-in = js(ig);
-fi = tt * arunit(1:3)';
-mi = tt * arunit(4:6)';
-felement(in, :, ilc) = felement(in, :, ilc) + reshape([fi; mi], 1, 6);
-
-% felement: j端
-in = je(ig);
-fj = tt * arunit(7:9)';
-mj = tt * arunit(10:12)';
-felement(in, :, ilc) = felement(in, :, ilc) + reshape([fj; mj], 1, 6);
 
 return
 end

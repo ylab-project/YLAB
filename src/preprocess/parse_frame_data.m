@@ -35,6 +35,10 @@ com.member.column.idnode1 = idnode1(com.member.column.idme);
 com.member.column.idnode2 = idnode2(com.member.column.idme);
 com.member.brace.idnode1 = idnode1(com.member.brace.idme);
 com.member.brace.idnode2 = idnode2(com.member.brace.idme);
+com.member.horizontal_brace.idnode1 = ...
+  idnode1(com.member.horizontal_brace.idme);
+com.member.horizontal_brace.idnode2 = ...
+  idnode2(com.member.horizontal_brace.idme);
 
 %% 共通配列
 design = com.design;
@@ -54,10 +58,33 @@ story = com.story;
 member_girder = com.member.girder;
 member_column = com.member.column;
 member_brace = com.member.brace;
+member_horizontal_brace = com.member.horizontal_brace;
 % lgm = com.member.property.lm(com.member.girder.idme);
 
+node_std = com.node;
+node_std.z = node_std.z_standard;
+[gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl] = ...
+  update_member_cosine(member_girder, member_column, ...
+  member_brace, member_horizontal_brace, node_std);
+member_property = com.member.property;
+nme = size(member_property, 1);
+cxl = zeros(nme, 3);
+cyl = zeros(nme, 3);
+cxl(member_girder.idme, :) = gcxl;
+cyl(member_girder.idme, :) = gcyl;
+cxl(member_column.idme, :) = ccxl;
+cyl(member_column.idme, :) = ccyl;
+cxl(member_brace.idme, :) = bcxl;
+cyl(member_brace.idme, :) = bcyl;
+cxl(member_horizontal_brace.idme, :) = hbcxl;
+cyl(member_horizontal_brace.idme, :) = hbcyl;
+member_property.cxl = cxl;
+member_property.cyl = cyl;
+com.member.property = member_property;
+
+girder_cxl = member_property.cxl(member_girder.idme, :);
 [member_girder.is_gx, member_girder.is_gy] = ...
-  classify_girder_cxl_direction(member_girder.cxl);
+  classify_girder_cxl_direction(girder_cxl);
 com.member.girder = member_girder;
 
 %% 変数配列

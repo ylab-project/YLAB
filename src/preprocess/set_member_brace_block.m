@@ -485,9 +485,9 @@ return
     % 追加節点の作成
     add_node = node(idnode_template,:);
     add_node.idz(:) = nz;
-    add_node.z = zcoord(:);
     % dzは柱脚節点からコピー
     add_node.dz = node.dz(member_column.idnode1(iac));
+    add_node.z = zcoord(:) + add_node.dz;
     add_node.z_standard = baseline.z.coord_standard(nz) + add_node.dz;
     add_node.type(:) = PRM.NODE_BRACE_FOR_COLUMN;
     add_node.zname(:) = baseline.z.name(nz);

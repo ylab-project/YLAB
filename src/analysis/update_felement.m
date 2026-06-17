@@ -1,21 +1,21 @@
-function felement = update_felement(felement, ar, cxl, cyl, idmem2node)
+function felement = update_felement(ar, cxl, cyl, idmem2node, nnode, nlc)
 %update_felement - ar を更新後に全体座標系の節点単位等価節点力を再構築
 %
-%   felement = update_felement(felement, ar, cxl, cyl, idmem2node) は、
+%   felement = update_felement(ar, cxl, cyl, idmem2node, nnode, nlc) は、
 %   部材座標系の ar 配列から節点単位の等価節点力 felement [nnode×6×nlc]
 %   を再計算する。
 %
 %   入力引数:
-%     felement   - 節点単位の等価節点力 [nnode×6×nlc]（初期化用）
 %     ar         - 要素座標系の等価節点力 [nm×12×nlc]
 %     cxl,cyl    - 部材座標系の方向余弦
 %     idmem2node - 部材→節点番号 [nm×2]
+%     nnode      - 節点数
+%     nlc        - 荷重ケース数
 %
 %   出力引数:
 %     felement   - 再計算後の節点単位等価節点力
 
 % 計算の準備
-[nnode, ~, nlc] = size(felement);
 nm = size(ar, 1);
 felement = zeros(nnode, 6, nlc);
 

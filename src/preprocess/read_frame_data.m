@@ -368,17 +368,6 @@ member_horizontal_brace = set_member_horizontal_brace_block( ...
   dbc, com, options);
 member.horizontal_brace = member_horizontal_brace;
 com.member = member;
-[gcxl, gcyl, ccxl, ccyl, ~, ~, hbcxl, hbcyl]  = ...
-  update_member_cosine(member_girder, member_column, ...
-  member_brace, member_horizontal_brace, node);
-member_girder.cxl = gcxl;
-member_girder.cyl = gcyl;
-member_column.cxl = ccxl;
-member_column.cyl = ccyl;
-% brace cxl/cylはグローバルcxl配列で管理。
-% member_braceには格納しない（古い値の誤用防止）。
-member_horizontal_brace.cxl = hbcxl;
-member_horizontal_brace.cyl = hbcyl;
 member.girder = member_girder;
 member.column = member_column;
 member.brace = member_brace;
@@ -550,13 +539,12 @@ fnode = set_nodal_force_block(dbc, com);
   set_additive_nodal_force_block(dbc, com);
 
 %% 要素荷重
-[felement, ar, M0] = set_girder_force_block(dbc, com);
+[ar, M0] = set_girder_force_block(dbc, com);
 
 %% 荷重ベクトルの保存
 com.fnode = fnode;
 com.faddnode = faddnode;
 com.faddnode_report_excl = faddnode_report_excl;
-com.felement = felement;
 com.ar = ar;
 com.M0 = M0;
 

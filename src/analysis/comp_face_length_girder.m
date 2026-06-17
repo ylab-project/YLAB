@@ -1,5 +1,5 @@
 function lfgirder = comp_face_length_girder(...
-  secdim, idmg2sfl, idmg2sfr, idscb2s, cbsDf, cxl, cyl, idmg2n, idsup2n)
+  secdim, idmg2sfl, idmg2sfr, idscb2s, cbsDf, cxl, ~, idmg2n, idsup2n)
 %comp_face_length_girder - 梁端部のフェイス位置を計算
 %
 %   lfgirder = comp_face_length_girder(secdim, idmg2sfl, idmg2sfr, ...
@@ -23,21 +23,11 @@ function lfgirder = comp_face_length_girder(...
 %   出力引数:
 %     lfgirder - 梁端部フェイス位置 [nmg×2]（左端、右端）
 
-% 定数
 nmg = size(idmg2sfl,1);
-TOL = 1e-6;
 
-% 計算の準備
-lfgirder = zeros(nmg,2);
-czl = cross(cxl, cyl, 2);
+face_dimension = zeros(nmg, 2);
 
-% 梁の柱面長さ
 for ig=1:nmg
-  % 梁軸方向の水平成分（XY平面）
-  cx = cxl(ig,1);
-  cy = cxl(ig,2);
-  cz = czl(ig,3);
-
   for ilr=1:2
     switch ilr
       case 1
@@ -61,33 +51,12 @@ for ig=1:nmg
 
       % 柱断面寸法（HSS: D=B=第1列、矩形の場合は将来対応）
       sss = secdim(ids(ids>0),1);
-      D = max([sss; Df]);  % 柱断面の代表寸法
-      B = D;  % HSS（正方形）を仮定
-
-      % 梁軸と矩形柱断面の交点距離を計算
-      if abs(cx) < TOL && abs(cy) < TOL
-        % 鉛直梁（水平成分なし）の場合
-        face = D/2;
-      elseif abs(cx) < TOL
-        % Y方向のみに傾く梁
-        face = B/2;
-      elseif abs(cy) < TOL
-        % X方向のみに傾く梁
-        face = D/2;
-      else
-        % 斜め梁: 矩形との交点距離
-        % tx = 梁軸がX方向に(D/2)進むのに必要な距離
-        % ty = 梁軸がY方向に(B/2)進むのに必要な距離
-        tx = (D/2) / abs(cx);
-        ty = (B/2) / abs(cy);
-        face = min(tx, ty);
-      end
-
-      % Z方向の勾配補正（斜め梁の投影長さ）
-      lfgirder(ig,ilr) = face / abs(cz);
+      face_dimension(ig, ilr) = max([sss; Df]);
     end
   end
 end
+
+[lfgirder, ~, ~] = calc_girder_face_deduct(face_dimension, cxl);
 
 return
 end

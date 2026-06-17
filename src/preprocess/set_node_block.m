@@ -188,7 +188,7 @@ for i=1:n
 end
 x = xyz(:,1);
 y = xyz(:,2);
-z = xyz(:,3);
+z = xyz(:,3) + dz;
 
 % 節点種別
 type = ones(nnode,1)*PRM.NODE_STANDARD;
