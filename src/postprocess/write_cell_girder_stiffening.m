@@ -103,12 +103,18 @@ return
     [n_, lb_report_, has_report_lb_] = ...
       get_stiffening_lb_report(nominal_girder, ing_, slratio.n(ig));
     body{irow,6} = fmt_ceil_abs(lg_, 0);
-    body{irow,7} = sprintf('%.0f', n_);
     if has_report_lb_
+      body{irow,7} = sprintf('%.0f', n_);
       for ilb_ = 1:n_
         body{irow,7 + ilb_} = fmt_ceil_abs(lb_report_(ilb_), 0);
       end
     else
+      % 自動認識の横補剛数 = 補剛区間数 - 1（SS7計算編3.5）
+      % n=0 は空白表示とする
+      nbrace_ = nominal_girder.nstiff(ing_) - 1;
+      if nbrace_ > 0
+        body{irow,7} = sprintf('%.0f', nbrace_);
+      end
       if ~is_lb1_full
         body{irow,8} = fmt_ceil_abs(lb1_, 0);
       end
