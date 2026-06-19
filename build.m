@@ -107,8 +107,34 @@ compiler.package.installer(results, ...
   "Description", description, ...
   "Verbose", "on");
 
+cleanup_installer_temp(buildDir);
+
 fprintf('Build successful.\n');
 
+end
+
+%--------------------------------------------------------------------------
+function cleanup_installer_temp(buildDir)
+%cleanup_installer_temp インストーラー作成時の一時フォルダを削除する
+
+tempDir = fullfile(buildDir, 'uninstall_icon_resources');
+if ~exist(tempDir, 'dir')
+  return
+end
+
+tryCount = 5;
+waitSec = 0.5;
+for i = 1:tryCount
+  [ok, ~] = rmdir(tempDir, 's');
+  if ok || ~exist(tempDir, 'dir')
+    return
+  end
+  pause(waitSec);
+end
+
+fprintf('インストーラー一時フォルダを残しました: %s\n', tempDir);
+
+return
 end
 
 %--------------------------------------------------------------------------
