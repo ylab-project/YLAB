@@ -160,6 +160,12 @@ for i=1:size(data,1)
   end
 end
 
+if ~options.do_preprocess_section_list
+  options.do_limit_wtratio_section = false;
+  options.do_limit_slr_section = false;
+  options.do_limit_jbs_section = false;
+end
+
 % --- 最適化計算条件の設定 ---
 for i=1:size(data,1)
   if ismissing(data{i,1})

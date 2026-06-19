@@ -52,6 +52,7 @@ classdef CommonOption
     iter(1,1) double {mustBeNonnegative} = 0;
 
     % --- 断面リストの事前処理 ---
+    do_preprocess_section_list(1,1) logical = true
     do_limit_wtratio_section(1,1) logical = true
     do_limit_slr_section(1,1) logical = true
     do_limit_jbs_section(1,1) logical = true
