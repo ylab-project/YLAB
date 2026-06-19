@@ -38,7 +38,8 @@ node = com.node;
   column, stype, idsecc2sec, secdim, lm_weight, Am, secmgr);
 
 [jt, jb] = calc_column_joint_length(column, com.member.girder, ...
-  node, stype, idsecg2sec, secdim);
+  node, stype, idsecg2sec, secdim, ...
+  com.member.property.cxl(com.member.girder.idme, :));
 
 % 下階柱の有無（仕口部(柱脚)出力判定用）
 has_column_below = ismember(column.idnode1, column.idnode2);

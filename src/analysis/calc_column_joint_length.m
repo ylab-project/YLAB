@@ -1,11 +1,12 @@
 function [joint_top, joint_bottom] = calc_column_joint_length( ...
-  member_column, member_girder, node, stype_sec, idsecg2sec, secdim)
+  member_column, member_girder, ~, stype_sec, idsecg2sec, secdim, ...
+  cxl_girder)
 %calc_column_joint_length - 柱仕口部長さを算出
 %
 %   [joint_top, joint_bottom] =
 %     calc_column_joint_length(member_column,
 %     member_girder, node, stype_sec,
-%     idsecg2sec, secdim) は、
+%     idsecg2sec, secdim, cxl_girder) は、
 %   SS7マニュアル 4.4.1 に基づき柱頭・柱脚の
 %   仕口部長さを算出する。
 %
@@ -16,10 +17,10 @@ function [joint_top, joint_bottom] = calc_column_joint_length( ...
 %   入力引数:
 %     member_column - 柱部材構造体
 %     member_girder - 梁部材構造体
-%     node          - 節点構造体
 %     stype_sec     - 断面種別配列 [nsec x 1]
 %     idsecg2sec    - 梁断面→統一断面ID変換配列
 %     secdim        - 断面寸法配列 [nsec x ncol]
+%     cxl_girder    - 標準系の梁軸方向余弦 [nmg x 3]
 %
 %   出力引数:
 %     joint_top    - 柱頭の仕口部長さ [nmec x 1] (mm)
@@ -34,7 +35,7 @@ idmg2s = idsecg2sec(member_girder.idsecg);
 Hg = Hs(idmg2s);
 
 % 梁の鉛直投影せい（斜行梁の補正）
-Hg_proj = calc_projected_depth(Hg, member_girder, node);
+Hg_proj = calc_girder_vertical_depth_projection(Hg, cxl_girder);
 
 % 柱軸方向への投影係数（斜め柱の補正）
 col_proj = column_axial_projection(member_column.cz_std);
@@ -102,35 +103,4 @@ return
     bot_ = glv(idg_) - Hg_proj(idg_);
     jlen = max(top_) - min(bot_);
   end
-end
-
-function Hg_proj = calc_projected_depth(Hg, member_girder, node)
-%calc_projected_depth - 斜行梁の鉛直投影せい
-%
-%   Hg_proj = calc_projected_depth(Hg,
-%     member_girder, node) は、梁の傾斜角に応じて
-%   梁せいを鉛直方向に投影した値を返す。
-%   水平梁では Hg_proj = Hg となる。
-
-nmeg = length(Hg);
-Hg_proj = Hg;
-
-in1 = member_girder.idnode1;
-in2 = member_girder.idnode2;
-
-for ig = 1:nmeg
-  if Hg(ig) == 0
-    continue
-  end
-  dx = node.x(in2(ig)) - node.x(in1(ig));
-  dy = node.y(in2(ig)) - node.y(in1(ig));
-  dz = node.z(in2(ig)) - node.z(in1(ig));
-  Lh = sqrt(dx^2 + dy^2);
-  if Lh > 0 && dz ~= 0
-    Ltotal = sqrt(Lh^2 + dz^2);
-    Hg_proj(ig) = Hg(ig) * Ltotal / Lh;
-  end
-end
-
-return
 end

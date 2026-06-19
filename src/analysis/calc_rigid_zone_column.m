@@ -118,7 +118,7 @@ for ic=1:nmc
 
             if mgstype(img)==PRM.RCRS
               % RC梁のみ対象
-              H = secdim(ids,2);  % 梁せい
+              H = calc_girder_section_depth(secdim, mgstype(img), ids);
               r = H-dh+mglevel(img);
 
               % SS7仕様：柱寸法×αを減じる

@@ -38,11 +38,9 @@ Hg = zeros(size(secdim, 1), 1);
 Hg(stype_sec == PRM.RCRS) = secdim(stype_sec == PRM.RCRS, 2);
 idmg2s = idsecg2sec(member_girder.idsecg);
 Hg_gir = Hg(idmg2s);
-stype_gir = stype_sec(idmg2s);
 
 % 梁部材の節点番号
-gn1 = member_girder.idnode1;
-gn2 = member_girder.idnode2;
+girder_node = [member_girder.idnode1, member_girder.idnode2];
 
 % 柱の節点番号と通り心ベース投影係数
 cn1 = member_column.idnode1;
@@ -57,51 +55,19 @@ for inc = 1:nnmc
 
   % 下端
   ic_bot = imcs(1);
-  d_bot = find_rc_beam_depth(cn1(ic_bot), gn1, gn2, ...
-    stype_gir, Hg_gir, is_girder_target);
+  d_bot = calc_connected_girder_depth( ...
+    cn1(ic_bot), girder_node, Hg_gir, is_girder_target);
   if d_bot > 0
     lmc_bk(ic_bot) = lmc_bk(ic_bot) - (d_bot / 2) * proj(ic_bot);
   end
 
   % 上端
   ic_top = imcs(nsub);
-  d_top = find_rc_beam_depth(cn2(ic_top), gn1, gn2, ...
-    stype_gir, Hg_gir, is_girder_target);
+  d_top = calc_connected_girder_depth( ...
+    cn2(ic_top), girder_node, Hg_gir, is_girder_target);
   if d_top > 0
     lmc_bk(ic_top) = lmc_bk(ic_top) - (d_top / 2) * proj(ic_top);
   end
-end
-
-return
-end
-
-%--------------------------------------------------------------
-function D = find_rc_beam_depth(nd, gn1, gn2, ...
-  stype_gir, Hg_gir, is_girder_target)
-%find_rc_beam_depth - 節点に接続するRC梁せいを取得
-%
-%   D = find_rc_beam_depth(nd, gn1, gn2,
-%     stype_gir, Hg_gir, is_girder_target) は、
-%   指定節点に接続するRC梁のうち最大のせいDを返す。
-%   RC梁がなければ0を返す。
-%
-%   入力引数:
-%     nd        - 対象節点番号
-%     gn1       - 梁始端節点番号 [nmg×1]
-%     gn2       - 梁終端節点番号 [nmg×1]
-%     stype_gir - 梁断面種別 [nmg×1]
-%     Hg_gir    - 梁せい [nmg×1]
-%     is_girder_target - 控除対象に含める梁 [nmg×1]
-%
-%   出力引数:
-%     D - RC梁せい（なければ0）
-
-idx = find((gn1 == nd | gn2 == nd) ...
-  & stype_gir == PRM.RCRS & is_girder_target);
-if isempty(idx)
-  D = 0;
-else
-  D = max(Hg_gir(idx));
 end
 
 return

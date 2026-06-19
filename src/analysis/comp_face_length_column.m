@@ -1,6 +1,6 @@
 function [lfcolumnx, lfcolumny] = comp_face_length_column(secdim, stdh, ...
   column_idz, girder_level, stype, idmc2sf1x, idmc2sf2x, ~, idmc2sf2y, ...
-  ~, idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, gcxl, gcyl, cz_std)
+  ~, idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, gcxl, ~, cz_std)
 %comp_face_length_column - 柱のフェイス長を計算
 %
 %   [lfcolumnx, lfcolumny] = comp_face_length_column(secdim, stdh,
@@ -24,7 +24,6 @@ function [lfcolumnx, lfcolumny] = comp_face_length_column(secdim, stdh, ...
 %     idmc2mf1y    - 柱脚側Y方向梁ID配列 [nmc×*]
 %     idmc2mf2y    - 柱頭側Y方向梁ID配列 [nmc×*]
 %     gcxl         - 梁の局所X方向余弦 [nmg×3]
-%     gcyl         - 梁の局所Y方向余弦 [nmg×3]
 %     cz_std       - 通り心ベース方向余弦Z成分 = cos(θ) [nmc×1]
 %                    θは柱軸（通り心）と鉛直線のなす角度
 %
@@ -47,7 +46,6 @@ nstory = size(stdh,1);
 % 計算の準備
 lfcolumnx = zeros(nmc,2);
 lfcolumny = zeros(nmc,2);
-gczl = cross(gcxl, gcyl, 2);
 proj_all = column_axial_projection(cz_std);
 
 % 柱の梁面長さ
@@ -102,23 +100,16 @@ for ic=1:nmc
               ids = idmc2sf2y(ic,:);
               idmg = idmc2mf2y(ic,:);
           end
-          gczl_ = ones(length(idmg),1);
-          gczl_(idmg>0) = gczl(idmg(idmg>0),3);
           if any(idmg>0)
             gldh = zeros(length(idmg),1)-dh;
-            % 断面タイプに応じて梁せいを取得（S梁:列1、RC梁:列2）
             % idmg>0 を共通フィルタとして使用
             valid = idmg > 0;
             ids_valid = ids(valid);
-            H_girder = zeros(sum(valid), 1);
-            for k = 1:length(ids_valid)
-              if stype(ids_valid(k)) == PRM.RCRS
-                H_girder(k) = secdim(ids_valid(k), 2);
-              else
-                H_girder(k) = secdim(ids_valid(k), 1);
-              end
-            end
-            gldh(valid) = gldh(valid) + H_girder ./ gczl_(valid) ...
+            H_girder = calc_girder_section_depth( ...
+              secdim, stype(ids_valid), ids_valid);
+            H_proj = calc_girder_vertical_depth_projection( ...
+              H_girder, gcxl(idmg(valid), :));
+            gldh(valid) = gldh(valid) + H_proj ...
               - girder_level(idmg(valid));
             gldh = gldh(valid);
           else
