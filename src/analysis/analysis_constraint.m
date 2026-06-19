@@ -71,25 +71,16 @@ xvar = xvar(:);                               % 設計変数を列ベクトル�
 
 %% マトリクス解析
 [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, vix, ...
-  viy, rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, state, sw, lf, lr, ...
-  lmem, lnm, lb, Iy, Iz, gphiI, gphiN, cphiI, cbs, baseline, node, ...
+  viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, dfn0, ...
+  state, sw, lf, lr, lmem, lnm, lb, Iy, Iz, gphiI, gphiN, ...
+  cphiI, cbs, baseline, node, ...
   story, floor, Cn, nomgc] = analysis_frame(xvar, com, options);
 lm = lmem.geom;
 lm_weight = lmem.weight;
 
 % 方向余弦を更新後の node 座標から再計算
-[gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl] = ...
-  update_member_cosine(com.member.girder, com.member.column, ...
+[cxl, cyl] = update_member_cosine(com.member.girder, com.member.column, ...
   com.member.brace, com.member.horizontal_brace, node);
-cxl = zeros(nme, 3); cyl = zeros(nme, 3);
-cxl(mtype==PRM.GIRDER,:) = gcxl;
-cyl(mtype==PRM.GIRDER,:) = gcyl;
-cxl(mtype==PRM.COLUMN,:) = ccxl;
-cyl(mtype==PRM.COLUMN,:) = ccyl;
-cxl(mtype==PRM.BRACE,:) = bcxl;
-cyl(mtype==PRM.BRACE,:) = bcyl;
-cxl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcxl;
-cyl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcyl;
 
 % 梁剛比の平面振れ角重み（柱座屈長さ係数算定用）
 % SS7互換: 水平面内の振れ角のみ cos2θ を乗じ、鉛直傾きは考慮しない
@@ -142,7 +133,7 @@ mejoint(idmg2m,:) = gjoint;                  % 梁の結合条件を設定
 isgmirrored = com.member.girder.ismirrored;  % 梁の左右反転フラグ
 
 % 名目ブレースごとの水平力成分Q
-Q_nb = calc_Q_nominal_brace(com, rs0, cxl, cyl);
+Q_nb = calc_Q_nominal_brace(com, rs_analysis0, cxl, cyl);
 
 % 各名目ブレースが跨ぐ階（多層ブレースの水平力を跨ぐ各階に計上する
 % ため、βおよび水平力分担表 writer が共通参照する）
@@ -150,7 +141,7 @@ brace_in_story = calc_brace_story_membership(com);
 
 % 水平力分担表相当の階別・フレーム別集計（柱座屈長さ補正βと水平力
 % 分担表出力が共通参照する正本）。出力でも使うため制約評価の外で生成
-frame_shear_ratio = calc_frame_shear_ratio(com, rs0, cxl, cyl, ...
+frame_shear_ratio = calc_frame_shear_ratio(com, rs_analysis0, cxl, cyl, ...
   Q_nb, brace_in_story);
 
 %% 許容応力度比制約
@@ -456,6 +447,7 @@ result.Hgapval = conhgapvar;
 result.Hgapsec = conhgapsec;
 result.rs = rs;
 result.rs0 = rs0;
+result.rs_analysis0 = rs_analysis0;
 result.beta = beta;
 result.Q_nb = Q_nb;
 result.frame_shear_ratio = frame_shear_ratio;

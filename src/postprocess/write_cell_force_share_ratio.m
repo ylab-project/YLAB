@@ -18,20 +18,12 @@ function [head, body] = write_cell_force_share_ratio(com, result, ilc)
 nstory = com.nstory;
 lcdir = com.loadcase.dir;
 
-% 加力方向に応じた表示符号とフレーム名(表示用の参照のみ)
+% 加力方向に応じた表示符号
 switch lcdir(ilc)
-  case PRM.EXP
+  case {PRM.EXP, PRM.EYP}
     sign_dir = -1;
-    frame_names = com.baseline.y.name;
-  case PRM.EXN
+  case {PRM.EXN, PRM.EYN}
     sign_dir = 1;
-    frame_names = com.baseline.y.name;
-  case PRM.EYP
-    sign_dir = -1;
-    frame_names = com.baseline.x.name;
-  case PRM.EYN
-    sign_dir = 1;
-    frame_names = com.baseline.x.name;
   otherwise
     head = {};
     body = {};
@@ -41,6 +33,7 @@ end
 % 分析層の正本(各階・フレーム・荷重ケースの集計値)
 fsr = result.frame_shear_ratio;
 nframe = fsr.nframe(ilc);
+frame_names = fsr.frame_name;
 
 % ヘッダ（3行: 列名、副見出し、単位）
 ncol = 18;
@@ -88,10 +81,12 @@ for i = 1:nstory
       body{irow, 1} = '';
     end
     body{irow, 2} = frame_names{ifr};
-    % 加力方向に応じた符号変換（+0で-0除去）
-    body{irow, 3} = sprintf('%.1f', sign_dir * fsr.Qc(ist, ifr, ilc) + 0);
-    body{irow, 4} = sprintf('%.1f', sign_dir * fsr.Qw(ist, ifr, ilc) + 0);
-    body{irow, 5} = sprintf('%.1f', sign_dir * fsr.Qcw(ist, ifr, ilc) + 0);
+    body{irow, 3} = fmt_force_share_force_( ...
+      sign_dir * fsr.Qc(ist, ifr, ilc));
+    body{irow, 4} = fmt_force_share_force_( ...
+      sign_dir * fsr.Qw(ist, ifr, ilc));
+    body{irow, 5} = fmt_force_share_force_( ...
+      sign_dir * fsr.Qcw(ist, ifr, ilc));
     body{irow, 6} = '0.0';   % QR
     body{irow, 7} = '0.0';   % QG
     body{irow, 8} = '0.0';   % QS
@@ -114,9 +109,12 @@ for i = 1:nstory
   irow = irow + 1;
   body{irow, 1} = '';
   body{irow, 2} = '合計';
-  body{irow, 3} = sprintf('%.1f', sign_dir * fsr.Qc_total(ist, ilc) + 0);
-  body{irow, 4} = sprintf('%.1f', sign_dir * fsr.Qw_total(ist, ilc) + 0);
-  body{irow, 5} = sprintf('%.1f', sign_dir * fsr.Qcw_total(ist, ilc) + 0);
+  body{irow, 3} = fmt_force_share_force_( ...
+    sign_dir * fsr.Qc_total(ist, ilc));
+  body{irow, 4} = fmt_force_share_force_( ...
+    sign_dir * fsr.Qw_total(ist, ilc));
+  body{irow, 5} = fmt_force_share_force_( ...
+    sign_dir * fsr.Qcw_total(ist, ilc));
   body{irow, 6} = '0.0';
   body{irow, 7} = '0.0';
   body{irow, 8} = '0.0';
@@ -134,6 +132,20 @@ end
 
 % 空行を削除
 body = body(1:irow, :);
+
+return
+end
+
+function s = fmt_force_share_force_(x)
+%fmt_force_share_force_ - 水平力分担表の力を表示丸めする
+
+if abs(x) < 1e-9
+  v = 0;
+else
+  f = 10;
+  v = sign(x) * ceil(abs(x) * f - 1e-12) / f;
+end
+s = sprintf('%.1f', v + 0);
 
 return
 end

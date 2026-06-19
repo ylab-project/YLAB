@@ -63,21 +63,9 @@ member_horizontal_brace = com.member.horizontal_brace;
 
 node_std = com.node;
 node_std.z = node_std.z_standard;
-[gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl] = ...
-  update_member_cosine(member_girder, member_column, ...
-  member_brace, member_horizontal_brace, node_std);
 member_property = com.member.property;
-nme = size(member_property, 1);
-cxl = zeros(nme, 3);
-cyl = zeros(nme, 3);
-cxl(member_girder.idme, :) = gcxl;
-cyl(member_girder.idme, :) = gcyl;
-cxl(member_column.idme, :) = ccxl;
-cyl(member_column.idme, :) = ccyl;
-cxl(member_brace.idme, :) = bcxl;
-cyl(member_brace.idme, :) = bcyl;
-cxl(member_horizontal_brace.idme, :) = hbcxl;
-cyl(member_horizontal_brace.idme, :) = hbcyl;
+[cxl, cyl] = update_member_cosine(member_girder, member_column, ...
+  member_brace, member_horizontal_brace, node_std);
 member_property.cxl = cxl;
 member_property.cyl = cyl;
 com.member.property = member_property;

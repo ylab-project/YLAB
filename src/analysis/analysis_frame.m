@@ -1,5 +1,6 @@
 function [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, ...
-  vix, viy, rvec, rs, dfn, rvec0, rs0, Mc0, dfn0, state, sw, lf, ...
+  vix, viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, ...
+  dfn0, state, sw, lf, ...
   lr, lmem, lnm, lbnm, Iy0, Iz0, gphiI, gphiN, cphiI, cbs, baseline, ...
   node, story, floor, Cn, nomgc] = analysis_frame(xvar, com, options)
 %analysis_frame - 骨組のマトリクス解析本体（剛性組立・変位・応力算定）
@@ -32,6 +33,7 @@ function [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, ...
 %     dfn      - 公称部材の設計応力（重ね合わせ後）
 %     rvec0    - 部材端応力ベクトル（ケース別・重ね合わせ前）
 %     rs0      - 部材応力（ケース別・重ね合わせ前）
+%     rs_analysis0 - 部材応力（ケース別・解析基底）
 %     Mc0      - 部材中央曲げモーメント（ケース別）
 %     dfn0     - 公称部材の設計応力（ケース別）
 %     state    - 収束状態（sup.islifted, tb.iscompressed 等の構造体）
@@ -567,6 +569,9 @@ end
   lrxm, lrym, flag, cxl, cyl, member_property, node, material, ...
   cbstiff, idm2mat, idm2scb, mejoint, br_stif, hstiff_type);
 
+% 水平力分担・β用に解析基底のケース別応力を保持
+rs_analysis0 = rs;
+
 % 部材応力をSS7互換の表示基底へ変換
 rs = trans_member_force_global_basis(rs, cxl, cyl, mtype, idmc2m);
 
@@ -583,8 +588,10 @@ if has_tension_brace
       if iscompressed(itb, ilc)
         if iscompressed(itb, 1)
           rs0(im, :, ilc) = 0;
+          rs_analysis0(im, :, ilc) = 0;
         else
           rs0(im, :, ilc) = -rs0(im, :, 1);
+          rs_analysis0(im, :, ilc) = -rs_analysis0(im, :, 1);
         end
       end
     end
@@ -594,6 +601,8 @@ end
 %% Kブレース分割梁のせん断力補正
 rs0 = correct_kbrace_shear(rs0, node.type, member_girder, ...
   member_brace, cxl, idm2n1, idm2n2);
+rs_analysis0 = correct_kbrace_shear(rs_analysis0, node.type, ...
+  member_girder, member_brace, cxl, idm2n1, idm2n2);
 
 %% 荷重ケースの重ね合わせ
 [rs, Mc, rvec, cgsrn] = superpose_analysis_case(rs0, ...

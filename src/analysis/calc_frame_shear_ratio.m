@@ -1,16 +1,17 @@
-function frame_shear_ratio = calc_frame_shear_ratio(com, rs0, ...
-  cxl, ~, Q_nb, brace_in_story)
+function frame_shear_ratio = calc_frame_shear_ratio(com, rs_force, ...
+  cxl, cyl, Q_nb, brace_in_story)
 %calc_frame_shear_ratio - 水平力分担表相当の階別・フレーム別集計
 %
-%   frame_shear_ratio = calc_frame_shear_ratio(com, rs0, cxl, ...
-%   ~, Q_nb, brace_in_story) は、各階・各フレーム・各荷重ケースの
+%   frame_shear_ratio = calc_frame_shear_ratio(com, rs_force, cxl, ...
+%   cyl, Q_nb, brace_in_story) は、各階・各フレーム・各荷重ケースの
 %   柱負担水平力Qc・ブレース負担水平力Qwとそれらの比率を集計する。
 %   水平力分担表出力と柱座屈長さ係数補正βが共通参照する正本となる。
+%   柱水平力は解析基底の部材力を加力方向へ水平投影して集計する。
 %   出力対象階(is_output_story)とその参照階(output_idstory)も返す。
 %
 %   入力引数:
 %     com            - 共通オブジェクト
-%     rs0            - 部材応力(重ね合わせ前) [nme×13×nlc]
+%     rs_force       - 部材応力(重ね合わせ前、解析基底) [nme×12×nlc]
 %     cxl            - 部材x軸方向余弦 [nme×3]
 %     cyl            - 部材y軸方向余弦 [nme×3]
 %     Q_nb           - 名目ブレースごとのQ値 [nnb×nlc] (N)
@@ -21,8 +22,9 @@ function frame_shear_ratio = calc_frame_shear_ratio(com, rs0, ...
 %       Qc/Qw/Qcw       : [story×frame×lc] 負担水平力 (kN, FEM符号)
 %       Qc_total等       : [story×lc] 層合計負担水平力 (kN, FEM符号)
 %       Qc_Qcw/Qw_Qcw   : [story×frame×lc] フレーム別負担率
-%       Qc_Qcw_total等   : [story×lc] 層合計負担率(Qw_Qcw_totalはβ素値)
+%       Qc_Qcw_total等   : [story×lc] 層合計負担率
 %       frame_ratio     : [story×frame×lc] フレーム別負担率(対層合計)
+%       frame_name      : [frame×1] 表示用フレーム名(Y通り, X通り)
 %       is_output_story : [story×1] 水平力分担表に出す階か
 %       output_idstory  : [story×1] 柱座屈長さ補正が参照する出力階
 %       nframe          : [lc×1] 各荷重ケースの有効フレーム数
@@ -33,7 +35,8 @@ lcdir = com.loadcase.dir;
 nlc = length(lcdir);
 nbly = com.nbly;
 nblx = com.nblx;
-nframe_max = max(nbly, nblx);
+nframe_report = nbly + nblx;
+frame_name = [com.baseline.y.name(:); com.baseline.x.name(:)];
 
 % 部材データ
 mp = com.member.property;
@@ -44,10 +47,8 @@ midstory = mp.idstory;
 sign_cz = ones(size(cxl, 1), 1);
 sign_cz(cxl(:, 3) < 0) = -1;
 
-% 表示基底の柱せん断を全体系XY成分に戻す係数
-h = sqrt(cxl(:, 1).^2 + cxl(:, 2).^2);
-is_tilt = h >= 1e-6 & abs(cxl(:, 3)) >= 1e-6;
-coef = make_display_to_global_shear_coef(cxl, h, is_tilt);
+% 局所z軸方向余弦
+czl = cross(cxl, cyl, 2);
 
 % 柱種別による加算対象判定(標準柱・ブレース柱BODYのみ)
 column = com.member.column;
@@ -75,17 +76,17 @@ else
 end
 
 % 結果配列の確保
-Qc = zeros(nstory, nframe_max, nlc);
-Qw = zeros(nstory, nframe_max, nlc);
-Qcw = zeros(nstory, nframe_max, nlc);
+Qc = zeros(nstory, nframe_report, nlc);
+Qw = zeros(nstory, nframe_report, nlc);
+Qcw = zeros(nstory, nframe_report, nlc);
 Qc_total = zeros(nstory, nlc);
 Qw_total = zeros(nstory, nlc);
 Qcw_total = zeros(nstory, nlc);
-Qc_Qcw = zeros(nstory, nframe_max, nlc);
-Qw_Qcw = zeros(nstory, nframe_max, nlc);
+Qc_Qcw = zeros(nstory, nframe_report, nlc);
+Qw_Qcw = zeros(nstory, nframe_report, nlc);
 Qc_Qcw_total = zeros(nstory, nlc);
 Qw_Qcw_total = zeros(nstory, nlc);
-frame_ratio = zeros(nstory, nframe_max, nlc);
+frame_ratio = zeros(nstory, nframe_report, nlc);
 nframe = zeros(nlc, 1);
 
 % ブレースの跨ぐ階はループ不変。find は一度だけ実行し、加力方向で
@@ -101,46 +102,46 @@ for ilc = 1:nlc
   switch lcdir(ilc)
     case {PRM.EXP, PRM.EXN}
       idir_eq = 1;
-      nfr = nbly;
-      col_idframe = col_idy;
+      nfr_main = nbly;
+      main_offset = 0;
+      col_idmain = col_idy;
       nb_idframe = nb_idy;
     case {PRM.EYP, PRM.EYN}
       idir_eq = 2;
-      nfr = nblx;
-      col_idframe = col_idx;
+      nfr_main = nblx;
+      main_offset = nbly;
+      col_idmain = col_idx;
       nb_idframe = nb_idx;
     otherwise
       continue
   end
-  nframe(ilc) = nfr;
+  nframe(ilc) = nframe_report;
 
-  % 柱の水平力成分(加力方向, kN, FEM符号)
-  % rs0 は表示基底のため、斜め柱せん断は全体系XYへ戻して集計する。
-  N = rs0(:, 1, ilc);
-  [Qx, Qy] = recover_global_shear(rs0(:, :, ilc), coef, is_tilt);
-  if idir_eq == 1
-    Fh_col = (N .* cxl(:, 1) + Qx) .* sign_cz / 1000;
-  else
-    Fh_col = (N .* cxl(:, 2) + Qy) .* sign_cz / 1000;
+  % 柱の水平力成分(kN, FEM符号)
+  % 解析基底の軸力・局所せん断を加力方向へ水平投影する。
+  N = rs_force(:, 1, ilc);
+  Qy = rs_force(:, 2, ilc);
+  Qz = rs_force(:, 3, ilc);
+  Fh_col = (N .* cxl(:, idir_eq) ...
+    + Qy .* cyl(:, idir_eq) ...
+    + Qz .* czl(:, idir_eq)) .* sign_cz / 1000;
+
+  % フレーム別の柱負担水平力を集計
+  sel_c = is_target_col & midstory >= 1 & midstory <= nstory ...
+    & col_idmain >= 1 & col_idmain <= nfr_main;
+  if any(sel_c)
+    Qc(:, :, ilc) = Qc(:, :, ilc) ...
+      + accumarray([midstory(sel_c), main_offset + col_idmain(sel_c)], ...
+      Fh_col(sel_c), [nstory, nframe_report]);
   end
-
   % ブレースの水平力(跨ぐ階に計上, kN)
   Qb_nb = Q_nb(:, ilc) / 1000;
-
-  % フレーム別の柱負担水平力を集計((階,フレーム)で1パス accumarray)
-  sel_c = is_target_col & midstory >= 1 & midstory <= nstory ...
-    & col_idframe >= 1 & col_idframe <= nfr;
-  if any(sel_c)
-    Qc(:, :, ilc) = accumarray([midstory(sel_c), col_idframe(sel_c)], ...
-      Fh_col(sel_c), [nstory, nframe_max]);
-  end
-
-  % フレーム別のブレース負担水平力を集計(跨ぐ階を展開して1パス)
-  f_col = nb_idframe(b_row);
-  sel_b = f_col >= 1 & f_col <= nfr & s_col >= 1 & s_col <= nstory;
+  f_col = main_offset + nb_idframe(b_row);
+  sel_b = f_col >= 1 & f_col <= nframe_report ...
+    & s_col >= 1 & s_col <= nstory;
   if any(sel_b)
     Qw(:, :, ilc) = accumarray([s_col(sel_b), f_col(sel_b)], ...
-      Qb_nb(b_row(sel_b)), [nstory, nframe_max]);
+      Qb_nb(b_row(sel_b)), [nstory, nframe_report]);
   end
 
   Qcw(:, :, ilc) = Qc(:, :, ilc) + Qw(:, :, ilc);
@@ -149,22 +150,22 @@ for ilc = 1:nlc
   Qcw_total(:, ilc) = Qc_total(:, ilc) + Qw_total(:, ilc);
 
   % 負担率の算定(分母0は0のまま)
-  for ist = 1:nstory
-    for ifr = 1:nfr
-      qcw_fr = Qcw(ist, ifr, ilc);
-      if qcw_fr ~= 0
-        Qc_Qcw(ist, ifr, ilc) = Qc(ist, ifr, ilc) / qcw_fr;
-        Qw_Qcw(ist, ifr, ilc) = Qw(ist, ifr, ilc) / qcw_fr;
-      end
-      if Qcw_total(ist, ilc) ~= 0
-        frame_ratio(ist, ifr, ilc) = qcw_fr / Qcw_total(ist, ilc);
-      end
-    end
-    if Qcw_total(ist, ilc) ~= 0
-      Qc_Qcw_total(ist, ilc) = Qc_total(ist, ilc) / Qcw_total(ist, ilc);
-      Qw_Qcw_total(ist, ilc) = Qw_total(ist, ilc) / Qcw_total(ist, ilc);
-    end
-  end
+  qcw = Qcw(:, :, ilc);
+  qc = Qc(:, :, ilc);
+  qw = Qw(:, :, ilc);
+  mask = qcw ~= 0;
+  qc_qcw = zeros(nstory, nframe_report);
+  qw_qcw = zeros(nstory, nframe_report);
+  qc_qcw(mask) = qc(mask) ./ qcw(mask);
+  qw_qcw(mask) = qw(mask) ./ qcw(mask);
+  Qc_Qcw(:, :, ilc) = qc_qcw;
+  Qw_Qcw(:, :, ilc) = qw_qcw;
+
+  tot = Qcw_total(:, ilc);
+  mt = tot ~= 0;
+  frame_ratio(mt, :, ilc) = qcw(mt, :) ./ tot(mt);
+  Qc_Qcw_total(mt, ilc) = Qc_total(mt, ilc) ./ tot(mt);
+  Qw_Qcw_total(mt, ilc) = Qw_total(mt, ilc) ./ tot(mt);
 end
 
 % 出力対象階と参照階の判定
@@ -199,61 +200,10 @@ frame_shear_ratio.Qw_Qcw = Qw_Qcw;
 frame_shear_ratio.Qc_Qcw_total = Qc_Qcw_total;
 frame_shear_ratio.Qw_Qcw_total = Qw_Qcw_total;
 frame_shear_ratio.frame_ratio = frame_ratio;
+frame_shear_ratio.frame_name = frame_name;
 frame_shear_ratio.is_output_story = is_output_story;
 frame_shear_ratio.output_idstory = output_idstory;
 frame_shear_ratio.nframe = nframe;
-
-return
-end
-
-function coef = make_display_to_global_shear_coef(cxl, h, is_tilt)
-%make_display_to_global_shear_coef - 表示基底逆変換係数を作成
-%
-%   coef = make_display_to_global_shear_coef(cxl, h, is_tilt) は、
-%   回転断面表示基底の柱Qを全体系XYせん断へ戻す係数を返す。
-
-nme = size(cxl, 1);
-coef = zeros(nme, 5);
-if ~any(is_tilt)
-  return
-end
-
-ax = cxl(is_tilt, 1);
-ay = cxl(is_tilt, 2);
-az = cxl(is_tilt, 3);
-h2 = h(is_tilt).^2;
-one_minus_az = 1 - az;
-ex1 = az + ay.^2 ./ h2 .* one_minus_az;
-ex2 = -ax .* ay ./ h2 .* one_minus_az;
-ey1 = ex2;
-ey2 = az + ax.^2 ./ h2 .* one_minus_az;
-coef_x_my = ey2 + ay.^2 ./ az;
-coef_x_mx = ey1 + ax .* ay ./ az;
-coef_y_my = ex2 + ax .* ay ./ az;
-coef_y_mx = ex1 + ax.^2 ./ az;
-det = coef_x_my .* coef_y_mx - coef_x_mx .* coef_y_my;
-coef(is_tilt, :) = [coef_x_my, coef_x_mx, coef_y_my, coef_y_mx, det];
-
-return
-end
-
-function [Qx, Qy] = recover_global_shear(rs, coef, is_tilt)
-%recover_global_shear - 表示基底Qから全体系XYせん断を復元
-%
-%   [Qx, Qy] = recover_global_shear(rs, coef, is_tilt) は、柱の
-%   表示基底Q成分から全体系X/Yせん断を返す。鉛直柱は従来と同じ
-%   Qx=-row3, Qy=row2 として扱う。
-
-Qy = rs(:, 2);
-qx = rs(:, 3);
-if any(is_tilt)
-  a = rs(is_tilt, 2);
-  b = rs(is_tilt, 3);
-  c = coef(is_tilt, :);
-  Qy(is_tilt) = (c(:, 4) .* a + c(:, 2) .* b) ./ c(:, 5);
-  qx(is_tilt) = (c(:, 3) .* a + c(:, 1) .* b) ./ c(:, 5);
-end
-Qx = -qx;
 
 return
 end

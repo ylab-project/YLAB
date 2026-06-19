@@ -1,6 +1,10 @@
-function [gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl] = ...
+function [cxl, cyl] = ...
   update_member_cosine(member_girder, member_column, ...
   member_brace, member_horizontal_brace, node)
+%update_member_cosine - 現在の節点座標から部材方向余弦を計算
+%
+%   [cxl, cyl] = update_member_cosine(...) は、全体部材IDに対応する
+%   [nme×3] の方向余弦配列を返す。
 
 % 共通配列
 x = node.x;
@@ -52,6 +56,19 @@ idnode2 = member_horizontal_brace.idnode2;
 an = zeros(length(idnode1),1);
 [hbcyl, hbcxl] = ystar(x(idnode1), y(idnode1), z(idnode1), ...
   x(idnode2), y(idnode2), z(idnode2), an);
+
+nme = max([member_girder.idme; member_column.idme; ...
+  member_brace.idme; member_horizontal_brace.idme]);
+cxl = zeros(nme, 3);
+cyl = zeros(nme, 3);
+cxl(member_girder.idme, :) = gcxl;
+cyl(member_girder.idme, :) = gcyl;
+cxl(member_column.idme, :) = ccxl;
+cyl(member_column.idme, :) = ccyl;
+cxl(member_brace.idme, :) = bcxl;
+cyl(member_brace.idme, :) = bcyl;
+cxl(member_horizontal_brace.idme, :) = hbcxl;
+cyl(member_horizontal_brace.idme, :) = hbcyl;
 
 return
 end

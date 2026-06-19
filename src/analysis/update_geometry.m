@@ -124,19 +124,8 @@ node.z = nodez;
 %      前処理値がそのまま保持される。追加補正は不要。
 
 % 方向余弦を現在の node 座標から常に計算
-[gcxl, gcyl, ccxl, ccyl, bcxl, bcyl, hbcxl, hbcyl] = ...
-  update_member_cosine(member_girder, member_column, ...
+[cxl, cyl] = update_member_cosine(member_girder, member_column, ...
   member_brace, member_horizontal_brace, node);
-nme = length(mtype);
-cxl = zeros(nme, 3); cyl = zeros(nme, 3);
-cxl(mtype==PRM.GIRDER,:) = gcxl;
-cyl(mtype==PRM.GIRDER,:) = gcyl;
-cxl(mtype==PRM.COLUMN,:) = ccxl;
-cyl(mtype==PRM.COLUMN,:) = ccyl;
-cxl(mtype==PRM.BRACE,:) = bcxl;
-cyl(mtype==PRM.BRACE,:) = bcyl;
-cxl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcxl;
-cyl(mtype==PRM.HORIZONTAL_BRACE,:) = hbcyl;
 
 if options.do_autoupdate_floor_height
   % ブレース部材長の算出（構造心間の斜め距離）
