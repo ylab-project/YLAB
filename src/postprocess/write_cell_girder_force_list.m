@@ -147,13 +147,13 @@ return
     body{row_idx,6} = seq_;
     % 応力値（部材長、M[kNm]、Q[kN]、N[kN]）
     body{row_idx,7} = fmt_ceil_abs(lm(im), 0);
-    body{row_idx,8} = fmt_ceil_abs(-rs(im,5)*1.d-6, 1);
-    body{row_idx,9} = fmt_ceil_abs(Mc(ig_)*1.d-6, 1);
-    body{row_idx,10} = fmt_ceil_abs(-rs(im,11)*1.d-6, 1);
-    body{row_idx,11} = fmt_ceil_abs(rs(im,3)*1.d-3, 1);
+    body{row_idx,8} = sprintf('%.1f', -rs(im,5)*1.d-6);
+    body{row_idx,9} = sprintf('%.1f', Mc(ig_)*1.d-6);
+    body{row_idx,10} = sprintf('%.1f', -rs(im,11)*1.d-6);
+    body{row_idx,11} = sprintf('%.1f', rs(im,3)*1.d-3);
     body{row_idx,12} = '';
-    body{row_idx,13} = fmt_ceil_abs(rs(im,9)*1.d-3, 1);
-    body{row_idx,14} = fmt_ceil_abs(rs(im,1)*1.d-3, 1);
-    body{row_idx,15} = fmt_ceil_abs(rs(im,7)*1.d-3, 1);
+    body{row_idx,13} = sprintf('%.1f', rs(im,9)*1.d-3);
+    body{row_idx,14} = sprintf('%.1f', rs(im,1)*1.d-3);
+    body{row_idx,15} = sprintf('%.1f', rs(im,7)*1.d-3);
   end
 end

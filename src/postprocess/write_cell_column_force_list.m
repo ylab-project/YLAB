@@ -63,6 +63,10 @@ for i = 1:nfl
           continue
         end
         idsub = column.idnominal(ic, 2);
+        inc = column.idnominal(ic, 1);
+        if inc > 0 && com.nominal.column.isthrough(inc)
+          idsub = 1;
+        end
         irow = irow+1;
         body{irow,1} = column.floor_name{ic};
         body{irow,2} = column.coord_name{ic,1};
@@ -72,18 +76,18 @@ for i = 1:nfl
         body{irow,5} = idsub;
         im = column.idme(ic);
         body{irow,6} = sprintf('%.0f', lm(im));
-        body{irow,7} = fmt_ceil_abs(-rs(im,11)*1.d-6, 1);
+        body{irow,7} = sprintf('%.1f', -rs(im,11)*1.d-6);
         body{irow,8} = '';
-        body{irow,9} = fmt_ceil_abs(-rs(im,5)*1.d-6, 1);
-        body{irow,10} = fmt_ceil_abs(rs(im,9)*1.d-3, 1);
-        body{irow,11} = fmt_ceil_abs(rs(im,3)*1.d-3, 1);
-        body{irow,12} = fmt_ceil_abs(-rs(im,12)*1.d-6, 1);
+        body{irow,9} = sprintf('%.1f', -rs(im,5)*1.d-6);
+        body{irow,10} = sprintf('%.1f', rs(im,9)*1.d-3);
+        body{irow,11} = sprintf('%.1f', rs(im,3)*1.d-3);
+        body{irow,12} = sprintf('%.1f', -rs(im,12)*1.d-6);
         body{irow,13} = '';
-        body{irow,14} = fmt_ceil_abs(-rs(im,6)*1.d-6, 1);
-        body{irow,15} = fmt_ceil_abs(-rs(im,8)*1.d-3, 1);
-        body{irow,16} = fmt_ceil_abs(-rs(im,2)*1.d-3, 1);
-        body{irow,17} = fmt_ceil_abs(rs(im,7)*1.d-3, 1);
-        body{irow,18} = fmt_ceil_abs(rs(im,1)*1.d-3, 1);
+        body{irow,14} = sprintf('%.1f', -rs(im,6)*1.d-6);
+        body{irow,15} = sprintf('%.1f', -rs(im,8)*1.d-3);
+        body{irow,16} = sprintf('%.1f', -rs(im,2)*1.d-3);
+        body{irow,17} = sprintf('%.1f', rs(im,7)*1.d-3);
+        body{irow,18} = sprintf('%.1f', rs(im,1)*1.d-3);
       end
     end
   end
