@@ -95,6 +95,12 @@ description = sprintf([ ...
 
 fprintf('Packaging Installer...\n');
 
+cleanupWarnIds = { ...
+  'MATLAB:class:DestructorError', ...
+  'MATLAB:DELETE:Permission'};
+cleanupWarnStates = set_warning_state(cleanupWarnIds, 'off');
+restoreWarn = onCleanup(@() restore_warning_state(cleanupWarnStates));
+
 compiler.package.installer(results, ...
   "ApplicationName", "YLAB", ...
   "AuthorCompany", "TUS", ...
@@ -107,6 +113,7 @@ compiler.package.installer(results, ...
   "Description", description, ...
   "Verbose", "on");
 
+clear restoreWarn
 cleanup_installer_temp(buildDir);
 
 fprintf('Build successful.\n');
@@ -115,9 +122,22 @@ end
 
 %--------------------------------------------------------------------------
 function cleanup_installer_temp(buildDir)
-%cleanup_installer_temp インストーラー作成時の一時フォルダを削除する
+%cleanup_installer_temp - インストーラー作成時の一時フォルダを削除する
 
-tempDir = fullfile(buildDir, 'uninstall_icon_resources');
+tempNames = {'YLAB_resources', 'uninstall_icon_resources'};
+for i = 1:numel(tempNames)
+  tempDir = fullfile(buildDir, tempNames{i});
+  cleanup_temp_dir(tempDir);
+end
+cleanup_temp_file(fullfile(buildDir, 'installAgentURL.txt'));
+
+return
+end
+
+%--------------------------------------------------------------------------
+function cleanup_temp_dir(tempDir)
+%cleanup_temp_dir - 指定された一時フォルダを削除する
+
 if ~exist(tempDir, 'dir')
   return
 end
@@ -133,6 +153,54 @@ for i = 1:tryCount
 end
 
 fprintf('インストーラー一時フォルダを残しました: %s\n', tempDir);
+
+return
+end
+
+%--------------------------------------------------------------------------
+function cleanup_temp_file(tempFile)
+%cleanup_temp_file - 指定された一時ファイルを削除する
+
+if ~exist(tempFile, 'file')
+  return
+end
+
+tryCount = 5;
+waitSec = 0.5;
+warnState = warning('off', 'MATLAB:DELETE:Permission');
+restoreWarn = onCleanup(@() warning(warnState));
+for i = 1:tryCount
+  delete(tempFile);
+  if ~exist(tempFile, 'file')
+    return
+  end
+  pause(waitSec);
+end
+
+fprintf('インストーラー一時ファイルを残しました: %s\n', tempFile);
+
+return
+end
+
+%--------------------------------------------------------------------------
+function warnStates = set_warning_state(warnIds, state)
+%set_warning_state - 指定された警告状態をまとめて変更する
+
+warnStates = repmat(warning('query', warnIds{1}), 1, numel(warnIds));
+for i = 1:numel(warnIds)
+  warnStates(i) = warning(state, warnIds{i});
+end
+
+return
+end
+
+%--------------------------------------------------------------------------
+function restore_warning_state(warnStates)
+%restore_warning_state - 保存した警告状態を復元する
+
+for i = 1:numel(warnStates)
+  warning(warnStates(i));
+end
 
 return
 end
