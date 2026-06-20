@@ -5,6 +5,7 @@ ndata = size(data,1);
 
 % 計算の準備
 story_name = cell(ndata,1);
+floor_name = cell(ndata,1);
 gx = zeros(ndata,1);
 gy = zeros(ndata,1);
 p = zeros(ndata,1);
@@ -13,7 +14,14 @@ ids = zeros(ndata,1);
 % 地震力の読み出し
 isss = 1:obj.nstory;
 for i=1:ndata
-  story_name{i} = strtok(data{i,1},'(');
+  names = regexp(data{i,1}, '^([^(]+)(?:\(([^)]+)\))?', ...
+    'tokens', 'once');
+  story_name{i} = names{1};
+  if numel(names) >= 2
+    floor_name{i} = names{2};
+  else
+    floor_name{i} = story_name{i};
+  end
   if ischar(data{i,2})
     data{i,2} = str2double(data{i,2}(1:end-1));
   end
@@ -30,6 +38,7 @@ end
 
 % 結果の整理
 earthquake.story_name = story_name;
+earthquake.floor_name = floor_name;
 earthquake.idstory = ids;
 earthquake.gx = gx;
 earthquake.gy = gy;

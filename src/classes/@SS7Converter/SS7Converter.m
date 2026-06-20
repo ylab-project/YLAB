@@ -77,6 +77,15 @@ classdef SS7Converter < handle
       % 地震力の読み出し
       obj.earthquake = obj.extractEarthquakeForce();
 
+      % 地震力作用位置の書き出し
+      [earthquakePosition, header] = ...
+        obj.writeCellEarthquakeForcePosition();
+      if ~isempty(earthquakePosition)
+        fprintf(fout, 'name=地震力作用位置の直接入力\n');
+        write_csv_from_cell(fout, header, earthquakePosition, modeSS7);
+        fprintf(fout, ',\n');
+      end
+
       % 等価節点荷重の書き出し
       [nodalLoad, header] = obj.writeCellNodalLoad();
       if ~isempty(nodalLoad)

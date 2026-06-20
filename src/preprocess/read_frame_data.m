@@ -68,7 +68,8 @@ labels = {'基本事項', '構造計算条件', '最適化条件', '制約条件
   '通し柱', '通し梁', 'スラブ協力幅', '柱の剛度増減率', ...
   '梁の剛度増減率', '梁の捩り剛性増減率', '柱の捩り剛性増減率', ...
   '断面算定の省略（梁符号毎）', '断面算定の省略（柱符号毎）', ...
-  '荷重ケース', '節点荷重', '追加節点荷重', '梁要素荷重'};
+  '荷重ケース', '節点荷重', '地震力作用位置の直接入力', ...
+  '追加節点荷重', '梁要素荷重'};
 dbc = data_block_class;
 dbc.readCsvFile(input, labels);
 
@@ -533,6 +534,7 @@ com.nlc = size(loadcase,1);
 
 %% 節点荷重
 fnode = set_nodal_force_block(dbc, com);
+fnode = add_earthquake_force_position_mz(dbc, com, fnode);
 
 %% 追加節点荷重
 [faddnode, faddnode_report_excl] = ...
@@ -2412,6 +2414,76 @@ for i=1:n
   in = idnode(i);
   fnode(in, :, lcase(i)) = fnode(in, :, lcase(i)) + reshape(f(i,:), 1, 6);
   % 節点荷重は重心に作用するとみなし、偏心モーメントは計算しない
+end
+
+return
+end
+
+%--------------------------------------------------------------------------
+function fnode = add_earthquake_force_position_mz(dbc, com, fnode)
+data = dbc.get_data_block('地震力作用位置の直接入力');
+if isempty(data)
+  return
+end
+
+node = com.node;
+story = com.story;
+loadcase = com.loadcase;
+used = false(com.nstory, 1);
+for i=1:size(data,1)
+  floor_name = tochar(data{i,1});
+  rigid_name = tochar(data{i,2});
+  method = tochar(data{i,3});
+  if matches(method, '指定なし')
+    continue
+  end
+  if ~matches(rigid_name, '主剛床')
+    error('YLAB:Input:UnsupportedEarthquakeForcePosition', ...
+      '地震力作用位置は主剛床のみ対応しています（行 %d）', i);
+  end
+  if ~matches(method, '絶対座標')
+    error('YLAB:Input:UnsupportedEarthquakeForcePosition', ...
+      '地震力作用位置は絶対座標のみ対応しています（行 %d）', i);
+  end
+  if ismissing(data{i,6}) || ismissing(data{i,7})
+    error('YLAB:Input:InvalidEarthquakeForcePosition', ...
+      '地震力作用位置のX座標またはY座標が空欄です（行 %d）', i);
+  end
+
+  ist = find(matches(story.floor_name, floor_name), 1);
+  if isempty(ist)
+    ist = find(matches(story.name, floor_name), 1);
+  end
+  if isempty(ist)
+    error('YLAB:Input:EarthquakeForcePositionStoryNotFound', ...
+      '地震力作用位置の階が見つかりません（行 %d: %s）', ...
+      i, floor_name);
+  end
+  if used(ist)
+    error('YLAB:Input:DuplicateEarthquakeForcePosition', ...
+      '地震力作用位置が同じ層に複数指定されています（行 %d）', i);
+  end
+  used(ist) = true;
+
+  idnode = story.idnoderep(ist);
+  if isnan(idnode)
+    error('YLAB:Input:EarthquakeForcePositionNodeNotFound', ...
+      '地震力作用位置を反映する代表節点が見つかりません（行 %d）', i);
+  end
+  posx = data{i,6};
+  posy = data{i,7};
+  for ilc=1:com.nlc
+    lcdir = loadcase.dir(ilc);
+    if lcdir ~= PRM.EXP && lcdir ~= PRM.EXN ...
+        && lcdir ~= PRM.EYP && lcdir ~= PRM.EYN
+      continue
+    end
+    isnode = node.idstory == ist;
+    fx = sum(fnode(isnode, 1, ilc));
+    fy = sum(fnode(isnode, 2, ilc));
+    mz = fx * (story.yg(ist) - posy) + fy * (posx - story.xg(ist));
+    fnode(idnode, 6, ilc) = fnode(idnode, 6, ilc) + mz;
+  end
 end
 
 return
