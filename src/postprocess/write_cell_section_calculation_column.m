@@ -53,8 +53,6 @@ lm_nominal = result.lm_nominal;
 lbc_nominal = result.lbc_nominal;
 cri_all = result.cri;
 crj_all = result.crj;
-csi_all = result.csi;
-csj_all = result.csj;
 idsecc2sec = com.section.column.idsec;
 
 if isempty(ration)
@@ -69,8 +67,6 @@ iz_ = sqrt(Iz ./ A);
 % 柱許容応力度比
 cri = reshape(cri_all, [], nlc) + 1;
 crj = reshape(crj_all, [], nlc) + 1;
-csi = reshape(csi_all, nnc, nlc) + 1;
-csj = reshape(csj_all, nnc, nlc) + 1;
 
 % 各名目柱の最大検定比（代表部材選定用）
 max_ratio_all = max(max(cri, [], 2), max(crj, [], 2));
@@ -153,10 +149,6 @@ for i = 1:nstory
     ily = pick_max_case(cri, inc, true);
     jlx = pick_max_case(crj, inc, false);
     jly = pick_max_case(crj, inc, true);
-    isx = pick_max_case(csi, inc, false);
-    isy = pick_max_case(csi, inc, true);
-    jsx = pick_max_case(csj, inc, false);
-    jsy = pick_max_case(csj, inc, true);
 
     % --- 箇所ごとの部材番号 ---
     idsub = nominal_column.idsub(inc, :);
@@ -235,28 +227,28 @@ for i = 1:nstory
       write_iy_label(irow, im1);
       write_check_row(irow, '<X>柱頭', Zy(im2), A(im2), Asy(im2), ...
         fbn(inm, 2, jlx), ration(inm, 1, jlx), ration(inm, 11, jlx), ...
-        ration(inm, 12, jlx), ration(inm, 9, jsx), ration(inm, 17, jlx));
+        ration(inm, 12, jlx), ration(inm, 9, jlx), ration(inm, 17, jlx));
 
       % λ + 柱脚 X 検定
       irow = irow + 1;
       write_lambda_label(irow, im1);
       write_check_row(irow, '柱脚', Zy(im1), A(im1), Asy(im1), ...
         fbn(inm, 1, ilx), ration(inm, 1, ilx), ration(inm, 5, ilx), ...
-        ration(inm, 6, ilx), ration(inm, 9, isx), ration(inm, 15, ilx));
+        ration(inm, 6, ilx), ration(inm, 9, ilx), ration(inm, 15, ilx));
 
       % fcL + <Y>柱頭 検定
       irow = irow + 1;
       write_fcl_label(irow);
       write_check_row(irow, '<Y>柱頭', Zy(im2), A(im2), Asz(im2), ...
         fbn(inm, 2, jly), ration(inm, 1, jly), ration(inm, 11, jly), ...
-        ration(inm, 12, jly), ration(inm, 8, jsy), ration(inm, 18, jly));
+        ration(inm, 12, jly), ration(inm, 8, jly), ration(inm, 18, jly));
 
       % fcS + 柱脚 Y 検定（柱エントリ末尾、CONT_MARKER は付与しない）
       irow = irow + 1;
       write_fcs_label(irow);
       write_check_row(irow, '柱脚', Zz(im1), A(im1), Asy(im1), ...
         fbn(inm, 1, ily), ration(inm, 1, ily), ration(inm, 5, ily), ...
-        ration(inm, 6, ily), ration(inm, 8, isy), ration(inm, 16, ily));
+        ration(inm, 6, ily), ration(inm, 8, ily), ration(inm, 16, ily));
       sccbody{irow, ncol} = '';
 
     else
@@ -324,7 +316,7 @@ for i = 1:nstory
       write_fcl_label(irow);
       write_check_row(irow, '<X>柱頭', Zy(im2), A(im2), Asy(im2), ...
         fbn(inm, 2, jlx), ration(inm, 1, jlx), ration(inm, 11, jlx), ...
-        ration(inm, 12, jlx), ration(inm, 9, jsx), ration(inm, 17, jlx));
+        ration(inm, 12, jlx), ration(inm, 9, jlx), ration(inm, 17, jlx));
 
       % fcS + 中央 X 検定（Zy/A のみ）
       irow = irow + 1;
@@ -338,13 +330,13 @@ for i = 1:nstory
       irow = irow + 1;
       write_check_row(irow, '柱脚', Zy(im1), A(im1), Asy(im1), ...
         fbn(inm, 1, ilx), ration(inm, 1, ilx), ration(inm, 5, ilx), ...
-        ration(inm, 6, ilx), ration(inm, 9, isx), ration(inm, 15, ilx));
+        ration(inm, 6, ilx), ration(inm, 9, ilx), ration(inm, 15, ilx));
 
       % <Y>柱頭 検定
       irow = irow + 1;
       write_check_row(irow, '<Y>柱頭', Zy(im2), A(im2), Asz(im2), ...
         fbn(inm, 2, jly), ration(inm, 1, jly), ration(inm, 11, jly), ...
-        ration(inm, 12, jly), ration(inm, 8, jsy), ration(inm, 18, jly));
+        ration(inm, 12, jly), ration(inm, 8, jly), ration(inm, 18, jly));
 
       % 中央 Y 検定（Zz/A のみ）
       irow = irow + 1;
@@ -357,7 +349,7 @@ for i = 1:nstory
       irow = irow + 1;
       write_check_row(irow, '柱脚', Zz(im1), A(im1), Asy(im1), ...
         fbn(inm, 1, ily), ration(inm, 1, ily), ration(inm, 5, ily), ...
-        ration(inm, 6, ily), ration(inm, 8, isy), ration(inm, 16, ily));
+        ration(inm, 6, ily), ration(inm, 8, ily), ration(inm, 16, ily));
       sccbody{irow, ncol} = '';
     end
 
@@ -506,13 +498,13 @@ return
   function ilc = pick_max_case(table_, inc_, is_y)
   %pick_max_case - 最大検定比ケース番号を返す（Y は +2 補正込み）
   %
-  %   ilc = pick_max_case(table_, inc_, is_y) は、cri/crj/csi/csj
+  %   ilc = pick_max_case(table_, inc_, is_y) は、cri/crj
   %   テーブルから X 方向（[1 2 3] 列）または Y 方向（[1 4 5] 列）
   %   の最大検定比ケース番号を返す。eps による同値解消と、
   %   Y 方向ケース番号の +2 補正を内部で行う。
   %
   %   入力引数:
-  %     table_ - cri/crj/csi/csj のいずれか [nnc×nlc]
+  %     table_ - cri/crj のいずれか [nnc×nlc]
   %     inc_   - 名目柱番号
   %     is_y   - true で Y 方向、false で X 方向
   %
