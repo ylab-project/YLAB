@@ -39,10 +39,10 @@ h.cb_pdf.Value = options.do_writeout_pdf;
 h.cb_pdf.Layout.Row = 5;
 h.cb_pdf.Layout.Column = [1 3];
 
-% 6: Legacy Output
-h.cb_legacy = uicheckbox(gl, 'Text', ...
-  'SS7互換出力（S梁検定比一覧･S柱検定比一覧）');
-h.cb_legacy.Value = options.do_legacy_output;
-h.cb_legacy.Layout.Row = 6;
-h.cb_legacy.Layout.Column = [1 3];
+% 6: Preprocess
+h.cb_nopreprocess = uicheckbox(gl, 'Text', ...
+  '断面リスト事前処理を無効化（比較用）');
+h.cb_nopreprocess.Value = ~options.do_preprocess_section_list;
+h.cb_nopreprocess.Layout.Row = 6;
+h.cb_nopreprocess.Layout.Column = [1 3];
 end

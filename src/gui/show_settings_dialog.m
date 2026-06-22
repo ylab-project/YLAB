@@ -124,7 +124,8 @@ target_output = target_output_file;
   end
 
   function on_output_browse(~, ~)
-    [file, path] = uiputfile('*.csv', 'Select Output File', h_gen.edt_output.Value);
+    [file, path] = uiputfile( ...
+      '*.csv', 'Select Output File', h_gen.edt_output.Value);
     if file ~= 0
       h_gen.edt_output.Value = fullfile(path, file);
     end
@@ -222,15 +223,24 @@ target_output = target_output_file;
       if isempty(p), p = pwd; end
 
       current_path = '';
-      if ispref('YLAB', 'DevRootPath'), current_path = getpref('YLAB', 'DevRootPath'); end
-      if isempty(current_path) || ~exist(fullfile(current_path, 'YLAB.m'), 'file')
+      if ispref('YLAB', 'DevRootPath')
+        current_path = getpref('YLAB', 'DevRootPath');
+      end
+      if isempty(current_path) || ...
+          ~exist(fullfile(current_path, 'YLAB.m'), 'file')
         p_ylab = which('YLAB');
-        if ~isempty(p_ylab), current_path = fileparts(p_ylab); else, current_path = pwd; end
+        if ~isempty(p_ylab)
+          current_path = fileparts(p_ylab);
+        else
+          current_path = pwd;
+        end
       end
 
       msg = sprintf('YLAB Source Path:\n%s', current_path);
       selection = uiconfirm(fig, msg, 'Confirm YLAB Path', ...
-        'Options', {'OK', 'Change', 'Cancel'}, 'DefaultOption', 'OK', 'CancelOption', 'Cancel');
+        'Options', {'OK', 'Change', 'Cancel'}, ...
+        'DefaultOption', 'OK', ...
+        'CancelOption', 'Cancel');
 
       switch selection
         case 'OK'
@@ -239,7 +249,8 @@ target_output = target_output_file;
           return;
       end
       if strcmp(selection, 'Change')
-        sel_path = uigetdir(current_path, 'Select YLAB "main" source directory');
+        sel_path = uigetdir( ...
+          current_path, 'Select YLAB "main" source directory');
         if sel_path == 0, return; end
         approot = sel_path;
         setpref('YLAB', 'DevRootPath', approot);
@@ -248,10 +259,14 @@ target_output = target_output_file;
         uialert(fig, ['YLAB.m not found in: ' approot], 'Error'); return;
       end
 
-      script_path = create_mscript(mod_options, approot, p, original_output_file, h_gen.cb_autocopy.Value);
+      script_path = create_mscript( ...
+        mod_options, approot, p, original_output_file, ...
+        h_gen.cb_autocopy.Value);
 
-      selection = uiconfirm(fig, ['M-Script created: ' script_path], 'Success', ...
-        'Icon', 'success', 'Options', {'フォルダを開く', 'OK'});
+      selection = uiconfirm( ...
+        fig, ['M-Script created: ' script_path], ...
+        'Success', 'Icon', 'success', ...
+        'Options', {'フォルダを開く', 'OK'});
       if strcmp(selection, 'フォルダを開く')
         system(['explorer "' strrep(p, '/', '\') '"']);
       end
@@ -266,7 +281,10 @@ target_output = target_output_file;
       [input_dir, ~, ~] = fileparts(mod_options.inputfile);
       if isempty(input_dir), input_dir = pwd; end
       bat_path = create_batfile(mod_options, input_dir);
-      uiconfirm(fig, ['Batch file created: ' bat_path], 'Success', 'Icon', 'success', 'Options', {'OK'});
+      uiconfirm( ...
+        fig, ['Batch file created: ' bat_path], ...
+        'Success', 'Icon', 'success', ...
+        'Options', {'OK'});
     catch ME
       uialert(fig, ['Failed to create batch file: ' ME.message], 'Error');
     end
@@ -296,15 +314,20 @@ target_output = target_output_file;
     mod_options.outputfile = h_gen.edt_output.Value;
     mod_options.exemode = h_gen.dd_exemode.Value;
     mod_options.do_writeout_pdf = h_gen.cb_pdf.Value;
-    mod_options.do_legacy_output = h_gen.cb_legacy.Value;
+    mod_options.do_preprocess_section_list = ...
+      ~h_gen.cb_nopreprocess.Value;
 
     % History
     mod_options.matfile = h_hist.edt_matfile.Value;
     if strcmp(h_hist.dd_res_trial.Enable, 'on')
       t_str = h_hist.dd_res_trial.Value;
-      if ~isempty(t_str), mod_options.idtrial_resume = sscanf(t_str, 'Trial %d'); end
+      if ~isempty(t_str)
+        mod_options.idtrial_resume = sscanf(t_str, 'Trial %d');
+      end
       p_str = h_hist.dd_res_phase.Value;
-      if ~isempty(p_str), mod_options.idphase_resume = sscanf(p_str, 'Phase %d'); end
+      if ~isempty(p_str)
+        mod_options.idphase_resume = sscanf(p_str, 'Phase %d');
+      end
       mod_options.iter_resume = h_hist.sef_res_iter.Value;
     end
 

@@ -1,5 +1,6 @@
-function script_path = create_mscript(options, approot, output_dir, original_output_file, do_copy)
-%create_mscript - 実行用MATLABスクリプトを作�Eする
+function script_path = create_mscript( ...
+  options, approot, output_dir, original_output_file, do_copy)
+%create_mscript - 実行用MATLABスクリプトを作成する
 
 [~, n, ~] = fileparts(options.inputfile);
 if isempty(n), n = 'ylab_run'; end
@@ -34,17 +35,26 @@ fprintf(fid, 'outputfile = ''%s'';\n\n', outputfile_);
 fprintf(fid, 'YLAB( ...\n');
 fprintf(fid, '    ''uimode'', ''CUI'', ...\n');
 fprintf(fid, '    ''exemode'', ''%s'', ...\n', options.exemode);
+if ~options.do_preprocess_section_list
+  fprintf(fid, '    ''-nopreprocess'', ...\n');
+end
 fprintf(fid, '    ''inputfile'', inputfile, ...\n');
 
 % Optional parameters
 if ~isempty(options.matfile)
-  fprintf(fid, '    ''matfile'', ''%s'', ...\n', strrep(options.matfile, '\', '/'));
+  fprintf(fid, ...
+    '    ''matfile'', ''%s'', ...\n', ...
+    strrep(options.matfile, '\', '/'));
 end
 if options.idtrial_resume > 1
-  fprintf(fid, '    ''idtrial_resume'', %d, ...\n', options.idtrial_resume);
+  fprintf(fid, ...
+    '    ''idtrial_resume'', %d, ...\n', ...
+    options.idtrial_resume);
 end
 if options.idphase_resume > 1
-  fprintf(fid, '    ''idphase_resume'', %d, ...\n', options.idphase_resume);
+  fprintf(fid, ...
+    '    ''idphase_resume'', %d, ...\n', ...
+    options.idphase_resume);
 end
 if options.iter_resume > 0
   fprintf(fid, '    ''iter_resume'', %d, ...\n', options.iter_resume);
@@ -69,9 +79,13 @@ if do_copy && ~isempty(original_output_file)
   fprintf(fid, 'if exist(outputfile, ''file'')\n');
   fprintf(fid, '    targetfile = ''%s'';\n', target_);
   fprintf(fid, '    dst_dir = fileparts(targetfile);\n');
-  fprintf(fid, '    if ~exist(dst_dir, ''dir'') && ~isempty(dst_dir), mkdir(dst_dir); end\n');
+  fprintf(fid, ...
+    ['    if ~exist(dst_dir, ''dir'') && ~isempty(dst_dir), ' ...
+    'mkdir(dst_dir); end\n']);
   fprintf(fid, '    copyfile(outputfile, targetfile);\n');
-  fprintf(fid, '    fprintf(''Copied result to target: %%s\n'', targetfile);\n');
+  fprintf(fid, ...
+    ['    fprintf(''Copied result to target: %%s\n'', ' ...
+    'targetfile);\n']);
   fprintf(fid, 'end\n');
 end
 end
