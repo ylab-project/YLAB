@@ -220,6 +220,7 @@ msprop.pr = prm;
 msprop.G = Gm;
 msprop.isSN = isSNm;
 msprop.steel_grade = steel_grade_m;
+msprop.idmaterial = idm2mat;
 msprop.material_name = material_name_m;
 
 % 構造体への変換
