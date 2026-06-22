@@ -22,7 +22,7 @@ function scgbody = write_cell_section_calculation_girder( ...
 %
 %   備考:
 %     - 中央位置は result.nomgc.xc_design(ing) を参照する。
-%     - C 補正係数は上限値 2.3 に飽和したときのみ表示する。
+%     - C 補正係数はfbがfb1式で決定したときのみ表示する。
 
 % 定数
 nng = com.num.nominal_girder;
@@ -30,7 +30,6 @@ nlc = com.nlc;
 nstory = com.nstory;
 mb = 23;
 ncol = 16;
-FB_EQ_TOL = 0.05; % fb==Ft判定許容差(N/mm2)
 
 % 共通配列
 girder = com.member.girder;
@@ -45,6 +44,7 @@ lbn_nom = result.nomgc.lb;
 id_center_sel = result.id_center_sel;
 dfn = result.dfn;
 fbn = result.fbn;
+fbn_by_fb1 = result.fbnByFb1;
 fcn = result.fcn;
 stn = result.stn;
 stcn = result.stcn;
@@ -377,15 +377,13 @@ for i = 1:nstory
       scgbody{irow, 4} = PRM.load_case_combo_name(clc);
       scgbody{irow, 6} = PRM.load_case_combo_name(jlc);
       scgbody{irow, 9} = 'C';
-      % C 補正係数: 上限値 2.3 に達した（飽和した）ときのみ表示する
-      % （SS7 互換表示）。fb==Ft（横座屈低減が効いていない）も空白。
-      ftdiv_ = [1.5 1 1 1 1];
-      scgbody{irow, 10} = fmt_C(fbn(inm,1,ilc), F(im1)/ftdiv_(ilc), ...
-        C(ig1, 1, ilc), FB_EQ_TOL);
-      scgbody{irow, 12} = fmt_C(fbn(inm,3,clc), F(imc)/ftdiv_(clc), ...
-        C(igc, 3, clc), FB_EQ_TOL);
-      scgbody{irow, 14} = fmt_C(fbn(inm,2,jlc), F(im2)/ftdiv_(jlc), ...
-        C(ig2, 2, jlc), FB_EQ_TOL);
+      % C 補正係数: SS7互換でfbがfb1式で決定したときのみ表示する。
+      scgbody{irow, 10} = fmt_C(fbn_by_fb1(inm, 1, ilc), ...
+        C(ig1, 1, ilc));
+      scgbody{irow, 12} = fmt_C(fbn_by_fb1(inm, 3, clc), ...
+        C(igc, 3, clc));
+      scgbody{irow, 14} = fmt_C(fbn_by_fb1(inm, 2, jlc), ...
+        C(ig2, 2, jlc));
 
       if has_axial
         % --- N ---
@@ -521,25 +519,19 @@ return
     return
   end
 
-  function s = fmt_C(fb, ft, Cv, fb_tol)
+  function s = fmt_C(show_c, Cv)
   %fmt_C - C 補正係数の表示文字列を生成
   %
-  %   s = fmt_C(fb, ft, Cv, fb_tol) は、C 補正係数が上限 2.3 に飽和
-  %   しており、かつ fb が ft と異なる（横座屈低減が効いている）
-  %   ときのみ '%.3f' で書式化した文字列を返す。それ以外は空文字。
-  %   SS7 の S梁断面算定表の C 列表示仕様に合わせる。
+  %   s = fmt_C(show_c, Cv) は、fbがfb1式で決定した場合だけ
+  %   C補正係数を '%.3f' で書式化して返す。
   %
   %   入力引数:
-  %     fb     - 許容曲げ応力度
-  %     ft     - 基準強度 / 短期係数
-  %     Cv     - C 補正係数値
-  %     fb_tol - fb==ft 判定許容差
+  %     show_c - C補正係数を表示するかどうか
+  %     Cv     - C補正係数値
   %
   %   出力引数:
   %     s - 書式化文字列または空文字
-    C_MAX = 2.3;
-    C_TOL = 1e-3;
-    if abs(fb - ft) > fb_tol && abs(Cv - C_MAX) < C_TOL
+    if show_c
       s = sprintf('%.3f', Cv);
     else
       s = '';
