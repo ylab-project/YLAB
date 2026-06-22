@@ -86,12 +86,13 @@ for i = 1:nstory
       else
         sdim = sprintf('%s-%gx%gx%gx%gx%g', symbol, secdim(is,1:5));
       end
+      sectype = normalize_ss7_steel_type_name(secglist.type{il});
       gsbody{irow,7} = sdim;
-      gsbody{irow,8} = secglist.type{il};
+      gsbody{irow,8} = sectype;
       gsbody{irow,9} = sdim;
-      gsbody{irow,10} = secglist.type{il};
+      gsbody{irow,10} = sectype;
       gsbody{irow,11} = sdim;
-      gsbody{irow,12} = secglist.type{il};
+      gsbody{irow,12} = sectype;
       % 材料名
       idsl = secdim(is, 6);
       mat = secmgr.secList.material_name{idsl, 1};

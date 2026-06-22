@@ -185,7 +185,7 @@ function [wt, grp, rep_is] = sort_by_type(wt, grp, rep_is, nrows, secmgr)
     idsl = grp(r, 1);
     idsn = grp(r, 2);
     sl = secmgr.secList.list{idsl};
-    tname = sl.type{idsn};
+    tname = normalize_ss7_steel_type_name(sl.type{idsn});
     if isKey(map, tname)
       order(r) = map(tname);
     else
@@ -233,7 +233,7 @@ function blk = build_steel_weight_block(grp, rep_is, ...
     idsn = grp(r, 2);
     stype_ = stype(is);
     sl = secmgr.secList.list{idsl};
-    tname = sl.type{idsn};
+    tname = normalize_ss7_steel_type_name(sl.type{idsn});
     if stype_ == PRM.TB
       sym = sl.label{idsn};
     else

@@ -147,7 +147,7 @@ return
     end
 
     sl = secmgr.secList.list{idslist};
-    type_name = sl.type{idsection};
+    type_name = normalize_ss7_steel_type_name(sl.type{idsection});
     if stype_ == PRM.TB
       dim_sym = sl.label{idsection};
     else

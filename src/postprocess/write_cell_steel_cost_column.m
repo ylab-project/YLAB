@@ -99,7 +99,8 @@ for i = 1:nfl
           uw = Am(idm_bottom) * PRM.RHOS * 1e-3;
           sym = secmgr.secList.list{idslist}.symbol{idsection};
           dim_str = format_steel_cost_dim(stype_, secdim(is, :), sym);
-          type_name = secmgr.secList.list{idslist}.type{idsection};
+          type_name = normalize_ss7_steel_type_name( ...
+            secmgr.secList.list{idslist}.type{idsection});
           mat_name = material.name{idmat_col(ic_bottom)};
 
           % 仕口部(柱脚)の出力判定: chain 最下階の柱脚

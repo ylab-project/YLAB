@@ -82,7 +82,7 @@ for i = 1:nstory
 
       sl = secmgr.secList.list{idslist};
       sym = sl.symbol{idsection};
-      type_name = sl.type{idsection};
+      type_name = normalize_ss7_steel_type_name(sl.type{idsection});
       mat_name = material.name{idmat_gir(ig1)};
 
       irow = irow + 1;
@@ -133,7 +133,7 @@ for i = 1:nstory
 
         sl = secmgr.secList.list{idslist};
         sym = sl.symbol{idsection};
-        type_name = sl.type{idsection};
+        type_name = normalize_ss7_steel_type_name(sl.type{idsection});
         mat_name = material.name{idmat_gir(ig)};
 
         irow = irow + 1;

@@ -100,7 +100,7 @@ return
     uw = Am(idm) * PRM.RHOS * 1e-3;
 
     sl = secmgr.secList.list{idslist};
-    type_name = sl.type{idsection};
+    type_name = normalize_ss7_steel_type_name(sl.type{idsection});
     if stype_ == PRM.TB
       dim_sym = type_name;
     else
