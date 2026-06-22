@@ -20,14 +20,7 @@ end
 
 % 出力ディレクトリの準備
 buildDir = fullfile(pwd, 'build');
-if exist(buildDir, 'dir')
-  fprintf('Cleaning up build directory...\n');
-  [~, ~] = rmdir(buildDir, 's');
-end
-pause(1); % OSのファイル解放待ち
-if ~exist(buildDir, 'dir')
-  mkdir(buildDir);
-end
+cleanup_build_dir(buildDir);
 
 % ビルド実行
 fprintf('Building Standalone Application (from YLAB.p)\n');
@@ -118,6 +111,51 @@ cleanup_installer_temp(buildDir);
 
 fprintf('Build successful.\n');
 
+end
+
+%--------------------------------------------------------------------------
+function cleanup_build_dir(buildDir)
+%cleanup_build_dir - ビルド出力フォルダを初期化する
+
+if exist(buildDir, 'dir')
+  fprintf('Cleaning up build directory...\n');
+  remove_build_dir(buildDir);
+end
+
+[ok, msg] = mkdir(buildDir);
+if ~ok
+  errMsg = 'ビルド出力フォルダを作成できません: %s\n%s';
+  error('YLAB:Build:MkdirFailed', errMsg, buildDir, msg);
+end
+
+return
+end
+
+%--------------------------------------------------------------------------
+function remove_build_dir(buildDir)
+%remove_build_dir - ビルド出力フォルダを削除する
+
+tryCount = 8;
+waitSec = 1.0;
+lastMsg = '';
+for i = 1:tryCount
+  [ok, msg] = rmdir(buildDir, 's');
+  if ok || ~exist(buildDir, 'dir')
+    return
+  end
+  lastMsg = msg;
+  pause(waitSec);
+end
+
+if exist(buildDir, 'dir')
+  error('YLAB:Build:CleanupFailed', ...
+    ['ビルド出力フォルダを削除できません: %s\n' ...
+    'MATLAB、YLAB、エクスプローラー、Dropbox 同期が ' ...
+    'このフォルダを使用していないか確認してください。\n%s'], ...
+    buildDir, lastMsg);
+end
+
+return
 end
 
 %--------------------------------------------------------------------------
