@@ -29,6 +29,7 @@ function [exitflag, result, com] = YLAB(varargin)
 %     -pdf         - PDFレポートを作成
 %     -nopdf       - PDFレポートの作成をスキップ（デフォルト）
 %     -legacy      - SS7互換の旧フォーマットで出力
+%     -nopreprocess - 断面リスト事前処理を無効化
 %     -dev         - 開発者モード（GUIで起動）
 %     -version     - バージョン情報を表示して終了
 %
@@ -60,6 +61,11 @@ function [exitflag, result, com] = YLAB(varargin)
 %     YLAB('exemode', 'CHECK', ...
 %       'inputfile', 'data/S4.csv', ...
 %       'outputfile', 'out/S4_check.csv', '-legacy')
+%
+%     % 断面リスト事前処理を無効化して確認
+%     YLAB('exemode', 'CHECK', ...
+%       'inputfile', 'data/S4.csv', ...
+%       'outputfile', 'out/S4_check.csv', '-nopreprocess')
 %
 %   バージョン確認:
 %     YLAB('-version')
