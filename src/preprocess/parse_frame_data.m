@@ -70,9 +70,14 @@ member_property.cxl = cxl;
 member_property.cyl = cyl;
 com.member.property = member_property;
 
-girder_cxl = member_property.cxl(member_girder.idme, :);
-[member_girder.is_gx, member_girder.is_gy] = ...
-  classify_girder_cxl_direction(girder_cxl);
+girder_idnode1 = member_girder.idnode1;
+girder_idnode2 = member_girder.idnode2;
+girder_dx = node_std.x(girder_idnode2) ...
+  - node_std.x(girder_idnode1);
+girder_dy = node_std.y(girder_idnode2) ...
+  - node_std.y(girder_idnode1);
+[member_girder.isxdir, member_girder.isydir] = ...
+  classify_girder_xy_direction(girder_dx, girder_dy);
 com.member.girder = member_girder;
 
 %% 変数配列
@@ -115,8 +120,8 @@ com.num.nominal_column = nnz(idnominal_column(:,2)==1);
 col_in1 = member_column.idnode1;
 gir_in1 = member_girder.idnode1;
 gir_in2 = member_girder.idnode2;
-gir_isgx = member_girder.is_gx;
-gir_isgy = member_girder.is_gy;
+gir_isxdir = member_girder.isxdir;
+gir_isydir = member_girder.isydir;
 gir_isfg = member_girder.isfg;
 nmc_ = length(member_column.idme);
 onfg_x = false(nmc_, 1);
@@ -126,8 +131,8 @@ for ic = 1:nmc_
   is_conn = (gir_in1 == in | gir_in2 == in);
   is_fg = is_conn & gir_isfg;
   if any(is_fg)
-    onfg_x(ic) = any(gir_isgx(is_fg));
-    onfg_y(ic) = any(gir_isgy(is_fg));
+    onfg_x(ic) = any(gir_isxdir(is_fg));
+    onfg_y(ic) = any(gir_isydir(is_fg));
   end
 end
 com.member.column.onfg_x = onfg_x;
@@ -269,9 +274,9 @@ cgsr.idvoftw = cgsr_idvoftw;
 cgsr.idvoftf = cgsr_idvoftf;
 cgsr.idvofD = cgsr_idvofD;
 cgsr.idvoft = cgsr_idvoft;
-[cgsr.is_gx_member, cgsr.is_gy_member] = ...
+[cgsr.isxdir_member, cgsr.isydir_member] = ...
   expand_girder_direction_flags(com.nme, com.member.girder.idme, ...
-  com.member.girder.is_gx, com.member.girder.is_gy);
+  com.member.girder.isxdir, com.member.girder.isydir);
 com.cgsr = cgsr;
 com.ncgsr = length(cgsr_idnode);
 
@@ -528,11 +533,11 @@ nmeg = com.nmeg;
 idmeg2n = [com.member.girder.idnode1 com.member.girder.idnode2];
 idmec2n = [com.member.column.idnode1 com.member.column.idnode2];
 idmeg2sec = com.section.girder.idsec(com.member.girder.idsecg);
-idmeg2isgx = com.member.girder.is_gx;
-idmeg2isgy = com.member.girder.is_gy;
+idmeg2isxdir = com.member.girder.isxdir;
+idmeg2isydir = com.member.girder.isydir;
 iggg = 1:nmeg;
 dirs = [PRM.X PRM.Y];
-dir_flags = {idmeg2isgx, idmeg2isgy};
+dir_flags = {idmeg2isxdir, idmeg2isydir};
 
 % 最大接続梁本数を調査
 max_n = 0;

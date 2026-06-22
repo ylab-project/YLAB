@@ -13,11 +13,10 @@ function depth_projection = ...
 %   出力引数:
 %     depth_projection - 鉛直投影後の梁せい [n×1]
 
-TOL = 1e-6;
 
 depth_projection = depth;
 horizontal_norm = sqrt(cxl(:, 1).^2 + cxl(:, 2).^2);
-mask = depth ~= 0 & horizontal_norm > TOL;
+mask = depth ~= 0 & horizontal_norm > PRM.TOL_DIR;
 depth_projection(mask) = depth(mask) ./ horizontal_norm(mask);
 
 return

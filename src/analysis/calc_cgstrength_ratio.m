@@ -1,11 +1,11 @@
 function [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, vix, viy, ...
-  idnode_cgsr, idm2n, idmc2m, mtype, Fm, cxl, is_gx_member, ...
-  is_gy_member)
+  idnode_cgsr, idm2n, idmc2m, mtype, Fm, cxl, isxdir_member, ...
+  isydir_member)
 %calc_cgstrength_ratio - 柱梁耐力比を計算
 %
 %   [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, vix, viy, ...
-%     idnode_cgsr, idm2n, idmc2m, mtype, Fm, cxl, is_gx_member,
-%     is_gy_member) は、各接合部における柱梁耐力比を計算する。
+%     idnode_cgsr, idm2n, idmc2m, mtype, Fm, cxl, isxdir_member,
+%     isydir_member) は、各接合部における柱梁耐力比を計算する。
 %
 %   斜め梁の場合、梁の全塑性モーメントに cosθ 補正を適用する。
 %   SS7仕様: M'pbi = Mpbi × cosθ
@@ -19,8 +19,8 @@ function [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, vix, viy, ...
 %     mtype      - 部材種別 [nmember×1]
 %     Fm         - 材料のF値 [nmember×1]
 %     cxl        - 部材の方向余弦（X軸方向）[nmember×3]
-%     is_gx_member - X方向計算に寄与する部材 [nmember×1]
-%     is_gy_member - Y方向計算に寄与する部材 [nmember×1]
+%     isxdir_member - X方向計算に寄与する部材 [nmember×1]
+%     isydir_member - Y方向計算に寄与する部材 [nmember×1]
 %
 %   出力引数:
 %     concgsr - 柱梁耐力比制約値 [ncgsr×4]
@@ -45,8 +45,8 @@ cos_y = abs(cy) ./ cxy;  % Y方向への投影係数
 cos_x(isnan(cos_x)) = 1;
 cos_y(isnan(cos_y)) = 1;
 
-isgirx = mtype==PRM.GIRDER & is_gx_member;
-isgiry = mtype==PRM.GIRDER & is_gy_member;
+isgirx = mtype==PRM.GIRDER & isxdir_member;
+isgiry = mtype==PRM.GIRDER & isydir_member;
 
 % 耐力比の計算
 for icg = 1:ncgsr
@@ -57,14 +57,14 @@ for icg = 1:ncgsr
   % 左右の梁（cosθ補正適用）
   % 左右判定は相手端の座標で行う（SS7互換）。方向余弦の符号により
   % 節点順が検討方向と逆向きの斜め梁でも左右を正しく振り分ける
-  isgx1 = isgirx&((isconnected2&cx>=0)|(isconnected1&cx<0));
-  isgx2 = isgirx&((isconnected1&cx>=0)|(isconnected2&cx<0));
-  isgy1 = isgiry&((isconnected2&cy>=0)|(isconnected1&cy<0));
-  isgy2 = isgiry&((isconnected1&cy>=0)|(isconnected2&cy<0));
-  sgxl = sum(Zpy(isgx1).*Fm(isgx1).*cos_x(isgx1)*1.1);
-  sgxr = sum(Zpy(isgx2).*Fm(isgx2).*cos_x(isgx2)*1.1);
-  sgyl = sum(Zpy(isgy1).*Fm(isgy1).*cos_y(isgy1)*1.1);
-  sgyr = sum(Zpy(isgy2).*Fm(isgy2).*cos_y(isgy2)*1.1);
+  isxdir1 = isgirx&((isconnected2&cx>=0)|(isconnected1&cx<0));
+  isxdir2 = isgirx&((isconnected1&cx>=0)|(isconnected2&cx<0));
+  isydir1 = isgiry&((isconnected2&cy>=0)|(isconnected1&cy<0));
+  isydir2 = isgiry&((isconnected1&cy>=0)|(isconnected2&cy<0));
+  sgxl = sum(Zpy(isxdir1).*Fm(isxdir1).*cos_x(isxdir1)*1.1);
+  sgxr = sum(Zpy(isxdir2).*Fm(isxdir2).*cos_x(isxdir2)*1.1);
+  sgyl = sum(Zpy(isydir1).*Fm(isydir1).*cos_y(isydir1)*1.1);
+  sgyr = sum(Zpy(isydir2).*Fm(isydir2).*cos_y(isydir2)*1.1);
 
   % 上下の柱
   % TODO 柱の耐力の方向成分を考える必要があるが保留

@@ -58,7 +58,7 @@ Fm = secmgr.extractMemberMaterialF(secdim, matF);
 
 % 柱梁耐力比の算定
 concgsr = calc_cgstrength_ratio(Zpym, vix, viy, idn_cgsr, idm2n, ...
-  idmc2m, mtype, Fm, cxl, cgsr.is_gx_member, cgsr.is_gy_member);
+  idmc2m, mtype, Fm, cxl, cgsr.isxdir_member, cgsr.isydir_member);
 concgsr = reshape(concgsr,[],4);
 concgsr = [max(concgsr(:,1:2),[],2) max(concgsr(:,3:4),[],2)];
 is_target = concgsr>tol;
@@ -162,7 +162,7 @@ end
 %   % 柱梁耐力比の算定
 %   concgsr = calc_cgstrength_ratio(Zpym, vix, viy, ...
 %     idn_cgsr, idm2n, idmc2m, mtype, Fm, cxl, ...
-%     cgsr.is_gx_member, cgsr.is_gy_member);
+%     cgsr.isxdir_member, cgsr.isydir_member);
 %   concgsr = reshape(concgsr,[],2);
 %   is_target = concgsr>tol;
 %   if all(~is_target)

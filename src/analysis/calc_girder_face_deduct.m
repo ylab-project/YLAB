@@ -16,14 +16,13 @@ function [face_deduct_axis, face_deduct_horizontal, axis_factor] = ...
 %     face_deduct_horizontal - 水平投影面の柱面到達距離 [nmeg×2]
 %     axis_factor            - 水平投影長から梁軸長への換算係数 [nmeg×1]
 
-TOL = 1e-6;
 
 nmeg = size(face_dimension, 1);
 face_deduct_horizontal = zeros(nmeg, 2);
 
 horizontal_norm = sqrt(cxl(:, 1).^2 + cxl(:, 2).^2);
 axis_factor = ones(nmeg, 1);
-is_horizontal_axis = horizontal_norm >= TOL;
+is_horizontal_axis = horizontal_norm >= PRM.TOL_DIR;
 axis_factor(is_horizontal_axis) = 1 ./ horizontal_norm(is_horizontal_axis);
 
 cxh = zeros(nmeg, 1);
@@ -40,7 +39,8 @@ for ig = 1:nmeg
       continue
     end
 
-    if ~is_horizontal_axis(ig) || abs(cxh(ig)) < TOL || abs(cyh(ig)) < TOL
+    if ~is_horizontal_axis(ig) || abs(cxh(ig)) < PRM.TOL_DIR ...
+        || abs(cyh(ig)) < PRM.TOL_DIR
       face_deduct_horizontal(ig, iend) = D / 2;
     else
       tx = (D / 2) / abs(cxh(ig));

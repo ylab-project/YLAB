@@ -11,8 +11,8 @@ idmeg2story = com.member.girder.idstory;
 idmeg2var = com.member.girder.idvar;
 idmeg2x = com.member.girder.idx;
 idmeg2y = com.member.girder.idy;
-idmeg2isgx = com.member.girder.is_gx;
-idmeg2isgy = com.member.girder.is_gy;
+idmeg2isxdir = com.member.girder.isxdir;
+idmeg2isydir = com.member.girder.isydir;
 idme_exclusion = com.exclusion.girder_smooth.idme;
 % idm2var = com.member.property.idvar;
 % idm2n1 = com.member.property.idnode1;
@@ -31,10 +31,10 @@ for ig=1:nmeg
   idx = idmeg2x(ig,:);
   idy = idmeg2y(ig,:);
   ids = idmeg2story(ig,:);
-  if idmeg2isgx(ig)
+  if idmeg2isxdir(ig)
     idvarHgx(idx(1):idx(2)-1,idy(1),ids) = idmeg2var(ig,1);
   end
-  if idmeg2isgy(ig)
+  if idmeg2isydir(ig)
     idvarHgy(idx(1),idy(1):idy(2)-1,ids) = idmeg2var(ig,1);
   end
 end

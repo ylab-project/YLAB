@@ -11,8 +11,8 @@ idm2var = com.member.property.idvar;
 idn2s = com.node.idstory;
 mtype = com.member.property.type;
 idmeg2m = com.member.girder.idme;
-[is_gx_member, is_gy_member] = expand_girder_direction_flags( ...
-  nme, idmeg2m, com.member.girder.is_gx, com.member.girder.is_gy);
+[isxdir_member, isydir_member] = expand_girder_direction_flags( ...
+  nme, idmeg2m, com.member.girder.isxdir, com.member.girder.isydir);
 % RC柱判定用
 section_type = com.member.property.section_type;
 
@@ -40,10 +40,10 @@ for icg = 1:ncgsr
   % 対象変数の特定
   in = idnode(icg);
   isconnected = any(idm2n==in,2);
-  isgx = isconnected & is_gx_member & mtype==PRM.GIRDER;
-  isgy = isconnected & is_gy_member & mtype==PRM.GIRDER;
-  idmofgx = immm(isgx);
-  idmofgy = immm(isgy);
+  isxdir = isconnected & isxdir_member & mtype==PRM.GIRDER;
+  isydir = isconnected & isydir_member & mtype==PRM.GIRDER;
+  idmofxdir = immm(isxdir);
+  idmofydir = immm(isydir);
   idmofc = immm(isconnected&mtype==PRM.COLUMN);
   
   % S材とRC材が混在する節点は除外
@@ -61,18 +61,18 @@ for icg = 1:ncgsr
   % 柱または梁が取り付かない節点は除外
   % 柱1本（上柱なし等）の中間階節点はSS7と同様に検討対象とする
   nmofc = length(idmofc);
-  if (isempty(idmofgx)&&isempty(idmofgy)) || nmofc < 1
+  if (isempty(idmofxdir)&&isempty(idmofydir)) || nmofc < 1
     istarget(icg) = false;
     continue
   end
-  idvofH{icg,1} = unique(idm2var(idmofgx,1));
-  idvofH{icg,2} = unique(idm2var(idmofgy,1));
-  idvofB{icg,1} = unique(idm2var(idmofgx,2));
-  idvofB{icg,2} = unique(idm2var(idmofgy,2));
-  idvoftw{icg,1} = unique(idm2var(idmofgx,3));
-  idvoftw{icg,2} = unique(idm2var(idmofgy,3));
-  idvoftf{icg,1} = unique(idm2var(idmofgx,4));
-  idvoftf{icg,2} = unique(idm2var(idmofgy,4));
+  idvofH{icg,1} = unique(idm2var(idmofxdir,1));
+  idvofH{icg,2} = unique(idm2var(idmofydir,1));
+  idvofB{icg,1} = unique(idm2var(idmofxdir,2));
+  idvofB{icg,2} = unique(idm2var(idmofydir,2));
+  idvoftw{icg,1} = unique(idm2var(idmofxdir,3));
+  idvoftw{icg,2} = unique(idm2var(idmofydir,3));
+  idvoftf{icg,1} = unique(idm2var(idmofxdir,4));
+  idvoftf{icg,2} = unique(idm2var(idmofydir,4));
   idvofD{icg} = unique(idm2var(idmofc,1));
   idvoft{icg} = unique(idm2var(idmofc,2));
 end
