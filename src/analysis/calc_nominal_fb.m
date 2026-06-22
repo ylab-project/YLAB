@@ -1,4 +1,4 @@
-function fbn4 = calc_nominal_fb(msdim_n, Cn, ...
+function [fbn4, is_fb1_4] = calc_nominal_fb(msdim_n, Cn, ...
   clam_n, ft_n, stype_n, lbn, options)
 %calc_nominal_fb - 名目梁の4位置でfbを算定
 %
@@ -12,7 +12,8 @@ function fbn4 = calc_nominal_fb(msdim_n, Cn, ...
 %     options - オプション構造体
 %
 %   出力引数:
-%     fbn4 [nng×4×nlc] - 名目梁4位置のfb
+%     fbn4     [nng×4×nlc] - 名目梁4位置のfb
+%     is_fb1_4 [nng×4×nlc] - fb1式でfbが決定した位置
 %
 %   備考:
 %     siyはSS7マニュアル準拠で「圧縮フランジ＋ウェブ1/6 のT形断面」
@@ -21,6 +22,7 @@ function fbn4 = calc_nominal_fb(msdim_n, Cn, ...
 nng = size(lbn, 1);
 nlc = size(Cn, 3);
 fbn4 = zeros(nng, 4, nlc);
+is_fb1_4 = false(nng, 4, nlc);
 
 % H形断面のr込みA,Izを一括取得
 if ~isempty(msdim_n)
@@ -63,9 +65,13 @@ for ing = 1:nng
     if jlc > 1
       fb2 = fb2 * 1.5;
     end
-    fb_ = max(fb1, fb2);
+    fb_raw = max(fb1, fb2);
+    tol_fb = 1e-8;
+    is_fb1 = fb1 >= fb2 - tol_fb & fb_raw < Ft - tol_fb;
+    fb_ = fb_raw;
     fb_(fb_ > Ft) = Ft;
     fbn4(ing, :, jlc) = fb_;
+    is_fb1_4(ing, :, jlc) = is_fb1;
   end
 end
 

@@ -1,17 +1,18 @@
 function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
   fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, ...
-  id_center_sel] = eval_nominal_allowable_stress_ratio(msdim, ...
-  stn, stcn, A, Iy, Iz, C, mtype, stype, is_gx, is_gy, wgx, wgy, ...
-  Em, Fm, idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, ...
-  isgmirrored, idmg2ng, idmc2nc, options, beta, lcdir, ...
-  col_idstory, onfg_x, onfg_y, Cn, nomgc, column_buckling_K)
+  id_center_sel, girder_axial_mask, fbn_by_fb1] = ...
+  eval_nominal_allowable_stress_ratio(msdim, stn, stcn, A, Iy, Iz, ...
+  C, mtype, stype, isxdir, isydir, wgx, wgy, Em, Fm, idm2n, lb, ...
+  lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, isgmirrored, ...
+  idmg2ng, idmc2nc, options, beta, lcdir, col_idstory, onfg_x, ...
+  onfg_y, Cn, nomgc, column_buckling_K)
 %eval_nominal_allowable_stress_ratio - 名目部材の許容応力度比を算定する
 %
 %   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij,
 %     fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ration,
-%     bkinfo, id_center_sel] =
-%     eval_nominal_allowable_stress_ratio(msdim, stn,
-%     stcn, A, Iy, Iz, C, mtype, stype, is_gx, is_gy, wgx,
+%     bkinfo, id_center_sel, girder_axial_mask,
+%     fbn_by_fb1] = eval_nominal_allowable_stress_ratio(msdim, stn,
+%     stcn, A, Iy, Iz, C, mtype, stype, isxdir, isydir, wgx,
 %     wgy, Em, Fm, idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint,
 %     nominal, isgmirrored, idmg2ng, idmc2nc, options,
 %     beta, lcdir, col_idstory, onfg_x, onfg_y, Cn,
@@ -28,8 +29,8 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %     C           - ねじり定数等 (struct)
 %     mtype       - 部材タイプ [nme×1]
 %     stype       - 断面タイプ [nme×1]
-%     is_gx       - X方向計算に寄与する梁部材 [nme×1]
-%     is_gy       - Y方向計算に寄与する梁部材 [nme×1]
+%     isxdir       - X方向計算に寄与する梁部材 [nme×1]
+%     isydir       - Y方向計算に寄与する梁部材 [nme×1]
 %     wgx, wgy    - 梁剛比のX/Y方向平面振れ角重み cos2θ [nme×1]
 %                   （SS7互換: 水平面内の振れ角のみ考慮）
 %     Em          - ヤング係数 [nme×1]
@@ -72,6 +73,8 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %                     .lbc_nominal.x / .y       : 控除前テーブル
 %                     .lbc_nominal.bk.x / .bk.y : 控除後テーブル
 %     id_center_sel - 梁中央位置の選択インデックス [nng×nlc]
+%     girder_axial_mask - S梁軸力考慮マスク (struct)
+%     fbn_by_fb1 - fb1式でfbが決定した位置 [nnm×npos×nlc]
 
 % 共通配列
 nme = length(mtype);
@@ -87,19 +90,19 @@ clam = pi*sqrt(Em./(0.6*Fm));
 ft = [Fm/1.5 Fm];
 fs = [Fm/(1.5*sqrt(3)) Fm/sqrt(3)];
 
-% 方向別入力の準備（is_gx/is_gy は呼び出し側で算定済み）
+% 方向別入力の準備（isxdir/isydir は呼び出し側で算定済み）
 ilc_x = lcdir==PRM.EXP | lcdir==PRM.EXN;
 ilc_y = lcdir==PRM.EYP | lcdir==PRM.EYN;
 
 % X方向の座屈長さ係数
 [lk_x, kcx, bkinfox] = calc_buckling_length(Iy, mtype, idm2n1, ...
-  idm2n2, is_gx, wgx, lnm, lm, lm_bk_x, Em, mejoint(:,[1 2]), ...
+  idm2n2, isxdir, wgx, lnm, lm, lm_bk_x, Em, mejoint(:,[1 2]), ...
   nominal, idmc2nc, options, beta, ilc_x, col_idstory, onfg_x, ...
   column_buckling_K.Kx);
 
 % Y方向の座屈長さ係数
 [lk_y, kcy, bkinfoy] = calc_buckling_length(Iy, mtype, idm2n1, ...
-  idm2n2, is_gy, wgy, lnm, lm, lm_bk_y, Em, mejoint(:,[3 4]), ...
+  idm2n2, isydir, wgy, lnm, lm, lm_bk_y, Em, mejoint(:,[3 4]), ...
   nominal, idmc2nc, options, beta, ilc_y, col_idstory, onfg_y, ...
   column_buckling_K.Ky);
 
@@ -138,16 +141,18 @@ mewfs = msdim(stype==PRM.WFS,:);
 fb = calc_fb(mewfs, C, clam, ft, mtype, stype, lb(:,1:3), options);
 
 % 移し替え
+An = A(idnm2m(:, 1));
 ftn = ft(idnm2m(:,1),:);
 fcn = fc(idnm2m(:,1),:,:);
 fbn = fb(idnm2m(:,1),:,:);
+fbn_by_fb1 = false(size(fbn));
 fsn = fs(idnm2m(:,1),:);
 
 % 名目梁のfb/fcを4位置から算定し3位置に集約
 iggg = find(nmtype==PRM.GIRDER);
 img1 = idnm2m(iggg, 1);
-fbn4 = calc_nominal_fb(msdim(img1, :), Cn, clam(img1), ...
-  ft(img1, :), stype(img1), nomgc.lb, options);
+[fbn4, fbn4_by_fb1] = calc_nominal_fb(msdim(img1, :), Cn, ...
+  clam(img1), ft(img1, :), stype(img1), nomgc.lb, options);
 fcn4 = calc_nominal_fc(A(img1), Iy(img1), Iz(img1), ...
   clam(img1), Fm(img1), lkx(img1), nomgc.lb);
 nlc_ = size(fbn4, 3);
@@ -157,8 +162,11 @@ tol_ratio = 1e-4;
 for ilc = 1:nlc_
   fb4_ = fbn4(:, :, ilc);
   fc4_ = fcn4(:, :, ilc);
+  fb1_4 = fbn4_by_fb1(:, :, ilc);
   fbn(iggg, 1, ilc) = fb4_(:, 1);
   fbn(iggg, 2, ilc) = fb4_(:, 2);
+  fbn_by_fb1(iggg, 1, ilc) = fb1_4(:, 1);
+  fbn_by_fb1(iggg, 2, ilc) = fb1_4(:, 2);
   fcn(iggg, 1, ilc) = fc4_(:, 1);
   fcn(iggg, 2, ilc) = fc4_(:, 2);
 
@@ -172,8 +180,12 @@ for ilc = 1:nlc_
   id_center_sel(:, ilc) = sel;
   idx_ = sub2ind(size(fb4_), (1:nng_)', sel);
   fbn(iggg, 3, ilc) = fb4_(idx_);
+  fbn_by_fb1(iggg, 3, ilc) = fb1_4(idx_);
   fcn(iggg, 3, ilc) = fc4_(idx_);
 end
+
+girder_axial_mask = build_girder_axial_mask(stn, nomgc.Ncn, ...
+  An, nmtype, options);
 
 % 許容応力度比の算定
 % calc_nominal_allowable_stress_ratio は内部で fcn/fbn を
@@ -183,7 +195,7 @@ end
 % ため、戻り値は受け取らずに呼び出し側スコープの fcn/fbn
 % (純粋値) を維持する。
 ration = calc_nominal_allowable_stress_ratio(stn, stcn, ...
-  ftn, fcn, fbn, fsn, nmtype, nomgc.Ncn, A);
+  ftn, fcn, fbn, fsn, nmtype, nomgc.Ncn, An, girder_axial_mask);
 
 % TB応力比の上書き（N/Ta）
 ration = calc_nominal_allowable_stress_ratio_tension_brace(...
@@ -191,12 +203,41 @@ ration = calc_nominal_allowable_stress_ratio_tension_brace(...
 
 % 制約値の計算
 [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij] = ...
-  calc_nominal_stress_constraints(ration, nominal);
+  calc_nominal_stress_constraints(ration, nominal, girder_axial_mask);
 
 % ミラー配置
 ngsub = nominal.girder.idsub(:,2);
 [gri, grj, gsi, gsj] = mirror_arrangement(isgmirrored, ...
   idmg2ng, ngsub, gri, grj, gsi, gsj);
+
+return
+end
+
+%----------------------------------------------------------
+function mask = build_girder_axial_mask(stn, Ncn, An, nmtype, options)
+%build_girder_axial_mask - S梁の軸力考慮マスクを作成
+
+nlc = size(stn, 3);
+nnm = size(stn, 1);
+mask.i = true(nnm, nlc);
+mask.c = true(nnm, nlc);
+mask.j = true(nnm, nlc);
+
+is_girder = nmtype == PRM.GIRDER;
+switch options.s_girder_axial_design
+  case PRM.S_GIRDER_AXIAL_NONE
+    mask.i(is_girder, :) = false;
+    mask.c(is_girder, :) = false;
+    mask.j(is_girder, :) = false;
+  case PRM.S_GIRDER_AXIAL_ALL
+    % 初期値 true のまま使用する。
+  case PRM.S_GIRDER_AXIAL_AUTO
+    force_i = reshape(stn(:, 1, :), nnm, nlc) .* An;
+    force_j = reshape(stn(:, 7, :), nnm, nlc) .* An;
+    mask.i(is_girder, :) = abs(force_i(is_girder, :)) >= PRM.TOL_FORCE_N;
+    mask.c(is_girder, :) = abs(Ncn(is_girder, :)) >= PRM.TOL_FORCE_N;
+    mask.j(is_girder, :) = abs(force_j(is_girder, :)) >= PRM.TOL_FORCE_N;
+end
 
 return
 end

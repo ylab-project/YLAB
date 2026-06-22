@@ -1,5 +1,5 @@
 function [ration, fcn, fbn] = calc_nominal_allowable_stress_ratio(...
-  st, stc, ftn, fcn, fbn, fsn, nmtype, Ncn, A)
+  st, stc, ftn, fcn, fbn, fsn, nmtype, Ncn, An, girder_axial_mask)
 %calc_nominal_allowable_stress_ratio - 公称許容応力度比の算定
 
 % 定数
@@ -20,14 +20,21 @@ for ilc = 1:nlc
   % 梁
   for inm = 1:nnm
 
+    is_girder = nmtype(inm) == PRM.GIRDER;
+    use_axial_i = ~is_girder || girder_axial_mask.i(inm, ilc);
+    use_axial_c = ~is_girder || girder_axial_mask.c(inm, ilc);
+    use_axial_j = ~is_girder || girder_axial_mask.j(inm, ilc);
+    is_tension_i = st(inm, 1, ilc) * An(inm) >= PRM.TOL_FORCE_N;
+    is_tension_j = st(inm, 7, ilc) * An(inm) >= PRM.TOL_FORCE_N;
+
     % Ni：引張時は fc,fb ともに ft に置換（引張正）
-    if st(inm,1,ilc) > 0
+    if use_axial_i && is_tension_i
       fcn(inm,1,ilc) = ftn(inm,ilc_);
       fbn(inm,1,ilc) = ftn(inm,ilc_);
     end
 
     % Nj：引張時は fc,fb ともに ft に置換（引張正）
-    if st(inm,7,ilc) > 0
+    if use_axial_j && is_tension_j
       fcn(inm,2,ilc) = ftn(inm,ilc_);
       fbn(inm,2,ilc) = ftn(inm,ilc_);
     end
@@ -73,13 +80,13 @@ for ilc = 1:nlc
         ration(inm,18,ilc) = sqrt(sgt^2 + 3*tcy^2) / ftc;
       case PRM.GIRDER
         % 中央σb/fb — 引張時はfb=ft（引張正）
-        if Ncn(inm,ilc) > 0
+        if use_axial_c && Ncn(inm, ilc) >= PRM.TOL_FORCE_N
           fbn(inm,3,ilc) = ftn(inm,ilc_);
         end
         ration(inm,13,ilc) = stc(inm,ilc) / fbn(inm,3,ilc);
         % 中央N/fc（引張正）
-        stcn_N = Ncn(inm,ilc) / A(inm);
-        if stcn_N > 0
+        stcn_N = Ncn(inm,ilc) / An(inm);
+        if use_axial_c && Ncn(inm, ilc) >= PRM.TOL_FORCE_N
           fcn(inm,3,ilc) = ftn(inm,ilc_);
           ration(inm,14,ilc) = stcn_N / ftn(inm,ilc_);
         else

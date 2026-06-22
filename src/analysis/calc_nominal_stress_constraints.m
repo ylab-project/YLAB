@@ -1,5 +1,5 @@
 function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij] = ...
-  calc_nominal_stress_constraints(ration, nominal)
+  calc_nominal_stress_constraints(ration, nominal, girder_axial_mask)
 
 % 共通定数
 % nme = length(mtype);
@@ -43,8 +43,16 @@ for ilc = 1:nlc
     inm = iggg(ing);
 
     % 軸応力度の検定
-    gci = abs(ration(inm,1,ilc));
-    gcj = abs(ration(inm,7,ilc));
+    if girder_axial_mask.i(inm, ilc)
+      gci = abs(ration(inm,1,ilc));
+    else
+      gci = 0;
+    end
+    if girder_axial_mask.j(inm, ilc)
+      gcj = abs(ration(inm,7,ilc));
+    else
+      gcj = 0;
+    end
 
     % i端曲げ応力度の検定
     gi1 = ration(inm,5,ilc);
@@ -61,7 +69,12 @@ for ilc = 1:nlc
     grj(ing,ilc) = gcj+gj1-1;
 
     % 中央曲げ応力度の検定（N/fc + M/fb）
-    grc(ing,ilc) = abs(ration(inm,14,ilc)) + ration(inm,13,ilc) - 1;
+    if girder_axial_mask.c(inm, ilc)
+      gcc = abs(ration(inm,14,ilc));
+    else
+      gcc = 0;
+    end
+    grc(ing,ilc) = gcc + ration(inm,13,ilc) - 1;
 
     % i端せん断応力度の検定
     gsi1 = ration(inm,2,ilc);
