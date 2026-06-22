@@ -660,9 +660,10 @@ return
       else
         ft_ = F;
       end
-      if N_ < 0
-        rt_(ilc_) = abs(N_) / (A * ft_);
-      else
+      N_tension_ = -N_;
+      if N_tension_ >= PRM.TOL_FORCE_N
+        rt_(ilc_) = N_tension_ / (A * ft_);
+      elseif N_tension_ <= -PRM.TOL_FORCE_N
         rc_(ilc_) = N_ / (A * ft_);
       end
     end
@@ -699,7 +700,7 @@ return
   %is_no_tension_side_ - 引張なし側の判定
   %
   %   flag = is_no_tension_side_(inb, ib) は、当該ブレース片の
-  %   全荷重ケースで軸力が0なら true を返す。
+  %   全荷重ケースで有意な引張軸力がなければ true を返す。
   %
   %   入力引数:
   %     inb - 呼称ブレースインデックス
@@ -712,7 +713,7 @@ return
     for ilc_ = 1:nlc_
       force_(ilc_) = get_axial_force_combo(inb, ib, ilc_);
     end
-    flag = all(force_ == 0);
+    flag = all(-force_ < PRM.TOL_FORCE_N);
   end
 
   function label_ = get_type_label(ib, stype)
@@ -927,9 +928,10 @@ return
         ft_ = F;
         fc_ = Lfc * 1.5;
       end
-      if N_ < 0
-        rt_(ilc_) = abs(N_) / (Ae_ * ft_);
-      elseif ~is_tonly && fc_ > 0
+      N_tension_ = -N_;
+      if N_tension_ >= PRM.TOL_FORCE_N
+        rt_(ilc_) = N_tension_ / (Ae_ * ft_);
+      elseif N_tension_ <= -PRM.TOL_FORCE_N && ~is_tonly && fc_ > 0
         rc_(ilc_) = N_ / (A * fc_);
       end
     end
