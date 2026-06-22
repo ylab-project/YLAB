@@ -292,10 +292,24 @@ write_table(fout, '柱設計応力表(組合せ前)', dciflhead, dciflbody);
   com, result);
 write_table(fout, 'S梁検定比一覧', asrghead, asrgbody, true);
 
+for ilc = [PRM.LT PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
+  [asrgbh, asrgbb] = ...
+    write_cell_allowable_stress_ratio_girder_by_case(com, result, ilc);
+  write_table(fout, sprintf('S梁検定比一覧(ケース・部材ごと),case=%s', ...
+    PRM.load_case_combo_name(ilc)), asrgbh, asrgbb, true);
+end
+
 %% S柱検定比一覧
 [asrchead, asrcbody] = write_cell_allowable_stress_ratio_column(...
   com, result);
 write_table(fout, 'S柱検定比一覧', asrchead, asrcbody, true);
+
+for ilc = [PRM.LT PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
+  [asrcbh, asrcbb] = ...
+    write_cell_allowable_stress_ratio_column_by_case(com, result, ilc);
+  write_table(fout, sprintf('S柱検定比一覧(ケース・部材ごと),case=%s', ...
+    PRM.load_case_combo_name(ilc)), asrcbh, asrcbb, true);
+end
 
 %% 鉛直ブレース検定比一覧
 [asrbhead, asrbbody] = write_cell_allowable_stress_ratio_brace(...
