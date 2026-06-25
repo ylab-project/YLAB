@@ -55,6 +55,9 @@ idm2s = secmgr.idme2sec;
 % idmg2m = member_girder.idme;
 idmwfs2m = member_girder.idme(member_girder.section_type==PRM.WFS);
 nme = length(idm2s);
+nmwfs = length(idmwfs2m);
+idm2mwfs = zeros(1,nme);
+idm2mwfs(mstype==PRM.WFS) = 1:nmwfs;
 
 % 共通配列
 stype = secmgr.idsec2stype;
@@ -107,7 +110,7 @@ end
 % 復元操作が必要な断面のチェック
 nwfs = length(conslr);
 imtarget = 1:nwfs; imtarget = imtarget(conslr>0);
-istarget = unique(idm2s(imtarget));
+istarget = unique(idm2s(idmwfs2m(imtarget)));
 nstarget = length(istarget);
 
 % 細長比に関する復元操作
@@ -135,10 +138,11 @@ for i=1:nstarget
   Zpylist = sproplist.Zpy;
 
   % 該当部材ごとの許容性確認
-  ims = immm(idm2s==isg);
+  ims = immm(idm2s==isg & mstype==PRM.WFS);
   isok = false(n,length(ims));
   for j=1:length(ims)
-    iwfs = ims(j);
+    im = ims(j);
+    iwfs = idm2mwfs(im);
     lbi = repmat(lbg(iwfs,:),n,1);
     lmi = lmg(iwfs)*ones(n,1);
     Fi = Fg(iwfs)*ones(n,1);

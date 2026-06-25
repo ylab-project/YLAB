@@ -1,5 +1,5 @@
 function limitJbsSection(obj, isjbs, nominal_girder, ...
-  section_girder, section_column, secmgr, options)
+  section_girder, section_column, secmgr, options, apply_filter)
 %limitJbsSection - 保有耐力接合(JBS)制限チェック
 %
 %   limitJbsSection(obj, isjbs, nominal_girder,
@@ -18,11 +18,16 @@ function limitJbsSection(obj, isjbs, nominal_girder, ...
 %     section_column - 柱断面構造体
 %     secmgr         - SectionManagerインスタンス
 %     options        - オプション構造体
+%     apply_filter   - 候補リスト更新フラグ（省略時true）
 %
 %   参考:
 %     SectionConstraintValidator, limitSlrSection
 
 % 定数
+if nargin < 8
+  apply_filter = true;
+end
+
 idphase = 999;
 nwfs_ = obj.nwfs;
 nlist_ = obj.nlist;
@@ -111,11 +116,13 @@ for idsList = 1:nlist_
   end
 
   % 条件を満たさないH形断面の除外
-  obj.validSectionFlagCell_{idsList} = isvalid;
+  if apply_filter
+    obj.validSectionFlagCell_{idsList} = isvalid;
+  end
 
-  % チェック結果の保存（OKのH形断面を保存）
-  tmp = any(isvalid, 2);
-  isvalid_wfs(tmp) = tmp(tmp);
+  % チェック結果の保存（対象リストのWFS断面だけを評価）
+  tmp = any(isvalid(iwfs_targets, :), 2);
+  isvalid_wfs(iwfs_targets) = tmp(:)';
 end
 
 % JBS非対象/未使用の名目梁に対応するWFS断面はOKとする

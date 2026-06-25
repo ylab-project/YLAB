@@ -69,6 +69,7 @@ for idsList = 1:nlist_
   isec_targets = 1:nsec;
   isec_targets = isec_targets( ...
     idsec2slist_' == idsList & idsec2stype_' == PRM.WFS);
+  iwfs_targets = idsec2wfs_(isec_targets);
   
   for isec = isec_targets
     imtargets = 1:nme;
@@ -96,9 +97,9 @@ for idsList = 1:nlist_
   % 条件を満たさないH形断面の除外
   obj.validSectionFlagCell_{idsList} = isvalid;
   
-  % チェック結果の保存（OKのH形断面を保存）
-  tmp = any(isvalid, 2);
-  isvalid_wfs(tmp) = tmp(tmp);
+  % チェック結果の保存（対象リストのWFS断面だけを評価）
+  tmp = any(isvalid(iwfs_targets, :), 2);
+  isvalid_wfs(iwfs_targets) = tmp(:)';
 end
 
 % 条件を満たす断面が存在しない

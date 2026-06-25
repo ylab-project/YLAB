@@ -91,7 +91,7 @@ idvar = idvarofH(istarget,:);
 % 除外部材の削除
 idexclude = (1:nvar)';
 idexclude = idexclude(~com.design.variable.isvar);
-n = size(idvar,1); istarget = true(n,2);
+istarget = true(size(idvar));
 for i=1:length(idexclude)
   if isempty(istarget)
     break
@@ -109,9 +109,19 @@ n = size(idvar_,1);
 idgapvar = cell(n,1);
 for i=1:n
   ttt = idvar_(i,:);
-  idgapvar{i} = nchoosek(ttt(1:nnz(ttt)),2);
+  ttt = ttt(ttt > 0);
+  if numel(ttt) < 2
+    idgapvar{i} = zeros(0,2);
+  else
+    idgapvar{i} = nchoosek(ttt,2);
+  end
 end
-idgapvar = unique(cell2mat(idgapvar),'rows');
+idgapvar = cell2mat(idgapvar);
+if isempty(idgapvar)
+  idgapvar = zeros(0,2);
+else
+  idgapvar = unique(idgapvar,'rows');
+end
 
 return
 end
