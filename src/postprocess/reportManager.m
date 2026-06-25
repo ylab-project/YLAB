@@ -20,7 +20,8 @@ classdef reportManager < handle
     end
     %----------------------------------------------------------------------
     function ret = get.figname(obj)
-      ret = fullfile(obj.workdir, sprintf('fig%d', feature('getpid')));
+      pid = double(matlabProcessID);
+      ret = fullfile(obj.workdir, sprintf('fig%d', pid));
     end
     %----------------------------------------------------------------------
     function table = createTable(obj, labels)
@@ -29,9 +30,8 @@ classdef reportManager < handle
       table = FormalTable();
       table.TableEntriesInnerMargin = obj.tableEntriesInnerMargin;
       table.Style = {FontSize(obj.font_size), ...
-        FontFamily(obj.font_family), ...
-        ResizeToFitContents(true)};
-       % table.TableEntriesStyle = [ table.TableEntriesStyle {Width("1in")}];
+        FontFamily(obj.font_family), ResizeToFitContents(true)};
+      % table.TableEntriesStyle = [table.TableEntriesStyle {Width("1in")}];
        table.TableEntriesHAlign = "center";
        % table.Header.RowSep = "Solid";
        bo = Border();
@@ -65,8 +65,8 @@ classdef reportManager < handle
 
         % 図の追加
         para = Paragraph(im);
-        para.Style = [para.Style ...
-          {OuterMargin("0pt","0pt","16pt","0pt") KeepWithNext(true)}];
+        para.Style = [para.Style {OuterMargin("0pt","0pt","16pt","0pt") ...
+          KeepWithNext(true)}];
         para.HAlign = 'center';
         append(robj, para);
         
@@ -138,8 +138,7 @@ classdef reportManager < handle
       nrows = ceil(n/ncols);
       for i=1:nrows
         row = TableRow();
-        append_entry(row, fmt, ...
-          s(((i-1)*ncols+1):(min(i*ncols,n))));
+        append_entry(row, fmt, s(((i-1)*ncols+1):(min(i*ncols,n))));
         append(table, row);
       end      
     end
@@ -157,7 +156,7 @@ classdef reportManager < handle
       bo.Width = '0.5pt';
       robj.Style = [robj.Style {bo}];
     end
-    % %----------------------------------------------------------------------
+    % %--------------------------------------------------------------------
     % function append_bottom_border(robj)
     %   import mlreportgen.report.*
     %   import mlreportgen.dom.*
