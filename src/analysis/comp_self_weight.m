@@ -1,12 +1,13 @@
 function sw = comp_self_weight(A, lm_weight, lm, member_property, ...
   msdim, slab, cxl, cyl, nnode, mejoint, face_deduct, options, ...
-  member_column, brace_unit_weight, Df_foundation, idsup2n, rho_rc_member)
+  member_column, brace_unit_weight, Df_foundation, girder_level, ...
+  girder_isfg, idsup2n, rho_rc_member)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
 %   sw = comp_self_weight(A, lm_weight, lm, member_property, msdim, ...
 %   slab, cxl, cyl, nnode, mejoint, face_deduct, options, ...
-%   member_column, brace_unit_weight, Df_foundation, idsup2n, ...
-%   rho_rc_member) は、
+%   member_column, brace_unit_weight, Df_foundation, girder_level, ...
+%   girder_isfg, idsup2n, rho_rc_member) は、
 %   柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを
 %   計算する。梁の等価節点荷重は、柱面間に荷重が分布することを
 %   考慮し、荷重重心位置に基づく偏心配分を行う（SS7方式）。
@@ -28,6 +29,8 @@ function sw = comp_self_weight(A, lm_weight, lm, member_property, ...
 %     brace_unit_weight - ブレース単位重量 [nmeb x 1] N/mm
 %                         （BRB: メーカー値, 他: 0）
 %     Df_foundation   - 基礎柱面寸法配列 [nsec×1]（統一断面ID→Df）
+%     girder_level    - 梁レベル調整値（下げが負） [nmeg×1]
+%     girder_isfg     - 基礎梁フラグ [nmeg×1]
 %     idsup2n         - 支点節点IDの配列 [nsup×1]
 %     rho_rc_member   - RC密度 [nme×1] t/m3（Fc依存）
 %
@@ -311,7 +314,7 @@ for im = 1:nme
 end
 
 % --- 基礎柱自重 ---
-% SS7計算編 4.1.2(4): W = γ_RC × Df² × D（基礎梁せい）
+% SS7計算編 4.1.2(4): W = gamma_RC * A_B * L_B
 nme_ = length(mtype);
 idm2s_ = member_property.idsec;
 for isup = 1:length(idsup2n)
@@ -332,8 +335,9 @@ for isup = 1:length(idsup2n)
   if Df_ <= 0
     continue
   end
-  % 支点節点にとりつくRC梁から基礎梁せいを取得（最大値）
-  D_beam = 0;
+  % 支点節点にとりつく基礎梁から基礎柱高さL_Bを取得
+  ztop_max = -inf;
+  zbot_min = inf;
   for im_ = 1:nme_
     if mtype(im_) ~= PRM.GIRDER
       continue
@@ -341,16 +345,22 @@ for isup = 1:length(idsup2n)
     if idme2j1(im_) ~= in_sup && idme2j2(im_) ~= in_sup
       continue
     end
-    if stype(im_) == PRM.RCRS
-      D_beam = max(D_beam, msdim(im_, 2));
+    ig_ = idme2ig(im_);
+    if ~girder_isfg(ig_) || stype(im_) ~= PRM.RCRS
+      continue
     end
+    ztop_ = girder_level(ig_);
+    zbot_ = ztop_ - msdim(im_, 2);
+    ztop_max = max(ztop_max, ztop_);
+    zbot_min = min(zbot_min, zbot_);
   end
-  if D_beam <= 0
+  L_B_ = ztop_max - zbot_min;
+  if ~isfinite(L_B_) || L_B_ <= 0
     continue
   end
   % 基礎柱自重の計算と加算（Fc依存密度）
   gamma_rc_ = rho_rc_member(im_col_) * PRM.GRAVITY * 1.d-6;
-  W_ = gamma_rc_ * Df_ * Df_ * D_beam;
+  W_ = gamma_rc_ * Df_ * Df_ * L_B_;
   fc(in_sup, :) = fc(in_sup, :) + [0, 0, W_, 0, 0, 0];
 end
 
