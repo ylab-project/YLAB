@@ -84,6 +84,7 @@ idmg2sg = member.girder.idsecg;
 idmg2m = member.girder.idme;
 idmg2sfl = member.girder.idsec_facel;
 idmg2sfr = member.girder.idsec_facer;
+idmg2type = member.girder.type;
 
 % 梁のレベル調整
 for ist = 1:nstory
@@ -109,7 +110,7 @@ member_girder.level = mglevel;
 if options.do_autoupdate_floor_height
   [flh, stdh] = calc_floor_height(secdim, story, floor, ...
     idmg2st, idmg2sg, idsg2s, idm2s, idmg2m, stype, ...
-    mglevel);
+    mglevel, idmg2type);
   floor.height = flh;
   story.delta_height = stdh;
 else

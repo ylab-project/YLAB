@@ -146,10 +146,12 @@ idnode_mid_array = zeros(n,1);
 % K形ブレース端点節点の事前計算
 id_k_brace = find(brace_type == PRM.BRACE_MEMBER_TYPE_K_UPPER | ...
                   brace_type == PRM.BRACE_MEMBER_TYPE_K_LOWER);
+idnode_k_R_far_src = zeros(n, 1);
 if ~isempty(id_k_brace)
   % K形ブレース端点節点番号を一括取得（梁側と反対側の4節点）
   [idnode_k_L, idnode_k_R, idnode_k_L_far, idnode_k_R_far] = ...
     get_kbrace_endpoint_nodes(id_k_brace, node);
+  idnode_k_R_far_src(id_k_brace) = idnode_k_R_far;
 end
 
 % K形ブレース用梁分割処理
@@ -762,36 +764,30 @@ return
     tb_in.idpair(expand_idx) = (n + (1:ntb_add))';
 
     % 追加ブレースの節点接続処理
-    % ik_ は K形ブレース専用カウンタ。idnode_k_R/L 等は K形のみで
-    % 構築されているため、BOTH 通し番号 ie とは別に K 形分岐内で
-    % 進める。外側スコープの ik と区別するため末尾アンダースコアを
-    % 付与。K下形は現状 idnode_k_* を参照しないが、K上形と通し番号を
-    % 共有するため将来の参照追加に備えて同様にインクリメントする。
-    ik_ = 0;
     for ie = 1:ntb_add
       % K上形の場合
       if brace_type_expand(ie) == PRM.BRACE_MEMBER_TYPE_K_UPPER
-        ik_ = ik_ + 1;
         % 右側：下柱脚→中間節点（BOTH_R、node1=下柱脚）
         tb_add.pair(ie) = PRM.BRACE_MEMBER_PAIR_BOTH_R;
         idnode_mid_ = idnode_mid_array_expand(ie);
         tb_add.idnode2(ie) = idnode_mid_;
-        % 右脚基部は右側の最下段＝柱分割BODY柱(idx(:,2))の下端
-        % (=1FL-BRACE-JOINT)。idnode_k_R の柱上端探索は多層で上段柱
-        % (2FL)を拾い右脚が1層化するため使わない（左脚 BOTH_L と対称）。
-        idc_right = find(member_column.idx(:,1) == tb_add.idx(ie,2) ...
-          & member_column.idy(:,1) == tb_add.idy(ie,2) ...
-          & member_column.type == PRM.COLUMN_FOR_BRACE_BODY, 1);
-        if ~isempty(idc_right)
-          tb_add.idnode1(ie) = member_column.idnode1(idc_right);
-        else
-          tb_add.idnode1(ie) = idnode_k_R_far(ik_);
+        i_src = expand_idx(ie);
+        % 既定: 右脚基部は反対側遠端節点（R_far）
+        tb_add.idnode1(ie) = idnode_k_R_far_src(i_src);
+        is_fg_top_ = pos_brace_fg == PRM.BRACE_FOUNDATION_GIRDER_TOP ...
+          && tb_add.idz(ie, 1) == 1;
+        if is_fg_top_
+          % 基礎梁上端＋1層目は柱分割BODY柱下端を優先
+          idc_right = find(member_column.idx(:,1) == tb_add.idx(ie,2) ...
+            & member_column.idy(:,1) == tb_add.idy(ie,2) ...
+            & member_column.type == PRM.COLUMN_FOR_BRACE_BODY, 1);
+          if ~isempty(idc_right)
+            tb_add.idnode1(ie) = member_column.idnode1(idc_right);
+          end
         end
 
       % K下形の場合
       elseif brace_type_expand(ie) == PRM.BRACE_MEMBER_TYPE_K_LOWER
-        % K上形と通し番号を共有するためここでもインクリメント
-        ik_ = ik_ + 1;
         % 右側：中間→上柱頭(R_far)（BOTH_L、／）
         tb_add.pair(ie) = PRM.BRACE_MEMBER_PAIR_BOTH_L;
         idnode_mid_ = idnode_mid_array_expand(ie);

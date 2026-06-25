@@ -1,7 +1,7 @@
 function [floor_height, story_delta_height] = calc_floor_height(...
-  secdim, story, floor, idmg2st, idmg2sg, idsg2s, ...
+  secdim, story, floor, idmg2st, ~, ~, ...
   idm2s, idmg2m, stype, ...
-  girder_level)
+  girder_level, girder_type)
 %COMP_FLOOR_HEIGHT この関数の概要をここに記述
 %   詳細説明をここに記述
 
@@ -20,10 +20,13 @@ Hs(stype==PRM.RCRS) = secdim(stype==PRM.RCRS,2);
 Hm = Hs(idm2s);
 Hg = Hm(idmg2m);
 
+% Kブレース右側分割梁は構造階高の平均対象から除外
+is_floor_height_girder = girder_type ~= PRM.GIRDER_FOR_KBRACE2;
+
 % 階高と梁心の差（各階の梁せい平均の1/2）の計算
 story_delta_height = zeros(nstory,1);
 for ist = 1:nstory
-  istarget = idmg2st==ist;
+  istarget = idmg2st == ist & is_floor_height_girder;
   if any(istarget)
     ggg = girder_level(istarget);
     dz = mean(Hg(istarget)/2-ggg);

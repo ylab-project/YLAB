@@ -19,6 +19,7 @@ idm2s = member.property.idsec;
 idmg2st = member.girder.idstory;
 idmg2sg = member.girder.idsecg;
 idmg2m = member.girder.idme;
+idmg2type = member.girder.type;
 
 % 梁のレベル調整
 for ist = 1:nstory
@@ -42,7 +43,8 @@ member_girder_level = mglevel;
 % 構造階高の更新
 if options.do_autoupdate_floor_height
   [flh, stdh] = calc_floor_height(secdim, story, floor, idmg2st, ...
-    idmg2sg, idsg2s, idm2s, idmg2m, stype, mglevel);
+    idmg2sg, idsg2s, idm2s, idmg2m, stype, mglevel, ...
+    idmg2type);
 else
   flh = floor.height;
   stdh = story.girder_level;
