@@ -216,43 +216,36 @@ for im = 1:nme
     L = li_m;                % 通り心間距離
     Lb = L - b_;             % = a + L' (荷重右端位置)
     w3 = wv(3);              % 要素座標系での鉛直荷重成分
+    % 柱面間分布荷重に対し区間 [a, L-b] で積分して算出する。
+    %   単位集中荷重 P が位置 x に作用するときの固定端 M:
+    %     MA(x) = P·x·(L-x)^2/L^2, MB(x) = P·x^2·(L-x)/L^2
+    %   区間 [a,Lb] で積分:
+    %     CA = ∫[a,Lb] w·x(L-x)^2/L^2 dx
+    %     CB = ∫[a,Lb] w·x^2(L-x)/L^2 dx
+    L2 = L^2;
+    FA_Lb = L2*Lb^2/2 - 2*L*Lb^3/3 + Lb^4/4;
+    FA_a  = L2*a^2/2  - 2*L*a^3/3  + a^4/4;
+    CA = w3/L2 * (FA_Lb - FA_a);
+    GB_Lb = L*Lb^3/3 - Lb^4/4;
+    GB_a  = L*a^3/3  - a^4/4;
+    CB = w3/L2 * (GB_Lb - GB_a);
     if joint(1)==PRM.PIN && joint(2)==PRM.PIN
       % 両端ピン: 固定端モーメントなし
       cvi = [0; 0; 0];
       cvj = [0; 0; 0];
     elseif joint(1)==PRM.PIN
-      % i端ピン: j端のみ固定端モーメント
-      % 片持ち梁としてj端まわりのモーメント
-      % M_B = ∫[a to Lb] w*(Lb-x) dx = w*[(Lb-a)^2/2] = w*L'^2/2
-      % ただしピン支持による反力調整後: M_B = w*L'^2/8 相当（近似）
+      % i端ピン: i端解放分の半分をj端へキャリーオーバー
       cvi = [0; 0; 0];
-      cvj = [0; w3*li_w^2/8; 0];
+      cvj = [0; CB + CA/2; 0];
     elseif joint(2)==PRM.PIN
-      % j端ピン: i端のみ固定端モーメント
-      cvi = [0; w3*li_w^2/8; 0];
+      % j端ピン: j端解放分の半分をi端へキャリーオーバー
+      cvi = [0; CA + CB/2; 0];
       cvj = [0; 0; 0];
     else
-      % 両端固定: SS7 計算編 4.2.10 (1) 一般分布荷重の固定端モーメント式
-      % 柱面間分布荷重に対し区間 [a, L-b] で積分して算出する。
-      %   単位集中荷重 P が位置 x に作用するときの固定端 M:
-      %     MA(x) = P·x·(L-x)²/L², MB(x) = P·x²·(L-x)/L²
-      %   区間 [a, L-b] で積分:
-      %     CA = ∫[a,Lb] w·x(L-x)²/L² dx
-      %     CB = ∫[a,Lb] w·x²(L-x)/L² dx
-      %   積分結果:
-      %     ∫x(L-x)²dx = L²x²/2 - 2Lx³/3 + x⁴/4
-      %     ∫x²(L-x)dx = Lx³/3 - x⁴/4
-      L2 = L^2;
-      FA_Lb = L2*Lb^2/2 - 2*L*Lb^3/3 + Lb^4/4;
-      FA_a  = L2*a^2/2  - 2*L*a^3/3  + a^4/4;
-      CA = w3/L2 * (FA_Lb - FA_a);
-      GB_Lb = L*Lb^3/3 - Lb^4/4;
-      GB_a  = L*a^3/3  - a^4/4;
-      CB = w3/L2 * (GB_Lb - GB_a);
+      % 両端固定: SS7 計算編 4.2.10 (1) 一般分布荷重式
       cvi = [0; CA; 0];
       cvj = [0; CB; 0];
     end
-
     % ピン端のモーメント解放に伴うせん断力の再配分
     if joint(1)==PRM.PIN && joint(2)~=PRM.PIN
       % i端ピン: CMQ_jに応じてPZを再配分

@@ -84,6 +84,23 @@ for i=1:nnmg
   idmeg(i,1:ncol) = idmeg(i,idsort);
 end
 
+% 解析分割前の元梁部材番号
+idmeg0 = idmeg;
+if has_table_field(girder, 'idsplit')
+  for i = 1:nnmg
+    for j = 1:mcol
+      ig = idmeg(i,j);
+      if ig == 0
+        continue
+      end
+      if girder.type(ig) == PRM.GIRDER_FOR_KBRACE2 ...
+          && girder.idsplit(ig) > 0
+        idmeg0(i,j) = girder.idsplit(ig);
+      end
+    end
+  end
+end
+
 % 左右中央部材（中央は parse_frame_data で確定）
 idsub = zeros(nnmg, 3);
 for i = 1:nnmg
@@ -153,8 +170,8 @@ idsecg = girder.idsecg(idmeg(:, 1));
 is_allowable_stress = issgas(idsecg);
 
 % 結果の保存
-nominal_girder = table(idmeg, idsub, story_name, frame_name, ...
-  coord_name, idstory, idir, idx, idy, idz, idzn, ...
+nominal_girder = table(idmeg, idmeg0, idsub, story_name, ...
+  frame_name, coord_name, idstory, idir, idx, idy, idz, idzn, ...
   idsecg, isthrough, is_allowable_stress);
 return
 end

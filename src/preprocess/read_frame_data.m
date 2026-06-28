@@ -186,13 +186,8 @@ baseline.delta = set_baseline_delta_block(dbc, com);
 baseline.setback = set_baseline_setback_block(dbc, com);
 
 %% 座標値
-baseline.x.coord = calculate_coord(span.x.span);
-baseline.y.coord = calculate_coord(span.y.span);
-[~,iddd] = sort(floor.idz);
-baseline.z.coord = calculate_coord(floor.height(iddd));
-baseline.z.isdummy = story.isdummy;
-baseline.z.idnominal = idstory2nominal;
-baseline.z.coord_standard = calculate_coord(floor.standard_height(iddd));
+baseline = set_baseline_coord(...
+  baseline, span, floor, story, options, idstory2nominal);
 
 %% 構造スパンの更新（部材の寄りを反映）
 member_column = set_member_column_p1_block(dbc, com);
@@ -354,6 +349,11 @@ com.section = section;
 %% 部材(柱梁別)
 member_girder = set_member_girder_block(dbc, com);
 member.girder = member_girder;
+com.member = member;
+com.nmeg = size(member_girder, 1);
+girder_level = set_member_girder_level_block(dbc, com);
+member_girder.level = girder_level;
+member.girder = member_girder;
 member_column = set_member_column_p2_block(dbc, com, isdummy_node);
 member.column = member_column;
 com.member = member;
@@ -497,8 +497,9 @@ column_phiI = set_member_column_phi_block(dbc, com);
 com.member.column.phiI = column_phiI;
 
 %% 梁の剛度増減率
-girder_phiI = set_member_girder_phi_block(dbc, com);
+[girder_phiI, girder_phiA] = set_member_girder_phi_block(dbc, com);
 com.member.girder.phiI = girder_phiI;
+com.member.girder.phiA = girder_phiA;
 
 %% 捩り剛性増減率（梁・柱、com.member.property.factor_J に上書き）
 factor_J = com.member.property.factor_J;
@@ -1914,6 +1915,7 @@ idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder, ...
 Lb = nan(n,3);
 Lb_end = nan(n,4);
 xc = nan(n,2);
+xc_points = nan(n,3);
 for i=1:n
   lb1_l = data{i,6};
   lb2_l = data{i,7};
@@ -1922,6 +1924,20 @@ for i=1:n
   Lbmax = data{i,10};
   x1 = data{i,11};
   x2 = data{i,12};
+  x3 = nan;
+  if size(data, 2) >= 13 && ~ismissing(data{i,13})
+    x3 = data{i,13};
+  end
+  has_extra_x = false;
+  if size(data, 2) >= 14
+    for j = 14:size(data, 2)
+      has_extra_x = has_extra_x || ~ismissing(data{i,j});
+    end
+  end
+  if has_extra_x
+    error('YLAB:Input:InvalidGirderStiffeningX', ...
+      '梁の横補剛の位置列はx1,x2,x3までです（行 %d）', i);
+  end
 
   Lb(i,1) = lb1_l;
   Lb(i,2) = lb1_r;
@@ -1929,10 +1945,13 @@ for i=1:n
   Lb_end(i,:) = [lb1_l lb2_l lb1_r lb2_r];
   xc(i,1) = x1;
   xc(i,2) = x2;
+  if ~ismissing(x3)
+    xc_points(i,:) = [x1 x2 x3];
+  end
 end
 
 % 結果の保存
-girder_stiffening = table(idmeg, Lb, Lb_end, xc);
+girder_stiffening = table(idmeg, Lb, Lb_end, xc, xc_points);
 return
 end
 
@@ -1979,7 +1998,7 @@ return
 end
 
 %--------------------------------------------------------------------------
-function girder_phi = set_member_girder_phi_block(dbc, com)
+function [girder_phiI, girder_phiA] = set_member_girder_phi_block(dbc, com)
 data = dbc.get_data_block('梁の剛度増減率');
 n = size(data,1);
 
@@ -2004,7 +2023,9 @@ end
 
 % 梁の剛度増減率
 nmeg = size(member_girder,1);
-girder_phi = nan(nmeg,1);
+girder_phiI = nan(nmeg,1);
+girder_phiA = nan(nmeg,1);
+ncol = size(data,2);
 for i=1:n
   % 梁部材番号
   idmeg = find_idgirder_from_idxyz(idx(i,:), idy(i,:), ...
@@ -2015,8 +2036,13 @@ for i=1:n
   if isempty(ids); continue; end
 
   % 値のセット
-  val = data{i,8};
-  girder_phi(ids) = val;
+  valI = data{i,8};
+  girder_phiI(ids) = valI;
+  has_phiA = ncol >= 9 && ~isempty(data{i,9}) ...
+    && ~isnan(data{i,9});
+  if has_phiA
+    girder_phiA(ids) = data{i,9};
+  end
 end
 return
 end

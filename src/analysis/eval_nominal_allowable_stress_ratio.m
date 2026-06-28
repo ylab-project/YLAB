@@ -1,7 +1,9 @@
 function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
   fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, ...
-  id_center_sel, girder_axial_mask, fbn_by_fb1] = ...
+  id_center_sel, girder_axial_mask, fbn_by_fb1, ...
+  fcn_design, fbn_design, nomgc] = ...
   eval_nominal_allowable_stress_ratio(msdim, stn, stcn, A, Iy, Iz, ...
+  Zyc, ...
   C, mtype, stype, isxdir, isydir, wgx, wgy, Em, Fm, idm2n, lb, ...
   lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, isgmirrored, ...
   idmg2ng, idmc2nc, options, beta, lcdir, col_idstory, onfg_x, ...
@@ -26,6 +28,7 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %     stcn        - 名目梁中央モーメント [nng×nlc]
 %     A           - 断面積 [nme×1]
 %     Iy, Iz      - 断面2次モーメント [nme×1]
+%     Zyc         - 中央曲げ応力度用断面係数 [nme×1]
 %     C           - ねじり定数等 (struct)
 %     mtype       - 部材タイプ [nme×1]
 %     stype       - 断面タイプ [nme×1]
@@ -38,8 +41,8 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %     idm2n       - 部材→節点番号 [nme×2]
 %     lb          - 補剛間隔配列 [nme×3]
 %     lm          - 芯間距離（構造心間、控除前、Lb 表示用）[nme×1]
-%     lm_bk_x     - X方向芯間距離（D/2 控除後、Lk 算定用）[nme×1]
-%     lm_bk_y     - Y方向芯間距離（D/2 控除後、Lk 算定用）[nme×1]
+%     lm_bk_x     - X方向芯間距離（端部控除後、Lk 算定用）[nme×1]
+%     lm_bk_y     - Y方向芯間距離（端部控除後、Lk 算定用）[nme×1]
 %     lnm         - 通し部材長 [nme×1]
 %     mejoint     - 部材端接合条件 [nme×4]
 %     nominal     - 名目部材情報 (struct)
@@ -75,6 +78,9 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %     id_center_sel - 梁中央位置の選択インデックス [nng×nlc]
 %     girder_axial_mask - S梁軸力考慮マスク (struct)
 %     fbn_by_fb1 - fb1式でfbが決定した位置 [nnm×npos×nlc]
+%     fcn_design, fbn_design - 応力度比計算用の許容応力度
+%                              [nnm×npos×nlc]
+%     nomgc - 中央検定の採用応力度を追加した名目梁中央データ
 
 % 共通配列
 nme = length(mtype);
@@ -150,14 +156,40 @@ fsn = fs(idnm2m(:,1),:);
 
 % 名目梁のfb/fcを4位置から算定し3位置に集約
 iggg = find(nmtype==PRM.GIRDER);
+nng_ = length(iggg);
 img1 = idnm2m(iggg, 1);
 [fbn4, fbn4_by_fb1] = calc_nominal_fb(msdim(img1, :), Cn, ...
   clam(img1), ft(img1, :), stype(img1), nomgc.lb, options);
 fcn4 = calc_nominal_fc(A(img1), Iy(img1), Iz(img1), ...
   clam(img1), Fm(img1), lkx(img1), nomgc.lb);
+center_sub = nomgc.idsub(:, 3:4);
+id_center_m = zeros(nng_, 2);
+for j = 1:2
+  idx_ = sub2ind(size(idnm2m), iggg(:), center_sub(:, j));
+  id_center_m(:, j) = idnm2m(idx_);
+end
+nomgc.id_center_m = id_center_m;
+nomgc.A_center = A(id_center_m);
+nomgc.Z_center = Zyc(id_center_m);
+for j = 1:2
+  imc_ = id_center_m(:, j);
+  [fbn4_c, fb1_c] = calc_nominal_fb(msdim(imc_, :), Cn, ...
+    clam(imc_), ft(imc_, :), stype(imc_), nomgc.lb, options);
+  fcn4_c = calc_nominal_fc(A(imc_), Iy(imc_), Iz(imc_), ...
+    clam(imc_), Fm(imc_), lkx(imc_), nomgc.lb);
+  jcol = j + 2;
+  fbn4(:, jcol, :) = fbn4_c(:, jcol, :);
+  fbn4_by_fb1(:, jcol, :) = fb1_c(:, jcol, :);
+  fcn4(:, jcol, :) = fcn4_c(:, jcol, :);
+end
 nlc_ = size(fbn4, 3);
-nng_ = length(iggg);
 id_center_sel = 3*ones(nng_, nlc_);
+nomgc.stcN = zeros(size(nomgc.Ncn));
+nomgc.stcM = zeros(size(nomgc.Mcn));
+nomgc.ratioN = zeros(size(nomgc.Ncn));
+nomgc.ratioM = zeros(size(nomgc.Mcn));
+nomgc.ratioTotal = zeros(size(nomgc.Mcn));
+nomgc.ratioTotalCandidate = zeros(nng_, 2, nlc_);
 tol_ratio = 1e-4;
 for ilc = 1:nlc_
   fb4_ = fbn4(:, :, ilc);
@@ -170,32 +202,45 @@ for ilc = 1:nlc_
   fcn(iggg, 1, ilc) = fc4_(:, 1);
   fcn(iggg, 2, ilc) = fc4_(:, 2);
 
-  % 中央: 検定比で列3/列4を選択（ベクトル化）
-  Mc_vec = abs(stcn(iggg, ilc));
-  Nc_vec = abs(stn(iggg, 1, ilc));
-  r3 = Mc_vec./fb4_(:,3) + Nc_vec./fc4_(:,3);
-  r4 = Mc_vec./fb4_(:,4) + Nc_vec./fc4_(:,4);
+  % 中央: 実部材ごとの中央応力度で列3/列4を選択
+  M_center = nomgc.Mcn(iggg, ilc);
+  N_center = nomgc.Ncn(iggg, ilc);
+  stcM3 = M_center ./ nomgc.Z_center(:, 1);
+  stcM4 = M_center ./ nomgc.Z_center(:, 2);
+  stcN3 = N_center ./ nomgc.A_center(:, 1);
+  stcN4 = N_center ./ nomgc.A_center(:, 2);
+  r3 = abs(stcM3) ./ fb4_(:, 3) + abs(stcN3) ./ fc4_(:, 3);
+  r4 = abs(stcM4) ./ fb4_(:, 4) + abs(stcN4) ./ fc4_(:, 4);
   sel = 3*ones(nng_, 1);
   sel(abs(r3 - r4) >= tol_ratio & r3 < r4) = 4;
   id_center_sel(:, ilc) = sel;
   idx_ = sub2ind(size(fb4_), (1:nng_)', sel);
-  fbn(iggg, 3, ilc) = fb4_(idx_);
+  idx2_ = sub2ind([nng_, 2], (1:nng_)', sel - 2);
+  stcM_pair = [stcM3 stcM4];
+  stcN_pair = [stcN3 stcN4];
+  stcM_sel = stcM_pair(idx2_);
+  stcN_sel = stcN_pair(idx2_);
+  fb_sel = fb4_(idx_);
+  fc_sel = fc4_(idx_);
+  fbn(iggg, 3, ilc) = fb_sel;
   fbn_by_fb1(iggg, 3, ilc) = fb1_4(idx_);
-  fcn(iggg, 3, ilc) = fc4_(idx_);
+  fcn(iggg, 3, ilc) = fc_sel;
+  nomgc.stcM(iggg, ilc) = stcM_sel;
+  nomgc.stcN(iggg, ilc) = stcN_sel;
+  nomgc.ratioTotalCandidate(:, 1, ilc) = r3;
+  nomgc.ratioTotalCandidate(:, 2, ilc) = r4;
 end
 
 girder_axial_mask = build_girder_axial_mask(stn, nomgc.Ncn, ...
   An, nmtype, options);
 
-% 許容応力度比の算定
-% calc_nominal_allowable_stress_ratio は内部で fcn/fbn を
-% 引張時に ftn で上書きした値を返すが、これは応力比計算用
-% の中間値であり、出力層 (S柱/S梁断面算定表) で表示する
-% fcL/fcS, fbL/fbS は座屈低減後の本来の許容応力を要求する
-% ため、戻り値は受け取らずに呼び出し側スコープの fcn/fbn
-% (純粋値) を維持する。
-ration = calc_nominal_allowable_stress_ratio(stn, stcn, ...
+% 許容応力度比の算定。fcn/fbn は座屈低減後の純粋値として保持し、
+% fcn_design/fbn_design は引張時の ft 置換を反映した表示・検算用値とする。
+[ration, fcn_design, fbn_design] = calc_nominal_allowable_stress_ratio( ...
+  stn, stcn, ...
   ftn, fcn, fbn, fsn, nmtype, nomgc.Ncn, An, girder_axial_mask);
+[ration, fcn_design, fbn_design, nomgc] = update_girder_center_ratio( ...
+  ration, fcn, fbn, fcn_design, fbn_design, nomgc, iggg);
 
 % TB応力比の上書き（N/Ta）
 ration = calc_nominal_allowable_stress_ratio_tension_brace(...
@@ -209,6 +254,31 @@ ration = calc_nominal_allowable_stress_ratio_tension_brace(...
 ngsub = nominal.girder.idsub(:,2);
 [gri, grj, gsi, gsj] = mirror_arrangement(isgmirrored, ...
   idmg2ng, ngsub, gri, grj, gsi, gsj);
+
+return
+end
+
+%----------------------------------------------------------
+function [ration, fcn_design, fbn_design, nomgc] = ...
+  update_girder_center_ratio(ration, fcn, fbn, fcn_design, ...
+  fbn_design, nomgc, iggg)
+%update_girder_center_ratio - 中央検定比を採用実部材の応力度で更新
+
+nlc = size(ration, 3);
+for ilc = 1:nlc
+  stcM = nomgc.stcM(iggg, ilc);
+  stcN = nomgc.stcN(iggg, ilc);
+  fb_c = fbn(iggg, 3, ilc);
+  fc_c = fcn(iggg, 3, ilc);
+  fbn_design(iggg, 3, ilc) = fb_c;
+  fcn_design(iggg, 3, ilc) = fc_c;
+  ration(iggg, 13, ilc) = stcM ./ fb_c;
+  ration(iggg, 14, ilc) = stcN ./ fc_c;
+  nomgc.ratioM(iggg, ilc) = ration(iggg, 13, ilc);
+  nomgc.ratioN(iggg, ilc) = ration(iggg, 14, ilc);
+  nomgc.ratioTotal(iggg, ilc) = abs(ration(iggg, 13, ilc)) ...
+    + abs(ration(iggg, 14, ilc));
+end
 
 return
 end

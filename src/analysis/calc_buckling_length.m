@@ -22,7 +22,7 @@ function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
 %     lnm         - 通し部材の構造心間距離 [nme×1]
 %     lm          - セグメント芯間距離（構造心間、控除前）[nme×1]
 %                   S柱断面算定表の Lb1/Lb2 表示用
-%     lm_bk       - セグメント芯間距離（D/2 控除後）[nme×1]
+%     lm_bk       - セグメント芯間距離（端部控除後）[nme×1]
 %                   柱座屈長さ表・Lk 算定用
 %     Em          - ヤング係数 [nme×1]
 %     mejoint     - 接合条件 [nme×2]（柱脚,柱頭）
@@ -115,37 +115,37 @@ for inc = 1:nnc
   bk_sumIcBot(inc) = gc + gcb;
 
   % 上側節点（柱頭）
-  if isempty(mga) || mejoint(ima,2)==PRM.PIN
-    Ga = 10.0;
+  if isempty(mga)
+    sumIgTop = 0;
   else
     gga = wg(mga).*Iy(mga)./lnm(mga);
     [ispin_self, ispin_other] = check_pinjoint(mga, je(ima));
     gga(ispin_self) = 0;
     gga(ispin_other) = gga(ispin_other)*0.5;
     sumIgTop = sum(gga);
-    bk_sumIgTop(inc) = min(sumIgTop, BK_MAX_IG_LG);
-    if sumIgTop>0
-      Ga = (gc+gca)/sumIgTop;
-    else
-      Ga = 10.0;
-    end
+  end
+  bk_sumIgTop(inc) = min(sumIgTop, BK_MAX_IG_LG);
+  if mejoint(ima,2)==PRM.PIN || sumIgTop<=0
+    Ga = 10.0;
+  else
+    Ga = (gc+gca)/sumIgTop;
   end
 
   % 下側節点（柱脚）
-  if isempty(mgb) || mejoint(ima,1)==PRM.PIN
-    Gb = 10.0;
+  if isempty(mgb)
+    sumIgBot = 0;
   else
     ggb = wg(mgb).*Iy(mgb)./lnm(mgb);
     [ispin_self, ispin_other] = check_pinjoint(mgb, js(imb));
     ggb(ispin_self) = 0;
     ggb(ispin_other) = ggb(ispin_other)*0.5;
     sumIgBot = sum(ggb);
-    bk_sumIgBot(inc) = min(sumIgBot, BK_MAX_IG_LG);
-    if sumIgBot>0
-      Gb = (gc+gcb)/sumIgBot;
-    else
-      Gb = 10.0;
-    end
+  end
+  bk_sumIgBot(inc) = min(sumIgBot, BK_MAX_IG_LG);
+  if mejoint(imb,1)==PRM.PIN || sumIgBot<=0
+    Gb = 10.0;
+  else
+    Gb = (gc+gcb)/sumIgBot;
   end
 
   Gast(inc) = Ga;

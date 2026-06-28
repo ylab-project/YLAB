@@ -30,6 +30,8 @@ nomgc.lb = zeros(nng, 4);
 nomgc.xc = nan(nng, 3);
 nomgc.xc_design = zeros(nng, 1);
 nomgc.idsub = zeros(nng, 4);
+has_stiff_xc_points = isfield(stiffening_info, 'xc_points') ...
+  && size(stiffening_info.xc_points, 1) >= nng;
 has_stiff_xc = isfield(stiffening_info, 'xc') ...
   && size(stiffening_info.xc, 1) >= nng;
 has_stiff_xc_bounds = isfield(stiffening_info, 'xc_bounds') ...
@@ -37,6 +39,7 @@ has_stiff_xc_bounds = isfield(stiffening_info, 'xc_bounds') ...
 has_stiff_lbend = isfield(stiffening_info, 'lb_end') ...
   && size(stiffening_info.lb_end, 1) >= nng;
 TOL = 1e-6;
+INPUT_TOL = 1.0;
 
 for ing = 1:nng
   igs = idmeg(ing,:);
@@ -54,35 +57,55 @@ for ing = 1:nng
   lf_r = lfg(igs(end), 2);
   xc_center = lf_l + (lnom - lf_l - lf_r) / 2;
   nomgc.xc_design(ing, 1) = xc_center;
+  % 横補剛入力は心間基準、応力評価位置は内法中央で保持する。
+  % 所属判定だけ左右柱面差分の半分を平行移動して基準をそろえる。
+  xc_stiffening = xc_center + (lf_r - lf_l) / 2;
 
   % xc（中央座屈区間）の算定
-  xc_row = calc_xc_row(lnom, lb1, lb2, xc_center);
-  has_center_xc = false;
-  if has_stiff_xc_bounds
-    xc_bounds = stiffening_info.xc_bounds(ing, :);
-    xa = xc_bounds(1);
-    xb = xc_bounds(2);
-    has_center_xc = all(~ismissing(xc_bounds)) ...
-      && xa < xb && xb <= lnom + TOL ...
-      && xa <= xc_center + TOL && xc_center <= xb + TOL;
-  elseif has_stiff_xc
-    xc_spec = stiffening_info.xc(ing, :);
-    xa = xc_spec(1);
-    xb = lnom - xc_spec(2);
-    has_center_xc = all(~ismissing(xc_spec)) && all(xc_spec >= 0) ...
-      && xa < xb && xb <= lnom + TOL ...
-      && xa <= xc_center + TOL && xc_center <= xb + TOL;
+  xc_row = calc_xc_row(lnom, lb1, lb2, xc_stiffening);
+  has_xc_points = false;
+  if has_stiff_xc_points
+    xc_points = stiffening_info.xc_points(ing, :);
+    xa = xc_points(1);
+    xmid = lnom - xc_points(2);
+    xb = lnom - xc_points(3);
+    has_xc_points = all(~ismissing(xc_points)) ...
+      && all(xc_points >= 0) && xa < xmid && xmid < xb ...
+      && xb <= lnom + TOL ...
+      && xa <= xc_stiffening + INPUT_TOL ...
+      && xc_stiffening <= xb + INPUT_TOL;
+    if has_xc_points
+      xc_row = [xa xmid xb];
+    end
   end
-  if has_center_xc
-    xc_row = [xa xb nan];
-    if has_stiff_lbend
-      lbend_ = stiffening_info.lb_end(ing, :);
-      has_lbend = all(~ismissing(lbend_)) && all(lbend_ > 0);
-      if has_lbend
-        if abs(xc_center - xa) < TOL
-          xc_row = [max(xa - lbend_(2), 0) xa xb];
-        elseif abs(xc_center - xb) < TOL
-          xc_row = [xa xb min(xb + lbend_(4), lnom)];
+  has_center_xc = false;
+  if ~has_xc_points
+    if has_stiff_xc_bounds
+      xc_bounds = stiffening_info.xc_bounds(ing, :);
+      xa = xc_bounds(1);
+      xb = xc_bounds(2);
+      has_center_xc = all(~ismissing(xc_bounds)) ...
+        && xa < xb && xb <= lnom + TOL ...
+        && xa <= xc_stiffening + INPUT_TOL ...
+        && xc_stiffening <= xb + INPUT_TOL;
+    elseif has_stiff_xc
+      xc_spec = stiffening_info.xc(ing, :);
+      xa = xc_spec(1);
+      xb = lnom - xc_spec(2);
+      has_center_xc = all(~ismissing(xc_spec)) && all(xc_spec >= 0) ...
+        && xa < xb && xb <= lnom + TOL ...
+        && xa <= xc_stiffening + INPUT_TOL ...
+        && xc_stiffening <= xb + INPUT_TOL;
+    end
+    if has_center_xc
+      xc_row = [xa xb nan];
+      if has_stiff_lbend
+        lbend_ = stiffening_info.lb_end(ing, :);
+        has_lbend = all(~ismissing(lbend_)) && all(lbend_ > 0);
+        if has_lbend
+          xc_row = calc_xc_row_from_ab( ...
+            xa, xb, lnom, lbend_(2), lbend_(4), ...
+            xc_stiffening, INPUT_TOL);
         end
       end
     end

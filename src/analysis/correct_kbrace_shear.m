@@ -1,12 +1,13 @@
-function rs0 = correct_kbrace_shear(rs0, node_type, ...
-  member_girder, member_brace, cxl, idm2n1, idm2n2)
+function [rs0, kbrace_corr] = correct_kbrace_shear(rs0, node_type, ...
+  member_girder, member_brace, cxl, idm2n1, idm2n2, lcdir)
 %correct_kbrace_shear - Kブレース分割梁のMID側せん断力を補正
 %
-%   rs0 = correct_kbrace_shear(rs0, node_type, ...
+%   [rs0, kbrace_corr] = correct_kbrace_shear(rs0, node_type, ...
 %     member_girder, member_brace, cxl, ...
-%     idm2n1, idm2n2) は、
-%   MID節点（type=98）の力の平衡から外力Fextを算出し、
-%   各分割梁のMID側Qに -Fext/2 を加算する。
+%     idm2n1, idm2n2, lcdir) は、MID節点（type=98）の力の
+%   平衡から外力Fextを算出し、長期ケースに限り各分割梁の
+%   MID側Qに -Fext/2 を加算する。kbrace_corr には、中央M算定で
+%   MID側補正せん断を積分するための補正量を返す。
 %
 %   入力引数:
 %     rs0           - 部材端力配列 [nme×12×nlc]
@@ -16,15 +17,20 @@ function rs0 = correct_kbrace_shear(rs0, node_type, ...
 %     cxl           - 全部材x軸方向余弦 [nme×3]
 %     idm2n1        - 全部材のi端節点番号 [nme×1]
 %     idm2n2        - 全部材のj端節点番号 [nme×1]
+%     lcdir         - 荷重ケース方向コード [nlc×1]
 %
 %   出力引数:
-%     rs0 - 補正後の部材端力配列 [nme×12×nlc]
+%     rs0          - 補正後の部材端力配列 [nme×12×nlc]
+%     kbrace_corr  - MID側せん断補正情報
 %
 %   備考:
 %     - 水平梁ではczl=[0,0,1]のため局所Qz=全体z
 %     - ブレースはQy≈Qz≈0のためFz≈-N*cxl(3)で算出
 
+nme = size(rs0, 1);
 nlc = size(rs0, 3);
+kbrace_corr.dq = zeros(nme, nlc);
+kbrace_corr.mid_end = zeros(nme, 1);
 
 % MID節点（Kブレース用梁分割節点）を列挙
 idnode_mid = find(node_type == PRM.NODE_BRACE_FOR_GIRDER);
@@ -52,11 +58,17 @@ for k = 1:length(idnode_mid)
   end
   im1 = member_girder.idme(ig1);
   im2 = member_girder.idme(ig2);
+  kbrace_corr.mid_end(im1) = 2;
+  kbrace_corr.mid_end(im2) = 1;
 
   % MID節点に接続するブレースを特定
   ib_at_mid = find(idn1_b == idnode | idn2_b == idnode);
 
   for ilc = 1:nlc
+    if lcdir(ilc) ~= PRM.LT
+      continue
+    end
+
     % 梁のelement→node z成分（水平梁: czl=[0,0,1]）
     Fz_beam = -rs0(im1, 9, ilc) - rs0(im2, 3, ilc);
 
@@ -75,8 +87,11 @@ for k = 1:length(idnode_mid)
 
     % 外力と補正: Q_output = Q_FEM - Fext/2
     Fext = -(Fz_beam + Fz_brace);
-    rs0(im1, 9, ilc) = rs0(im1, 9, ilc) - Fext / 2;
-    rs0(im2, 3, ilc) = rs0(im2, 3, ilc) - Fext / 2;
+    dq = -Fext / 2;
+    rs0(im1, 9, ilc) = rs0(im1, 9, ilc) + dq;
+    rs0(im2, 3, ilc) = rs0(im2, 3, ilc) + dq;
+    kbrace_corr.dq(im1, ilc) = dq;
+    kbrace_corr.dq(im2, ilc) = dq;
   end
 end
 

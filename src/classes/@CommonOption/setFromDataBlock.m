@@ -22,6 +22,10 @@ for i=1:size(data,1)
       options.num_basement_floor = data{i,2};
     case 'PH階数'
       options.num_penthouse_floor = data{i,2};
+    case 'GLから1階床までの高さ'
+      if ~ismissing(data{i,2})
+        options.gl_to_first_floor_height = data{i,2};
+      end
   end
 end
 

@@ -1,7 +1,7 @@
 function [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, ...
   vix, viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, ...
   dfn0, state, sw, lf, lr, lmem, lnm, lbnm, Iy0, Iz0, ...
-  gphiI, gphiN, cphiI, cbs, baseline, node, story, floor, Cn, ...
+  gphiI, gphiQ, cphiI, cbs, baseline, node, story, floor, Cn, ...
   nomgc] = analysis_frame(xvar, com, options)
 %analysis_frame - 骨組のマトリクス解析本体（剛性組立・変位・応力算定）
 %
@@ -46,7 +46,7 @@ function [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, ...
 %     Iy0      - 剛域スケール前の Iy [nme x 1]
 %     Iz0      - 剛域スケール前の Iz [nme x 1]
 %     gphiI    - 合成梁の曲げ剛性増大率
-%     gphiN    - 合成梁の軸断面積増大率（出力用）
+%     gphiQ    - 合成梁のせん断断面積増大率
 %     cphiI    - 柱の曲げ剛度増減率 [nmec x 2]
 %     cbs      - 柱脚断面情報（calc_column_base_section の出力）
 %     baseline - 基線情報（Z座標更新後）
@@ -169,13 +169,18 @@ else
 end
 sprop = calc_secprop(secdim, stype, scallop, secmgr);
 sprop.F = secmgr.extractSectionMaterialF(secdim, matF);
+sprop_as = calc_effective_secprop_for_stress(sprop, secdim, stype);
 msprop = sprop(idm2s,:);
+msprop_as = sprop_as(idm2s,:);
 msdim = secdim(idm2s,:);
 A = msprop.A;
-Asc = msprop.Asc;
 Asy = msprop.Asy;
 Asz = msprop.Asz;
-Aw = msprop.Aw;
+A_as = msprop_as.A;
+Asc_as = msprop_as.Asc;
+Asy_as = msprop_as.Asy;
+Asz_as = msprop_as.Asz;
+Aw_as = msprop_as.Aw;
 % Af = msprop.Af;
 Iy = msprop.Iy;
 Iz = msprop.Iz;
@@ -214,6 +219,13 @@ end
 Em(stype(idm2s) == PRM.TB) = PRM.ES;
 
 % 結果の保存
+msprop.A_as = A_as;
+msprop.Asc_as = Asc_as;
+msprop.Asy_as = Asy_as;
+msprop.Asz_as = Asz_as;
+msprop.Aw_as = Aw_as;
+msprop.Zy_as = msprop_as.Zy;
+msprop.Zz_as = msprop_as.Zz;
 msprop.E = Em;
 % msprop.F = Fm;  % 既に108行目で設定済み
 msprop.pr = prm;
@@ -235,9 +247,10 @@ stress_factor = sec_stress_factor(idm2s);
   msdim, msprop, idmg2m, options);
 Iy(idmg2m) = Igm;
 
-% 床による軸断面積の増大率（出力用）
-[~, gphiN] = calc_composite_girder_Asy(member_girder, ...
+% 床・直接指定による梁せん断断面積の増大率
+[Asygm, gphiQ] = calc_composite_girder_Asy(member_girder, ...
   msdim, msprop, idmg2m);
+Asy(idmg2m) = Asygm;
 
 % 柱の剛度増減率
 cphiI = member_column.phiI;
@@ -246,7 +259,8 @@ Iz(mtype==PRM.COLUMN) = Iz(mtype==PRM.COLUMN).*cphiI(:,2);
 
 % その他
 Zy = msprop.Zy;
-Zz = msprop.Zz;
+Zy_as = msprop.Zy_as;
+Zz_as = msprop.Zz_as;
 Zyf = msprop.Zyf;
 Zysc = msprop.Zysc;
 JJ = msprop.JJ;
@@ -297,6 +311,9 @@ lfg = lf.girder;
 stiffening_info = struct();
 if has_table_field(nominal_girder, 'stiffening_lb_end')
   stiffening_info.lb_end = nominal_girder.stiffening_lb_end;
+end
+if has_table_field(nominal_girder, 'stiffening_xc_points')
+  stiffening_info.xc_points = nominal_girder.stiffening_xc_points;
 end
 if has_table_field(nominal_girder, 'stiffening_xc')
   stiffening_info.xc = nominal_girder.stiffening_xc;
@@ -600,10 +617,10 @@ if has_tension_brace
 end
 
 %% Kブレース分割梁のせん断力補正
-rs0 = correct_kbrace_shear(rs0, node.type, member_girder, ...
-  member_brace, cxl, idm2n1, idm2n2);
+[rs0, kbrace_corr] = correct_kbrace_shear(rs0, node.type, ...
+  member_girder, member_brace, cxl, idm2n1, idm2n2, lcdir);
 rs_analysis0 = correct_kbrace_shear(rs_analysis0, node.type, ...
-  member_girder, member_brace, cxl, idm2n1, idm2n2);
+  member_girder, member_brace, cxl, idm2n1, idm2n2, lcdir);
 
 %% 荷重ケースの重ね合わせ
 [rs, Mc, rvec, cgsrn] = superpose_analysis_case(rs0, ...
@@ -633,7 +650,7 @@ dfn = superpose_design_force(dfn0, lcdir, is_rc_girder_nm, n_beam);
 % M0 は L287 で sw.M0 加算済み
 idnmg2nm = nominal_girder.idnominal;
 Mcn0 = calc_nominal_Mc(rs0, M0, Mc0(idnm2m(:,1), :), ...
-  idmeg, idmg2m, idnmg2nm, lm, lf);
+  idmeg, idmg2m, idnmg2nm, lm, lf, kbrace_corr);
 Mcn = superpose_design_force(Mcn0, lcdir);
 nomgc.Mcn = squeeze(Mcn);
 nomgc.Mcn0 = squeeze(Mcn0);
@@ -670,8 +687,8 @@ end
 % An = Aw+Af;
 % [st, stc] = stress(rs, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, mtype);
 
-[stn, stcn] = calc_nominal_stress(dfn, Mcn, Asc, Asy, ...
-  Asz, Aw, Zy, Zz, Zyij, Zyc, mtype, idnm2m);
+[stn, stcn] = calc_nominal_stress(dfn, Mcn, Asc_as, Asy_as, ...
+  Asz_as, Aw_as, Zy_as, Zz_as, Zyij, Zyc, mtype, idnm2m);
 
 %% 部材長構造体の組立て（戻り値）
 % buckling はブレース座屈長用（暫定。後日 lnom.buckling に整理）

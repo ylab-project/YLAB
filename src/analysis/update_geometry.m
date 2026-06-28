@@ -61,7 +61,6 @@ member_horizontal_brace = member.horizontal_brace;
 mglevel = member.girder.level;
 
 % ID変換
-idfl2z = floor.idz;
 idsc2s = section.column.idsec;
 idscb2s = idsc2s(section.column_base.idsecc);
 idsg2s = section.girder.idsec;
@@ -108,31 +107,28 @@ member_girder.level = mglevel;
 %---
 % 構造階高の更新
 if options.do_autoupdate_floor_height
-  [flh, stdh] = calc_floor_height(secdim, story, floor, ...
+  [floor.height, stdh] = calc_floor_height(secdim, story, floor, ...
     idmg2st, idmg2sg, idsg2s, idm2s, idmg2m, stype, ...
     mglevel, idmg2type);
-  floor.height = flh;
   story.delta_height = stdh;
 else
-  flh = floor.height;
   stdh = story.girder_level;
   story.delta_height = stdh;
 end
-[zcoord, nodez, lm] = update_zcoord(flh, idfl2z, idm2n, baseline, node);
-node.z = nodez;
-% 注: 分割節点のz座標はglv込みで前処理時に設定済み。
-%      update_zcoordは分割節点のidz(フロア外)を更新しないため、
-%      前処理値がそのまま保持される。追加補正は不要。
+[zcoord, zcoord_standard, idz_coord] = calc_story_zcoord(...
+  floor, story, baseline, options.gl_to_first_floor_height);
+node.z = update_zcoord(zcoord, idz_coord, node);
+node = update_brace_column_node_z(node, zcoord_standard, member_girder);
+nodez = node.z;
+lm = calc_member_length_from_node(node, idm2n);
 
 % 方向余弦を現在の node 座標から常に計算
 [cxl, cyl] = update_member_cosine(member_girder, member_column, ...
   member_brace, member_horizontal_brace, node);
 
-if options.do_autoupdate_floor_height
-  % ブレース部材長の算出（構造心間の斜め距離）
-  lm_brace = calc_brace_length(member_brace, member_girder, node);
-  lm(mtype==PRM.BRACE) = lm_brace;
-end
+% ブレース部材長の算出（構造心間の斜め距離）
+lm_brace = calc_brace_length(member_brace, member_girder, node);
+lm(mtype==PRM.BRACE) = lm_brace;
 
 %---
 % フェイス長の計算

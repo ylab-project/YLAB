@@ -30,6 +30,7 @@ nlc = com.nlc;
 nstory = com.nstory;
 mb = 23;
 ncol = 16;
+gdmax = 300;
 
 % 共通配列
 girder = com.member.girder;
@@ -44,10 +45,18 @@ lbn_nom = result.nomgc.lb;
 id_center_sel = result.id_center_sel;
 dfn = result.dfn;
 fbn = result.fbn;
+fbn_design = fbn;
+if isfield(result, 'fbnDesign') && ~isempty(result.fbnDesign)
+  fbn_design = result.fbnDesign;
+end
 fbn_by_fb1 = result.fbnByFb1;
 fcn = result.fcn;
+fcn_design = fcn;
+if isfield(result, 'fcnDesign') && ~isempty(result.fcnDesign)
+  fcn_design = result.fcnDesign;
+end
 stn = result.stn;
-stcn = result.stcn;
+
 C = result.C;
 girder_section_case = result.girderSectionCase;
 if options.consider_web_at_girder_center
@@ -135,24 +144,18 @@ irow = 0;
 for i = 1:nstory
   ist = nstory - i + 1;
   prev_mat_key = '';
-  for idir = 1:2
-    mask_ = idnm2story == ist & idnm2dir == idir ...
-      & idnm2stype == PRM.WFS & nominal_girder.is_allowable_stress;
-    cands_ = iggg(mask_);
-    % SS7 互換: X方向梁はY通り優先、Y方向梁はX通り優先
-    if idir == PRM.X
-      sort_key_ = [secg_order(cands_), idnm2y(cands_), ...
-        idnm2x(cands_), idnm2z(cands_)];
-    else
-      sort_key_ = [secg_order(cands_), idnm2x(cands_), ...
-        idnm2y(cands_), idnm2z(cands_)];
-    end
-    [~, ord_] = sortrows(sort_key_);
-    cands_ = cands_(ord_);
-    if ~options.section_calc_all_members
-      cands_ = pick_representative(cands_);
-    end
-    for k_ = 1:length(cands_)
+  mask_ = idnm2story == ist & idnm2stype == PRM.WFS ...
+    & nominal_girder.is_allowable_stress;
+  cands_ = iggg(mask_);
+  % SS7互換: 方向で分けず、符号順を方向横断で優先する。
+  sort_key_ = [secg_order(cands_), idnm2y(cands_), ...
+    idnm2x(cands_), idnm2dir(cands_), idnm2z(cands_)];
+  [~, ord_] = sortrows(sort_key_);
+  cands_ = cands_(ord_);
+  if ~options.section_calc_all_members
+    cands_ = pick_representative(cands_);
+  end
+  for k_ = 1:length(cands_)
       ing = cands_(k_);
       inm = idnmg2nm(ing);
 
@@ -168,7 +171,8 @@ for i = 1:nstory
       im1 = idmg2m(ig1);
       ig2 = idnm2mg(ing, idsub(2));
       im2 = idmg2m(ig2);
-      igc = idnm2mg(ing, idsub_nomgc(3));
+      sel_center = id_center_sel(ing, clc);
+      igc = idnm2mg(ing, idsub_nomgc(sel_center));
       imc = idmg2m(igc);
 
       has_axial = result.girderSectionHasAxial(ing);
@@ -205,6 +209,12 @@ for i = 1:nstory
       else
         dL_ = 99999;
       end
+      is_deflection_ng_ = abs(da_) * gdmax > 1.0;
+      if is_deflection_ng_
+        deflection_suffix_ = '*';
+      else
+        deflection_suffix_ = '';
+      end
       irow = irow + 1;
       scgbody{irow,1} = sprintf('[ %s ]', make_section_symbol(secg, isg));
       scgbody{irow,2} = sprintf('[%s', girder.story_name{ig1});
@@ -213,7 +223,8 @@ for i = 1:nstory
       scgbody{irow,5} = '-';
       scgbody{irow,6} = sprintf('%s]', girder.coord_name{ig2, 2});
       scgbody{irow,7} = sprintf('部材長 %.0f', lm_);
-      scgbody{irow,9} = sprintf('たわみδ  %.3f δ/L 1/%.0f', delta_, dL_);
+      scgbody{irow,9} = sprintf('たわみδ %s δ/L 1/%.0f%s', ...
+        fmt_ceil_abs(delta_, 3), dL_, deflection_suffix_);
       scgbody{irow,13} = sprintf('補剛数 %d', ns_);
       if ns_ > 0 && has_slr
         maxLb_ = slratio.lbmax(ig1);
@@ -270,25 +281,30 @@ for i = 1:nstory
       end
       scgbody{irow,15} = sprintf('λ %d', ceil(lam_));
 
-      % --- 端部行（端部に設ける補剛本数 + 限界Lb） ---
-      % 均等配置で満足しなかった場合に端部行を出力する。
+      nl_ = 0;
+      nr_ = 0;
+      lbreq2_str_ = '';
+      lbreq2_suffix_ = '';
       if ~is_ok_equal_
-        irow = irow + 1;
-        scgbody{irow,11} = '端部';
         lbreq2_ = slratio.lbreq2(ig1);
-        % 端部本数: Myを超える範囲を端部限界Lb間隔で配置する切上げ本数
+        % 端部本数: Myを超える範囲を端部限界Lb間隔で配置する
         if lbreq2_ > 0
           nl_ = ceil(slratio.lbmy(ig1, 1) / lbreq2_);
           nr_ = ceil(slratio.lbmy(ig1, 2) / lbreq2_);
-        else
-          nl_ = 0; nr_ = 0;
         end
-        scgbody{irow,12} = sprintf('(左) %d本 (右) %d本', nl_, nr_);
         lbreq2_str_ = fmt_ceil_abs(lbreq2_, 0);
-        lbreq2_suffix_ = '';
         if ~is_ok_end_
           lbreq2_suffix_ = '*';
         end
+      end
+      combine_end_row_ = ~is_ok_equal_ && ns_ > 0 && has_slr;
+
+      % --- 端部行（端部に設ける補剛本数 + 限界Lb） ---
+      % 補剛数がある場合はSS7と同じくLb値行に端部情報を併記する。
+      if ~is_ok_equal_ && ~combine_end_row_
+        irow = irow + 1;
+        scgbody{irow,11} = '端部';
+        scgbody{irow,12} = sprintf('(左) %d本 (右) %d本', nl_, nr_);
         scgbody{irow,15} = ['限界Lb ' lbreq2_str_ lbreq2_suffix_];
       end
 
@@ -314,6 +330,11 @@ for i = 1:nstory
           if ns_ >= 3
             scgbody{irow,9} = sprintf('%.0f', lb_mid_);
           end
+        end
+        if combine_end_row_
+          scgbody{irow,11} = '端部';
+          scgbody{irow,12} = sprintf('(左) %d本 (右) %d本', nl_, nr_);
+          scgbody{irow,15} = ['限界Lb ' lbreq2_str_ lbreq2_suffix_];
         end
       end
 
@@ -351,9 +372,9 @@ for i = 1:nstory
       end
       if has_axial
         scgbody{irow, 9} = 'fc';
-        fci_ = fcn(inm, 1, ilc);
-        fcc_ = fcn(inm, 3, clc);
-        fcj_ = fcn(inm, 2, jlc);
+        fci_ = fcn_design(inm, 1, ilc);
+        fcc_ = fcn_design(inm, 3, clc);
+        fcj_ = fcn_design(inm, 2, jlc);
         scgbody{irow,10} = sprintf('%.1f', fci_);
         scgbody{irow,12} = sprintf('%.1f', fcc_);
         scgbody{irow,14} = sprintf('%.1f', fcj_);
@@ -394,9 +415,9 @@ for i = 1:nstory
         scgbody{irow,4} = fmt1(nc_);
         scgbody{irow,6} = fmt1(-dfn(inm,7,jlc)*1e-3);
         scgbody{irow, 9} = 'fb';
-        scgbody{irow,10} = sprintf('%.1f', fbn(inm,1,ilc));
-        scgbody{irow,12} = sprintf('%.1f', fbn(inm,3,clc));
-        scgbody{irow,14} = sprintf('%.1f', fbn(inm,2,jlc));
+        scgbody{irow,10} = sprintf('%.1f', fbn_design(inm,1,ilc));
+        scgbody{irow,12} = sprintf('%.1f', fbn_design(inm,3,clc));
+        scgbody{irow,14} = sprintf('%.1f', fbn_design(inm,2,jlc));
       end
 
       % --- M ---
@@ -413,9 +434,9 @@ for i = 1:nstory
         scgbody{irow,14} = fmt_r(ration(inm,7,jlc));
       else
         scgbody{irow, 9} = 'fb';
-        scgbody{irow,10} = sprintf('%.1f', fbn(inm,1,ilc));
-        scgbody{irow,12} = sprintf('%.1f', fbn(inm,3,clc));
-        scgbody{irow,14} = sprintf('%.1f', fbn(inm,2,jlc));
+        scgbody{irow,10} = sprintf('%.1f', fbn_design(inm,1,ilc));
+        scgbody{irow,12} = sprintf('%.1f', fbn_design(inm,3,clc));
+        scgbody{irow,14} = sprintf('%.1f', fbn_design(inm,2,jlc));
       end
 
       % --- Q ---
@@ -440,8 +461,7 @@ for i = 1:nstory
         irow = irow + 1;
         scgbody{irow, 1} = 'σc';
         scgbody{irow, 2} = fmt1(abs(stn(inm,1,ilc)));
-        Ncn_c = result.nomgc.Ncn(inm, clc);
-        scgbody{irow, 4} = fmt1(abs(Ncn_c/A(imc)));
+        scgbody{irow, 4} = fmt1(abs(result.nomgc.stcN(inm, clc)));
         scgbody{irow, 6} = fmt1(abs(stn(inm,7,jlc)));
         scgbody{irow, 9} = 'TOTAL';
         scgbody{irow,10} = fmt_r(gri(ing,ilc));
@@ -453,7 +473,7 @@ for i = 1:nstory
       irow = irow + 1;
       scgbody{irow, 1} = 'σb';
       scgbody{irow, 2} = fmt1(abs(stn(inm,5,ilc)));
-      scgbody{irow, 4} = fmt1(abs(stcn(inm,clc)));
+      scgbody{irow, 4} = fmt1(abs(result.nomgc.stcM(inm, clc)));
       scgbody{irow, 6} = fmt1(abs(stn(inm,11,jlc)));
       scgbody{irow, 9} = 'τ/fs';
       scgbody{irow,10} = fmt_r(gsi(ing,ilc));
@@ -465,14 +485,22 @@ for i = 1:nstory
       scgbody{irow, 2} = fmt1(abs(stn(inm,3,ilc)));
       scgbody{irow, 6} = fmt1(abs(stn(inm,9,jlc)));
 
-      % --- 警告行（曲げ検定比が1.0を超えるとき, SS7互換） ---
+      % --- 警告・注意行（SS7互換） ---
       if max([gri(ing,ilc), grc(ing,clc), grj(ing,jlc)]) > 1.0
         irow = irow + 1;
-        scgbody{irow, 1} = ['　　　警告  672： S梁で曲げ応力度が' ...
+        scgbody{irow, 1} = ['警告  672： S梁で曲げ応力度が' ...
           '許容曲げ応力度を超えています。'];
       end
-
-      % --- 注意行（横補剛が制限値未達のとき） ---
+      if max([gsi(ing,ilc), gsj(ing,jlc)]) > 1.0
+        irow = irow + 1;
+        scgbody{irow, 1} = ['警告  673： S梁でせん断応力度が' ...
+          '許容せん断応力度を超えています。'];
+      end
+      if is_deflection_ng_
+        irow = irow + 1;
+        scgbody{irow, 1} = ['注意  675： S梁でたわみが鋼構造設計規準の' ...
+          '制限値(1/300)を超えています。'];
+      end
       if ~is_ok_slr_
         irow = irow + 1;
         scgbody{irow, 1} = ['注意  676： S梁で横補剛が基準解説書の' ...
@@ -483,7 +511,6 @@ for i = 1:nstory
       for r_ = irow_block_start:irow-1
         scgbody{r_, ncol} = PRM.CONT_MARKER;
       end
-    end
   end
 end
 scgbody = scgbody(1:irow, :);
@@ -556,12 +583,7 @@ return
   %   s = fmt_r(r) は検定比 r を小数2桁で切り上げ（ceil_ratio）した
   %   文字列を返す。1.0 を超える（NG）場合は SS7 互換で末尾に '*' を
   %   付す。切り上げ規則は検定比一覧・S柱断面算定表と統一する。
-    rc = ceil_ratio(r);
-    if rc > 1.0
-      s = sprintf('%.2f*', rc);
-    else
-      s = sprintf('%.2f', rc);
-    end
+    s = fmt_ratio(r, true);
 
     return
   end

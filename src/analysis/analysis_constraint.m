@@ -72,7 +72,7 @@ xvar = xvar(:);                               % 設計変数を列ベクトル�
 %% マトリクス解析
 [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, vix, ...
   viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, dfn0, ...
-  state, sw, lf, lr, lmem, lnm, lb, Iy, Iz, gphiI, gphiN, cphiI, ...
+  state, sw, lf, lr, lmem, lnm, lb, Iy, Iz, gphiI, gphiQ, cphiI, ...
   cbs, baseline, node, story, floor, Cn, nomgc] = analysis_frame( ...
   xvar, com, options);
 lm = lmem.geom;
@@ -126,10 +126,12 @@ msdimwfs = msdim(idme2stype==PRM.WFS,:);
 % 階高データ
 column_floor_height = com.member.column.floor_height;
 
-% 梁端部の結合条件の設定
+% 梁・柱端部の結合条件の設定
 gjoint = com.member.girder.joint;            % 梁の結合条件
+cjoint = com.member.column.joint;            % 柱の結合条件
 mejoint = PRM.FIX*ones(nme,4);              % 全部材を固定で初期化
 mejoint(idmg2m,:) = gjoint;                  % 梁の結合条件を設定
+mejoint(idmc2m,:) = cjoint;                  % 柱の結合条件を設定
 isgmirrored = com.member.girder.ismirrored;  % 梁の左右反転フラグ
 
 % 名目ブレースごとの水平力成分Q
@@ -156,23 +158,35 @@ if coptions.consider_stress_ratio
   lm_bk_x(mtype==PRM.BRACE) = lmem.buckling(mtype==PRM.BRACE);
   lm_bk_y(mtype==PRM.BRACE) = lmem.buckling(mtype==PRM.BRACE);
   if options.column_member_length_type == 1
-    % コンクリートとの重複を除く（RC梁D/2控除）
+    % コンクリート重複相当控除長さを除く
+    column_rz_x = nan(length(com.member.column.idme), 2);
+    column_rz_y = nan(length(com.member.column.idme), 2);
+    if isfield(com.member, 'column_rigid_zone_direct')
+      column_rz_x = com.member.column_rigid_zone_direct.x;
+      column_rz_y = com.member.column_rigid_zone_direct.y;
+    end
     lm_bk_x(mtype==PRM.COLUMN) = calc_column_buckling_segment_length( ...
       com.member.column, com.member.girder, com.nominal.column, ...
       com.section.property.type, com.section.girder.idsec, secdim, ...
-      lm(mtype==PRM.COLUMN), isxdir_girder);
+      lm(mtype==PRM.COLUMN), isxdir_girder, column_rz_x);
     lm_bk_y(mtype==PRM.COLUMN) = calc_column_buckling_segment_length( ...
       com.member.column, com.member.girder, com.nominal.column, ...
       com.section.property.type, com.section.girder.idsec, secdim, ...
-      lm(mtype==PRM.COLUMN), isydir_girder);
+      lm(mtype==PRM.COLUMN), isydir_girder, column_rz_y);
   end
 
   % 許容応力度比計算
+  if options.consider_web_at_girder_center
+    Zyc = msprop.Zy;
+  else
+    Zyc = msprop.Zyf;
+  end
   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, fcn, fbn, ...
     fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, id_center_sel, ...
-    girderSectionAxialMask, fbn_by_fb1] = ...
-    eval_nominal_allowable_stress_ratio( ...
-    msdim, stn, stcn, A, Iy, Iz, C, mtype, mstype, isxdir_member, ...
+    girderSectionAxialMask, fbn_by_fb1, fcn_design, fbn_design, ...
+    nomgc] = eval_nominal_allowable_stress_ratio( ...
+    msdim, stn, stcn, A, Iy, Iz, Zyc, C, mtype, mstype, ...
+    isxdir_member, ...
     isydir_member, wgx, wgy, Em, Fm, idm2n, lb, lm, lm_bk_x, ...
     lm_bk_y, lnm, mejoint, nominal, isgmirrored, idmg2mng, ...
     idmc2mnc, options, beta, lcdir, idmc2st, com.member.column.onfg_x, ...
@@ -216,6 +230,7 @@ else
   gsi = []; gsj = [];
   csi = []; csj = []; bnij = [];
   fcn = []; fbn = []; fsn = [];
+  fcn_design = []; fbn_design = [];
   fbn_by_fb1 = [];
   kcx = []; kcy = [];
   lkx = lm; lky = [lm lm lm];
@@ -425,7 +440,8 @@ result.Iz = Iz;
 result.msprop = msprop;
 result.cphiI = cphiI;
 result.gphiI = gphiI;
-result.gphiN = gphiN;
+result.gphiQ = gphiQ;
+result.gphiN = ones(size(gphiQ));
 result.drift.angle = drift_angle;
 result.drift.idcolumn = drift_idcolumn;
 result.drift.dx = drift_dx;
@@ -454,8 +470,10 @@ result.dfn0 = dfn0;
 result.stn = stn;
 result.stcn = stcn;
 result.fbn = fbn;
+result.fbnDesign = fbn_design;
 result.fbnByFb1 = fbn_by_fb1;
 result.fcn = fcn;
+result.fcnDesign = fcn_design;
 result.fsn = fsn;
 result.ftn = ftn;
 result.kcx = kcx;

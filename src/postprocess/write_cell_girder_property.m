@@ -8,7 +8,7 @@ function [gphead, gpbody] = write_cell_girder_property(com, result)
 %
 %   入力引数:
 %     com    - 共通オブジェクト
-%     result - 解析結果構造体 (msprop, Iy, gphiI, gphiN, lm, lr 等)
+%     result - 解析結果構造体 (msprop, Iy, gphiI, gphiQ, lm, lr 等)
 %
 %   出力引数:
 %     gphead - ヘッダ部セル配列 [3×19]
@@ -24,6 +24,7 @@ secg = com.section.girder;
 msprop = result.msprop;
 Iy = result.Iy;
 gphiI = result.gphiI;
+gphiQ = result.gphiQ;
 gphiN = result.gphiN;
 lm = result.lm;
 lnm = result.lm_nominal;
@@ -112,8 +113,9 @@ return
     gpbody{irow_*2-1,8} = sprintf('%.3f', gphiI(ig_));
     gpbody{irow_*2-1,9} = fmt_adaptive(Iy(idm_)*1.d-4);
     gpbody{irow_*2-1,10} = fmt_adaptive(msprop.Asy(idm_)*1.d-2);
-    gpbody{irow_*2-1,11} = 1;
-    gpbody{irow_*2-1,12} = fmt_adaptive(msprop.Asy(idm_)*1.d-2);
+    gpbody{irow_*2-1,11} = sprintf('%.3f', gphiQ(ig_));
+    gpbody{irow_*2-1,12} = fmt_adaptive(...
+      msprop.Asy(idm_) * gphiQ(ig_) * 1.d-2);
     gpbody{irow_*2-1,13} = 1;
     gpbody{irow_*2-1,14} = 1;
     if girder.type(ig_) == PRM.GIRDER_FOR_KBRACE1

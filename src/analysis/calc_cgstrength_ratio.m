@@ -61,10 +61,10 @@ for icg = 1:ncgsr
   isxdir2 = isgirx&((isconnected1&cx>=0)|(isconnected2&cx<0));
   isydir1 = isgiry&((isconnected2&cy>=0)|(isconnected1&cy<0));
   isydir2 = isgiry&((isconnected1&cy>=0)|(isconnected2&cy<0));
-  sgxl = sum(Zpy(isxdir1).*Fm(isxdir1).*cos_x(isxdir1)*1.1);
-  sgxr = sum(Zpy(isxdir2).*Fm(isxdir2).*cos_x(isxdir2)*1.1);
-  sgyl = sum(Zpy(isydir1).*Fm(isydir1).*cos_y(isydir1)*1.1);
-  sgyr = sum(Zpy(isydir2).*Fm(isydir2).*cos_y(isydir2)*1.1);
+  sgxl = sum(Zpy(isxdir1).*Fm(isxdir1).*cos_x(isxdir1));
+  sgxr = sum(Zpy(isxdir2).*Fm(isxdir2).*cos_x(isxdir2));
+  sgyl = sum(Zpy(isydir1).*Fm(isydir1).*cos_y(isydir1));
+  sgyr = sum(Zpy(isydir2).*Fm(isydir2).*cos_y(isydir2));
 
   % 上下の柱
   % TODO 柱の耐力の方向成分を考える必要があるが保留

@@ -19,7 +19,7 @@ function sccbody = write_cell_section_calculation_column( ...
 nnc = com.num.nominal_column;
 nlc = com.nlc;
 nstory = com.nstory;
-mb = 14;
+mb = 18;
 ncol = 25;
 
 % 共通配列
@@ -39,6 +39,19 @@ Iy = result.msprop.Iy;
 Iz = result.msprop.Iz;
 Zy = result.msprop.Zy;
 Zz = result.msprop.Zz;
+if isfield(result.msprop, 'A_as')
+  A_as = result.msprop.A_as;
+  Asy_as = result.msprop.Asy_as;
+  Asz_as = result.msprop.Asz_as;
+  Zy_as = result.msprop.Zy_as;
+  Zz_as = result.msprop.Zz_as;
+else
+  A_as = A;
+  Asy_as = Asy;
+  Asz_as = Asz;
+  Zy_as = Zy;
+  Zz_as = Zz;
+end
 F = result.msprop.F;
 idmaterial = result.msprop.idmaterial;
 material_name = result.msprop.material_name;
@@ -128,6 +141,8 @@ for i = 1:nstory
     for icand_ = 1:length(group_cands_)
       inc = group_cands_(icand_);
       inm = idnmc2nm(inc);
+      warn_axial_bending = false;
+      warn_combined = false;
 
       % --- 最大ケースの判定 ---
       ilx = pick_max_case(cri, inc, false);
@@ -210,28 +225,32 @@ for i = 1:nstory
         % iy + <X>柱頭 検定
         irow = irow + 1;
         write_iy_label(irow, im1);
-        write_check_row(irow, '<X>柱頭', Zy(im2), A(im2), Asy(im2), ...
+        write_check_row(irow, '<X>柱頭', Zy_as(im2), A_as(im2), ...
+          Asy_as(im2), ...
           fbn(inm, 2, jlx), ration(inm, 1, jlx), ration(inm, 11, jlx), ...
           ration(inm, 12, jlx), ration(inm, 9, jlx), ration(inm, 17, jlx));
 
         % λ + 柱脚 X 検定
         irow = irow + 1;
         write_lambda_label(irow, im1);
-        write_check_row(irow, '柱脚', Zy(im1), A(im1), Asy(im1), ...
+        write_check_row(irow, '柱脚', Zy_as(im1), A_as(im1), ...
+          Asy_as(im1), ...
           fbn(inm, 1, ilx), ration(inm, 1, ilx), ration(inm, 5, ilx), ...
           ration(inm, 6, ilx), ration(inm, 9, ilx), ration(inm, 15, ilx));
 
         % fcL + <Y>柱頭 検定
         irow = irow + 1;
         write_fcl_label(irow);
-        write_check_row(irow, '<Y>柱頭', Zy(im2), A(im2), Asz(im2), ...
+        write_check_row(irow, '<Y>柱頭', Zy_as(im2), A_as(im2), ...
+          Asz_as(im2), ...
           fbn(inm, 2, jly), ration(inm, 1, jly), ration(inm, 11, jly), ...
           ration(inm, 12, jly), ration(inm, 8, jly), ration(inm, 18, jly));
 
         % fcS + 柱脚 Y 検定（柱エントリ末尾、CONT_MARKER は付与しない）
         irow = irow + 1;
         write_fcs_label(irow);
-        write_check_row(irow, '柱脚', Zz(im1), A(im1), Asy(im1), ...
+        write_check_row(irow, '柱脚', Zz_as(im1), A_as(im1), ...
+          Asy_as(im1), ...
           fbn(inm, 1, ily), ration(inm, 1, ily), ration(inm, 5, ily), ...
           ration(inm, 6, ily), ration(inm, 8, ily), ration(inm, 16, ily));
         sccbody{irow, ncol} = '';
@@ -299,7 +318,8 @@ for i = 1:nstory
         % fcL + <X>柱頭 検定
         irow = irow + 1;
         write_fcl_label(irow);
-        write_check_row(irow, '<X>柱頭', Zy(im2), A(im2), Asy(im2), ...
+        write_check_row(irow, '<X>柱頭', Zy_as(im2), A_as(im2), ...
+          Asy_as(im2), ...
           fbn(inm, 2, jlx), ration(inm, 1, jlx), ration(inm, 11, jlx), ...
           ration(inm, 12, jlx), ration(inm, 9, jlx), ration(inm, 17, jlx));
 
@@ -307,43 +327,55 @@ for i = 1:nstory
         irow = irow + 1;
         write_fcs_label(irow);
         sccbody{irow, 10} = '中央';
-        sccbody{irow, 11} = fmt_ceil_abs(Zy(im_mid) * 1e-3, 0);
-        sccbody{irow, 12} = fmt_ceil_abs(A(im_mid) * 1e-2, 1);
+        sccbody{irow, 11} = fmt_ceil_abs(Zy_as(im_mid) * 1e-3, 0);
+        sccbody{irow, 12} = fmt_ceil_abs(A_as(im_mid) * 1e-2, 1);
         sccbody{irow, ncol} = PRM.CONT_MARKER;
 
         % 柱脚 X 検定
         irow = irow + 1;
-        write_check_row(irow, '柱脚', Zy(im1), A(im1), Asy(im1), ...
+        write_check_row(irow, '柱脚', Zy_as(im1), A_as(im1), ...
+          Asy_as(im1), ...
           fbn(inm, 1, ilx), ration(inm, 1, ilx), ration(inm, 5, ilx), ...
           ration(inm, 6, ilx), ration(inm, 9, ilx), ration(inm, 15, ilx));
 
         % <Y>柱頭 検定
         irow = irow + 1;
-        write_check_row(irow, '<Y>柱頭', Zy(im2), A(im2), Asz(im2), ...
+        write_check_row(irow, '<Y>柱頭', Zy_as(im2), A_as(im2), ...
+          Asz_as(im2), ...
           fbn(inm, 2, jly), ration(inm, 1, jly), ration(inm, 11, jly), ...
           ration(inm, 12, jly), ration(inm, 8, jly), ration(inm, 18, jly));
 
         % 中央 Y 検定（Zz/A のみ）
         irow = irow + 1;
         sccbody{irow, 10} = '中央';
-        sccbody{irow, 11} = fmt_ceil_abs(Zz(im_mid) * 1e-3, 0);
-        sccbody{irow, 12} = fmt_ceil_abs(A(im_mid) * 1e-2, 1);
+        sccbody{irow, 11} = fmt_ceil_abs(Zz_as(im_mid) * 1e-3, 0);
+        sccbody{irow, 12} = fmt_ceil_abs(A_as(im_mid) * 1e-2, 1);
         sccbody{irow, ncol} = PRM.CONT_MARKER;
 
         % 柱脚 Y 検定（柱エントリ末尾、CONT_MARKER は付与しない）
         irow = irow + 1;
-        write_check_row(irow, '柱脚', Zz(im1), A(im1), Asy(im1), ...
+        write_check_row(irow, '柱脚', Zz_as(im1), A_as(im1), ...
+          Asy_as(im1), ...
           fbn(inm, 1, ily), ration(inm, 1, ily), ration(inm, 5, ily), ...
           ration(inm, 6, ily), ration(inm, 8, ily), ration(inm, 16, ily));
         sccbody{irow, ncol} = '';
       end
 
-      % FD ランク = S 規準幅厚比超過。SS7 互換の警告を末尾に出力する
+      % SS7 互換の警告行を柱エントリ末尾に出力する
+      if warn_axial_bending
+        append_warning_row(['　　　警告  692： S柱で軸力と曲げ' ...
+          'モーメントによる応力度が許容応力度を' ...
+          '超えています。']);
+      end
+      if warn_combined
+        append_warning_row(['　　　警告  694： S柱で組合せ応力度が' ...
+          '許容応力度を超えています。']);
+      end
+
+      % FD ランク = S 規準幅厚比超過。SS7 互換の注意を末尾に出力する
       if has_drank && rk_v == PRM.COLUMN_RANK_FD
-        sccbody{irow, ncol} = PRM.CONT_MARKER;
-        irow = irow + 1;
-        sccbody{irow, 1} = ['　　　注意  695： S柱で幅厚比がS規準の' ...
-          '制限値を超えています。'];
+        append_warning_row(['　　　注意  695： S柱で幅厚比がS規準の' ...
+          '制限値を超えています。']);
       end
 
     end
@@ -419,8 +451,10 @@ return
   %     15:σc/fc / 16:σbx/fb / 17:σby/fb / 18:TOTAL / 19:τ/fs /
   %     20:組合せ / 25:CONT_MARKER
     total = r_n + r_bx + r_by;
+    warn_axial_bending = warn_axial_bending || total > 1.0;
+    warn_combined = warn_combined || combined > 1.0;
     % 検定比は SS7 互換で小数2桁切り上げ表示(丸め規則を一元化)
-    fmt2 = @(r) sprintf('%.2f', ceil_ratio(r));
+    fmt2 = @(r) fmt_ratio(r, true);
     sccbody{irow_, 10} = label;
     sccbody{irow_, 11} = fmt_ceil_abs(Z_val * 1e-3, 0);
     sccbody{irow_, 12} = fmt_ceil_abs(A_val * 1e-2, 1);
@@ -433,6 +467,14 @@ return
     sccbody{irow_, 19} = fmt2(tau);
     sccbody{irow_, 20} = fmt2(combined);
     sccbody{irow_, ncol} = PRM.CONT_MARKER;
+    return
+  end
+
+  function append_warning_row(message)
+  %append_warning_row - 現在の柱エントリ末尾に警告・注意行を追加する
+    sccbody{irow, ncol} = PRM.CONT_MARKER;
+    irow = irow + 1;
+    sccbody{irow, 1} = message;
     return
   end
 

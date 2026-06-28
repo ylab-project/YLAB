@@ -21,6 +21,11 @@ member_girder = com.member.girder;
 nominal_girder = com.nominal.girder;
 girder_stiffening = com.girder_stiffening;
 ignominal = nominal_girder.idmeg;
+if has_table_field(nominal_girder, 'idmeg0')
+  igoriginal = nominal_girder.idmeg0;
+else
+  igoriginal = ignominal;
+end
 gjoint = com.member.girder.joint;
 
 % 定数
@@ -50,9 +55,15 @@ if has_table_field(girder_stiffening, 'xc')
 else
   xcgs = nan(ngs, 2);
 end
+if has_table_field(girder_stiffening, 'xc_points')
+  xcpts_gs = girder_stiffening.xc_points;
+else
+  xcpts_gs = nan(ngs, 3);
+end
 lbend_nom = nan(nng, 4);
 xc_nom = nan(nng, 2);
 xc_bounds_nom = nan(nng, 2);
+xc_points_nom = nan(nng, 3);
 
 % 補剛間隔の読み取り
 has_stiff_entry = false(nmg, 1);
@@ -87,6 +98,7 @@ for i = 1:ngs
     ing = ing_list(j);
     lbend_nom(ing, :) = lbend_gs(i, :);
     xc_nom(ing, :) = xcgs(i, :);
+    xc_points_nom(ing, :) = xcpts_gs(i, :);
   end
 end
 
@@ -109,9 +121,14 @@ for ing = 1:nng
 
   % 通し梁中間節点のlb処理
   if numel(isubs) > 1
+    igorig = igoriginal(ing, 1:numel(isubs));
     for k = 1:numel(isubs)-1
       i1 = isubs(k);
       i2 = isubs(k+1);
+      % KBRACE-MID 等の解析分割境界では Lb を合算しない
+      if igorig(k) == igorig(k + 1)
+        continue
+      end
       % 補剛指定ありの場合はスキップ
       if has_stiff_entry(i1) || has_stiff_entry(i2)
         continue
@@ -262,6 +279,7 @@ nominal_girder.stiffening_lb = lbn;
 nominal_girder.stiffening_lb_end = lbend_nom;
 nominal_girder.stiffening_xc = xc_nom;
 nominal_girder.stiffening_xc_bounds = xc_bounds_nom;
+nominal_girder.stiffening_xc_points = xc_points_nom;
 nominal_girder.stiffening_n = stiffening_n;
 nominal_girder.stiffening_lb_report = stiffening_lb_report;
 member_girder.slr_is_target = is_target_slr;

@@ -96,6 +96,10 @@ end
 [fhhead, fhbody] = write_cell_floor_height(xvar, com, result, options);
 write_table(fout, '構造階高', fhhead, fhbody, true);
 
+%% 節点座標
+[nchead, ncbody] = write_cell_node_coordinate(result);
+write_table(fout, '節点座標(構造心)', nchead, ncbody, true);
+
 %% 柱梁断面リスト
 [gshead, gsbody, cshead, csbody] = write_cell_section_list(...
   xvar, com, options);

@@ -375,8 +375,6 @@ return
 
     nnode = size(node,1);
     member_girder = member_girder_arg;
-    section_girder = com.section.girder;
-
     % ダミーZ通りの追加（ブレース接合部用）
     baseline.z = [baseline.z; baseline.z(1,:)];
     nz = size(baseline.z,1);
@@ -392,17 +390,15 @@ return
       | brace_type == PRM.BRACE_MEMBER_TYPE_K_UPPER));
     ntarget = length(id_target_brace);
 
-    % 基礎梁の取得と梁成（梁天端位置計算用）
+    % 追加節点が取り付く基礎梁を保持する
     idfg = find_idgirder_from_idxyz(idx(id_target_brace,:), ...
       idy(id_target_brace,:), idz(id_target_brace,[1 1]), ...
       member_girder, [], baseline);
-    idsfg = member_girder.idsecg(idfg);
-    Dtarget = section_girder.dimension(idsfg,2);
-
     % 配列の事前確保（各ブレース最大2柱を上界として確保し末尾で切詰）
     iac_all = zeros(ntarget*2, 1);
     idnode_template_all = zeros(ntarget*2, 1);
-    Dtarget_all = zeros(ntarget*2, 1);
+    idfg_all = zeros(ntarget*2, 1);
+    idz_target_all = zeros(ntarget*2, 1);
 
     icnt = 0;
     for ib=1:ntarget
@@ -419,7 +415,8 @@ return
           icnt = icnt + 1;
           iac_all(icnt) = iac_L;
           idnode_template_all(icnt) = member_column.idnode1(iac_L);
-          Dtarget_all(icnt) = Dtarget(ib);
+          idfg_all(icnt) = idfg(ib);
+          idz_target_all(icnt) = idz(tid_, 1);
         end
         % 右柱分割: BOTH_R（片(右)）または BOTH（両方）
         if pair_type == PRM.BRACE_MEMBER_PAIR_BOTH_R ...
@@ -429,7 +426,8 @@ return
           icnt = icnt + 1;
           iac_all(icnt) = iac_R;
           idnode_template_all(icnt) = member_column.idnode1(iac_R);
-          Dtarget_all(icnt) = Dtarget(ib);
+          idfg_all(icnt) = idfg(ib);
+          idz_target_all(icnt) = idz(tid_, 1);
         end
       else
         % X形：ペアに応じた柱を分割
@@ -439,14 +437,16 @@ return
           icnt = icnt + 1;
           iac_all(icnt) = iac_L;
           idnode_template_all(icnt) = member_column.idnode1(iac_L);
-          Dtarget_all(icnt) = Dtarget(ib);
+          idfg_all(icnt) = idfg(ib);
+          idz_target_all(icnt) = idz(tid_, 1);
         elseif pair_type == PRM.BRACE_MEMBER_PAIR_R
           iac_R = find_idcolumn_from_idxyz(idx(tid_,[2 2]), ...
             idy(tid_,[2 2]), [idz(tid_,1), idz(tid_,1)+1], member_column);
           icnt = icnt + 1;
           iac_all(icnt) = iac_R;
           idnode_template_all(icnt) = member_column.idnode1(iac_R);
-          Dtarget_all(icnt) = Dtarget(ib);
+          idfg_all(icnt) = idfg(ib);
+          idz_target_all(icnt) = idz(tid_, 1);
         elseif pair_type == PRM.BRACE_MEMBER_PAIR_BOTH
           % BOTH：左右両方の柱を分割
           iac_L = find_idcolumn_from_idxyz(idx(tid_,[1 1]), ...
@@ -456,11 +456,13 @@ return
           icnt = icnt + 1;
           iac_all(icnt) = iac_L;
           idnode_template_all(icnt) = member_column.idnode1(iac_L);
-          Dtarget_all(icnt) = Dtarget(ib);
+          idfg_all(icnt) = idfg(ib);
+          idz_target_all(icnt) = idz(tid_, 1);
           icnt = icnt + 1;
           iac_all(icnt) = iac_R;
           idnode_template_all(icnt) = member_column.idnode1(iac_R);
-          Dtarget_all(icnt) = Dtarget(ib);
+          idfg_all(icnt) = idfg(ib);
+          idz_target_all(icnt) = idz(tid_, 1);
         end
       end
     end
@@ -468,10 +470,11 @@ return
     % 使用分に切詰
     iac_all = iac_all(1:icnt);
     idnode_template_all = idnode_template_all(1:icnt);
-    Dtarget_all = Dtarget_all(1:icnt);
+    idfg_all = idfg_all(1:icnt);
+    idz_target_all = idz_target_all(1:icnt);
 
     % Z座標の計算
-    zcoord_all = Dtarget_all / 2;
+    zcoord_all = member_girder.level(idfg_all);
 
     % 重複する柱・Z座標の統合（同一位置の節点は1つだけ作成）
     [~, idu2o, ~] = unique([iac_all zcoord_all],'rows','stable');
@@ -483,14 +486,20 @@ return
     iac = iac_all(idu2o);
     idnode_template = idnode_template_all(idu2o);
     zcoord = zcoord_all(idu2o);
+    idfg_brace_top = idfg_all(idu2o);
+    idz_brace_top = idz_target_all(idu2o);
+
 
     % 追加節点の作成
     add_node = node(idnode_template,:);
     add_node.idz(:) = nz;
     % dzは柱脚節点からコピー
     add_node.dz = node.dz(member_column.idnode1(iac));
-    add_node.z = zcoord(:) + add_node.dz;
-    add_node.z_standard = baseline.z.coord_standard(nz) + add_node.dz;
+    add_node.idfg_brace_top = idfg_brace_top;
+    add_node.idz_brace_top = idz_brace_top;
+    zstandard = baseline.z.coord_standard(idz_brace_top);
+    add_node.z = zstandard + add_node.dz + zcoord(:);
+    add_node.z_standard = zstandard + add_node.dz;
     add_node.type(:) = PRM.NODE_BRACE_FOR_COLUMN;
     add_node.zname(:) = baseline.z.name(nz);
 

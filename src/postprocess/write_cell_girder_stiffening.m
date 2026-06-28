@@ -16,8 +16,6 @@ function stgcell = write_cell_girder_stiffening(com, result)
 
 % 定数
 ng = com.nmeg;
-nblx = com.nblx;
-nbly = com.nbly;
 nstory = com.nstory;
 
 % 共通配列
@@ -30,57 +28,43 @@ conslr = result.conslr;
 
 % --- ヘッダー ---
 head = cell(4,1);
-head(1,1:19) = { ...
-  '層', 'ﾌﾚｰﾑ', '軸－軸', '', '符号', ...
-  '部材長', 'n', '左端', '', '右端', ...
-  '', '最大Lb', '等間隔に設ける', '', '', ...
-  '端部に設ける', '', '', '判定';};
+head(1,1:19) = {'層', 'ﾌﾚｰﾑ', '軸－軸', '', '符号', '部材長', ...
+  'n', '左端', '', '右端', '', '最大Lb', '等間隔に設ける', ...
+  '', '', '端部に設ける', '', '', '判定';};
 head(2,8:18) = {'Lb1','Lb2', 'Lb2', 'Lb1', '(入力)', ...
   'λ', '限界Lb', '必要n', 'Myを超える範囲', '', '限界Lb'};
-head(4,8:18) = {'mm', 'mm', 'mm', 'mm', 'mm', ...
-  '', 'mm', '', 'mm', 'mm', 'mm'};
+head(4,8:18) = {'mm', 'mm', 'mm', 'mm', 'mm', '', 'mm', ...
+  '', 'mm', 'mm', 'mm'};
 
 % --- 保有耐力横補剛 ---
-body = cell(ng,16);
+body = cell(ng, 19);
 if isempty(slratio)
   stgcell.head = head;
   stgcell.body = body;
   return
 end
-iggg = 1:ng;
+segments = make_report_segments();
+if ~isempty(segments)
+  sort_key = vertcat(segments.sort_key);
+  [~, iord] = sortrows(sort_key);
+  segments = segments(iord);
+end
 irow = 0;
-for i = 1:nstory
-  ist = nstory-i+1;
-  % X方向梁を処理
-  for iy = 1:nbly
-    for ix = 1:nblx
-      ig = iggg(girder.idstory==ist & girder.idx(:,1)==ix & ...
-        girder.idy(:,1)==iy & girder.idir==PRM.X);
-      if isempty(ig) || gstype(ig) ~=PRM.WFS
-        continue
-      end
-      if all(girder.joint(ig,1:2)==PRM.PIN)
-        continue
-      end
-      irow = irow+1;
-      print_row
-    end
+for iseg = 1:numel(segments)
+  seg = segments(iseg);
+  ids = seg.ids;
+  ig = seg.ig_ref;
+  ing = seg.ing;
+  coord1 = seg.coord1;
+  coord2 = seg.coord2;
+  if gstype(ig) ~= PRM.WFS
+    continue
   end
-  % Y方向梁を処理
-  for ix = 1:nblx
-    for iy = 1:nbly
-      ig = iggg(girder.idstory==ist & girder.idx(:,1)==ix & ...
-        girder.idy(:,1)==iy & girder.idir==PRM.Y);
-      if isempty(ig) || gstype(ig) ~=PRM.WFS
-        continue
-      end
-      if all(girder.joint(ig,1:2)==PRM.PIN)
-        continue
-      end
-      irow = irow+1;
-      print_row
-    end
+  if ~any(any(girder.slr_is_target(ids, :)))
+    continue
   end
+  irow = irow + 1;
+  print_row
 end
 stgcell.head = head;
 stgcell.body = body;
@@ -89,29 +73,33 @@ return
   %print_row - 1梁分の横補剛検討値を body の現在行に書き出す
     body{irow,1} = girder.story_name{ig};
     body{irow,2} = girder.frame_name{ig};
-    body{irow,3} = girder.coord_name{ig,1};
-    body{irow,4} = girder.coord_name{ig,2};
+    body{irow,3} = coord1;
+    body{irow,4} = coord2;
     isg = girder.idsecg(ig);
     body{irow,5} = make_section_symbol(secg, isg);
     lg_ = slratio.lg(ig);
-    [lb1_, is_lb1_full] = ...
-      normalize_full_length_interval(slratio.lb(ig,1), lg_);
-    [lb2_, is_lb2_full] = ...
-      normalize_full_length_interval(slratio.lb(ig,2), lg_);
+    [lb1_, is_lb1_full] = normalize_full_length_interval( ...
+      slratio.lb(ig, 1), lg_);
+    [lb2_, is_lb2_full] = normalize_full_length_interval( ...
+      slratio.lb(ig, 2), lg_);
     lbmax_ = normalize_full_length_interval(slratio.lbmax(ig), lg_);
-    ing_ = girder.idnominal(ig, 1);
     [n_, lb_report_, has_report_lb_] = ...
-      get_stiffening_lb_report(nominal_girder, ing_, slratio.n(ig));
+      get_stiffening_lb_report(nominal_girder, ing, slratio.n(ig));
     body{irow,6} = fmt_ceil_abs(lg_, 0);
     if has_report_lb_
       body{irow,7} = sprintf('%.0f', n_);
-      for ilb_ = 1:n_
-        body{irow,7 + ilb_} = fmt_ceil_abs(lb_report_(ilb_), 0);
+      body{irow,8} = fmt_ceil_abs(lb_report_(1), 0);
+      if lb_report_(1) < slratio.lbmy(ig,1)
+        body{irow,9} = fmt_ceil_abs(lb_report_(2), 0);
       end
+      if lb_report_(4) < slratio.lbmy(ig,2)
+        body{irow,10} = fmt_ceil_abs(lb_report_(3), 0);
+      end
+      body{irow,11} = fmt_ceil_abs(lb_report_(4), 0);
     else
       % 自動認識の横補剛数 = 補剛区間数 - 1（SS7計算編3.5）
       % n=0 は空白表示とする
-      nbrace_ = nominal_girder.nstiff(ing_) - 1;
+      nbrace_ = nominal_girder.nstiff(ing) - 1;
       if nbrace_ > 0
         body{irow,7} = sprintf('%.0f', nbrace_);
       end
@@ -124,10 +112,13 @@ return
     end
     body{irow,12} = fmt_ceil_abs(lbmax_, 0);
     body{irow,13} = sprintf('%.0f', slratio.lambda(ig));
-    body{irow,14} = fmt_ceil_abs(slratio.lbreq1(ig), 0);
-    % 必要n: 等間隔配置の限界Lbを最大Lbが超える場合は補剛不能を示す *
+    % 必要n=0 の場合、等間隔配置の限界LbはSS7に合わせて空白
+    if slratio.nreq(ig) > 0
+      body{irow,14} = fmt_ceil_abs(slratio.lbreq1(ig), 0);
+    end
+    % 必要n: 最大Lbが限界Lbを超える場合は補剛不能を示す *
     nreq_str = sprintf('%d', slratio.nreq(ig));
-    if slratio.lbmax(ig) > slratio.lbreq1(ig)
+    if slratio.nreq(ig) > 0 && slratio.lbmax(ig) > slratio.lbreq1(ig)
       nreq_str = [nreq_str '*'];
     end
     body{irow,15} = nreq_str;
@@ -145,6 +136,93 @@ return
       judgement = 'NG';
     end
     body{irow,19} = judgement;
+  end
+
+  function segments = make_report_segments()
+  %make_report_segments - 名目梁単位の帳票表示単位を作成する
+    template = struct('ing', 0, 'ids', [], 'ig_ref', 0, ...
+      'coord1', '', 'coord2', '', 'sort_key', zeros(1, 6));
+    segments = repmat(template, ng, 1);
+    nseg = 0;
+    nng = size(nominal_girder, 1);
+    for ing_ = 1:nng
+      ids_all = nominal_girder.idmeg(ing_, :);
+      ids_all = ids_all(ids_all > 0);
+      if isempty(ids_all)
+        continue
+      end
+      if is_report_through_girder(ing_)
+        nseg = nseg + 1;
+        segments(nseg) = make_segment(ing_, ids_all);
+      else
+        idorig = get_original_girder_ids(ing_, numel(ids_all));
+        ibeg = 1;
+        for k_ = 2:numel(ids_all)
+          if idorig(k_) ~= idorig(k_ - 1)
+            ids_ = ids_all(ibeg:k_ - 1);
+            nseg = nseg + 1;
+            segments(nseg) = make_segment(ing_, ids_);
+            ibeg = k_;
+          end
+        end
+        ids_ = ids_all(ibeg:end);
+        nseg = nseg + 1;
+        segments(nseg) = make_segment(ing_, ids_);
+      end
+    end
+    segments = segments(1:nseg);
+
+    return
+  end
+
+  function tf = is_report_through_girder(ing_)
+  %is_report_through_girder - 通常通し梁の帳票単位かを返す
+    tf = has_table_field(nominal_girder, 'isthrough') ...
+      && nominal_girder.isthrough(ing_);
+
+    return
+  end
+
+  function idorig = get_original_girder_ids(ing_, nsub)
+  %get_original_girder_ids - 表示単位判定用の元梁番号を返す
+    if has_table_field(nominal_girder, 'idmeg0')
+      idorig = nominal_girder.idmeg0(ing_, 1:nsub);
+    else
+      idorig = nominal_girder.idmeg(ing_, 1:nsub);
+    end
+
+    return
+  end
+
+  function segment = make_segment(ing_, ids_)
+  %make_segment - 1つの帳票表示単位を作成する
+    ig_ref_ = ids_(1);
+    segment.ing = ing_;
+    segment.ids = ids_;
+    segment.ig_ref = ig_ref_;
+    segment.coord1 = girder.coord_name{ids_(1), 1};
+    segment.coord2 = girder.coord_name{ids_(end), 2};
+    segment.sort_key = get_sort_key(ig_ref_);
+
+    return
+  end
+
+  function sort_key = get_sort_key(ig_)
+  %get_sort_key - 既存の物理梁順に合わせる並び替えキーを返す
+    story_key = nstory - girder.idstory(ig_);
+    if girder.idir(ig_) == PRM.X
+      dir_key = 1;
+      major_key = girder.idy(ig_, 1);
+      minor_key = girder.idx(ig_, 1);
+    else
+      dir_key = 2;
+      major_key = girder.idx(ig_, 1);
+      minor_key = girder.idy(ig_, 1);
+    end
+    sort_key = [story_key, dir_key, major_key, minor_key, ...
+      girder.idz(ig_, 1), ig_];
+
+    return
   end
 
   function [len, is_full_length] = normalize_full_length_interval( ...

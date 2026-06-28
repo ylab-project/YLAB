@@ -12,7 +12,7 @@ function [lbc_nominal, lbc_nominal_bk] = calc_nominal_lb_column( ...
 %   入力引数:
 %     lmc            - セグメント芯間距離（控除前）[nmc×1]
 %                      Lb1/Lb2 表示用
-%     lmc_bk         - セグメント芯間距離（D/2 控除後）[nmc×1]
+%     lmc_bk         - セグメント芯間距離（端部控除後）[nmc×1]
 %                      Lk 算定用
 %     nominal_column - 名目柱部材の情報を含む構造体
 %     js             - 全部材始端節点番号 [nme×1]

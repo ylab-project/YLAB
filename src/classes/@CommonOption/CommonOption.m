@@ -24,6 +24,7 @@ classdef CommonOption
     % --- 基本事項 ---
     num_basement_floor (1,1) double {mustBeNonnegative} = 0;
     num_penthouse_floor (1,1) double {mustBeNonnegative} = 0;
+    gl_to_first_floor_height (1,1) double = 0;
 
     % --- フロー制御 ---
     version (1,:) char
@@ -232,6 +233,7 @@ classdef CommonOption
       dbl_ = {'double'};
       va_(obj.num_basement_floor, dbl_, nn_);
       va_(obj.num_penthouse_floor, dbl_, nn_);
+      va_(obj.gl_to_first_floor_height, dbl_, {'scalar'});
       va_(obj.self_weight_extra_factor_girder, dbl_, po_);
       va_(obj.self_weight_extra_factor_column, dbl_, po_);
       va_(obj.girder_scallop_size, dbl_, nn_);

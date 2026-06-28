@@ -111,6 +111,7 @@ end
 blk4 = build_brb_length_block(cost, secdim, stype, secmgr, NFIX, NCOL);
 
 body = [blk1; blk2; blk3; blk4];
+body = clear_summary_trailing_values(body, NFIX, NCOL);
 nbody = size(body, 1);
 if nbody == 0
   return
@@ -121,6 +122,29 @@ body(:, NCOL+1) = {PRM.CONT_MARKER};
 body{nbody, NCOL+1} = '';
 
 return
+end
+
+function body = clear_summary_trailing_values(body, NFIX, NCOL)
+%clear_summary_trailing_values - 割増重量以降の数値欄を空にする
+  if isempty(body)
+    return
+  end
+
+  istart = 0;
+  for irow = 1:size(body, 1)
+    label = body{irow, 1};
+    if ischar(label) && contains(label, '割増重量')
+      istart = irow;
+      break
+    end
+  end
+  if istart == 0
+    return
+  end
+
+  body(istart:end, NFIX + 1:NCOL) = {''};
+
+  return
 end
 
 function wt = accum_grp(wt, grp, secdim, part, mask, ip)

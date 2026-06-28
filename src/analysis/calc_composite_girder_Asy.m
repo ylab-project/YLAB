@@ -42,6 +42,17 @@ Asy_slab = (ba(:,1).*t(:,1) + ba(:,2).*t(:,2) ...
 valid = isrc & Asy0 > 0;
 gphiQ(valid) = (Asy0(valid) + Asy_slab(valid)) ./ Asy0(valid);
 
+% 指定値の上書き
+if istable(member_girder)
+  has_phiA = ismember('phiA', member_girder.Properties.VariableNames);
+else
+  has_phiA = isfield(member_girder, 'phiA');
+end
+if has_phiA
+  phiA = member_girder.phiA;
+  gphiQ(~isnan(phiA)) = phiA(~isnan(phiA));
+end
+
 % 合成後のAsy
 Asygm = Asy0 .* gphiQ;
 
