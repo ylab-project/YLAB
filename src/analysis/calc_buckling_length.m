@@ -1,11 +1,12 @@
 function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
-  js, je, is_girder, wg, lnm, lm, lm_bk, Em, mejoint, nominal, ...
-  idmc2nc, options, beta, ilc, col_idstory, onfg, kcUser)
+  js, je, is_girder, wg, lg_end, lnm, lm, lm_bk, Em, ...
+  mejoint, nominal, idmc2nc, options, beta, ilc, col_idstory, ...
+  onfg, kcUser)
 %calc_buckling_length - 柱部材の座屈長さを計算する（1方向分）
 %
 %   [lk, kc, bkinfo] = calc_buckling_length(Iy,
-%   mtype, js, je, is_girder, wg, lnm, lm, lm_bk, Em,
-%   mejoint, nominal, idmc2nc, options, beta, ilc,
+%   mtype, js, je, is_girder, wg, lg_end, lnm, lm,
+%   lm_bk, Em, mejoint, nominal, idmc2nc, options, beta, ilc,
 %   col_idstory, onfg, kcUser) は、
 %   構造骨組みにおける柱部材の座屈長さを算出する。
 %   呼び出し側で方向別の引数を準備し、本関数を
@@ -19,6 +20,7 @@ function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
 %     is_girder   - 該当方向の梁マスク [nme×1]
 %     wg          - 梁剛比の平面振れ角重み cos2θ [nme×1]
 %                   （SS7互換: 水平面内の振れ角のみ考慮）
+%     lg_end      - 梁端別の剛比長さ [nme×2]
 %     lnm         - 通し部材の構造心間距離 [nme×1]
 %     lm          - セグメント芯間距離（構造心間、控除前）[nme×1]
 %                   S柱断面算定表の Lb1/Lb2 表示用
@@ -118,7 +120,7 @@ for inc = 1:nnc
   if isempty(mga)
     sumIgTop = 0;
   else
-    gga = wg(mga).*Iy(mga)./lnm(mga);
+    gga = wg(mga).*Iy(mga)./select_girder_end_length(mga, jei);
     [ispin_self, ispin_other] = check_pinjoint(mga, je(ima));
     gga(ispin_self) = 0;
     gga(ispin_other) = gga(ispin_other)*0.5;
@@ -135,7 +137,7 @@ for inc = 1:nnc
   if isempty(mgb)
     sumIgBot = 0;
   else
-    ggb = wg(mgb).*Iy(mgb)./lnm(mgb);
+    ggb = wg(mgb).*Iy(mgb)./select_girder_end_length(mgb, jsi);
     [ispin_self, ispin_other] = check_pinjoint(mgb, js(imb));
     ggb(ispin_self) = 0;
     ggb(ispin_other) = ggb(ispin_other)*0.5;
@@ -213,7 +215,17 @@ bkinfo.lbc_nominal = lbc_nominal;
 bkinfo.lbc_nominal_bk = lbc_nominal_bk;
 
 return
+%--------------------------------------------------------------
+  function lg = select_girder_end_length(mg, jc)
+    %select_girder_end_length - 接続端に対応する梁剛比長を返す
 
+    mg = mg(:);
+    iend = ones(numel(mg), 1);
+    iend(je(mg) == jc) = 2;
+    idx = sub2ind(size(lg_end), mg, iend);
+    lg = lg_end(idx);
+    return
+  end
 %--------------------------------------------------------------
   function [ispin_self, ispin_other] = check_pinjoint(mg, jc)
     %check_pinjoint - ピン接合条件をチェックする

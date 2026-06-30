@@ -28,11 +28,8 @@ function lm_brace_cost = calc_brace_cost_length(member_brace, ...
 Lx_all = calc_brace_Lx(member_brace, node);
 
 % 梁せい（断面種別ごと、梁ごと）
-Hg = zeros(size(secdim,1), 1);
-Hg(stype_sec==PRM.WFS) = secdim(stype_sec==PRM.WFS, 1);
-Hg(stype_sec==PRM.RCRS) = secdim(stype_sec==PRM.RCRS, 2);
 idmg2s = idsecg2sec(member_girder.idsecg);
-Hg_gir = Hg(idmg2s);
+Hg_gir = calc_girder_section_depth(secdim, stype_sec(idmg2s), idmg2s);
 
 % 柱幅（断面種別ごと、柱ごと）
 Dc = zeros(size(secdim, 1), 1);
@@ -65,9 +62,17 @@ for ib = 1:nmeb
   idg2 = brc_idmeg2(ib,:);
   idg2 = idg2(idg2 > 0);
 
-  % z_standard + glv
-  [z1, ig1] = endpoint_z(node.z_standard(in1), idg1, glv);
-  [z2, ig2] = endpoint_z(node.z_standard(in2), idg2, glv);
+  ig1 = select_brace_end_girder(idg1);
+  ig2 = select_brace_end_girder(idg2);
+
+  z1 = node.z_standard(in1);
+  z2 = node.z_standard(in2);
+  if ig1 > 0
+    z1 = z1 + glv(ig1);
+  end
+  if ig2 > 0
+    z2 = z2 + glv(ig2);
+  end
 
   % --- 鉛直内法距離（上層の梁せいを減算） ---
   Lz = abs(z2 - z1);
@@ -135,4 +140,3 @@ end
 
 return
 end
-
