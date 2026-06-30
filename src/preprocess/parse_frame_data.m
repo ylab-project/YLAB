@@ -72,10 +72,8 @@ com.member.property = member_property;
 
 girder_idnode1 = member_girder.idnode1;
 girder_idnode2 = member_girder.idnode2;
-girder_dx = node_std.x(girder_idnode2) ...
-  - node_std.x(girder_idnode1);
-girder_dy = node_std.y(girder_idnode2) ...
-  - node_std.y(girder_idnode1);
+girder_dx = node_std.x(girder_idnode2) - node_std.x(girder_idnode1);
+girder_dy = node_std.y(girder_idnode2) - node_std.y(girder_idnode1);
 [member_girder.isxdir, member_girder.isydir] = ...
   classify_girder_xy_direction(girder_dx, girder_dy);
 com.member.girder = member_girder;
@@ -266,7 +264,7 @@ com.Hgap.idsec = idgapsec;
 % 中間階の接合部数の数え上げ
 % TODO 対象階の指定方法を見直しが必要
 [cgsr_idnode, cgsr_idvofH, cgsr_idvofB, cgsr_idvoftw, cgsr_idvoftf, ...
-  cgsr_idvofD, cgsr_idvoft]= countup_cgsr_node(com);
+  cgsr_idvofD, cgsr_idvoft, cgsr_istarget] = countup_cgsr_node(com);
 cgsr.idnode = cgsr_idnode;
 cgsr.idvofH = cgsr_idvofH;
 cgsr.idvofB = cgsr_idvofB;
@@ -274,6 +272,7 @@ cgsr.idvoftw = cgsr_idvoftw;
 cgsr.idvoftf = cgsr_idvoftf;
 cgsr.idvofD = cgsr_idvofD;
 cgsr.idvoft = cgsr_idvoft;
+cgsr.istarget = cgsr_istarget;
 [cgsr.isxdir_member, cgsr.isydir_member] = ...
   expand_girder_direction_flags(com.nme, com.member.girder.idme, ...
   com.member.girder.isxdir, com.member.girder.isydir);

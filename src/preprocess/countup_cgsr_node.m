@@ -1,5 +1,7 @@
-function [idnode, idvofH, idvofB, idvoftw, idvoftf, idvofD, idvoft] = ...
-  countup_cgsr_node(com)
+function [idnode, idvofH, idvofB, idvoftw, idvoftf, idvofD, ...
+  idvoft, istarget] = countup_cgsr_node(com)
+%countup_cgsr_node - 柱梁耐力比の対象節点と対象方向を数え上げる
+
 % 共通定数
 nme = com.nme;
 nnode = com.nnode;
@@ -13,6 +15,8 @@ mtype = com.member.property.type;
 idmeg2m = com.member.girder.idme;
 [isxdir_member, isydir_member] = expand_girder_direction_flags( ...
   nme, idmeg2m, com.member.girder.isxdir, com.member.girder.isydir);
+is_both_pin_member = expand_both_pin_nominal_girder(com, nme);
+
 % RC柱判定用
 section_type = com.member.property.section_type;
 
@@ -27,7 +31,7 @@ ncgsr = sum(is_cgsr_node);
 
 % 計算の準備
 immm = 1:nme;
-istarget = true(1,ncgsr);
+istarget = false(ncgsr,2);
 idvofH = cell(ncgsr,2);
 idvofB = cell(ncgsr,2);
 idvoftw = cell(ncgsr,2);
@@ -42,29 +46,29 @@ for icg = 1:ncgsr
   isconnected = any(idm2n==in,2);
   isxdir = isconnected & isxdir_member & mtype==PRM.GIRDER;
   isydir = isconnected & isydir_member & mtype==PRM.GIRDER;
+  isxdir = isxdir & ~is_both_pin_member;
+  isydir = isydir & ~is_both_pin_member;
   idmofxdir = immm(isxdir);
   idmofydir = immm(isydir);
   idmofc = immm(isconnected&mtype==PRM.COLUMN);
-  
+
   % S材とRC材が混在する節点は除外
   idmall = immm(isconnected);  % 節点に接続する全部材
   if ~isempty(idmall)
     has_s_member = any(section_type(idmall) ~= PRM.RCRS);
     has_rc_member = any(section_type(idmall) == PRM.RCRS);
     if has_s_member && has_rc_member
-      % S材とRC材が混在する場合は対象外
-      istarget(icg) = false;
       continue
     end
   end
 
-  % 柱または梁が取り付かない節点は除外
+  % 柱または有効な梁が取り付かない節点は除外
   % 柱1本（上柱なし等）の中間階節点はSS7と同様に検討対象とする
   nmofc = length(idmofc);
   if (isempty(idmofxdir)&&isempty(idmofydir)) || nmofc < 1
-    istarget(icg) = false;
     continue
   end
+  istarget(icg,:) = [~isempty(idmofxdir) ~isempty(idmofydir)];
   idvofH{icg,1} = unique(idm2var(idmofxdir,1));
   idvofH{icg,2} = unique(idm2var(idmofydir,1));
   idvofB{icg,1} = unique(idm2var(idmofxdir,2));
@@ -78,11 +82,48 @@ for icg = 1:ncgsr
 end
 
 % 結果の整理
-idnode = idnode(istarget);
-idvofH = idvofH(istarget,:);
-idvofB = idvofB(istarget,:);
-idvoftw = idvoftw(istarget,:);
-idvoftf = idvoftf(istarget,:);
-idvofD = idvofD(istarget,:);
-idvoft = idvoft(istarget,:);
+iskeep = any(istarget,2);
+idnode = idnode(iskeep);
+idvofH = idvofH(iskeep,:);
+idvofB = idvofB(iskeep,:);
+idvoftw = idvoftw(iskeep,:);
+idvoftf = idvoftf(iskeep,:);
+idvofD = idvofD(iskeep,:);
+idvoft = idvoft(iskeep,:);
+istarget = istarget(iskeep,:);
+return
+end
+
+%--------------------------------------------------------------------------
+function is_both_pin_member = expand_both_pin_nominal_girder(com, nme)
+%expand_both_pin_nominal_girder - 両端PINの名目梁を部材配列へ展開する
+
+is_both_pin_member = false(nme,1);
+if ~isfield(com, 'nominal') || ~isfield(com.nominal, 'girder')
+  return
+end
+
+girder = com.member.girder;
+if ~has_table_field(girder, 'idnominal')
+  return
+end
+
+nominal_girder = com.nominal.girder;
+idmeg = nominal_girder.idmeg;
+nng = size(idmeg,1);
+is_both_pin_nominal = false(nng,1);
+for ing = 1:nng
+  ids = nonzeros(idmeg(ing,:));
+  if isempty(ids)
+    continue
+  end
+  is_both_pin_nominal(ing) = girder.joint(ids(1),1) == PRM.PIN ...
+    && girder.joint(ids(end),2) == PRM.PIN;
+end
+
+idg2ng = girder.idnominal(:,1);
+isvalid = idg2ng > 0;
+is_both_pin_member(girder.idme(isvalid)) = ...
+  is_both_pin_nominal(idg2ng(isvalid));
+return
 end

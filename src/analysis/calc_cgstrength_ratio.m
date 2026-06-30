@@ -1,11 +1,12 @@
 function [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, vix, viy, ...
   idnode_cgsr, idm2n, idmc2m, mtype, Fm, cxl, isxdir_member, ...
-  isydir_member)
+  isydir_member, istarget)
 %calc_cgstrength_ratio - 柱梁耐力比を計算
 %
 %   [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, vix, viy, ...
 %     idnode_cgsr, idm2n, idmc2m, mtype, Fm, cxl, isxdir_member,
-%     isydir_member) は、各接合部における柱梁耐力比を計算する。
+%     isydir_member, istarget) は、各接合部における柱梁耐力比を
+%     計算する。
 %
 %   斜め梁の場合、梁の全塑性モーメントに cosθ 補正を適用する。
 %   SS7仕様: M'pbi = Mpbi × cosθ
@@ -21,6 +22,7 @@ function [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, vix, viy, ...
 %     cxl        - 部材の方向余弦（X軸方向）[nmember×3]
 %     isxdir_member - X方向計算に寄与する部材 [nmember×1]
 %     isydir_member - Y方向計算に寄与する部材 [nmember×1]
+%     istarget   - 柱梁耐力比対象方向 [ncgsr×2]
 %
 %   出力引数:
 %     concgsr - 柱梁耐力比制約値 [ncgsr×4]
@@ -61,10 +63,10 @@ for icg = 1:ncgsr
   isxdir2 = isgirx&((isconnected1&cx>=0)|(isconnected2&cx<0));
   isydir1 = isgiry&((isconnected2&cy>=0)|(isconnected1&cy<0));
   isydir2 = isgiry&((isconnected1&cy>=0)|(isconnected2&cy<0));
-  sgxl = sum(Zpy(isxdir1).*Fm(isxdir1).*cos_x(isxdir1));
-  sgxr = sum(Zpy(isxdir2).*Fm(isxdir2).*cos_x(isxdir2));
-  sgyl = sum(Zpy(isydir1).*Fm(isydir1).*cos_y(isydir1));
-  sgyr = sum(Zpy(isydir2).*Fm(isydir2).*cos_y(isydir2));
+  sgxl = sum(Zpy(isxdir1).*Fm(isxdir1).*cos_x(isxdir1)*1.1);
+  sgxr = sum(Zpy(isxdir2).*Fm(isxdir2).*cos_x(isxdir2)*1.1);
+  sgyl = sum(Zpy(isydir1).*Fm(isydir1).*cos_y(isydir1)*1.1);
+  sgyr = sum(Zpy(isydir2).*Fm(isydir2).*cos_y(isydir2)*1.1);
 
   % 上下の柱
   % TODO 柱の耐力の方向成分を考える必要があるが保留
@@ -105,6 +107,8 @@ for icg = 1:ncgsr
   cgsr.scy(icg,:) = [scy1p scy2p scy1n scy2n];
 end
 concgsr = 1.5./cgsr.ratio-1;
+concgsr(~istarget(:,1),1:2) = -1;
+concgsr(~istarget(:,2),3:4) = -1;
 concgsr = reshape(concgsr,[],1);
 
 return

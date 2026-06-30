@@ -18,9 +18,11 @@ matname = result.msprop.material_name;
 if icase==PRM.EXP || icase==PRM.EXN
   dirlabel = 'x方向';
   angle = 0;
+  idir = 1;
 else
   dirlabel = 'y方向';
   angle = 90;
+  idir = 2;
 end
 
 % ---  柱梁耐力比 ---
@@ -55,6 +57,9 @@ for i = 1:nstory
         end
         icg = icgg(idcg2n==in);
         if isempty(icg)
+          continue
+        end
+        if ~com.cgsr.istarget(icg, idir)
           continue
         end
         switch icase

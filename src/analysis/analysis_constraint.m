@@ -339,7 +339,8 @@ end
 %% 柱梁耐力比制約
 % 帳票出力用に常時計算し、制約への組込みのみオプションに従う
 [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, vix, viy, idncgsr, ...
-  idm2n, idmc2m, mtype, Fm, cxl, isxdir_member, isydir_member);
+  idm2n, idmc2m, mtype, Fm, cxl, isxdir_member, isydir_member, ...
+  com.cgsr.istarget);
 if coptions.consider_joint_strength_ratio
   concgsr = concgsr+coptions.alfa_joint_strength_ratio;
 else
