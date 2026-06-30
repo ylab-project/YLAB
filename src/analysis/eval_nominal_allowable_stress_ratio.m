@@ -1,13 +1,11 @@
 function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
   fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, ...
-  id_center_sel, girder_axial_mask, fbn_by_fb1, ...
-  fcn_design, fbn_design, nomgc] = ...
+  id_center_sel, girder_axial_mask, fbn_by_fb1, nomgc] = ...
   eval_nominal_allowable_stress_ratio(msdim, stn, stcn, A, Iy, Iz, ...
-  Zyc, ...
-  C, mtype, stype, isxdir, isydir, wgx, wgy, Em, Fm, idm2n, lb, ...
-  lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, isgmirrored, ...
-  idmg2ng, idmc2nc, options, beta, lcdir, col_idstory, onfg_x, ...
-  onfg_y, Cn, nomgc, column_buckling_K)
+  Zyc, C, mtype, stype, isxdir, isydir, wgx, wgy, Em, Fm, ...
+  idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, ...
+  isgmirrored, idmg2ng, idmc2nc, options, beta, lcdir, ...
+  col_idstory, onfg_x, onfg_y, Cn, nomgc, column_buckling_K)
 %eval_nominal_allowable_stress_ratio - 名目部材の許容応力度比を算定する
 %
 %   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij,
@@ -78,8 +76,6 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %     id_center_sel - 梁中央位置の選択インデックス [nng×nlc]
 %     girder_axial_mask - S梁軸力考慮マスク (struct)
 %     fbn_by_fb1 - fb1式でfbが決定した位置 [nnm×npos×nlc]
-%     fcn_design, fbn_design - 応力度比計算用の許容応力度
-%                              [nnm×npos×nlc]
 %     nomgc - 中央検定の採用応力度を追加した名目梁中央データ
 
 % 共通配列
@@ -99,18 +95,20 @@ fs = [Fm/(1.5*sqrt(3)) Fm/sqrt(3)];
 % 方向別入力の準備（isxdir/isydir は呼び出し側で算定済み）
 ilc_x = lcdir==PRM.EXP | lcdir==PRM.EXN;
 ilc_y = lcdir==PRM.EYP | lcdir==PRM.EYN;
+lg_bk_end = calc_buckling_girder_end_length(lnm, lm, mtype, ...
+  idm2n1, idm2n2, nominal.girder);
 
 % X方向の座屈長さ係数
 [lk_x, kcx, bkinfox] = calc_buckling_length(Iy, mtype, idm2n1, ...
-  idm2n2, isxdir, wgx, lnm, lm, lm_bk_x, Em, mejoint(:,[1 2]), ...
-  nominal, idmc2nc, options, beta, ilc_x, col_idstory, onfg_x, ...
-  column_buckling_K.Kx);
+  idm2n2, isxdir, wgx, lg_bk_end, lnm, lm, lm_bk_x, Em, ...
+  mejoint(:,[1 2]), nominal, idmc2nc, options, beta, ilc_x, ...
+  col_idstory, onfg_x, column_buckling_K.Kx);
 
 % Y方向の座屈長さ係数
 [lk_y, kcy, bkinfoy] = calc_buckling_length(Iy, mtype, idm2n1, ...
-  idm2n2, isydir, wgy, lnm, lm, lm_bk_y, Em, mejoint(:,[3 4]), ...
-  nominal, idmc2nc, options, beta, ilc_y, col_idstory, onfg_y, ...
-  column_buckling_K.Ky);
+  idm2n2, isydir, wgy, lg_bk_end, lnm, lm, lm_bk_y, Em, ...
+  mejoint(:,[3 4]), nominal, idmc2nc, options, beta, ilc_y, ...
+  col_idstory, onfg_y, column_buckling_K.Ky);
 
 % 座屈長さの組み立て
 lkx = lk_x;
@@ -183,6 +181,8 @@ for j = 1:2
   fcn4(:, jcol, :) = fcn4_c(:, jcol, :);
 end
 nlc_ = size(fbn4, 3);
+girder_axial_mask = build_girder_axial_mask(stn, nomgc.Ncn, ...
+  An, nmtype, options);
 id_center_sel = 3*ones(nng_, nlc_);
 nomgc.stcN = zeros(size(nomgc.Ncn));
 nomgc.stcM = zeros(size(nomgc.Mcn));
@@ -192,6 +192,7 @@ nomgc.ratioTotal = zeros(size(nomgc.Mcn));
 nomgc.ratioTotalCandidate = zeros(nng_, 2, nlc_);
 tol_ratio = 1e-4;
 for ilc = 1:nlc_
+  ilc_ft = min(ilc, 2);
   fb4_ = fbn4(:, :, ilc);
   fc4_ = fcn4(:, :, ilc);
   fb1_4 = fbn4_by_fb1(:, :, ilc);
@@ -202,45 +203,54 @@ for ilc = 1:nlc_
   fcn(iggg, 1, ilc) = fc4_(:, 1);
   fcn(iggg, 2, ilc) = fc4_(:, 2);
 
-  % 中央: 実部材ごとの中央応力度で列3/列4を選択
+  % 中央: 候補3/4をSS7帳票用の確定許容応力度で比較する。
   M_center = nomgc.Mcn(iggg, ilc);
   N_center = nomgc.Ncn(iggg, ilc);
   stcM3 = M_center ./ nomgc.Z_center(:, 1);
   stcM4 = M_center ./ nomgc.Z_center(:, 2);
   stcN3 = N_center ./ nomgc.A_center(:, 1);
   stcN4 = N_center ./ nomgc.A_center(:, 2);
-  r3 = abs(stcM3) ./ fb4_(:, 3) + abs(stcN3) ./ fc4_(:, 3);
-  r4 = abs(stcM4) ./ fb4_(:, 4) + abs(stcN4) ./ fc4_(:, 4);
+  fb_eval = fb4_(:, 3:4);
+  fc_eval = fc4_(:, 3:4);
+  use_axial_c = girder_axial_mask.c(iggg, ilc);
+  use_ft = use_axial_c & (N_center >= PRM.TOL_FORCE_N);
+  ft_center = ftn(iggg, ilc_ft);
+  fb_eval(use_ft, :) = repmat(ft_center(use_ft), 1, 2);
+  fc_eval(use_ft, :) = repmat(ft_center(use_ft), 1, 2);
+  r3 = abs(stcM3) ./ fb_eval(:, 1) + abs(stcN3) ./ fc_eval(:, 1);
+  r4 = abs(stcM4) ./ fb_eval(:, 2) + abs(stcN4) ./ fc_eval(:, 2);
   sel = 3*ones(nng_, 1);
   sel(abs(r3 - r4) >= tol_ratio & r3 < r4) = 4;
   id_center_sel(:, ilc) = sel;
-  idx_ = sub2ind(size(fb4_), (1:nng_)', sel);
-  idx2_ = sub2ind([nng_, 2], (1:nng_)', sel - 2);
+  idx_ = sub2ind([nng_, 2], (1:nng_)', sel - 2);
   stcM_pair = [stcM3 stcM4];
   stcN_pair = [stcN3 stcN4];
-  stcM_sel = stcM_pair(idx2_);
-  stcN_sel = stcN_pair(idx2_);
-  fb_sel = fb4_(idx_);
-  fc_sel = fc4_(idx_);
+  stcM_sel = stcM_pair(idx_);
+  stcN_sel = stcN_pair(idx_);
+  fb_sel = fb_eval(idx_);
+  fc_sel = fc_eval(idx_);
   fbn(iggg, 3, ilc) = fb_sel;
   fbn_by_fb1(iggg, 3, ilc) = fb1_4(idx_);
+  fbn_by_fb1(iggg(use_ft), 3, ilc) = false;
   fcn(iggg, 3, ilc) = fc_sel;
   nomgc.stcM(iggg, ilc) = stcM_sel;
   nomgc.stcN(iggg, ilc) = stcN_sel;
+  nomgc.ratioM(iggg, ilc) = stcM_sel ./ fb_sel;
+  nomgc.ratioN(iggg, ilc) = stcN_sel ./ fc_sel;
+  nomgc.ratioTotal(iggg, ilc) = abs(nomgc.ratioM(iggg, ilc)) ...
+    + abs(nomgc.ratioN(iggg, ilc));
   nomgc.ratioTotalCandidate(:, 1, ilc) = r3;
   nomgc.ratioTotalCandidate(:, 2, ilc) = r4;
 end
 
-girder_axial_mask = build_girder_axial_mask(stn, nomgc.Ncn, ...
-  An, nmtype, options);
-
-% 許容応力度比の算定。fcn/fbn は座屈低減後の純粋値として保持し、
-% fcn_design/fbn_design は引張時の ft 置換を反映した表示・検算用値とする。
-[ration, fcn_design, fbn_design] = calc_nominal_allowable_stress_ratio( ...
-  stn, stcn, ...
-  ftn, fcn, fbn, fsn, nmtype, nomgc.Ncn, An, girder_axial_mask);
-[ration, fcn_design, fbn_design, nomgc] = update_girder_center_ratio( ...
-  ration, fcn, fbn, fcn_design, fbn_design, nomgc, iggg);
+% 許容応力度比の算定。fcn/fbn はSS7帳票・検定用の確定値とする。
+[ration, fcn, fbn] = calc_nominal_allowable_stress_ratio( ...
+  stn, stcn, ftn, fcn, fbn, fsn, nmtype, nomgc.Ncn, An, ...
+  girder_axial_mask);
+for ilc = 1:nlc_
+  ration(iggg, 13, ilc) = nomgc.ratioM(iggg, ilc);
+  ration(iggg, 14, ilc) = nomgc.ratioN(iggg, ilc);
+end
 
 % TB応力比の上書き（N/Ta）
 ration = calc_nominal_allowable_stress_ratio_tension_brace(...
@@ -254,31 +264,6 @@ ration = calc_nominal_allowable_stress_ratio_tension_brace(...
 ngsub = nominal.girder.idsub(:,2);
 [gri, grj, gsi, gsj] = mirror_arrangement(isgmirrored, ...
   idmg2ng, ngsub, gri, grj, gsi, gsj);
-
-return
-end
-
-%----------------------------------------------------------
-function [ration, fcn_design, fbn_design, nomgc] = ...
-  update_girder_center_ratio(ration, fcn, fbn, fcn_design, ...
-  fbn_design, nomgc, iggg)
-%update_girder_center_ratio - 中央検定比を採用実部材の応力度で更新
-
-nlc = size(ration, 3);
-for ilc = 1:nlc
-  stcM = nomgc.stcM(iggg, ilc);
-  stcN = nomgc.stcN(iggg, ilc);
-  fb_c = fbn(iggg, 3, ilc);
-  fc_c = fcn(iggg, 3, ilc);
-  fbn_design(iggg, 3, ilc) = fb_c;
-  fcn_design(iggg, 3, ilc) = fc_c;
-  ration(iggg, 13, ilc) = stcM ./ fb_c;
-  ration(iggg, 14, ilc) = stcN ./ fc_c;
-  nomgc.ratioM(iggg, ilc) = ration(iggg, 13, ilc);
-  nomgc.ratioN(iggg, ilc) = ration(iggg, 14, ilc);
-  nomgc.ratioTotal(iggg, ilc) = abs(ration(iggg, 13, ilc)) ...
-    + abs(ration(iggg, 14, ilc));
-end
 
 return
 end

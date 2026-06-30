@@ -1,5 +1,5 @@
 function [ration, fcn, fbn] = calc_nominal_allowable_stress_ratio(...
-  st, stc, ftn, fcn, fbn, fsn, nmtype, Ncn, An, girder_axial_mask)
+  st, ~, ftn, fcn, fbn, fsn, nmtype, Ncn, An, girder_axial_mask)
 %calc_nominal_allowable_stress_ratio - 公称許容応力度比の算定
 
 % 定数
@@ -79,11 +79,7 @@ for ilc = 1:nlc
         ration(inm,17,ilc) = sqrt(sgt^2 + 3*tcx^2) / ftc;
         ration(inm,18,ilc) = sqrt(sgt^2 + 3*tcy^2) / ftc;
       case PRM.GIRDER
-        % 中央σb/fb — 引張時はfb=ft（引張正）
-        if use_axial_c && Ncn(inm, ilc) >= PRM.TOL_FORCE_N
-          fbn(inm,3,ilc) = ftn(inm,ilc_);
-        end
-        ration(inm,13,ilc) = stc(inm,ilc) / fbn(inm,3,ilc);
+        % 梁中央は中央2区間選定後の確定値を呼び出し側で設定する。
         % 中央N/fc（引張正）
         stcn_N = Ncn(inm,ilc) / An(inm);
         if use_axial_c && Ncn(inm, ilc) >= PRM.TOL_FORCE_N

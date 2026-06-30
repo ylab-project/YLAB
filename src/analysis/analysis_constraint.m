@@ -72,10 +72,10 @@ xvar = xvar(:);                               % 設計変数を列ベクトル�
 %% マトリクス解析
 [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, vix, ...
   viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, dfn0, ...
-  state, sw, lf, lr, lmem, lnm, lb, Iy, Iz, gphiI, gphiQ, cphiI, ...
-  cbs, baseline, node, story, floor, Cn, nomgc] = analysis_frame( ...
-  xvar, com, options);
-lm = lmem.geom;
+  state, sw, lf, lr, lmem, lnm, lb, Iy, Iz, gphiI, gphiAs, ...
+  gphiAn, cphiI, cbs, baseline, node, story, floor, Cn, ...
+  nomgc] = analysis_frame(xvar, com, options);
+lm = lmem.stiff;
 lm_weight = lmem.weight;
 
 % 方向余弦を更新後の node 座標から再計算
@@ -85,8 +85,6 @@ lm_weight = lmem.weight;
 % 梁剛比の平面振れ角重み（柱座屈長さ係数算定用）
 % SS7互換: 水平面内の振れ角のみ cos2θ を乗じ、鉛直傾きは考慮しない
 [wgx, wgy] = calc_plane_direction_weights(cxl);
-isxdir_girder = com.member.girder.isxdir;
-isydir_girder = com.member.girder.isydir;
 isxdir_member = com.cgsr.isxdir_member;
 isydir_member = com.cgsr.isydir_member;
 
@@ -158,21 +156,11 @@ if coptions.consider_stress_ratio
   lm_bk_x(mtype==PRM.BRACE) = lmem.buckling(mtype==PRM.BRACE);
   lm_bk_y(mtype==PRM.BRACE) = lmem.buckling(mtype==PRM.BRACE);
   if options.column_member_length_type == 1
-    % コンクリート重複相当控除長さを除く
-    column_rz_x = nan(length(com.member.column.idme), 2);
-    column_rz_y = nan(length(com.member.column.idme), 2);
-    if isfield(com.member, 'column_rigid_zone_direct')
-      column_rz_x = com.member.column_rigid_zone_direct.x;
-      column_rz_y = com.member.column_rigid_zone_direct.y;
-    end
+    % 柱剛性表と同じ剛域長さを端部控除に使う
     lm_bk_x(mtype==PRM.COLUMN) = calc_column_buckling_segment_length( ...
-      com.member.column, com.member.girder, com.nominal.column, ...
-      com.section.property.type, com.section.girder.idsec, secdim, ...
-      lm(mtype==PRM.COLUMN), isxdir_girder, column_rz_x);
+      com.nominal.column, lm(mtype==PRM.COLUMN), lr.columnx);
     lm_bk_y(mtype==PRM.COLUMN) = calc_column_buckling_segment_length( ...
-      com.member.column, com.member.girder, com.nominal.column, ...
-      com.section.property.type, com.section.girder.idsec, secdim, ...
-      lm(mtype==PRM.COLUMN), isydir_girder, column_rz_y);
+      com.nominal.column, lm(mtype==PRM.COLUMN), lr.columny);
   end
 
   % 許容応力度比計算
@@ -183,13 +171,12 @@ if coptions.consider_stress_ratio
   end
   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, fcn, fbn, ...
     fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, id_center_sel, ...
-    girderSectionAxialMask, fbn_by_fb1, fcn_design, fbn_design, ...
-    nomgc] = eval_nominal_allowable_stress_ratio( ...
-    msdim, stn, stcn, A, Iy, Iz, Zyc, C, mtype, mstype, ...
-    isxdir_member, ...
-    isydir_member, wgx, wgy, Em, Fm, idm2n, lb, lm, lm_bk_x, ...
-    lm_bk_y, lnm, mejoint, nominal, isgmirrored, idmg2mng, ...
-    idmc2mnc, options, beta, lcdir, idmc2st, com.member.column.onfg_x, ...
+    girderSectionAxialMask, fbn_by_fb1, nomgc] = ...
+    eval_nominal_allowable_stress_ratio(msdim, stn, stcn, A, Iy, Iz, ...
+    Zyc, C, mtype, mstype, isxdir_member, isydir_member, ...
+    wgx, wgy, Em, Fm, idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, ...
+    mejoint, nominal, isgmirrored, idmg2mng, idmc2mnc, options, ...
+    beta, lcdir, idmc2st, com.member.column.onfg_x, ...
     com.member.column.onfg_y, Cn, nomgc, com.column_buckling_K);
 
   % S梁断面算定表の表示用採用ケース
@@ -230,7 +217,6 @@ else
   gsi = []; gsj = [];
   csi = []; csj = []; bnij = [];
   fcn = []; fbn = []; fsn = [];
-  fcn_design = []; fbn_design = [];
   fbn_by_fb1 = [];
   kcx = []; kcy = [];
   lkx = lm; lky = [lm lm lm];
@@ -441,8 +427,8 @@ result.Iz = Iz;
 result.msprop = msprop;
 result.cphiI = cphiI;
 result.gphiI = gphiI;
-result.gphiQ = gphiQ;
-result.gphiN = ones(size(gphiQ));
+result.gphiAs = gphiAs;
+result.gphiAn = gphiAn;
 result.drift.angle = drift_angle;
 result.drift.idcolumn = drift_idcolumn;
 result.drift.dx = drift_dx;
@@ -471,10 +457,8 @@ result.dfn0 = dfn0;
 result.stn = stn;
 result.stcn = stcn;
 result.fbn = fbn;
-result.fbnDesign = fbn_design;
 result.fbnByFb1 = fbn_by_fb1;
 result.fcn = fcn;
-result.fcnDesign = fcn_design;
 result.fsn = fsn;
 result.ftn = ftn;
 result.kcx = kcx;
@@ -538,3 +522,4 @@ result.girderSectionHasAxial = girderSectionHasAxial;
 result.nomgc = nomgc;
 return
 end
+

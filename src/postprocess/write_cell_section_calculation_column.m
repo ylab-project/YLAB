@@ -154,6 +154,7 @@ for i = 1:nstory
       idsub = nominal_column.idsub(inc, :);
       ic1 = idnm2mc(inc, idsub(1));
       im1 = idmc2m(ic1);
+      warn_slenderness = max(lambday(im1), lambdaz(im1)) > 200.0;
       ic2 = idnm2mc(inc, idsub(2));
       im2 = idmc2m(ic2);
       isc_ = idnm2sc(inc);
@@ -370,6 +371,10 @@ for i = 1:nstory
       if warn_combined
         append_warning_row(['　　　警告  694： S柱で組合せ応力度が' ...
           '許容応力度を超えています。']);
+      end
+      if warn_slenderness
+        append_warning_row(['　　　警告  697： S柱で細長比が' ...
+          '200を超えています。']);
       end
 
       % FD ランク = S 規準幅厚比超過。SS7 互換の注意を末尾に出力する
