@@ -1,30 +1,11 @@
-function ke = stif_beam_matrix(...
-  L0, A, Asy, Asz, Iy, Iz, J, E, G, lry, lrz, joint, kcb, flag)
-
-% 入力値のチェック
-if any(isnan([L0, A, Asy, Asz, Iy, Iz, J, E, G]))
-  fprintf('エラー: stif_beam_matrix入力にNaN\n');
-  fprintf('  L0=%.3e, A=%.3e, Asy=%.3e, Asz=%.3e\n', ...
-    L0, A, Asy, Asz);
-  fprintf('  Iy=%.3e, Iz=%.3e, J=%.3e\n', Iy, Iz, J);
-  fprintf('  E=%.3e, G=%.3e\n', E, G);
-  fprintf('  lry=[%.3f, %.3f], lrz=[%.3f, %.3f]\n', ...
-    lry(1), lry(2), lrz(1), lrz(2));
-  % error('入力パラメータにNaNが含まれています');
-end
+function ke = stif_beam_matrix(L0, A, Asy, Asz, Iy, Iz, J, E, G, ...
+  lry, lrz, joint, kcb, flag)
 
 % 計算の準備
 ke = zeros(12, 12);
 Ly = L0-lry(1)-lry(2);
 Lz = L0-lrz(1)-lrz(2);
 
-% 長さチェック
-if Ly <= 0 || Lz <= 0
-  fprintf(['警告: 有効長さが0以下です ' ...
-    '(L0=%.3f, Ly=%.3f, Lz=%.3f)\n'], L0, Ly, Lz);
-  fprintf('  lry=[%.3f, %.3f], lrz=[%.3f, %.3f]\n', ...
-    lry(1), lry(2), lrz(1), lrz(2));
-end
 if flag.consider_shear_deformation
   if Asy>0
     ry = 6*E*Iy/(G*Asy*Ly^2);

@@ -1,8 +1,8 @@
 function [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, ...
   vix, viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, ...
   dfn0, state, sw, lf, lr, lmem, lnm, lbnm, Iy0, Iz0, ...
-  gphiI, gphiQ, cphiI, cbs, baseline, node, story, floor, Cn, ...
-  nomgc] = analysis_frame(xvar, com, options)
+  gphiI, gphiAs, gphiAn, cphiI, cbs, baseline, node, ...
+  story, floor, Cn, nomgc] = analysis_frame(xvar, com, options)
 %analysis_frame - 骨組のマトリクス解析本体（剛性組立・変位・応力算定）
 %
 %   [msprop, secdim, ...] = analysis_frame(xvar, com, options) は、
@@ -46,7 +46,8 @@ function [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, ...
 %     Iy0      - 剛域スケール前の Iy [nme x 1]
 %     Iz0      - 剛域スケール前の Iz [nme x 1]
 %     gphiI    - 合成梁の曲げ剛性増大率
-%     gphiQ    - 合成梁のせん断断面積増大率
+%     gphiAs   - 梁せん断断面積増大率
+%     gphiAn   - 梁軸断面積増大率
 %     cphiI    - 柱の曲げ剛度増減率 [nmec x 2]
 %     cbs      - 柱脚断面情報（calc_column_base_section の出力）
 %     baseline - 基線情報（Z座標更新後）
@@ -247,10 +248,14 @@ stress_factor = sec_stress_factor(idm2s);
   msdim, msprop, idmg2m, options);
 Iy(idmg2m) = Igm;
 
-% 床・直接指定による梁せん断断面積の増大率
-[Asygm, gphiQ] = calc_composite_girder_Asy(member_girder, ...
+% 梁剛度直接指定によるせん断断面積の増大率
+[Asygm, gphiAs] = calc_composite_girder_Asy(member_girder, ...
   msdim, msprop, idmg2m);
 Asy(idmg2m) = Asygm;
+
+% 床組による梁軸断面積の増大率
+[Agm, gphiAn] = calc_composite_girder_An(member_girder, msprop, idmg2m);
+A(idmg2m) = Agm;
 
 % 柱の剛度増減率
 cphiI = member_column.phiI;
@@ -370,8 +375,7 @@ lm_brace_buckling = calc_brace_buckling_length(member.brace, ...
 lm_stiff = lm;
 
 %% 柱・梁・ブレースを結合して全部材の荷重計算用部材長を作成
-% ブレース重量は物理量なので解析モデルのブレース取り付き位置
-% オプションに依らず常に物理ブレース長（SS7 3.8.1 デフォルトルール）
+% ブレース重量はSS7 4.1.9に従い、SS7 3.8.1のブレース長さL
 % を使う
 lm_weight = lm;
 lm_weight(mtype==PRM.COLUMN) = lm_column_weight;
@@ -429,11 +433,11 @@ is_steel_brace = (mtype == PRM.BRACE) ...
   | stype(idm2s) == PRM.BWFS);
 is_tension = false(nme, 1);
 if any(is_steel_brace)
-  % λe 判定（SS7 3.8.1、L = lm_stiff のブレース部分 = 内法長さ）
+  % λe 判定（SS7 3.8.1、Lk = L、K=1）
   iy_ = sqrt(Iy(is_steel_brace) ./ A(is_steel_brace));
   iz_ = sqrt(Iz(is_steel_brace) ./ A(is_steel_brace));
   imin_ = min(iy_, iz_);
-  lam_e = lm_stiff(is_steel_brace) ./ imin_;
+  lam_e = lm_brace_buckling(is_steel_brace(mtype == PRM.BRACE)) ./ imin_;
   F_ = Fm(is_steel_brace);
   is_tension(is_steel_brace) = lam_e >= 1980 ./ sqrt(F_);
 end
@@ -694,8 +698,8 @@ end
 % buckling はブレース座屈長用（暫定。後日 lnom.buckling に整理）
 lm_buckling = lm;
 lm_buckling(mtype==PRM.BRACE) = lm_brace_buckling;
-lmem = struct('geom', lm, 'stiff', lm_stiff, 'buckling', ...
-  lm_buckling, 'weight', lm_weight);
+lmem = struct('stiff', lm_stiff, 'buckling', lm_buckling, ...
+  'weight', lm_weight);
 % -------------------------------------------------------------------------
   function dnode = trans_dvec2dnode(ilcset, dnode, dvec)
   %trans_dvec2dnode - 解ベクトルから節点変位への変換（剛床考慮）
@@ -874,3 +878,4 @@ end
 
 return
 end
+

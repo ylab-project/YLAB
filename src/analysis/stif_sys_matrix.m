@@ -42,10 +42,6 @@ function ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
 %       完全 0 は数値問題）、ACTUAL は原断面、RIGID は Iz=Iy×1000・
 %       Asy 大値化で水平面内剛体扱いとする。
 %     - factor_J(im)=0 の場合も同様に微小化。J は部材種別不問。
-%     - 剛域長が部材長以上の場合、剛性をscale倍で実質固結化する。
-
-% 剛域長が部材長以上の場合の剛性スケール
-scale = 1e10;
 
 % 計算の準備
 nm = length(A);
@@ -104,20 +100,6 @@ for im = 1:nm
     Ei = Em(im); Gi = Gm(im);
     jointi = joint(im,:);
 
-    if any(lrxi+lryi>=li)
-      fprintf(['警告: 部材 %d で剛域長が部材長以上です ' ...
-        '(li=%.3f, lrxi=[%.3f, %.3f], lryi=[%.3f, %.3f])\n'], ...
-        im, li, lrxi(1), lrxi(2), lryi(1), lryi(2));
-      lrxi = [0 0];
-      lryi = [0 0];
-      Ai = Ai*scale;
-      Asyi = Asyi*scale;
-      Aszi = Aszi*scale;
-      Iyi = Iyi*scale;
-      Izi = Izi*scale;
-      Ji = Ji*scale;
-    end
-
     if idm2scb(im)>0
       kcbi = cbstiff(idm2scb(im));
       ke = stif_beam_matrix(li, Ai, Asyi, Aszi, Iyi, Izi, Ji, ...
@@ -132,17 +114,6 @@ for im = 1:nm
       tr = calc_rigid_zone_transform(lrxi, lryi, cxl(im,:), ...
         cyl(im,:), czl(im,:), mtype(im)==PRM.COLUMN);
       ke = tr'*ke*tr;
-    end
-
-    if any(isnan(ke(:)))
-      fprintf('エラー: 部材 %d でNaNが検出されました\n', im);
-      fprintf('  A=%.3e, Asy=%.3e, Asz=%.3e\n', Ai, Asyi, Aszi);
-      fprintf('  Iy=%.3e, Iz=%.3e, JJ=%.3e\n', Iyi, Izi, Ji);
-      fprintf('  E=%.3e, G=%.3e, l=%.3f\n', Ei, Gi, li);
-      fprintf('  lrxi=[%.3f, %.3f], lryi=[%.3f, %.3f]\n', ...
-        lrxi(1), lrxi(2), lryi(1), lryi(2));
-      disp('ke行列:');
-      disp(ke);
     end
 
     % 局所系→全体系変換行列
