@@ -7,8 +7,7 @@ baseline = com.baseline;
 node = com.node;
 story = com.story;
 floor = com.floor;
-max_idphase = min(options.maxphase, ...
-  com.sectionList.getMaxIdPhase() + 1);
+max_idphase = min(options.maxphase, com.sectionList.getMaxIdPhase() + 1);
 
 % 上下限値
 lb = secmgr.lb;
@@ -102,19 +101,13 @@ return
     end
     n1 = max(options.iter_set);
     n2 = max_idphase;
-    nx = size(xopt,2);
+    nx = size(xopt, 2);
     if isempty(trials_history)
       trials_history = struct(history);
       trials_history(n1,n2) = struct(history);
     end
-    if isempty(who(trials))
-      trials.x0 = nan(nx, n1, n2);
-      trials.xopt = nan(nx, n1, n2);
-      trials.fval = nan(n1, n2);
-      trials.iter = nan(n1, n2);
-      trials.time = nan(n1, n2);
-      trials.maxvio = nan(n1, n2);
-      trials.nexec = nan(n1, n2);
+    if needs_trial_initialization(nx, n1, n2)
+      initialize_trials(nx, n1, n2)
     end
     n_ = length(history.iter);
     if n2==1
@@ -131,6 +124,44 @@ return
     trials.nexec(idtrial, idphase) = history.nexec(n_);
     trials_history(idtrial, idphase) = history;
     trials.history = trials_history;
+  end
+%--------------------------------------------------------------------------
+  function initialize_trials(nx, n1, n2)
+    trials.x0 = nan(nx, n1, n2);
+    trials.xopt = nan(nx, n1, n2);
+    trials.fval = nan(n1, n2);
+    trials.iter = nan(n1, n2);
+    trials.time = nan(n1, n2);
+    trials.maxvio = nan(n1, n2);
+    trials.nexec = nan(n1, n2);
+  end
+%--------------------------------------------------------------------------
+  function tf = needs_trial_initialization(nx, n1, n2)
+    vars = who(trials);
+    if isempty(vars)
+      tf = true;
+      return
+    end
+    vector_size = [nx n1];
+    if n2>1
+      vector_size = [nx n1 n2];
+    end
+    tf = ~has_trial_size(vars, 'x0', vector_size) ...
+      || ~has_trial_size(vars, 'xopt', vector_size) ...
+      || ~has_trial_size(vars, 'fval', [n1 n2]) ...
+      || ~has_trial_size(vars, 'iter', [n1 n2]) ...
+      || ~has_trial_size(vars, 'time', [n1 n2]) ...
+      || ~has_trial_size(vars, 'maxvio', [n1 n2]) ...
+      || ~has_trial_size(vars, 'nexec', [n1 n2]) ...
+      || ~has_trial_size(vars, 'history', [n1 n2]);
+  end
+%--------------------------------------------------------------------------
+  function tf = has_trial_size(vars, name, expected_size)
+    if ~ismember(name, vars)
+      tf = false;
+      return
+    end
+    tf = isequal(size(trials, name), expected_size);
   end
 %--------------------------------------------------------------------------
   function [x0, history] = load_trial

@@ -36,7 +36,15 @@ nlc = length(lcdir);
 nbly = com.nbly;
 nblx = com.nblx;
 nframe_report = nbly + nblx;
-frame_name = [com.baseline.y.name(:); com.baseline.x.name(:)];
+valid_y = ~com.baseline.y.isdummy;
+valid_x = ~com.baseline.x.isdummy;
+frame_name_y = com.baseline.y.name(valid_y);
+frame_name_x = com.baseline.x.name(valid_x);
+if numel(frame_name_y) ~= nbly || numel(frame_name_x) ~= nblx
+  error('YLAB:FrameNameCountMismatch', ...
+    'Frame name count does not match frame count.');
+end
+frame_name = [frame_name_y(:); frame_name_x(:)];
 
 % 部材データ
 mp = com.member.property;
@@ -122,16 +130,15 @@ for ilc = 1:nlc
   N = rs_force(:, 1, ilc);
   Qy = rs_force(:, 2, ilc);
   Qz = rs_force(:, 3, ilc);
-  Fh_col = (N .* cxl(:, idir_eq) ...
-    + Qy .* cyl(:, idir_eq) ...
+  Fh_col = (N .* cxl(:, idir_eq) + Qy .* cyl(:, idir_eq) ...
     + Qz .* czl(:, idir_eq)) .* sign_cz / 1000;
 
   % フレーム別の柱負担水平力を集計
   sel_c = is_target_col & midstory >= 1 & midstory <= nstory ...
     & col_idmain >= 1 & col_idmain <= nfr_main;
   if any(sel_c)
-    Qc(:, :, ilc) = Qc(:, :, ilc) ...
-      + accumarray([midstory(sel_c), main_offset + col_idmain(sel_c)], ...
+    idx_c = [midstory(sel_c), main_offset + col_idmain(sel_c)];
+    Qc(:, :, ilc) = Qc(:, :, ilc) + accumarray(idx_c, ...
       Fh_col(sel_c), [nstory, nframe_report]);
   end
   % ブレースの水平力(跨ぐ階に計上, kN)
