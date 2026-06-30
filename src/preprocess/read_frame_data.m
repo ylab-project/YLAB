@@ -186,8 +186,8 @@ baseline.delta = set_baseline_delta_block(dbc, com);
 baseline.setback = set_baseline_setback_block(dbc, com);
 
 %% 座標値
-baseline = set_baseline_coord(...
-  baseline, span, floor, story, options, idstory2nominal);
+baseline = set_baseline_coord(baseline, span, floor, story, ...
+  options, idstory2nominal);
 
 %% 構造スパンの更新（部材の寄りを反映）
 member_column = set_member_column_p1_block(dbc, com);
@@ -497,9 +497,9 @@ column_phiI = set_member_column_phi_block(dbc, com);
 com.member.column.phiI = column_phiI;
 
 %% 梁の剛度増減率
-[girder_phiI, girder_phiA] = set_member_girder_phi_block(dbc, com);
+[girder_phiI, girder_phiAs] = set_girder_phi_block(dbc, com);
 com.member.girder.phiI = girder_phiI;
-com.member.girder.phiA = girder_phiA;
+com.member.girder.phiAs = girder_phiAs;
 
 %% 捩り剛性増減率（梁・柱、com.member.property.factor_J に上書き）
 factor_J = com.member.property.factor_J;
@@ -538,8 +538,8 @@ fnode = set_nodal_force_block(dbc, com);
 fnode = add_earthquake_force_position_mz(dbc, com, fnode);
 
 %% 追加節点荷重
-[faddnode, faddnode_report_excl] = ...
-  set_additive_nodal_force_block(dbc, com);
+[faddnode, faddnode_report_excl] = set_additive_nodal_force_block(...
+  dbc, com);
 
 %% 要素荷重
 [ar, M0] = set_girder_force_block(dbc, com);
@@ -1928,16 +1928,6 @@ for i=1:n
   if size(data, 2) >= 13 && ~ismissing(data{i,13})
     x3 = data{i,13};
   end
-  has_extra_x = false;
-  if size(data, 2) >= 14
-    for j = 14:size(data, 2)
-      has_extra_x = has_extra_x || ~ismissing(data{i,j});
-    end
-  end
-  if has_extra_x
-    error('YLAB:Input:InvalidGirderStiffeningX', ...
-      '梁の横補剛の位置列はx1,x2,x3までです（行 %d）', i);
-  end
 
   Lb(i,1) = lb1_l;
   Lb(i,2) = lb1_r;
@@ -1998,7 +1988,7 @@ return
 end
 
 %--------------------------------------------------------------------------
-function [girder_phiI, girder_phiA] = set_member_girder_phi_block(dbc, com)
+function [girder_phiI, girder_phiAs] = set_girder_phi_block(dbc, com)
 data = dbc.get_data_block('梁の剛度増減率');
 n = size(data,1);
 
@@ -2024,7 +2014,7 @@ end
 % 梁の剛度増減率
 nmeg = size(member_girder,1);
 girder_phiI = nan(nmeg,1);
-girder_phiA = nan(nmeg,1);
+girder_phiAs = nan(nmeg,1);
 ncol = size(data,2);
 for i=1:n
   % 梁部材番号
@@ -2038,10 +2028,9 @@ for i=1:n
   % 値のセット
   valI = data{i,8};
   girder_phiI(ids) = valI;
-  has_phiA = ncol >= 9 && ~isempty(data{i,9}) ...
-    && ~isnan(data{i,9});
-  if has_phiA
-    girder_phiA(ids) = data{i,9};
+  has_phiAs = ncol >= 9 && ~isempty(data{i,9}) && ~isnan(data{i,9});
+  if has_phiAs
+    girder_phiAs(ids) = data{i,9};
   end
 end
 return
@@ -2563,3 +2552,4 @@ end
 
 return
 end
+

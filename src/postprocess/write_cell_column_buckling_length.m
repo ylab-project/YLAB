@@ -91,7 +91,7 @@ for i = 1:nstory
         isc = column.idsecc(ic1);
         cblbody{irow,4} = make_section_symbol(secc, isc);
 
-        % 部材長（方向別のD/2控除後）
+        % 部材長（方向別の剛域控除後）
         cblbody{irow,5} = sprintf('%.0f', lm_nominal_x(im1));
         cblbody{irow,6} = sprintf('%.0f', lm_nominal_y(im1));
 
