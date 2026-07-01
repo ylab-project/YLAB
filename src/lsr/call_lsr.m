@@ -25,7 +25,8 @@ xopt = [];
 
 % 履歴読み込み
 if ~isempty(options.matfile)
-  resume = load(options.matfile, 'history');
+  resume = load(options.matfile);
+  validate_resume_variables();
 end
 
 % 初期ペナルティ係数
@@ -49,6 +50,10 @@ end
 iter_set = options.iter_set;
 if isfinite(options.idtrial_resume)
   iter_set = iter_set(iter_set>=options.idtrial_resume);
+end
+if isempty(iter_set)
+  error('call_lsr:EmptyIterSet', ...
+    'No trial remains after applying idtrial_resume.');
 end
 for idtrial = iter_set
   rng(idtrial);
@@ -103,8 +108,7 @@ return
     n2 = max_idphase;
     nx = size(xopt, 2);
     if isempty(trials_history)
-      trials_history = struct(history);
-      trials_history(n1,n2) = struct(history);
+      initialize_trials_history(n1, n2)
     end
     if needs_trial_initialization(nx, n1, n2)
       initialize_trials(nx, n1, n2)
@@ -127,13 +131,74 @@ return
   end
 %--------------------------------------------------------------------------
   function initialize_trials(nx, n1, n2)
-    trials.x0 = nan(nx, n1, n2);
-    trials.xopt = nan(nx, n1, n2);
-    trials.fval = nan(n1, n2);
-    trials.iter = nan(n1, n2);
-    trials.time = nan(n1, n2);
-    trials.maxvio = nan(n1, n2);
-    trials.nexec = nan(n1, n2);
+    x0_array = nan(nx, n1, n2);
+    xopt_array = nan(nx, n1, n2);
+    fval_array = nan(n1, n2);
+    iter_array = nan(n1, n2);
+    time_array = nan(n1, n2);
+    maxvio_array = nan(n1, n2);
+    nexec_array = nan(n1, n2);
+    if exist('resume', 'var')
+      x0_array = copy_array(x0_array, resume.x0);
+      xopt_array = copy_array(xopt_array, resume.xopt);
+      fval_array = copy_array(fval_array, resume.fval);
+      iter_array = copy_array(iter_array, resume.iter);
+      time_array = copy_array(time_array, resume.time);
+      maxvio_array = copy_array(maxvio_array, resume.maxvio);
+      nexec_array = copy_array(nexec_array, resume.nexec);
+    end
+    if n2 == 1
+      trials.x0 = x0_array(:,:,1);
+      trials.xopt = xopt_array(:,:,1);
+    else
+      trials.x0 = x0_array;
+      trials.xopt = xopt_array;
+    end
+    trials.fval = fval_array;
+    trials.iter = iter_array;
+    trials.time = time_array;
+    trials.maxvio = maxvio_array;
+    trials.nexec = nexec_array;
+    return
+  end
+%--------------------------------------------------------------------------
+  function initialize_trials_history(n1, n2)
+    if exist('resume', 'var')
+      trials_history = resume.history;
+      if size(trials_history, 1) < n1 || size(trials_history, 2) < n2
+        trials_history(n1,n2) = struct(history);
+      end
+      trials_history = trials_history(1:n1,1:n2);
+    else
+      trials_history = struct(history);
+      trials_history(n1,n2) = struct(history);
+    end
+    return
+  end
+%--------------------------------------------------------------------------
+  function validate_resume_variables
+    names = {'x0','xopt','fval','iter','time','maxvio','nexec','history'};
+    for i = 1:numel(names)
+      if ~isfield(resume, names{i})
+        error('call_lsr:InvalidResumeFile', ...
+          'Resume file does not contain %s.', names{i});
+      end
+    end
+    return
+  end
+%--------------------------------------------------------------------------
+  function array = copy_array(array, source)
+    array_size = size(array);
+    source_size = size(source);
+    nd = max(numel(array_size), numel(source_size));
+    array_size(end+1:nd) = 1;
+    source_size(end+1:nd) = 1;
+    subs = cell(1, nd);
+    for i = 1:nd
+      subs{i} = 1:min(array_size(i), source_size(i));
+    end
+    array(subs{:}) = source(subs{:});
+    return
   end
 %--------------------------------------------------------------------------
   function tf = needs_trial_initialization(nx, n1, n2)
@@ -168,33 +233,58 @@ return
     idtrial_ = options.idtrial_resume;
     idphase_ = options.idphase_resume;
     iter_ = options.iter_resume;
+    missing_trial = size(resume.history, 1) < idtrial_;
+    missing_phase = size(resume.history, 2) < idphase_;
+    if missing_trial || missing_phase
+      msg = 'Resume history(%d,%d) does not exist.';
+      error('call_lsr:ResumeHistoryNotFound', msg, idtrial_, idphase_);
+    end
     history = resume.history(idtrial_, idphase_);
-    x0 = resume.history(idtrial_, idphase_).xvar(history.iter==iter_, :);
+    iter_index = find(history.iter == iter_);
+    if numel(iter_index) ~= 1
+      error('call_lsr:ResumeIterNotFound', ...
+        'Resume iter %d does not exist.', iter_);
+    end
+    x0 = history.xvar(iter_index, :);
     return
   end
 %--------------------------------------------------------------------------
   function bestid = select_best_solution
     % 最良解の選択
-    [fval, bestid] = min(trials.fval(:,max_idphase));
+    fvals = trials.fval(:,max_idphase);
+    maxvios = trials.maxvio(:,max_idphase);
+    valid = ~isnan(fvals);
+    if ~any(valid)
+      error('call_lsr:NoTrialResult', ...
+        'No trial result was saved for phase %d.', max_idphase);
+    end
+    fvals(~valid) = inf;
+    [~, bestid] = min(fvals);
 
     % 最良解が許容なら選択修了
-    if trials.maxvio(bestid,max_idphase)<1.e-4
+    if maxvios(bestid)<1.e-4
       return
     end
 
     % 最良解が非許容解の場合
-    isfeasible = trials.maxvio(:,max_idphase)<=1.e-4;
-    fff = trials.fval(:,max_idphase);
-    fff(~isfeasible) = inf;
-    [~, bestid] = min(fff);
-    if ~isempty(bestid)
-      % 許容な最良解を選択
+    isfeasible = maxvios<=1.e-4 & valid;
+    if any(isfeasible)
+      fff = trials.fval(:,max_idphase);
+      fff(~isfeasible) = inf;
+      [~, bestid] = min(fff);
       return
     end
 
     % 許容解が存在しない場合
-    [~, bestid] = min(trials.maxvio(:,max_idphase));
-end
+    valid_vio = ~isnan(maxvios);
+    if ~any(valid_vio)
+      error('call_lsr:NoTrialViolation', ...
+        'No trial violation was saved for phase %d.', max_idphase);
+    end
+    maxvios(~valid_vio) = inf;
+    [~, bestid] = min(maxvios);
+    return
+  end
 end
 
 %--------------------------------------------------------------------------

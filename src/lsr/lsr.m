@@ -78,10 +78,24 @@ mx = size(xvar,2);
 clabel = result.conlabel;
 
 % --- ペナルティ係数設定 ---
+resume_index = [];
 if isempty(history)
   muvec = mu*ones(nvio, 1);
 else
-  muvec = history.muvec(options.iter_resume,:)';
+  resume_index = find(history.iter == options.iter_resume);
+  if numel(resume_index) ~= 1
+    msg = 'Resume iter %d does not exist.';
+    error('lsr:ResumeIterNotFound', msg, options.iter_resume);
+  end
+  if resume_index ~= options.iter_resume
+    msg = 'Resume iter %d is not stored at the same history row.';
+    error('lsr:ResumeIterIndexMismatch', msg, options.iter_resume);
+  end
+  if ~isfield(history, 'muvec')
+    error('lsr:InvalidResumeHistory', ...
+      'Resume history does not contain muvec.');
+  end
+  muvec = history.muvec(resume_index,:)';
 end
 % isupdatedmu = false;
 is_output_best_point = true;
@@ -114,11 +128,14 @@ time = toc;
 if isempty(history)
   history = inialize_history();
   start_iter = 0;
+  print_status(start_iter);
+  save_history();
 else
   start_iter = options.iter_resume;
+  history = trim_history(history, resume_index);
+  iter = start_iter;
+  print_status(start_iter);
 end
-print_status(start_iter);
-save_history();
 exitflag = PRM.EXITFLAG_MAXITER;
 
 % --- 並列プール共有データの事前生成 ---
@@ -226,7 +243,8 @@ for iter = start_iter+1:max_iter
     % pfval_ = pffun(fval_, cvec_);
     % [maxvio_, idmaxvio_, idmaxvioc_, ccategory_] = ...
     %   extract_convio(ncon, ccon, tau, cvec_);
-    % fprintf('Iter:%4d pf:%6.2f f:%6.2f (%d/%d->%d) c:%6.3f mu:%6.1f ', ...
+    % fprintf(['Iter:%4d pf:%6.2f f:%6.2f ' ...
+    %   '(%d/%d->%d) c:%6.3f mu:%6.1f '], ...
     %   iter, pfval_, fval_, nlist0, nlist, 0, maxvio_, max(muvec));
     % fprintf('idvio:%4d（%s:%d） time:%f\n', ...
     %   idmaxvio_, ccategory_, idmaxvioc_, toc);
@@ -257,7 +275,8 @@ for iter = start_iter+1:max_iter
     % pfval_ = pffun(fval_, cvec_);
     % [maxvio_, idmaxvio_, idmaxvioc_, ccategory_] = ...
     %   extract_convio(ncon, ccon, tau, cvec_);
-    % fprintf('Iter:%4d pf:%6.2f f:%6.2f (%d/%d->%d) c:%6.3f mu:%6.1f ', ...
+    % fprintf(['Iter:%4d pf:%6.2f f:%6.2f ' ...
+    %   '(%d/%d->%d) c:%6.3f mu:%6.1f '], ...
     %   iter, pfval_, fval_, nlist0, nlist, 0, maxvio_, max(muvec));
     % fprintf('idvio:%4d（%s:%d） time:%f\n', ...
     %   idmaxvio_, ccategory_, idmaxvioc_, toc);
@@ -270,7 +289,8 @@ for iter = start_iter+1:max_iter
     xlist = unique(xlist, 'rows', 'stable');
 
     % if iter<=inf
-    %   xlist_ = restore_section_thickness(xlist, st, stc, C, com, options);
+    %   xlist_ = restore_section_thickness(xlist, st, stc, C, ...
+    %     com, options);
     %   xlist  = [xlist; xlist_];
     %   xlist  = unique(xlist, 'rows', 'stable');
     % end
@@ -308,15 +328,12 @@ for iter = start_iter+1:max_iter
 
   % --- 関数値が改良されないときの処理 ---
   vnorm = sum(vio.^ppp,2)^(1/ppp);
-  vnormold = sum(viold.^ppp,2)^(1/ppp);
   if pfval-pfvalold >= omega
     % if (pfval-pfvalold < 1 && ~isupdatedmu) ...
     %     && (vnorm-vnormold>=-0.01 && any(vio>0))
     % if fval-fold>=omega || (vnorm-vnormold>=-0.001 && any(vio>0))
     do_restration = options.do_restration;
     is_aborted = false;
-    isupdatedmu = true;
-
     % SA
     if options.do_SA
       temprature = iter/max_iter;
@@ -337,7 +354,8 @@ for iter = start_iter+1:max_iter
       pfval = pffun(fvalold, cvecold);
     end
 
-    %[x0, pfval, id] = find_best_point(history.f, history.violation, muvec);
+    %[x0, pfval, id] = find_best_point(history.f, ...
+    %  history.violation, muvec);
     %violation = violist(id,:);
     %cvec = clist(id,:);
     %
@@ -370,8 +388,6 @@ for iter = start_iter+1:max_iter
     %   muvec = update_muvec(muvec, r, vio, tau);
     %   isupdatedmu = true;
     % end
-  else
-    isupdatedmu = false;
   end
 
   viold = vio;
@@ -387,8 +403,10 @@ end
 
 time = toc;
 finalize_history();
-[xopt, pfopt, fopt, vopt, id] = find_best_point(...
-  history.xvar, history.fval, history.vio);
+hist_x = history.xvar;
+hist_f = history.fval;
+hist_v = history.vio;
+[xopt, ~, fopt, vopt] = find_best_point(hist_x, hist_f, hist_v);
 % fopt_ = objfun(xopt);
 cvec = analysis_constraint(xopt, com, options);
 maxvio = max(vopt);%
@@ -412,9 +430,10 @@ return
     vnorm = sum(vio.^ppp,2)^(1/ppp);
     switch(display_mode)
       case 'Iter'
+        fargs = {iter, pfval, fval, nlist0, nlist, idpfval, ...
+          maxvio, vnorm, max(muvec)};
         fprintf(['Iter:%4d pf:%6.2f f:%6.2f (%d/%d->%d) ' ...
-          'cmax:%6.3f vnorm:%6.3f mu:%6.1f '], ...
-          iter, pfval, fval, nlist0, nlist, idpfval, maxvio, vnorm, max(muvec));
+          'cmax:%6.3f vnorm:%6.3f mu:%6.1f '], fargs{:});
         fprintf('idvio:%4d（%s:%d） time:%f\n', ...
           idmaxvio, ccategory, idmaxvioc, toc);
       case 'Iter10'
@@ -431,7 +450,8 @@ return
   end
 %--------------------------------------------------------------------------
   function fval = objfun(xvar)
-    fval = objective_lsr(xvar, secmgr, baseline, node, section, member, story, floor, options);
+    fval = objective_lsr(xvar, secmgr, baseline, node, ...
+      section, member, story, floor, options);
     return
   end
 %--------------------------------------------------------------------------
@@ -513,34 +533,54 @@ return
     history.cvec = zeros(max_iter,nc);
     history.pf = zeros(max_iter,1);
     history.muvec = zeros(max_iter,nc);
+    history.mu = zeros(max_iter,nc);
     history.vio = zeros(max_iter,nvio);
     history.nexec = zeros(max_iter,1);
     history.time = zeros(max_iter,1);
     history.iter = zeros(max_iter,1);
   end
 %--------------------------------------------------------------------------
+  function history = trim_history(history, last_index)
+    history.xvar = history.xvar(1:last_index,:);
+    history.fval = history.fval(1:last_index,:);
+    history.cvec = history.cvec(1:last_index,:);
+    history.vio = history.vio(1:last_index,:);
+    history.pf = history.pf(1:last_index,:);
+    history.muvec = history.muvec(1:last_index,:);
+    if isfield(history, 'mu')
+      history.mu = history.mu(1:last_index,:);
+    else
+      history.mu = history.muvec;
+    end
+    history.nexec = history.nexec(1:last_index,:);
+    history.time = history.time(1:last_index,:);
+    history.iter = history.iter(1:last_index,:);
+    return
+  end
+%--------------------------------------------------------------------------
   function save_history
     history.xvar(iter,:) = xvar;
-    history.fval(iter) = fval;
+    history.fval(iter,1) = fval;
     history.cvec(iter,:) = cvec;
     history.vio(iter,:) = vio;
-    history.pf(iter) = pfval;
+    history.pf(iter,1) = pfval;
     history.mu(iter,:) = muvec;
-    history.nexec(iter) = nexec;
-    history.time(iter) = time;
-    history.iter(iter) = iter;
+    history.nexec(iter,1) = nexec;
+    history.time(iter,1) = time;
+    history.iter(iter,1) = iter;
   end
 %--------------------------------------------------------------------------
   function finalize_history
     history.xvar = history.xvar(1:iter,:);
-    history.fval = history.fval(1:iter);
+    history.fval = history.fval(1:iter,:);
     history.cvec = history.cvec(1:iter,:);
     history.vio = history.vio(1:iter,:);
-    history.pf = history.pf(1:iter);
-    history.muvec = history.mu(1:iter,:);
-    history.nexec = history.nexec(1:iter);
-    history.time = history.time(1:iter);
-    history.iter = history.iter(1:iter);
+    history.pf = history.pf(1:iter,:);
+    history.mu = history.mu(1:iter,:);
+    history.muvec = history.mu;
+    history.nexec = history.nexec(1:iter,:);
+    history.time = history.time(1:iter,:);
+    history.iter = history.iter(1:iter,:);
   end
 %--------------------------------------------------------------------------
 end

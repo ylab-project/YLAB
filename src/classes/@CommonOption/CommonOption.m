@@ -49,7 +49,7 @@ classdef CommonOption
     % --- 途中結果読み込み ---
     idtrial_resume (1,1) double {mustBeNonnegative} = 1;
     idphase_resume (1,1) double {mustBeNonnegative} = 1;
-    iter_resume(1,1) double {mustBeNonnegative} = 0;
+    iter_resume(1,1) double {mustBeNonnegative} = 1;
     iter(1,1) double {mustBeNonnegative} = 0;
 
     % --- 断面リストの事前処理 ---
