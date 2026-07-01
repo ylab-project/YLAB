@@ -170,18 +170,13 @@ else
 end
 sprop = calc_secprop(secdim, stype, scallop, secmgr);
 sprop.F = secmgr.extractSectionMaterialF(secdim, matF);
-sprop_as = calc_effective_secprop_for_stress(sprop, secdim, stype);
 msprop = sprop(idm2s,:);
-msprop_as = sprop_as(idm2s,:);
 msdim = secdim(idm2s,:);
 A = msprop.A;
+Asc = msprop.Asc;
 Asy = msprop.Asy;
 Asz = msprop.Asz;
-A_as = msprop_as.A;
-Asc_as = msprop_as.Asc;
-Asy_as = msprop_as.Asy;
-Asz_as = msprop_as.Asz;
-Aw_as = msprop_as.Aw;
+Aw = msprop.Aw;
 % Af = msprop.Af;
 Iy = msprop.Iy;
 Iz = msprop.Iz;
@@ -220,13 +215,6 @@ end
 Em(stype(idm2s) == PRM.TB) = PRM.ES;
 
 % 結果の保存
-msprop.A_as = A_as;
-msprop.Asc_as = Asc_as;
-msprop.Asy_as = Asy_as;
-msprop.Asz_as = Asz_as;
-msprop.Aw_as = Aw_as;
-msprop.Zy_as = msprop_as.Zy;
-msprop.Zz_as = msprop_as.Zz;
 msprop.E = Em;
 % msprop.F = Fm;  % 既に108行目で設定済み
 msprop.pr = prm;
@@ -255,7 +243,8 @@ Asy(idmg2m) = Asygm;
 
 % 床組による梁軸断面積の増大率
 [Agm, gphiAn] = calc_composite_girder_An(member_girder, msprop, idmg2m);
-A(idmg2m) = Agm;
+An = A;
+An(idmg2m) = Agm;
 
 % 柱の剛度増減率
 cphiI = member_column.phiI;
@@ -264,8 +253,7 @@ Iz(mtype==PRM.COLUMN) = Iz(mtype==PRM.COLUMN).*cphiI(:,2);
 
 % その他
 Zy = msprop.Zy;
-Zy_as = msprop.Zy_as;
-Zz_as = msprop.Zz_as;
+Zz = msprop.Zz;
 Zyf = msprop.Zyf;
 Zysc = msprop.Zysc;
 JJ = msprop.JJ;
@@ -469,7 +457,7 @@ end
 
 %% 剛性行列の作成
 hstiff_type = options.girder_horizontal_stiffness_type;
-ksmat0 = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, ...
+ksmat0 = stif_sys_matrix(An, Asy, Asz, Iy, Iz, JJ, cxl, ...
   cyl, lm_stiff, Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
   idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
   nbw, flag, br_stif, hstiff_type, factor_J);
@@ -587,7 +575,7 @@ end
 
 % 応力計算
 [rs, Mc] = calc_member_force(1:nlc, dvec, [], frvec, ...
-  sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm_stiff, ...
+  sks, M0, ar, An, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm_stiff, ...
   lrxm, lrym, flag, cxl, cyl, member_property, node, material, ...
   cbstiff, idm2mat, idm2scb, mejoint, br_stif, hstiff_type);
 
@@ -651,7 +639,7 @@ is_rc_girder_nm = nominal_property.mtype == PRM.GIRDER ...
 dfn = superpose_design_force(dfn0, lcdir, is_rc_girder_nm, n_beam);
 
 % 名目部材レベルの中央M（ケース別→重ね合わせ）
-% M0 は L287 で sw.M0 加算済み
+% M0 は sw.M0 加算済み
 idnmg2nm = nominal_girder.idnominal;
 Mcn0 = calc_nominal_Mc(rs0, M0, Mc0(idnm2m(:,1), :), ...
   idmeg, idmg2m, idnmg2nm, lm, lf, kbrace_corr);
@@ -688,11 +676,8 @@ if options.consider_web_at_girder_end
 else
   Zyij(mstype==PRM.WFS) = Zyf(mstype==PRM.WFS);
 end
-% An = Aw+Af;
-% [st, stc] = stress(rs, Mc, A, Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, mtype);
-
-[stn, stcn] = calc_nominal_stress(dfn, Mcn, Asc_as, Asy_as, ...
-  Asz_as, Aw_as, Zy_as, Zz_as, Zyij, Zyc, mtype, idnm2m);
+[stn, stcn] = calc_nominal_stress(dfn, Mcn, A, Asc, Asy, ...
+  Asz, Aw, Zy, Zz, Zyij, Zyc, msdim, mstype, Fm, mtype, idnm2m);
 
 %% 部材長構造体の組立て（戻り値）
 % buckling はブレース座屈長用（暫定。後日 lnom.buckling に整理）
@@ -765,7 +750,6 @@ vi = zeros(nmec,5);
 % m = 1;
 immm = 1:nme;
 iccc = immm(c_g==PRM.COLUMN);
-% for i = immm(c_g==PRM.COLUMN)
 for ilc = 1:nlc
   switch lcdir(ilc)
     case PRM.EXP
@@ -781,24 +765,9 @@ for ilc = 1:nlc
   end
   Nraw = abs(Ne(iccc,id));
   Nr = Nraw./(A(iccc).*F(iccc)*1.1);
-  % Nxmax = absmax(Nraw(1), Nraw(3));
-  % Nymax = absmax(Nraw(2), Nraw(4));
-  % nx = Nxmax /(A(i)*F(jel(i))*1.1);
-  % ny = Nymax /(A(i)*F(jel(i))*1.1);
   innn = Nr<=0.5;
   vi(innn,id) = 1-4*Nr(innn).^2/3;
   vi(~innn,id) = 4*(1-Nr(~innn))/3;
-  % if nx <= 0.5
-  %   vix(m) = 1-4*nx^2/3;
-  % else
-  %   vix(m) = 4*(1-nx)/3;
-  % end
-  % if ny <= 0.5
-  %   viy(m) = 1-4*ny^2/3;
-  % else
-  %   viy(m) = 4*(1-ny)/ 3;
-  % end
-  % m = m+1;
 end
 vix = vi(:,[PRM.EXP PRM.EXN]);
 viy = vi(:,[PRM.EYP PRM.EYN]);

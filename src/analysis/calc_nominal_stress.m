@@ -1,10 +1,19 @@
-function [stn, stcn] = calc_nominal_stress(...
-  dfn, Mc, Asc, Asy, Asz, Aw, Zy, Zz, ...
-  Zyij, Zyc, mtype, idnm2m)
+function [stn, stcn] = calc_nominal_stress(dfn, Mc, A, Asc, ...
+  Asy, Asz, Aw, Zy, Zz, Zyij, Zyc, secdim, stype, F, ...
+  mtype, idnm2m)
 %calc_nominal_stress - 応力から応力度を計算する
+%
+%   [stn, stcn] = calc_nominal_stress(dfn, Mc, A, Asc, Asy, Asz,
+%     Aw, Zy, Zz, Zyij, Zyc, secdim, stype, F, mtype, idnm2m) は、
+%     名目部材応力から許容応力度検定用の応力度を計算する。
+%     幅厚比制限超過時の有効断面性能は内部で作成する。
 
 % 計算の準備
 [nmn, ~, nlc] = size(dfn);
+
+% 応力度計算用の有効断面性能
+[~, Asc, Asy, Asz, Aw, Zy, Zz] = calc_effective_stress_secprop(...
+  A, Asc, Asy, Asz, Aw, Zy, Zz, secdim, stype, F);
 
 % 前処理
 Asz(mtype==PRM.GIRDER) = Aw(mtype==PRM.GIRDER);
@@ -45,5 +54,6 @@ for ilc = 1:nlc
     end
   end
 end
+
 return
 end
