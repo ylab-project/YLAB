@@ -12,7 +12,7 @@ function member_column = set_member_column_p1_block(dbc, com)
 %
 % 出力:
 %   member_column: 柱部材テーブル
-%     .floor_name     - 柱脚階名 {n×1} cell
+%     .floor_name     - 柱頭側階名 {n×1} cell
 %     .top_floor_name - 柱頭階名 {n×1} cell
 %     .coord_name     - 通り名 {n×2} cell（X, Y）
 %     .section_name   - 断面符号 {n×1} cell
@@ -48,7 +48,7 @@ end
 data = data(isvalid,:);
 n = size(data,1);
 
-% 階名の抽出（列1: 柱脚の階）
+% 階名の抽出（列1: 柱頭側階名）
 floor_name = cell(n,1);
 for i=1:n
   floor_name{i} = tochar(data{i,1});
@@ -84,7 +84,7 @@ for i=1:n
 end
 
 % 通り番号の設定
-% 通り名から対応するIDを検索し、Z座標は柱脚階から1層分を設定
+% 通り名から対応するIDを検索し、Z座標は柱頭側階名から設定
 idx = zeros(n,2); iddx = 1:size(com.baseline.x,1);
 idy = zeros(n,2); iddy = 1:size(com.baseline.y,1);
 idz = zeros(n,2); iddz = com.story.idz;
@@ -95,7 +95,8 @@ for i=1:n
   idx(i,:) = iddx(matches(xlist, coord_name{i,1}));
   idy(i,:) = iddy(matches(ylist, coord_name{i,2}));
   idz(i,1) = iddz(matches(zlist, floor_name{i}))-1;  % 柱脚Z座標
-  idz(i,2) = idz(i,1)+1;                              % 柱頭Z座標（デフォルト: 1層上）
+  % デフォルトでは柱頭Z座標を1層上に設定
+  idz(i,2) = idz(i,1)+1;
 end
 
 % 柱頭階の設定（列7、省略時は1層上）
@@ -128,9 +129,9 @@ cyl = zeros(n,3);
 type = PRM.COLUMN_STANDARD*ones(n,1);
 
 % 柱部材テーブルの生成
-member_column = table(floor_name, top_floor_name, coord_name, section_name, type, ...
-  angle, idstory, idfloor, idx, idy, idz, idsecc, idnode1, idnode2, ...
-  cxl, cyl, idvar);
+member_column = table(floor_name, top_floor_name, coord_name, ...
+  section_name, type, angle, idstory, idfloor, idx, idy, idz, ...
+  idsecc, idnode1, idnode2, cxl, cyl, idvar);
 
 return
 end

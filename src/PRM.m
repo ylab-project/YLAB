@@ -19,6 +19,7 @@ classdef PRM
     XY = 12;              % XY方向(45度方向)
     TOL_DIR = 0.01;       % 方向判定用許容差
     TOL_FORCE_N = 1000;   % 力・軸力判定用許容差 [N]
+    TOL_STIFF_UNSTABLE = 1e-6  % 不安定自由度判定用剛性許容差
 
     %% 節点種別
     SUPPORT = 100         % 支点節点
