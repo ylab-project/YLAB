@@ -46,11 +46,6 @@ Am = A(idm2s);
 % RC断面を除外
 Am(idm2stype == PRM.RCRS) = 0;
 
-if nargin == 4
-  options.do_autoupdate_floor_height = false;
-  options.consider_allowable_stress_at_face = false;
-end
-
 % 基礎柱寸法
 Dcb = secdim(idscb2s, 1);
 cbs = calc_column_base_section(Dcb, cbstiff, column_base, ...
