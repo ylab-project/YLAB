@@ -27,6 +27,7 @@ n = size(data,1);
 % 共通データの取得
 section_brace = com.section.brace;
 baseline = com.baseline;
+span = com.span;
 node = com.node;
 member_column = com.member.column;
 member_girder = com.member.girder;
@@ -551,30 +552,47 @@ return
     % 中間節点配列の事前確保（既存節点採用分・新規生成分を統合）
     idnode_mid_array = zeros(n,1);
 
-    % 中点位置に既存節点があるブレースを先行判定する。節点同一化・
-    % 軸振れ・寄り等で節点が通りから外れる場合に対応するため、通り
-    % 座標ではなく節点座標から中点を計算して node テーブルを直接
-    % 検索する。
-    existing_mid_node = zeros(na,1);
-    tol = 1e-6;
+    % K形中央位置は標準座標で判定する。採用後の解析座標は、
+    % 既存の node.x/y/z をそのまま使う。
+    coord_std = calc_baseline_coord_std(span);
+    cx_std = coord_std.x;
+    cy_std = coord_std.y;
+    match_tol = 1;
+
+    % K形中央の標準座標（全K形ブレース分）
+    x_mid_std_all = (cx_std(idx(iab,1)) + cx_std(idx(iab,2))) / 2;
+    y_mid_std_all = (cy_std(idy(iab,1)) + cy_std(idy(iab,2))) / 2;
+
+    % 節点の標準座標（通りに載らない節点は NaN で比較対象外）
+    node_x_std = nan(size(node.idx));
+    node_y_std = nan(size(node.idy));
+    valid_x = node.idx > 0 & node.idx <= length(cx_std);
+    valid_y = node.idy > 0 & node.idy <= length(cy_std);
+    node_x_std(valid_x) = cx_std(node.idx(valid_x));
+    node_y_std(valid_y) = cy_std(node.idy(valid_y));
+    is_active_node = node.idrep == 0 & node.type ~= PRM.NODE_ABSORBED;
+
+    % 中点位置に既存節点があるブレースを先行判定する
     for ia=1:na
-      nL = idnode_k_L(ia);
-      nR = idnode_k_R(ia);
-      xc_mid = (node.x(nL) + node.x(nR)) / 2;
-      yc_mid = (node.y(nL) + node.y(nR)) / 2;
-      zc_mid = (node.z(nL) + node.z(nR)) / 2;
-      in = find(abs(node.x - xc_mid) < tol ...
-              & abs(node.y - yc_mid) < tol ...
-              & abs(node.z - zc_mid) < tol, 1);
+      tid = iab(ia);
+      z_mid = (node.z(idnode_k_L(ia)) + node.z(idnode_k_R(ia))) / 2;
+      if brace_type(tid) == PRM.BRACE_MEMBER_TYPE_K_UPPER
+        idz_mid = idz(tid,2);
+      else
+        idz_mid = idz(tid,1);
+      end
+      in = find(is_active_node & node.idz == idz_mid ...
+        & abs(node_x_std - x_mid_std_all(ia)) <= match_tol ...
+        & abs(node_y_std - y_mid_std_all(ia)) <= match_tol ...
+        & abs(node.z - z_mid) <= match_tol, 1);
       if ~isempty(in)
-        existing_mid_node(ia) = in;
-        idnode_mid_array(iab(ia)) = in;
+        idnode_mid_array(tid) = in;
       end
     end
 
     % 新規中間節点が必要なブレースのみ抽出。全て既存節点で
     % カバーされる場合は以降の処理を行わずに戻る。
-    ia_new = find(existing_mid_node == 0);
+    ia_new = find(idnode_mid_array(iab) == 0);
     if isempty(ia_new)
       return
     end
@@ -605,13 +623,11 @@ return
     idnode_k_L_ = idnode_k_L(ia_new);
     idnode_k_R_ = idnode_k_R(ia_new);
 
-    % 中間節点座標の計算（梁中点）
-    x_mid = (node.x(idnode_k_L_)+node.x(idnode_k_R_))/2;
-    y_mid = (node.y(idnode_k_L_)+node.y(idnode_k_R_))/2;
-    z_mid = (node.z(idnode_k_L_)+node.z(idnode_k_R_))/2;
-    dz_mid = (node.dz(idnode_k_L_)+node.dz(idnode_k_R_))/2;
-    zs_mid = (node.z_standard(idnode_k_L_) ...
-      +node.z_standard(idnode_k_R_))/2;
+    % 中間節点の解析座標を標準位置から補間する。
+    [x_mid, y_mid, z_mid, dz_mid, zs_mid] = ...
+      calc_kbrace_mid_node_coord(idnode_k_L_, idnode_k_R_, ...
+      girder_idir, x_mid_std_all(ia_new), y_mid_std_all(ia_new), ...
+      node);
 
     % 重複する中間節点の統合（同一位置は1つだけ作成）
     [~, idu2o, ido2u] = unique([idnode_k_L_ idnode_k_R_], ...
@@ -645,8 +661,7 @@ return
         baseline.x.isdummy(nx) = true;
         baseline.x.name(nx) = strcat(baseline.x.name(idx(tid,1)), ...
           '-KBRACE-MID');
-        baseline.x.coord(nx) = (baseline.x.coord(idx(tid,1)) ...
-          + baseline.x.coord(idx(tid,2))) / 2;
+        baseline.x.coord(nx) = addnode.x(iu);
         addnode.idx(iu) = nx;
         addnode.xname(iu) = baseline.x.name(nx);
 
@@ -663,8 +678,7 @@ return
         baseline.y.isdummy(ny) = true;
         baseline.y.name(ny) = strcat(baseline.y.name(idy(tid,1)), ...
           '-KBRACE-MID');
-        baseline.y.coord(ny) = (baseline.y.coord(idy(tid,1)) ...
-          + baseline.y.coord(idy(tid,2))) / 2;
+        baseline.y.coord(ny) = addnode.y(iu);
         addnode.idy(iu) = ny;
         addnode.yname(iu) = baseline.y.name(ny);
       end
@@ -724,6 +738,52 @@ return
     % 結果の更新
     node = [node; addnode];
     member_girder = [member_girder; addgirder];
+
+    return
+  end
+
+  function [x_mid, y_mid, z_mid, dz_mid, zs_mid] = ...
+      calc_kbrace_mid_node_coord(idnode_left, idnode_right, ...
+      girder_idir_list, x_mid_std, y_mid_std, node_data)
+    %calc_kbrace_mid_node_coord - K形中間節点の解析座標を補間
+
+    n_mid = length(idnode_left);
+    x_mid = zeros(n_mid,1);
+    y_mid = zeros(n_mid,1);
+    z_mid = zeros(n_mid,1);
+    dz_mid = zeros(n_mid,1);
+    zs_mid = zeros(n_mid,1);
+    zero_tol = 1e-9;
+    t_tol = 1e-9;
+
+    for i_mid=1:n_mid
+      nL = idnode_left(i_mid);
+      nR = idnode_right(i_mid);
+      if girder_idir_list(i_mid) == PRM.X
+        p_std = x_mid_std(i_mid);
+        a_struct = node_data.x(nL);
+        b_struct = node_data.x(nR);
+      else
+        p_std = y_mid_std(i_mid);
+        a_struct = node_data.y(nL);
+        b_struct = node_data.y(nR);
+      end
+      denom = b_struct - a_struct;
+      if abs(denom) <= zero_tol
+        error('K形ブレース中間節点の補間軸長がゼロです。');
+      end
+      t = (p_std - a_struct) / denom;
+      if t < -t_tol || t > 1 + t_tol
+        error('K形ブレース中間節点が対象梁範囲外です。');
+      end
+      lerp = @(a, b) a + t*(b - a);
+      x_mid(i_mid) = lerp(node_data.x(nL), node_data.x(nR));
+      y_mid(i_mid) = lerp(node_data.y(nL), node_data.y(nR));
+      z_mid(i_mid) = lerp(node_data.z(nL), node_data.z(nR));
+      dz_mid(i_mid) = lerp(node_data.dz(nL), node_data.dz(nR));
+      zs_mid(i_mid) = lerp(node_data.z_standard(nL), ...
+        node_data.z_standard(nR));
+    end
 
     return
   end

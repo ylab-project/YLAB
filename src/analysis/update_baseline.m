@@ -16,9 +16,10 @@ if size(baseline.alignment_column,1)>0
   [dx, dy] = count_alignment_column(baseline, member_column);
 end
 
-% 軸座標値の更新
-baseline_xcoord = calculate_coord(span.x.standard_span)+dx;
-baseline_ycoord = calculate_coord(span.y.standard_span)+dy;
+% 軸座標値の更新（通り心座標＋寄り）
+coord_std = calc_baseline_coord_std(span);
+baseline_xcoord = coord_std.x + dx;
+baseline_ycoord = coord_std.y + dy;
 
 % 構造スパンの更新
 xspan = diff(baseline_xcoord);
@@ -46,9 +47,7 @@ mcdxy = zeros(nc,2);
 ac = baseline.alignment_column;
 iddd = 1:nc;
 for i=1:size(ac,1)
-  im = iddd(mcidx==ac.idx(i) ...
-    & mcidy==ac.idy(i) ...
-    & mcidz==ac.idz(i));
+  im = iddd(mcidx==ac.idx(i) & mcidy==ac.idy(i) & mcidz==ac.idz(i));
   if (im>0)
     mcdxy(im,:) = [ac.dx(i) ac.dy(i)];
   end
