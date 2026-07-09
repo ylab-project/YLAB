@@ -14,21 +14,8 @@ function [Asygm, gphiAs] = calc_composite_girder_Asy(mg, ~, msprop, idmg2m)
 %     Asygm  - 直接指定反映後のせん断断面積 [nmg×1]
 %     gphiAs - せん断断面積の増大率 [nmg×1]
 
-nmeg = length(idmg2m);
 Asy0 = msprop.Asy(idmg2m);
-gphiAs = ones(nmeg, 1);
-
-if istable(mg)
-  has_phiAs = ismember('phiAs', mg.Properties.VariableNames);
-else
-  has_phiAs = isfield(mg, 'phiAs');
-end
-if has_phiAs
-  phiAs = mg.phiAs;
-  valid = ~isnan(phiAs);
-  gphiAs(valid) = phiAs(valid);
-end
-
+gphiAs = mg.phiAs;
 Asygm = Asy0 .* gphiAs;
 
 return
