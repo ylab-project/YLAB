@@ -47,6 +47,11 @@ consider_slenderness_ratio = copts.consider_slenderness_ratio;
 consider_joint_bearing_strength = copts.consider_joint_bearing_strength;
 secmgr.idphase = options.idphase;
 
+resume_rng_state = [];
+if ~isempty(history)
+  resume_rng_state = rng;
+end
+
 % 初期解の不整合除去
 x0 = xvar;
 secdim = secmgr.findNearestSection(xvar, options);
@@ -65,6 +70,9 @@ end
 fval = objfun(xvar);
 cache = initialize_cache();
 save_cache(xvar, fval, cvec);
+if ~isempty(resume_rng_state)
+  rng(resume_rng_state);
+end
 
 % --- パラメータ設定 ---
 tau = options.tau;
@@ -78,25 +86,9 @@ mx = size(xvar,2);
 clabel = result.conlabel;
 
 % --- ペナルティ係数設定 ---
+muvec = mu*ones(nvio, 1);
 resume_index = [];
-if isempty(history)
-  muvec = mu*ones(nvio, 1);
-else
-  resume_index = find(history.iter == options.iter_resume);
-  if numel(resume_index) ~= 1
-    msg = 'Resume iter %d does not exist.';
-    error('lsr:ResumeIterNotFound', msg, options.iter_resume);
-  end
-  if resume_index ~= options.iter_resume
-    msg = 'Resume iter %d is not stored at the same history row.';
-    error('lsr:ResumeIterIndexMismatch', msg, options.iter_resume);
-  end
-  if ~isfield(history, 'muvec')
-    error('lsr:InvalidResumeHistory', ...
-      'Resume history does not contain muvec.');
-  end
-  muvec = history.muvec(resume_index,:)';
-end
+last_history_index = 0;
 % isupdatedmu = false;
 is_output_best_point = true;
 % if options.idphase == 2
@@ -110,8 +102,11 @@ penalty_method = options.penalty_method;
 pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
 [pfval, vio] = pffun(fval, cvec);
 xold = xvar;
-pfvalold = pfval;
-viold = vio;
+fvalold = fval;
+cvecold = cvec;
+% pfvalold/viold は比較対象なしを表す番兵値。
+pfvalold = inf;
+viold = inf(size(vio));
 nexec = 1;
 iter = 1;
 nlist0 = 1;
@@ -128,13 +123,17 @@ time = toc;
 if isempty(history)
   history = inialize_history();
   start_iter = 0;
+  save_initial_state();
   print_status(start_iter);
-  save_history();
 else
-  start_iter = options.iter_resume;
+  validate_resume_history();
+  resume_index = history_index_by_iter(options.iter_resume);
   history = trim_history(history, resume_index);
-  iter = start_iter;
-  print_status(start_iter);
+  start_iter = options.iter_resume;
+  last_history_index = resume_index;
+  restore_current_state(resume_index);
+  restore_previous_state(start_iter);
+  pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
 end
 exitflag = PRM.EXITFLAG_MAXITER;
 
@@ -147,7 +146,18 @@ else
 end
 
 % ---　局所探索スタート ---
-for iter = start_iter+1:max_iter
+for iter = start_iter+1:max_iter+1
+  previous_iter = iter-1;
+  if previous_iter == 0
+    update_old_state();
+  else
+    if postprocess_iteration(previous_iter)
+      break
+    end
+  end
+  if iter > max_iter
+    break
+  end
   options.iter = iter;
 
   % デバッグ用
@@ -223,7 +233,7 @@ for iter = start_iter+1:max_iter
     else
       xlist_slr = xvar;
     end
-    
+
     % 仕口の保有耐力接合の修正
     % do_limit_jbs_section は保守的な section 事前フィルタであり、
     % 実行時の violation を完全に排除できないため restore は常に
@@ -319,86 +329,12 @@ for iter = start_iter+1:max_iter
   time = toc;
   save_history();
   print_status(iter);
-
-  % --- 終了判定 ---
-  if all(vio<=0) && pfval-pfvalold>=omega && all(viold<=0)
-    exitflag = PRM.EXITFLAG_CONVERGED;
-    break
-  end
-
-  % --- 関数値が改良されないときの処理 ---
-  vnorm = sum(vio.^ppp,2)^(1/ppp);
-  if pfval-pfvalold >= omega
-    % if (pfval-pfvalold < 1 && ~isupdatedmu) ...
-    %     && (vnorm-vnormold>=-0.01 && any(vio>0))
-    % if fval-fold>=omega || (vnorm-vnormold>=-0.001 && any(vio>0))
-    do_restration = options.do_restration;
-    is_aborted = false;
-    % SA
-    if options.do_SA
-      temprature = iter/max_iter;
-      prob = 1-temprature;
-      rrr = rand;
-      %fprintf(' dpf:%f t:%f r:%f p:%f',pfval-pfvalold,temprature,rrr,prob)
-      if rrr>prob
-        is_aborted = true;
-        %fprintf(' Aborted.\n')
-      else
-        %fprintf(' \n')
-      end
-    end
-
-    % 更新を破棄
-    if is_aborted
-      xvar = xold;
-      pfval = pffun(fvalold, cvecold);
-    end
-
-    %[x0, pfval, id] = find_best_point(history.f, ...
-    %  history.violation, muvec);
-    %violation = violist(id,:);
-    %cvec = clist(id,:);
-    %
-
-    % if(max(muvec)>1e3)
-    %   penalty_method = PRM.PENALTY_MAXIMUM;
-    % end
-
-    % 許容解が見つからないので打ち切り
-    if(max(muvec)>1e8)
-      %violation = violist(id,:);
-      %cvec = clist(id,:);
-      break
-    end
-
-    % ペナルティ係数更新法その１
-    muvec = update_muvec(muvec, r, vio, tau);
-    pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
-
-    % % ペナルティ係数更新法その２
-    % if isupdatedmu
-    %   isupdatedmu = false;
-    %   [~, idpfval] = min(max(vlist,[],2));
-    %   xvar = xlist(idpfval,:);
-    %   pfval = pflist(idpfval);
-    %   vio = vlist(idpfval,:);
-    %   cvec = clist(idpfval,:);
-    %   fval = flist(idpfval);
-    % else
-    %   muvec = update_muvec(muvec, r, vio, tau);
-    %   isupdatedmu = true;
-    % end
-  end
-
-  viold = vio;
-  pfvalold = pfval;
-  xold = xvar;
-  cvecold = cvec;
-  fvalold = fval;
 end
 
-if isempty(iter)
-  iter = start_iter;
+if last_history_index > 0
+  iter = history.iter(last_history_index);
+else
+  iter = 0;
 end
 
 time = toc;
@@ -528,6 +464,7 @@ return
 %--------------------------------------------------------------------------
   function history = inialize_history
     history = struct;
+    history.initial = struct;
     history.xvar = zeros(max_iter,mx);
     history.fval = zeros(max_iter,1);
     history.cvec = zeros(max_iter,nc);
@@ -535,9 +472,34 @@ return
     history.muvec = zeros(max_iter,nc);
     history.mu = zeros(max_iter,nc);
     history.vio = zeros(max_iter,nvio);
+    history.sa_aborted = false(max_iter,1);
     history.nexec = zeros(max_iter,1);
     history.time = zeros(max_iter,1);
     history.iter = zeros(max_iter,1);
+  end
+%--------------------------------------------------------------------------
+  function validate_resume_history
+    if options.iter_resume < 1
+      error('lsr:InvalidResumeIter', ...
+        'Resume iter must be greater than or equal to 1.');
+    end
+    names = {'initial','muvec','sa_aborted'};
+    for i = 1:numel(names)
+      if ~isfield(history, names{i})
+        error('lsr:InvalidResumeHistory', ...
+          'Resume history does not contain %s.', names{i});
+      end
+    end
+    return
+  end
+%--------------------------------------------------------------------------
+  function row = history_index_by_iter(target_iter)
+    row = find(history.iter == target_iter);
+    if numel(row) ~= 1
+      msg = 'Resume iter %d does not exist.';
+      error('lsr:ResumeIterNotFound', msg, target_iter);
+    end
+    return
   end
 %--------------------------------------------------------------------------
   function history = trim_history(history, last_index)
@@ -547,14 +509,165 @@ return
     history.vio = history.vio(1:last_index,:);
     history.pf = history.pf(1:last_index,:);
     history.muvec = history.muvec(1:last_index,:);
-    if isfield(history, 'mu')
-      history.mu = history.mu(1:last_index,:);
-    else
-      history.mu = history.muvec;
-    end
+    history.mu = history.muvec;
+    history.sa_aborted = history.sa_aborted(1:last_index,:);
     history.nexec = history.nexec(1:last_index,:);
     history.time = history.time(1:last_index,:);
     history.iter = history.iter(1:last_index,:);
+    return
+  end
+%--------------------------------------------------------------------------
+  function save_initial_state
+    history.initial.xvar = xvar;
+    history.initial.fval = fval;
+    history.initial.cvec = cvec;
+    history.initial.vio = vio;
+    history.initial.pf = pfval;
+    history.initial.muvec = muvec;
+    history.initial.mu = muvec;
+    history.initial.nexec = nexec;
+    history.initial.time = time;
+  end
+%--------------------------------------------------------------------------
+  function restore_current_state(row)
+    xvar = history.xvar(row,:);
+    fval = history.fval(row,1);
+    cvec = history.cvec(row,:);
+    vio = history.vio(row,:);
+    pfval = history.pf(row,1);
+    muvec = history.muvec(row,:)';
+    nexec = history.nexec(row,1);
+    time = history.time(row,1);
+  end
+%--------------------------------------------------------------------------
+  function restore_previous_state(current_iter)
+    if current_iter == 1
+      xold = history.initial.xvar;
+      fvalold = history.initial.fval;
+      cvecold = history.initial.cvec;
+      viold = history.initial.vio;
+      pfvalold = history.initial.pf;
+      return
+    end
+    old_index = history_index_by_iter(current_iter-1);
+    xold = history.xvar(old_index,:);
+    fvalold = history.fval(old_index,1);
+    cvecold = history.cvec(old_index,:);
+    viold = history.vio(old_index,:);
+    pfvalold = history.pf(old_index,1);
+    return
+  end
+%--------------------------------------------------------------------------
+  function tf = postprocess_iteration(processed_iter)
+    tf = false;
+
+    % --- 終了判定 ---
+    if all(vio<=0) && pfval-pfvalold>=omega && all(viold<=0)
+      exitflag = PRM.EXITFLAG_CONVERGED;
+      tf = true;
+      return
+    end
+
+    % --- 関数値が改良されないときの処理 ---
+    if pfval-pfvalold >= omega
+      % if (pfval-pfvalold < 1 && ~isupdatedmu) ...
+      %     && (vnorm-vnormold>=-0.01 && any(vio>0))
+      % if fval-fold>=omega || (vnorm-vnormold>=-0.001 && any(vio>0))
+      do_restration = options.do_restration;
+      is_aborted = false;
+      % SA
+      if options.do_SA
+        if should_reuse_sa_aborted(processed_iter)
+          is_aborted = read_sa_aborted(processed_iter);
+        else
+          temprature = processed_iter/max_iter;
+          prob = 1-temprature;
+          rrr = rand;
+          %fprintf([' dpf:%f t:%f r:%f p:%f'], ...
+          %  pfval-pfvalold, temprature, rrr, prob)
+          if rrr>prob
+            is_aborted = true;
+            %fprintf(' Aborted.\n')
+          else
+            %fprintf(' \n')
+          end
+          save_sa_aborted(processed_iter, is_aborted);
+        end
+      end
+
+      % 更新を破棄
+      if is_aborted
+        xvar = xold;
+        fval = fvalold;
+        cvec = cvecold;
+        vio = viold;
+        pfval = pfvalold;
+      end
+
+      %[x0, pfval, id] = find_best_point(history.f, ...
+      %  history.violation, muvec);
+      %violation = violist(id,:);
+      %cvec = clist(id,:);
+      %
+
+      % if(max(muvec)>1e3)
+      %   penalty_method = PRM.PENALTY_MAXIMUM;
+      % end
+
+      % 許容解が見つからないので打ち切り
+      if(max(muvec)>1e8)
+        %violation = violist(id,:);
+        %cvec = clist(id,:);
+        tf = true;
+        return
+      end
+
+      % ペナルティ係数更新法その１
+      muvec = update_muvec(muvec, r, vio, tau);
+      pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
+
+      % % ペナルティ係数更新法その２
+      % if isupdatedmu
+      %   isupdatedmu = false;
+      %   [~, idpfval] = min(max(vlist,[],2));
+      %   xvar = xlist(idpfval,:);
+      %   pfval = pflist(idpfval);
+      %   vio = vlist(idpfval,:);
+      %   cvec = clist(idpfval,:);
+      %   fval = flist(idpfval);
+      % else
+      %   muvec = update_muvec(muvec, r, vio, tau);
+      %   isupdatedmu = true;
+      % end
+    end
+
+    update_old_state();
+    return
+  end
+%--------------------------------------------------------------------------
+  function tf = should_reuse_sa_aborted(processed_iter)
+    tf = ~isempty(resume_index) && processed_iter == start_iter;
+    return
+  end
+%--------------------------------------------------------------------------
+  function is_aborted = read_sa_aborted(processed_iter)
+    row = history_index_by_iter(processed_iter);
+    is_aborted = history.sa_aborted(row,1);
+    return
+  end
+%--------------------------------------------------------------------------
+  function save_sa_aborted(processed_iter, is_aborted)
+    row = history_index_by_iter(processed_iter);
+    history.sa_aborted(row,1) = is_aborted;
+    return
+  end
+%--------------------------------------------------------------------------
+  function update_old_state
+    viold = vio;
+    pfvalold = pfval;
+    xold = xvar;
+    cvecold = cvec;
+    fvalold = fval;
     return
   end
 %--------------------------------------------------------------------------
@@ -564,23 +677,27 @@ return
     history.cvec(iter,:) = cvec;
     history.vio(iter,:) = vio;
     history.pf(iter,1) = pfval;
+    history.muvec(iter,:) = muvec;
     history.mu(iter,:) = muvec;
+    history.sa_aborted(iter,1) = false;
     history.nexec(iter,1) = nexec;
     history.time(iter,1) = time;
     history.iter(iter,1) = iter;
+    last_history_index = iter;
   end
 %--------------------------------------------------------------------------
   function finalize_history
-    history.xvar = history.xvar(1:iter,:);
-    history.fval = history.fval(1:iter,:);
-    history.cvec = history.cvec(1:iter,:);
-    history.vio = history.vio(1:iter,:);
-    history.pf = history.pf(1:iter,:);
-    history.mu = history.mu(1:iter,:);
-    history.muvec = history.mu;
-    history.nexec = history.nexec(1:iter,:);
-    history.time = history.time(1:iter,:);
-    history.iter = history.iter(1:iter,:);
+    history.xvar = history.xvar(1:last_history_index,:);
+    history.fval = history.fval(1:last_history_index,:);
+    history.cvec = history.cvec(1:last_history_index,:);
+    history.vio = history.vio(1:last_history_index,:);
+    history.pf = history.pf(1:last_history_index,:);
+    history.muvec = history.muvec(1:last_history_index,:);
+    history.mu = history.muvec;
+    history.sa_aborted = history.sa_aborted(1:last_history_index,:);
+    history.nexec = history.nexec(1:last_history_index,:);
+    history.time = history.time(1:last_history_index,:);
+    history.iter = history.iter(1:last_history_index,:);
   end
 %--------------------------------------------------------------------------
 end
