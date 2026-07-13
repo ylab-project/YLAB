@@ -77,6 +77,7 @@ girder_dy = node_std.y(girder_idnode2) - node_std.y(girder_idnode1);
 [member_girder.isxdir, member_girder.isydir] = ...
   classify_girder_xy_direction(girder_dx, girder_dy);
 com.member.girder = member_girder;
+com.node.is_roof = countup_node_is_roof(com);
 
 %% 変数配列
 [design_idvar, design_idsec, design_variable_type, ...

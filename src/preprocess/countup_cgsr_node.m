@@ -20,6 +20,12 @@ is_both_pin_member = expand_both_pin_nominal_girder(com, nme);
 % RC柱判定用
 section_type = com.member.property.section_type;
 
+% 屋根面相当節点の方向別除外
+is_roof = false(nnode, 2);
+if has_table_field(com.node, 'is_roof')
+  is_roof = com.node.is_roof;
+end
+
 % 対象節点の数え上げ
 is_cgsr_node = false(nnode,1);
 for istory=2:nstory-1
@@ -68,7 +74,12 @@ for icg = 1:ncgsr
   if (isempty(idmofxdir)&&isempty(idmofydir)) || nmofc < 1
     continue
   end
-  istarget(icg,:) = [~isempty(idmofxdir) ~isempty(idmofydir)];
+  target_dir = [~isempty(idmofxdir) ~isempty(idmofydir)];
+  target_dir = target_dir & ~is_roof(in,:);
+  if ~any(target_dir)
+    continue
+  end
+  istarget(icg,:) = target_dir;
   idvofH{icg,1} = unique(idm2var(idmofxdir,1));
   idvofH{icg,2} = unique(idm2var(idmofydir,1));
   idvofB{icg,1} = unique(idm2var(idmofxdir,2));
