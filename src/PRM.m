@@ -225,6 +225,11 @@ classdef PRM
     COMPOSITE_SLAB_WIDTH = 1   % 幅指定
     COMPOSITE_SLAB_DIRECT = 2  % 直接指定
 
+    %% RC柱・梁Aの計算方法
+    RC_AREA_FLOOR_WALL = 1    % 床と腰壁・垂壁を考慮
+    RC_AREA_WALL_ONLY = 2     % 腰壁・垂壁を考慮（SS7初期値）
+    RC_AREA_SECTION_ONLY = 3  % 部材断面のみ
+
     %% ブレース取付位置
     BRACE_FOUNDATION_GIRDER_TOP = 1     % 梁上端
     BRACE_FOUNDATION_GIRDER_CENTER = 2  % 梁中心

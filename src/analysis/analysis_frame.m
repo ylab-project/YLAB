@@ -236,13 +236,14 @@ stress_factor = sec_stress_factor(idm2s);
   msdim, msprop, idmg2m, options);
 Iy(idmg2m) = Igm;
 
-% 梁剛度直接指定によるせん断断面積の増大率
+% 床組と直接指定による梁せん断断面積の増大率
 [Asygm, gphiAs] = calc_composite_girder_Asy(member_girder, ...
-  msdim, msprop, idmg2m);
+  msdim, msprop, idmg2m, options);
 Asy(idmg2m) = Asygm;
 
-% 床組による梁軸断面積の増大率
-[Agm, gphiAn] = calc_composite_girder_An(member_girder, msprop, idmg2m);
+% 床組と直接指定による梁軸断面積の増大率
+[Agm, gphiAn] = calc_composite_girder_An(member_girder, ...
+  msprop, idmg2m, options);
 An = A;
 An(idmg2m) = Agm;
 

@@ -118,6 +118,20 @@ for i=1:size(data,1)
       if data{i,2}==PRM.COMPOSITE_SLAB_DIRECT
         options.composite_slab_coefficient_rc = [data{i,3} data{i,4}];
       end
+    case 'RC柱・梁Aの計算方法'
+      p = data{i,5};
+      if ~ismissing(p)
+        options.rc_shear_area_type = validate_rc_area_type(p, ...
+          'せん断変形用Aの計算方法');
+      end
+      if i < size(data,1) && isequal(tochar(data{i+1,2}), ...
+          '軸変形用Aの計算方法')
+        p = data{i+1,5};
+        if ~ismissing(p)
+          options.rc_axial_area_type = validate_rc_area_type(p, ...
+            '軸変形用Aの計算方法');
+        end
+      end
     case 'ブレースの取り付き位置'
       options.position_brace_foundation_girder = data{i,2};      
     case '曲げの設計におけるウェブの考慮（梁中央部）'
@@ -248,3 +262,13 @@ end
 return
 end
 
+function value = validate_rc_area_type(value, label)
+%validate_rc_area_type - RC柱・梁Aの計算方法の指定値を検証する
+valid = [PRM.RC_AREA_FLOOR_WALL, PRM.RC_AREA_WALL_ONLY, ...
+  PRM.RC_AREA_SECTION_ONLY];
+if ~ismember(value, valid)
+  error('CommonOption:InvalidRcAreaType', ...
+    '%s は 1/2/3 のいずれかを指定してください', label);
+end
+return
+end

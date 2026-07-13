@@ -480,9 +480,10 @@ column_phiI = set_member_column_phi_block(dbc, com);
 com.member.column.phiI = column_phiI;
 
 %% 梁の剛度増減率
-[girder_phiI, girder_phiAs] = set_girder_phi_block(dbc, com);
+[girder_phiI, girder_phiAs, girder_phiAn] = set_girder_phi_block(dbc, com);
 com.member.girder.phiI = girder_phiI;
 com.member.girder.phiAs = girder_phiAs;
+com.member.girder.phiAn = girder_phiAn;
 
 %% 捩り剛性増減率（梁・柱、com.member.property.factor_J に上書き）
 factor_J = com.member.property.factor_J;
@@ -1971,7 +1972,8 @@ return
 end
 
 %--------------------------------------------------------------------------
-function [girder_phiI, girder_phiAs] = set_girder_phi_block(dbc, com)
+function [girder_phiI, girder_phiAs, girder_phiAn] = ...
+  set_girder_phi_block(dbc, com)
 data = dbc.get_data_block('梁の剛度増減率');
 n = size(data,1);
 
@@ -1997,11 +1999,14 @@ end
 % 梁の剛度増減率
 nmeg = size(member_girder,1);
 girder_phiI = nan(nmeg,1);
-girder_phiAs = ones(nmeg,1);
+girder_phiAs = nan(nmeg,1);
+girder_phiAn = nan(nmeg,1);
 throw_phiI = @(irow) dbc.throw_dat_err('梁の剛度増減率', irow, ...
   'Input', 'InvalidNumericValue', 'phiI');
 throw_phiAs = @(irow) dbc.throw_dat_err('梁の剛度増減率', irow, ...
   'Input', 'InvalidNumericValue', 'phiAs');
+throw_phiAn = @(irow) dbc.throw_dat_err('梁の剛度増減率', irow, ...
+  'Input', 'InvalidNumericValue', 'phiAn');
 for i=1:n
   % 梁部材番号
   idmeg = find_idgirder_from_idxyz(idx(i,:), idy(i,:), ...
@@ -2011,16 +2016,45 @@ for i=1:n
   ids = idmeg(idmeg > 0);
   if isempty(ids); continue; end
 
-  % 値のセット
-  girder_phiI = set_numeric_cell(girder_phiI, ids, data{i,8}, ...
-    true, i, throw_phiI);
-  girder_phiAs = set_numeric_cell(girder_phiAs, ids, data{i,9}, ...
-    false, i, throw_phiAs);
+  direction = tochar(data{i,7});
+  phiA = normalize_girder_phi_direct(data{i,9}, i, 'phiA');
+  switch direction
+    case '鉛直面内'
+      phiI = normalize_girder_phi_direct(data{i,8}, i, 'phiI');
+      girder_phiI = set_numeric_cell(girder_phiI, ids, phiI, ...
+        false, i, throw_phiI);
+      girder_phiAs = set_numeric_cell(girder_phiAs, ids, phiA, ...
+        false, i, throw_phiAs);
+    case '材軸方向'
+      girder_phiAn = set_numeric_cell(girder_phiAn, ids, phiA, ...
+        false, i, throw_phiAn);
+    otherwise
+      error('YLAB:Input:UnsupportedGirderPhiDirection', ...
+        ['梁の剛度増減率の断面方向は鉛直面内または材軸方向を' ...
+        '指定してください（ブロック行%d）'], i);
+  end
+end
+return
+end
+
+function value = normalize_girder_phi_direct(value, irow, label)
+%normalize_girder_phi_direct - 剛度増減率の自動計算指定をNaNへ変換する
+if isempty(value) || ismissing(value)
+  value = nan;
+  return
+end
+if isinf(value) || value < 0
+  error('YLAB:Input:InvalidGirderPhiValue', ...
+    '梁の剛度増減率の%sが不正です（ブロック行%d）', label, irow);
+end
+if isnan(value) || value == 0
+  value = nan;
 end
 return
 end
 
 %--------------------------------------------------------------------------
+
 function values = set_numeric_cell(values, ids, value, required, irow, ...
   throw_invalid)
 if isinf(value) || (required && isnan(value))
