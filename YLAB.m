@@ -19,6 +19,7 @@ function [exitflag, result, com] = YLAB(varargin)
 %     solutionfile - 初期解の断面リスト（CSV/MAT）
 %     optionfile   - オプションを記述したCSVファイル
 %     matfile      - 計算履歴ファイル（中断再開用）
+%     lsfr_diagnostic_file - LSFR反復診断情報の保存先MATファイル
 %     trial        - 試行番号（履歴管理用）
 %     phase        - 開始フェーズ番号
 %     iter         - 開始繰返し番号
@@ -30,6 +31,10 @@ function [exitflag, result, com] = YLAB(varargin)
 %     -nopdf       - PDFレポートの作成をスキップ（デフォルト）
 %     -legacy      - SS7互換の旧フォーマットで出力
 %     -nopreprocess - 断面リスト事前処理を無効化
+%     -sequential  - 並列計算を無効化（プロファイリング用）
+%     -LSFR        - 第2Phase以降でLSFRを使用
+%     -LSFR:full   - 全PhaseでLSFRを使用
+%     -LSR         - 局所探索法をLSRへ切替（デフォルト）
 %     -dev         - 開発者モード（GUIで起動）
 %     -version     - バージョン情報を表示して終了
 %

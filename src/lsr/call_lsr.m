@@ -80,7 +80,13 @@ for idtrial = iter_set
       end
       history = [];
     end
-    [xopt, fval, exitflag, history] = lsr(x0, com, history, options);
+    if strcmp(options.local_search_method, 'LSFR') ...
+        && (options.do_lsfr_all_phases || idphase >= 2)
+      [xopt, fval, exitflag, history] = lsr(x0, com, history, ...
+        options, @lsfr_iteration);
+    else
+      [xopt, fval, exitflag, history] = lsr(x0, com, history, options);
+    end
     save_trial
   end
 end

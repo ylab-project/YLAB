@@ -200,6 +200,22 @@ for i=1:size(data,1)
       end
     case 'maxcache'
       options.maxcache = data{i,2};
+    case 'local_search_method'
+      options.local_search_method = char(data{i,2});
+    case 'lsfr_ordering'
+      options.lsfr_ordering = (data{i,2}=='Y');
+    case 'max_fusion_depth'
+      options.max_fusion_depth = data{i,2};
+    case 'max_num_fusion_seed'
+      options.max_num_fusion_seed = data{i,2};
+    case 'max_num_fusion_candidate'
+      options.max_num_fusion_candidate = data{i,2};
+    case 'max_num_restoration_seed'
+      options.max_num_restoration_seed = data{i,2};
+    case 'max_num_restoration_candidate'
+      options.max_num_restoration_candidate = data{i,2};
+    case 'lsfr_diagnostic_file'
+      options.lsfr_diagnostic_file = char(data{i,2});
     case 'display'
       options.display = data{i,2};
     case 'initial_penalty'

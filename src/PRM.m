@@ -325,6 +325,9 @@ classdef PRM
 
     %% 最大フェーズ数
     MAX_NUM_PHASE = 100       % 最大フェーズ数
+    MAX_NUM_FUSION_CANDIDATE = 50
+    MAX_NUM_RESTORATION_SEED = 50
+    MAX_NUM_RESTORATION_CANDIDATE = 50
     TOL_MAX_VIOLATION = 1e-4
     
     %% UIモード

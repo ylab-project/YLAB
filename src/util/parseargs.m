@@ -20,9 +20,13 @@ function options = parseargs(options, varargin)
 %       '-legacy'     - レガシー出力形式を使用
 %       '-nopreprocess' - 断面リスト事前処理を無効化
 %       '-sequential' - 並列計算を無効化（プロファイリング用）
+%       '-LSFR'       - 第2Phase以降でLSFRを使用
+%       '-LSFR:full'  - 全PhaseでLSFRを使用
+%       '-LSR'        - 局所探索法をLSRへ切り替える
 
 n = length(varargin);
 tf = true(1,n);
+local_search_method_flag = '';
 for i=1:n
   switch varargin{i}
     case '-nopdf'
@@ -43,6 +47,18 @@ for i=1:n
     case '-sequential'
       tf(i) = false;
       options.do_parallel = false;
+    case '-LSFR'
+      tf(i) = false;
+      local_search_method_flag = 'LSFR';
+      options.do_lsfr_all_phases = false;
+    case '-LSFR:full'
+      tf(i) = false;
+      local_search_method_flag = 'LSFR';
+      options.do_lsfr_all_phases = true;
+    case '-LSR'
+      tf(i) = false;
+      local_search_method_flag = 'LSR';
+      options.do_lsfr_all_phases = false;
   end
 end
 varargin = varargin(tf);
@@ -62,6 +78,7 @@ addParameter(p, 'phase', options.idphase_resume);
 addParameter(p, 'iter', options.iter_resume);
 addParameter(p, 'maxiter', options.maxiter_in_LS);
 addParameter(p, 'maxphase', options.maxphase);
+addParameter(p, 'lsfr_diagnostic_file', options.lsfr_diagnostic_file);
 parse(p,varargin{:});
 
 % UIモードの決定（文字列 -> 数値ID変換）
@@ -85,6 +102,7 @@ options.outputfile = p.Results.outputfile;
 options.solutionfile = p.Results.solutionfile;
 options.optionfile = p.Results.optionfile;
 options.matfile = p.Results.matfile;
+options.lsfr_diagnostic_file = p.Results.lsfr_diagnostic_file;
 if isstring(p.Results.trial)
   options.idtrial_resume = str2double(p.Results.trial);
 else
@@ -114,12 +132,15 @@ end
 % オプションファイルの読み込み
 if ~isempty(options.optionfile)
   try
-    options = set_from_optionfile(options);
+    options = setFromOptionfile(options);
   catch ME
     error('YLAB:InvalidOptionFile', ...
       'オプションファイルの読み込みに失敗しました: %s', ...
       ME.message);
   end
+end
+if ~isempty(local_search_method_flag)
+  options.local_search_method = local_search_method_flag;
 end
 
 return

@@ -159,6 +159,20 @@ classdef CommonOption
 
     % 最適化計算オプション
     penalty_method = PRM.PENALTY_MAXIMUM;
+    local_search_method (1,:) char {mustBeMember(local_search_method, ...
+      {'LSR', 'LSFR'})} = 'LSFR'
+    do_lsfr_all_phases (1,1) logical = false
+    max_fusion_depth (1,1) double {mustBeInteger, ...
+      mustBeGreaterThanOrEqual(max_fusion_depth, 2)} = 6
+    max_num_fusion_seed (1,1) double {mustBePositive, mustBeInteger} = 50
+    max_num_fusion_candidate (1,1) double {mustBePositive, ...
+      mustBeInteger} = 20
+    max_num_restoration_seed (1,1) double {mustBePositive, ...
+      mustBeInteger} = 10
+    max_num_restoration_candidate (1,1) double {mustBePositive, ...
+      mustBeInteger} = 10
+    lsfr_ordering (1,1) logical = false
+    lsfr_diagnostic_file (1,:) char = ''
 
     % 制約条件オプション
     coptions
@@ -187,7 +201,7 @@ classdef CommonOption
 
     % --- 最適化計算用パラメータ ---
     r(1,1) double {mustBePositive} = 2;
-    mu0 double = [0.2 ones(1,PRM.MAX_NUM_PHASE-1)];
+    mu0 double = [0.2*ones(1,PRM.MAX_NUM_PHASE-1) 1];
     mu(1,1) double;
     tau(1,1) double = 0;
     omega(1,1) double = 0;

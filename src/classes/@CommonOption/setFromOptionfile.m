@@ -1,11 +1,8 @@
 function options = setFromOptionfile(options)
 %SET_FROM_OPTIONFILE この関数の概要をここに記述
 %   詳細説明をここに記述
-mat = readmatrix(options.optionfile, ...
-  Delimiter=',', ...
-  CommentStyle='%', ...
-  OutputType='string', ...
-  NumHeaderLines=0);
+mat = readmatrix(options.optionfile, Delimiter=',', ...
+  CommentStyle='%', OutputType='string', NumHeaderLines=0);
 
 for i=1:size(mat,1)
   % --- フラグ ---
@@ -24,6 +21,8 @@ for i=1:size(mat,1)
       options.consider_foundation_uplift = (mat{i,2}=='T');
     case 'do_parallel'
       options.do_parallel = (mat{i,2}=='T');
+    case 'lsfr_ordering'
+      options.lsfr_ordering = (mat{i,2}=='T');
   end
 
   % --- 値 ---
@@ -36,6 +35,20 @@ for i=1:size(mat,1)
       options.maxiter_in_LS = str2double(mat{i,2});
     case 'maxcache'
       options.maxcache = str2double(mat{i,2});
+    case 'local_search_method'
+      options.local_search_method = char(mat{i,2});
+    case 'max_fusion_depth'
+      options.max_fusion_depth = str2double(mat{i,2});
+    case 'max_num_fusion_seed'
+      options.max_num_fusion_seed = str2double(mat{i,2});
+    case 'max_num_fusion_candidate'
+      options.max_num_fusion_candidate = str2double(mat{i,2});
+    case 'max_num_restoration_seed'
+      options.max_num_restoration_seed = str2double(mat{i,2});
+    case 'max_num_restoration_candidate'
+      options.max_num_restoration_candidate = str2double(mat{i,2});
+    case 'lsfr_diagnostic_file'
+      options.lsfr_diagnostic_file = char(mat{i,2});
     case 'display'
       options.display = mat{i,2};
     case 'column_member_length_type'
