@@ -103,46 +103,148 @@ for icg=1:ncg
 end
 idcgset = unique([idvcset(1:icount) idvgset(1:icount)], 'rows', 'stable');
 ncg = size(idcgset,1);
-xlist = zeros(ncg,nx);
 xvar0 = xvar;
+if options.do_aggregated_restore && ncg >= 2
+  xlist = restore_aggregated_directly(xvar0, idcgset, vtype, ...
+    secmgr, options);
+  return
+end
+
+xlist = zeros(ncg,nx);
 for icg = 1:ncg
   xvar = xvar0;
-  xup = []; xdw = [];
 
   % 柱サイズアップ
   idvc1 = idcgset(icg,1);
-  switch vtype(idvc1)
-    case PRM.HSS_D
-      [~, xup, ~] = secmgr.enumerateNeighborD(xvar, idvc1, options);
-    case PRM.HSS_T
-      [~, xup, ~] = secmgr.enumerateNeighborT(xvar, idvc1, options);
-  end
+  xup = enumerate_cgsr_column_up(xvar, idvc1, vtype, secmgr, options);
   if ~isempty(xup)
     xvar = xup;
   end
 
   % 梁サイズダウン
   idvg2 = idcgset(icg,2);
-  switch vtype(idvg2)
-    case PRM.WFS_H
-      [~, ~, xdw] = secmgr.enumerateNeighborH(xvar, idvg2, options);
-    case PRM.WFS_B
-      [~, ~, xdw] = secmgr.enumerateNeighborB(xvar, idvg2, options);
-    case PRM.WFS_TW
-      [~, ~, xdw] = secmgr.enumerateNeighborTw(xvar, idvg2, options);
-    case PRM.WFS_TF
-      [~, ~, xdw] = secmgr.enumerateNeighborTf(xvar, idvg2, options);
-  end
+  xdw = enumerate_cgsr_girder_down(xvar, idvg2, vtype, secmgr, options);
   if ~isempty(xdw)
-    xdw = xdw(1,:);
     xvar = xdw;
   end
   xlist(icg,:) = xvar;
 end
 
-% 集約復元候補の追加（フェーズ1a: 単純 max/min 集約）
-xlist = append_aggregated_candidate(xlist, xvar0, vtype, ...
-  options.do_aggregated_restore);
+return
+end
+
+%-------------------------------------------------------------------------
+function xvar_agg = restore_aggregated_directly(xvar0, idcgset, ...
+  vtype, secmgr, options)
+%restore_aggregated_directly - 柱梁耐力比候補を直接集約
+%
+%   xvar_agg = restore_aggregated_directly(xvar0, idcgset, vtype,
+%     secmgr, options) は、一意な柱変数と梁変数の近傍候補を
+%   xvar0 から個別に生成し、柱を max、梁を min で直接集約する。
+%
+%   入力引数:
+%     xvar0   - 集約の基点となる設計変数 [1 x nvar]
+%     idcgset - 柱変数と梁変数の組合せ [nset x 2]
+%     vtype   - 各設計変数の種別 [nvar x 1]
+%     secmgr  - 断面近傍探索用マネージャ
+%     options - LSRオプション
+%
+%   出力引数:
+%     xvar_agg - 直接集約した候補 [1 x nvar]
+
+idvcset = unique(idcgset(:,1), 'stable');
+idvgset = unique(idcgset(:,2), 'stable');
+column_xlist = repmat(xvar0, length(idvcset), 1);
+girder_xlist = repmat(xvar0, length(idvgset), 1);
+
+for id = 1:length(idvcset)
+  xup = enumerate_cgsr_column_up(xvar0, idvcset(id), vtype, ...
+    secmgr, options);
+  if ~isempty(xup)
+    column_xlist(id,:) = xup;
+  end
+end
+for id = 1:length(idvgset)
+  xdw = enumerate_cgsr_girder_down(xvar0, idvgset(id), vtype, ...
+    secmgr, options);
+  if ~isempty(xdw)
+    girder_xlist(id,:) = xdw;
+  end
+end
+
+is_up = (vtype == PRM.HSS_D | vtype == PRM.HSS_T);
+is_dn = (vtype == PRM.WFS_H | vtype == PRM.WFS_B ...
+  | vtype == PRM.WFS_TW | vtype == PRM.WFS_TF);
+xvar_agg = xvar0;
+xvar_agg(is_up) = max(column_xlist(:,is_up), [], 1);
+xvar_agg(is_dn) = min(girder_xlist(:,is_dn), [], 1);
+
+return
+end
+
+%-------------------------------------------------------------------------
+function xup = enumerate_cgsr_column_up(xvar, idvar, vtype, ...
+  secmgr, options)
+%enumerate_cgsr_column_up - 柱変数のアップ候補を列挙
+%
+%   xup = enumerate_cgsr_column_up(xvar, idvar, vtype, secmgr,
+%     options) は、柱の設計変数種別に対応するアップ候補を返す。
+%
+%   入力引数:
+%     xvar    - 基準となる設計変数 [1 x nvar]
+%     idvar   - 対象設計変数番号
+%     vtype   - 各設計変数の種別 [nvar x 1]
+%     secmgr  - 断面近傍探索用マネージャ
+%     options - LSRオプション
+%
+%   出力引数:
+%     xup - 柱アップ候補 [0 or 1 x nvar]
+
+xup = [];
+switch vtype(idvar)
+  case PRM.HSS_D
+    [~, xup, ~] = secmgr.enumerateNeighborD(xvar, idvar, options);
+  case PRM.HSS_T
+    [~, xup, ~] = secmgr.enumerateNeighborT(xvar, idvar, options);
+end
+
+return
+end
+
+%-------------------------------------------------------------------------
+function xdw = enumerate_cgsr_girder_down(xvar, idvar, vtype, ...
+  secmgr, options)
+%enumerate_cgsr_girder_down - 梁変数のダウン候補を列挙
+%
+%   xdw = enumerate_cgsr_girder_down(xvar, idvar, vtype, secmgr,
+%     options) は、梁の設計変数種別に対応するダウン候補の先頭行を
+%   返す。
+%
+%   入力引数:
+%     xvar    - 基準となる設計変数 [1 x nvar]
+%     idvar   - 対象設計変数番号
+%     vtype   - 各設計変数の種別 [nvar x 1]
+%     secmgr  - 断面近傍探索用マネージャ
+%     options - LSRオプション
+%
+%   出力引数:
+%     xdw - 梁ダウン候補 [0 or 1 x nvar]
+
+xdw = [];
+switch vtype(idvar)
+  case PRM.WFS_H
+    [~, ~, xdw] = secmgr.enumerateNeighborH(xvar, idvar, options);
+  case PRM.WFS_B
+    [~, ~, xdw] = secmgr.enumerateNeighborB(xvar, idvar, options);
+  case PRM.WFS_TW
+    [~, ~, xdw] = secmgr.enumerateNeighborTw(xvar, idvar, options);
+  case PRM.WFS_TF
+    [~, ~, xdw] = secmgr.enumerateNeighborTf(xvar, idvar, options);
+end
+if ~isempty(xdw)
+  xdw = xdw(1,:);
+end
+
 return
 end
 
