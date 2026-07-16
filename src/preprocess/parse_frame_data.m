@@ -300,6 +300,8 @@ com.Dgap = column_gapjoint;
 story_axis_idvarH = countup_story_axis_Hvar(com);
 story.idvarH = story_axis_idvarH;
 com.story = story;
+com.height_smooth = ...
+  create_girder_height_smooth_data(story_axis_idvarH);
 
 % %% 上下階関係の除外指定
 % exclude_story_axis_Hvar(com);

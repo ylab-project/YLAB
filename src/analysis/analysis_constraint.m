@@ -49,7 +49,7 @@ idncgsr = com.cgsr.idnode;                    % 柱梁耐力比評価節点番�
 idsrep2s = com.section.representative.idsec;  % 代表断面→断面番号
 % 代表断面→断面タイプ
 idsrep2stype = com.section.representative.section_type;
-idstory2varH = com.story.idvarH;              % 層→梁せい変数番号
+height_smooth = com.height_smooth;      % 梁せい平滑化固定データ
 
 % 共通配列の取得
 dmax = 200;   % 層間変形角の制限値（1/dmax）
@@ -298,29 +298,8 @@ end
 
 %% 保有耐力接合（仕口）制約（名目梁単位）
 if coptions.consider_joint_bearing_strength
-  isjbs = com.exclusion.is_joint_bearing_strength;
-  Fcol_ = Fm(idmc2m);
-  % 名目梁の端部節点を取得
-  idmeg_ = nominal.girder.idmeg;
-  girder_ = com.member.girder;
-  [ng_node1_, ng_node2_] = get_nominal_girder_end_nodes(girder_, idmeg_);
-  % 名目梁の代表部材から断面諸量を取得
-  idm_ng_ = girder_.idme(idmeg_(:, 1));
-  sdimg_ng = secdim(idm2s(idm_ng_), 1:4);
-  Zpyg_ng = Zpy(idm_ng_);
-  Fg_ng = Fm(idm_ng_);
-  grade_ng = msprop.steel_grade(idm_ng_);
-  if options.jbs_mu_formula == PRM.JBS_AIJ
-    secdim_col = secdim(idm2s(idmc2m), :);
-    m_num_col = calc_col_dim_jbs(com.member, secdim_col, ...
-      Fcol_, ng_node1_, ng_node2_);
-    [conjbs, jbsratio, idjbs] = calc_joint_bearing_strength_aij( ...
-      sdimg_ng, Zpyg_ng, Fg_ng, grade_ng, m_num_col, isjbs, options);
-  else
-    sigu_col = calc_sigu_col(com.member, Fcol_, ng_node1_, ng_node2_);
-    [conjbs, jbsratio, idjbs] = calc_joint_bearing_strength_std( ...
-      sdimg_ng, Zpyg_ng, Fg_ng, grade_ng, sigu_col, isjbs, options);
-  end
+  [conjbs, jbsratio, idjbs] = calc_joint_bearing_strength( ...
+    secdim, Zpy, Fm, msprop.steel_grade, com, options);
 else
   conjbs = [];
   jbsratio = [];
@@ -369,7 +348,7 @@ end
 %% 梁せい分布平滑化制約
 if coptions.consider_girder_height_smooth_var
   conhsmoothvar = calc_girder_height_smooth_var(xvar, ...
-    idstory2varH, options);
+    height_smooth, options);
 else
   conhsmoothvar = [];
 end

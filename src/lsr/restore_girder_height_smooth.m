@@ -1,5 +1,5 @@
 function xlist = restore_girder_height_smooth(...
-  xlist0, idvlist, secdim0, secmgr, idstory2varH, options)
+  xlist0, idvlist, secdim0, secmgr, height_smooth, options)
 
 % 計算の準備
 [nlist0, nx] = size(xlist0);
@@ -15,13 +15,13 @@ if do_parallel
   parfor i=1:nlist0
     xcell{i} = restore_individual(...
       xlist0(i,:), idvlist(i), secdim0(:,:,i), secmgr, ...
-      idstory2varH, options);
+      height_smooth, options);
   end
 else
   for i=1:nlist0
     xcell{i} = restore_individual(...
       xlist0(i,:), idvlist(i), secdim0(:,:,i), secmgr, ...
-      idstory2varH, options);
+      height_smooth, options);
   end
 end
 
@@ -39,7 +39,7 @@ end
 
 %--------------------------------------------------------------------------
 function xvar = restore_individual(...
-  xvar0, idvar, ~, secmgr, idstory2varH, options)
+  xvar0, idvar, ~, secmgr, height_smooth, options)
 
 % 準備
 % [nstory, mH] = size(idstory2varH);
@@ -51,7 +51,7 @@ if ~consider_hsvar
   return
 end
 conhsvar = calc_girder_height_smooth_var(...
-  xvar0, idstory2varH, options);
+  xvar0, height_smooth, options);
 if all(conhsvar<=options.tau)
   return
 end
@@ -61,8 +61,7 @@ end
 % reqHgap = options.reqHgap;
 % tolHgap = options.tolHgap;
 % tau = options.tau;
-idvarH = reshape(idstory2varH(idstory2varH>0),1,[]);
-idvarH = unique(idvarH);
+idvarH = height_smooth.idvarH;
 varH0 = xvar0(idvarH);
 nv = length(idvarH);
 
@@ -90,7 +89,7 @@ end
 % 計算準備
 type_hsvar = options.coptions.alfa_girder_height_smooth_var;
 [Dmat, ~, idtstory2H, ~, idtstory2Hmax] = ...
-  Hdiff_matrix(xvar0, idstory2varH, options);
+  Hdiff_matrix(xvar0, height_smooth, options);
 [ntstory, ~] = size(idtstory2H);
 
 % --- 係数行列 ---

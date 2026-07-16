@@ -9,55 +9,45 @@ xcell = cell(nlist0, 1);
 % 名目梁の端部節点を取得
 girder = member.girder;
 idmeg = nominal_girder.idmeg;
-[ng_node1, ng_node2] = ...
-  get_nominal_girder_end_nodes(girder, idmeg);
+[ng_node1, ng_node2] = get_nominal_girder_end_nodes(girder, idmeg);
 
 if options.jbs_mu_formula == PRM.JBS_AIJ
-  % node2col を事前構築（xvarに依存しないため1回で十分）
+  % 真値評価と同じく、梁端節点へ柱上端が接続する下側柱を対応付ける
   col = member.column;
   nc_ = length(col.idme);
-  nn_ = max([col.idnode1; col.idnode2; ...
-    girder.idnode1; girder.idnode2]);
+  nn_ = max([col.idnode1; col.idnode2; girder.idnode1; girder.idnode2]);
   node2col = cell(nn_, 1);
   for ic_ = 1:nc_
-    n1_ = col.idnode1(ic_);
     n2_ = col.idnode2(ic_);
-    node2col{n1_}(end+1) = ic_;
     node2col{n2_}(end+1) = ic_;
   end
   if nlist0 == 1 || ~options.do_parallel
     for id = 1:nlist0
-      xcell{id} = restore_individual_aij( ...
-        xlist0(id,:), member, matF, matGrade, secmgr, ...
-        options, isjbs, nominal_girder, ...
-        ng_node1, ng_node2, node2col);
+      xcell{id} = restore_individual_aij(xlist0(id,:), member, matF, ...
+        matGrade, secmgr, options, isjbs, nominal_girder, ng_node1, ...
+        ng_node2, node2col);
     end
   else
     parfor id = 1:nlist0
-      xcell{id} = restore_individual_aij( ...
-        xlist0(id,:), member, matF, matGrade, secmgr, ...
-        options, isjbs, nominal_girder, ...
-        ng_node1, ng_node2, node2col);
+      xcell{id} = restore_individual_aij(xlist0(id,:), member, matF, ...
+        matGrade, secmgr, options, isjbs, nominal_girder, ng_node1, ...
+        ng_node2, node2col);
     end
   end
 else
-  secdim0_ = secmgr.findNearestSection( ...
-    xlist0(1,:), options);
+  secdim0_ = secmgr.findNearestSection(xlist0(1,:), options);
   F0_ = secmgr.extractMemberMaterialF(secdim0_, matF);
   Fcol_ = F0_(member.column.idme);
-  sigu_col = calc_sigu_col(member, Fcol_, ...
-    ng_node1, ng_node2);
+  sigu_col = calc_sigu_col(member, Fcol_, ng_node1, ng_node2);
   if nlist0 == 1 || ~options.do_parallel
     for id = 1:nlist0
-      xcell{id} = restore_individual_std( ...
-        xlist0(id,:), member, matF, matGrade, secmgr, ...
-        options, sigu_col, isjbs, nominal_girder);
+      xcell{id} = restore_individual_std(xlist0(id,:), member, matF, ...
+        matGrade, secmgr, options, sigu_col, isjbs, nominal_girder);
     end
   else
     parfor id = 1:nlist0
-      xcell{id} = restore_individual_std( ...
-        xlist0(id,:), member, matF, matGrade, secmgr, ...
-        options, sigu_col, isjbs, nominal_girder);
+      xcell{id} = restore_individual_std(xlist0(id,:), member, matF, ...
+        matGrade, secmgr, options, sigu_col, isjbs, nominal_girder);
     end
   end
 end
@@ -282,7 +272,13 @@ for it = 1:n_target
   idx_B = find(B_vals == sdim_beam_cur(2), 1);
   if isempty(idx_B), idx_B = 1; end
   B_nb = B_vals(idx_B:min(end, idx_B+1));
-  beam_cands = sdimlist_H(ismember(sdimlist_H(:, 2), B_nb), 1:4);
+  is_beam_cand = ismember(sdimlist_H(:, 2), B_nb);
+  beam_sdim_cands = sdimlist_H(is_beam_cand, :);
+  beam_cands = beam_sdim_cands(:, 1:4);
+  % calc_prop_wfs出力列: 1=A, 9=Zpy（table生成を避けて直接参照）
+  beam_props = calc_prop_wfs(beam_sdim_cands, scallop);
+  beam_area_cands = beam_props(:, 1);
+  beam_zpy_cands = beam_props(:, 9);
 
   % 現在のm（柱候補スキップ判定用）
   denom_cur = (sdim_beam_cur(1) - 2*sdim_beam_cur(4)) ...
@@ -298,16 +294,19 @@ for it = 1:n_target
 
   % 柱候補（各端）：m>=1なら現断面固定
   col_cands = cell(1, 2);
+  col_area_cands = cell(1, 2);
   for iend = 1:2
     if ic_end(iend) == 0
       col_cands{iend} = sdim_col_cur_end(iend, :);
       if col_cands{iend}(1) == 0
         col_cands{iend} = [1, 0];
       end
+      col_area_cands{iend} = 0;
       continue
     end
     if m_cur(iend) >= 1 - eps
       col_cands{iend} = sdim_col_cur_end(iend, :);
+      col_area_cands{iend} = sprop.A(isec_col_end(iend));
       continue
     end
     sdimlist_col = secmgr.getDimension(idslist_col_end(iend));
@@ -315,7 +314,10 @@ for it = 1:n_target
     idx_D = find(D_vals == sdim_col_cur_end(iend, 1), 1);
     if isempty(idx_D), idx_D = 1; end
     D_nb = D_vals(idx_D:min(end, idx_D+1));
-    col_cands{iend} = sdimlist_col(ismember(sdimlist_col(:,1), D_nb), 1:2);
+    is_col_cand = ismember(sdimlist_col(:, 1), D_nb);
+    col_cands{iend} = sdimlist_col(is_col_cand, 1:2);
+    col_props = calc_prop_hss(sdimlist_col(is_col_cand, :));
+    col_area_cands{iend} = col_props(:, 1);  % 1列目=A
   end
 
   nb  = size(beam_cands, 1);
@@ -327,12 +329,11 @@ for it = 1:n_target
   br = repmat(repmat(beam_cands, nc1, 1), nc2, 1);
   c1r = repmat(repelem(col_cands{1}, nb, 1), nc2, 1);
   c2r = repelem(col_cands{2}, nb*nc1, 1);
-
-  H = br(:,1); B = br(:,2);
-  tw = br(:,3); tf = br(:,4);
-
-  % 候補梁の Zpy（候補ごとに再計算）
-  Zpy_cand = B.*tf.*(H-tf) + 0.25.*tw.*(H-2.*tf).^2;
+  beam_area = repmat(repmat(beam_area_cands, nc1, 1), nc2, 1);
+  col1_area = repmat(repelem(col_area_cands{1}, nb, 1), nc2, 1);
+  col2_area = repelem(col_area_cands{2}, nb*nc1, 1);
+  area_sum = beam_area + col1_area + col2_area;
+  Zpy_cand = repmat(repmat(beam_zpy_cands, nc1, 1), nc2, 1);
 
   % 候補柱の m_num [n×2]
   m_num_cand = zeros(n, 2);
@@ -360,9 +361,11 @@ for it = 1:n_target
     + sum(abs(c1r - sdim_col_cur_end(1,:)), 2) ...
     + sum(abs(c2r - sdim_col_cur_end(2,:)), 2);
 
-  % 並べ替え：充足優先→conjbs昇順→距離昇順
+  % 充足候補は断面積和、非充足候補は制約違反を優先
   is_ok = conjbs_cand < 0;
-  [~, ord] = sortrows([double(~is_ok), conjbs_cand, dist_all]);
+  rank_value = conjbs_cand;
+  rank_value(is_ok) = area_sum(is_ok);
+  [~, ord] = sortrows([double(~is_ok), rank_value, dist_all]);
 
   % 上位5件をxvarに書き出し
   n_top = min(n, 5);
