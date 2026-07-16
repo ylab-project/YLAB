@@ -325,6 +325,7 @@ classdef PRM
 
     %% 最大フェーズ数
     MAX_NUM_PHASE = 100       % 最大フェーズ数
+    TOL_MAX_VIOLATION = 1e-4
     
     %% UIモード
     UIMODE_CUI = 1;           % コマンドラインモード

@@ -86,12 +86,13 @@ for idtrial = iter_set
 end
 
 % 最良解の選択
-bestid = select_best_solution;
-x = trials.xopt(:,bestid,max_idphase);
-fval = trials.fval(bestid,max_idphase);
+best = select_best_lsr_history(trials.history, options.iter_set, ...
+  max_idphase);
+x = best.xvar(:);
+fval = best.fval;
 
 % 許容解が見つからなかった場合
-if trials.maxvio(bestid,max_idphase) >= 1.e-4
+if best.maxvio > PRM.TOL_MAX_VIOLATION
   exitflag = PRM.EXITFLAG_NO_FEASIBLE;
 end
 return
@@ -246,43 +247,6 @@ return
         'Resume iter %d does not exist.', iter_);
     end
     x0 = history.xvar(iter_index, :);
-    return
-  end
-%--------------------------------------------------------------------------
-  function bestid = select_best_solution
-    % 最良解の選択
-    fvals = trials.fval(:,max_idphase);
-    maxvios = trials.maxvio(:,max_idphase);
-    valid = ~isnan(fvals);
-    if ~any(valid)
-      error('call_lsr:NoTrialResult', ...
-        'No trial result was saved for phase %d.', max_idphase);
-    end
-    fvals(~valid) = inf;
-    [~, bestid] = min(fvals);
-
-    % 最良解が許容なら選択修了
-    if maxvios(bestid)<1.e-4
-      return
-    end
-
-    % 最良解が非許容解の場合
-    isfeasible = maxvios<=1.e-4 & valid;
-    if any(isfeasible)
-      fff = trials.fval(:,max_idphase);
-      fff(~isfeasible) = inf;
-      [~, bestid] = min(fff);
-      return
-    end
-
-    % 許容解が存在しない場合
-    valid_vio = ~isnan(maxvios);
-    if ~any(valid_vio)
-      error('call_lsr:NoTrialViolation', ...
-        'No trial violation was saved for phase %d.', max_idphase);
-    end
-    maxvios(~valid_vio) = inf;
-    [~, bestid] = min(maxvios);
     return
   end
 end
