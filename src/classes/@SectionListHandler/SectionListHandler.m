@@ -8,6 +8,8 @@ classdef SectionListHandler < handle
     section_type
     idmaterial
     list
+    dimension_array
+    dimension_value_array
     % isValid
     cost_factor
     cost_constant
@@ -74,6 +76,8 @@ classdef SectionListHandler < handle
       % リストの保存
       nlistset = size(file_name,1);
       obj.list = cell(nlistset,1);
+      obj.dimension_array = cell(nlistset,1);
+      obj.dimension_value_array = cell(nlistset,1);
       % obj.isValid = cell(nlistset,1);
       obj.idmaterial = cell(nlistset,1);
       obj.cost_factor = cell(nlistset,1);
@@ -138,10 +142,8 @@ classdef SectionListHandler < handle
               Hnominal = list_.H;
               Hnominal(is_small_H) = round(list_.H(is_small_H)/25)*25;
               Hnominal(~is_small_H) = round(list_.H(~is_small_H)/50)*50;
-              Hnominal = table(Hnominal);
-              Bnominal = round(list_.B/25)*25;
-              Bnominal = table(Bnominal);
-              list_ = [list_ Hnominal Bnominal];
+              list_.Hnominal = Hnominal;
+              list_.Bnominal = round(list_.B/25)*25;
             case PRM.BRB
               % BRBの場合
               n = size(list_,1);
@@ -220,6 +222,49 @@ classdef SectionListHandler < handle
           end
         end
         obj.nsublist = idsub;
+        if isempty(obj.list{i})
+          obj.dimension_array{i} = [];
+        else
+          switch obj.section_type(i)
+            case {PRM.WFS, PRM.BWFS}
+              obj.dimension_array{i} = table2array(obj.list{i}(:,4:10));
+            case {PRM.HSS, PRM.BHSS}
+              obj.dimension_array{i} = table2array(obj.list{i}(:,4:6));
+            case {PRM.BRB, PRM.HSR, PRM.BHSR, PRM.TB}
+              obj.dimension_array{i} = obj.list{i}.dimension;
+            otherwise
+              obj.dimension_array{i} = [];
+          end
+        end
+        obj.dimension_value_array{i} = obj.createDimensionValueArray(i);
+      end
+      return
+    end
+    %----------------------------------------------------------------------
+    function values = createDimensionValueArray(obj, idList)
+      secdim = obj.dimension_array{idList};
+      phase = unique(obj.idphase{idList});
+      values.phase = phase;
+      values.column = cell(numel(phase), size(secdim, 2));
+      for i = 1:numel(phase)
+        is_phase = obj.idphase{idList} <= phase(i);
+        for j = 1:size(secdim, 2)
+          values.column{i, j} = unique(secdim(is_phase, j))';
+        end
+      end
+      return
+    end
+    %----------------------------------------------------------------------
+    function values = getDimensionValues(obj, idList, idColumn, idPhase)
+      cache = obj.dimension_value_array{idList};
+      if nargin == 3
+        idPhase = inf;
+      end
+      id = find(cache.phase <= idPhase, 1, 'last');
+      if isempty(id)
+        values = [];
+      else
+        values = cache.column{id, idColumn};
       end
       return
     end
@@ -247,32 +292,10 @@ classdef SectionListHandler < handle
         idPhase = inf;
       end
       switch stype
-        case {PRM.WFS, PRM.BWFS}
-          dimension = table2array(obj.list{id}(...
-            obj.idphase{id}<=idPhase,4:10));
-        case {PRM.HSS, PRM.BHSS}
-          dimension = table2array(obj.list{id}(...
-            obj.idphase{id}<=idPhase,4:6));
-        case PRM.BRB
-          % symbol = obj.list{id}.symbol;
-          % n = size(symbol,1);
-          % dimension = zeros(n,4);
-          % for i=1:n
-          %   sss = textscan(symbol{i}, ...
-          %     '%s %f %f %f','Delimiter',{'-','(',')'});
-          %   ubb_type = PRM.get_id_ubb_type(sss{1});
-          %   dimension(i,1:4) = [ubb_type sss{2} sss{3} sss{4}];
-          % end
-          dimension = obj.list{id}.dimension;
-          dimension = dimension(obj.idphase{id}<=idPhase,:);
-        case {PRM.HSR, PRM.BHSR}
-          % HSR断面の寸法取得
-          dimension = obj.list{id}.dimension;
-          dimension = dimension(obj.idphase{id}<=idPhase,:);
-        case PRM.TB
-          % 引張ブレース断面の寸法取得
-          dimension = obj.list{id}.dimension;
-          dimension = dimension(obj.idphase{id}<=idPhase,:);
+        case {PRM.WFS, PRM.BWFS, PRM.HSS, PRM.BHSS, PRM.BRB, ...
+            PRM.HSR, PRM.BHSR, PRM.TB}
+          is_phase = obj.idphase{id} <= idPhase;
+          dimension = obj.dimension_array{id}(is_phase, :);
       end
       return
     end

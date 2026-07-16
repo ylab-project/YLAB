@@ -12,8 +12,8 @@ function val = getStandardTf(obj, idsList)
 %         WFS以外の断面タイプの場合は空配列
 
 if obj.secList_.section_type(idsList) == PRM.WFS
-  secdim = obj.secList_.getDimension(idsList, obj.idPhase_);
-  val = unique(secdim(:,PRM.SECDIM_WFS_TF))';
+  val = obj.secList_.getDimensionValues(idsList, PRM.SECDIM_WFS_TF, ...
+    obj.idPhase_);
 else
   val = [];
 end

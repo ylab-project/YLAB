@@ -1,4 +1,5 @@
-function xvar = findNearestXvarofBrb(obj, repbrbs, xvar0, options)
+function xvar = findNearestXvarofBrb(obj, repbrbs, xvar0, ...
+  ~, recalculate_variable)
 %findNearestXvarofBrb BRB断面の最近傍変数値を検索
 %   xvar = findNearestXvarofBrb(obj, repbrbs, xvar0, options) は、
 %   BRB断面の代表断面から最近傍の変数値を検索します。
@@ -7,6 +8,7 @@ function xvar = findNearestXvarofBrb(obj, repbrbs, xvar0, options)
 %     repbrbs - BRB代表断面の寸法データ
 %     xvar0   - 初期変数値（空の場合はゼロ初期化）
 %     options - オプション構造体
+%     recalculate_variable - 再計算する設計変数の論理配列
 %
 %   出力引数:
 %     xvar    - 最近傍の変数値ベクトル [1×nxvar]
@@ -18,6 +20,12 @@ standardAccessor = obj.standardAccessor_;
 % 共通配列
 idv1_var = idMapper.idBrb1_var(:)';
 idv2_var = idMapper.idBrb2_var(:)';
+% 省略時は全変数を再計算対象とする
+if nargin < 5
+  recalculate_variable = true(1, idMapper.nxvar);
+end
+idv1_var = idv1_var(recalculate_variable(idv1_var));
+idv2_var = idv2_var(recalculate_variable(idv2_var));
 idvar2srep = idMapper.idvar2srep;
 idsrep2stype = idMapper.idsrep2stype;
 
@@ -32,6 +40,9 @@ if isempty(xvar0)
 else
   xvar = xvar0(:)';  % 行ベクトル化を保証
 end
+if isempty([idv1_var idv2_var])
+  return
+end
 idsrep2repbrbs = zeros(nsrep, 1);
 idsrep2repbrbs(idsrep2stype == PRM.BRB) = 1:nrepbrbs;
 isVarofSlist = idMapper.isVarofSlist;
@@ -41,17 +52,15 @@ nlist = idMapper.nlist;
 for idlist = 1:nlist
   % 断面タイプの確認
   section_type = standardAccessor.getSectionType(idlist);
-  
+
   if section_type ~= PRM.BRB
     % 対象リストでなければスキップ
     continue
   end
 
   % 断面リストの読み出し
-  secdimlist = standardAccessor.getSectionDimension(idlist);
-  % v0list = unique(secdimlist(:, 1));
-  v1list = unique(secdimlist(:, 2));
-  v2list = unique(secdimlist(:, 3));
+  v1list = standardAccessor.getStandardV1(idlist)';
+  v2list = standardAccessor.getStandardV2(idlist)';
 
   % TODO: v0でBRBの種別を分類するが現在はUBBのみで場合分けしていない
   for iv1 = idv1_var

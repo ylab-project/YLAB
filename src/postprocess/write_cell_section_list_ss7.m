@@ -64,8 +64,6 @@ for i = 1:nstory
       if secg.id_section_list(ig)==0
         continue
       end
-      secglist = seclist{secg.id_section_list(ig)};
-      illl = 1:size(secglist,1);
       irow = irow+1;
       gsbody{irow,1} = secg.story_name{ig};
       gsbody{irow,2} = secg.name{ig};
@@ -78,15 +76,16 @@ for i = 1:nstory
       end
       gsbody{irow,6} = type_name;
       is = secg.idsec(ig);
-      il = illl(secglist.H==secdim(is,1) & secglist.B==secdim(is,2) ...
-        & secglist.tw==secdim(is,3) & secglist.tf==secdim(is,4));
-      symbol = secglist.symbol{il};
+      idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+      idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
+      secglist = seclist{idslist};
+      symbol = secglist.symbol{idsection};
       if secdim(is,5)==0
         sdim = sprintf('%s-%gx%gx%gx%g', symbol, secdim(is,1:4));
       else
         sdim = sprintf('%s-%gx%gx%gx%gx%g', symbol, secdim(is,1:5));
       end
-      sectype = normalize_ss7_steel_type_name(secglist.type{il});
+      sectype = normalize_ss7_steel_type_name(secglist.type{idsection});
       gsbody{irow,7} = sdim;
       gsbody{irow,8} = sectype;
       gsbody{irow,9} = sdim;
@@ -129,8 +128,6 @@ for i = 1:nstory
       if secc.idstory(ic)~=ist || ~matches(secc.name{ic},crname{icr})
         continue
       end
-      secclist = seclist{secc.id_section_list(ic)};
-      illl = 1:size(secclist,1);
       irow = irow+1;
       csbody{irow,1} = secc.floor_name{ic};
       csbody{irow,2} = secc.name{ic};
@@ -138,14 +135,11 @@ for i = 1:nstory
       type_name = secc.type_name{ic};
       csbody{irow,4} = type_name;
       is = secc.idsec(ic);
-      il = illl(secclist.D == secdim(is,1) & secclist.t == secdim(is,2));
-      if ~isempty(il)
-        symbol = secclist.symbol{il};
-        sectype = secclist.type{il};
-      else
-        symbol = '';
-        sectype = '';
-      end
+      idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+      idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
+      secclist = seclist{idslist};
+      symbol = secclist.symbol{idsection};
+      sectype = secclist.type{idsection};
       sdim = sprintf('%s-%gx%gx%gx%g', symbol, secdim(is,[1 1 2 3]));
       csbody{irow,5} = sdim;
       csbody{irow,6} = sectype;

@@ -1,8 +1,9 @@
-function [wfsec, repwfs, id] = ...
-  findNearestSectionWfs(obj, xvar, idslist, options)
-%findNearestSectionWfs WFS断面の最近傍選択
-%   [wfsec, repwfs, id] = findNearestSectionWfs(obj, xvar, 
-%     idslist, options) は、変数値から最近傍のWFS断面を選択します。
+function [wfsec, repwfs, id] = findNearestSectionWfs( ...
+  obj, xvar, idslist, options, initial_guess)
+%findNearestSectionWfs - WFS断面の最近傍選択
+%   [wfsec, repwfs, id] = findNearestSectionWfs(obj, xvar,
+%   idslist, options, initial_guess) は、変数値から最近傍のWFS断面を
+%   選択します。initial_guessを省略した場合は既存検索を実行します。
 %
 %   断面選択アルゴリズム:
 %     1. 完全一致チェック: 目標値（公称値）と候補断面（公称値）を比較
@@ -18,9 +19,11 @@ function [wfsec, repwfs, id] = ...
 %     - repwfs, wfsec: 実寸値（出力）
 %
 %   入力引数:
+%     obj       - SectionNeighborSearcherインスタンス
 %     xvar      - 設計変数ベクトル [nxvar×1]（公称値）
 %     idslist   - 断面リストID (スカラー)
-%     options   - オプション構造体（tolHgap, tolBgapを含む）
+%     options   - オプション構造体（tolHgap、tolBgapを含む）
+%     initial_guess - 直前の写像結果（.x、.secdim）。省略可能
 %
 %   出力引数:
 %     wfsec  - WFS断面寸法 [nwfs×5]（実寸値）
@@ -40,38 +43,56 @@ idwfs2sec = find(isWfs);
 idrepwfs2sec = idwfs2sec(idrepwfs2wfs);
 idrepwfs2slist = idSectionList(idrepwfs2sec);
 
-% 代表断面の変数IDを取得
+% 代表断面と設計変数の対応を取得
 idrepwfs2var = obj.idMapper_.idrepwfs2var;
+relevant_idx = find(idrepwfs2slist == idslist);
+use_initial_guess = nargin >= 5 && ~isempty(initial_guess);
+is_unchanged = false(nrepwfs, 1);
+if use_initial_guess
+  var_ids = idrepwfs2var(relevant_idx, 1:4);
+  is_unchanged(relevant_idx) = all( ...
+    xvar(var_ids) == initial_guess.x(var_ids), 2);
+end
 
-% 断面リストの寸法データと有効フラグを取得
-secdimlist_all = obj.standardAccessor_.getSectionDimension(idslist);
-idPhase = obj.standardAccessor_.idPhase;
-isvalid = obj.constraintValidator_.extractValidSectionFlags(...
-  idslist, idPhase);
-
-% 計算準備
-repHBnominal = zeros(nrepwfs, 2);  % H,B公称値を格納
-repHBnominal(idrepwfs2slist==idslist, 1:2) = ...
-  xvar(idrepwfs2var(idrepwfs2slist==idslist, 1:2));
-repwfs = zeros(nrepwfs, 5);  % 実寸値を格納
-repwfs(idrepwfs2slist==idslist, 3:4) = ...
-  xvar(idrepwfs2var(idrepwfs2slist==idslist, 3:4));
-% 板厚をrepwfsに初期化（xvarから取得）
+% 出力を初期化し、不変な代表断面を直前の写像結果からコピー
+repHBnominal = zeros(nrepwfs, 2);
+repHBnominal(relevant_idx, 1:2) = xvar(idrepwfs2var(relevant_idx, 1:2));
+repwfs = zeros(nrepwfs, 5);
+repwfs(relevant_idx, 3:4) = xvar(idrepwfs2var(relevant_idx, 3:4));
 id.slist = zeros(nrepwfs, 1);
 id.section = zeros(nrepwfs, 1);
+unchanged_idx = relevant_idx(is_unchanged(relevant_idx));
+if ~isempty(unchanged_idx)
+  initial_rows = idrepwfs2sec(unchanged_idx);
+  initial_secdim = initial_guess.secdim(initial_rows, :);
+  repwfs(unchanged_idx, :) = initial_secdim(:, 1:5);
+  id.slist(unchanged_idx) = initial_secdim(:, PRM.MAPPED_SECDIM_SLIST);
+  id.section(unchanged_idx) = initial_secdim(:, PRM.MAPPED_SECDIM_SECTION);
+end
 
-% 小さいH断面の丸め処理（H,B公称値に対して）
-is_small_H = repHBnominal(:,1) < 200;
-repHBnominal(is_small_H, 1) = round(repHBnominal(is_small_H, 1)/25)*25;
-repHBnominal(~is_small_H, 2) = round(repHBnominal(~is_small_H, 2)/50)*50;
+% 全代表断面が不変ならカタログを取得せず終了
+changed_idx = relevant_idx(~is_unchanged(relevant_idx));
+if isempty(changed_idx)
+  wfsec = repwfs(idwfs2repwfs, :);
+  id.slist = id.slist(idwfs2repwfs);
+  id.section = id.section(idwfs2repwfs);
+  return
+end
 
-% 断面の検索
-for id_ = 1:nrepwfs
-  % 断面と断面リストが対応しないときはスキップ
-  if idrepwfs2slist(id_) ~= idslist
-    continue
-  end
-  
+% 変更した代表断面に必要なカタログと有効フラグを取得
+secdimlist_all = obj.standardAccessor_.getSectionDimension(idslist);
+idPhase = obj.standardAccessor_.idPhase;
+isvalid = obj.constraintValidator_.extractValidSectionFlags( ...
+  idslist, idPhase);
+
+% 小さいH断面の丸め処理
+is_small_H = repHBnominal(:, 1) < 200;
+repHBnominal(is_small_H, 1) = round(repHBnominal(is_small_H, 1) / 25) * 25;
+repHBnominal(~is_small_H, 2) = round(repHBnominal(~is_small_H, ...
+  2) / 50) * 50;
+
+% 変更した代表断面だけを検索
+for id_ = changed_idx(:)'
   % 有効な断面のみ抽出
   idwfs = idrepwfs2wfs(id_);
   isvalid_ = isvalid(idwfs, :);
@@ -103,9 +124,8 @@ for id_ = 1:nrepwfs
   
   % 完全一致をチェック（H,Bは目標値と公称値で比較、板厚は実寸値）
   exact_match = (H_target == H_nom_values) & ...
-                (B_target == B_nom_values) & ...
-                (tw_target == tw_values) & ...
-                (tf_target == tf_values);
+    (B_target == B_nom_values) & (tw_target == tw_values) & ...
+    (tf_target == tf_values);
   
   if any(exact_match)
     idx_found = find(exact_match, 1);

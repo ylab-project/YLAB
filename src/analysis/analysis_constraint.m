@@ -1,5 +1,5 @@
 function [cvec, result, restoration] = analysis_constraint( ...
-  xvar, com, options)
+  xvar, com, options, secdim)
 %analysis_constraint - 構造解析を実行し制約条件を評価する
 %
 %   [cvec, result, restoration] =
@@ -12,6 +12,7 @@ function [cvec, result, restoration] = analysis_constraint( ...
 %     xvar    - 設計変数ベクトル [nvar×1]
 %     com     - 共通データ構造体
 %     options - 解析オプション構造体
+%     secdim  - 写像済み断面寸法。省略可能
 %
 %   出力引数:
 %     cvec        - 制約値ベクトル [1×ncon]（正の値が制約違反）
@@ -20,6 +21,10 @@ function [cvec, result, restoration] = analysis_constraint( ...
 %
 %   備考:
 %     - 関連関数: analysis_frame, eval_nominal_allowable_stress_ratio
+
+if nargin < 4
+  secdim = [];
+end
 
 % 共通定数の取得
 nsec = com.nsec;                              % 断面数
@@ -74,7 +79,7 @@ xvar = xvar(:);                               % 設計変数を列ベクトル�
   viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, dfn0, ...
   state, sw, lf, lr, lmem, lnm, lb, Iy, Iz, gphiI, gphiAs, ...
   gphiAn, cphiI, cbs, baseline, node, story, floor, Cn, ...
-  nomgc] = analysis_frame(xvar, com, options);
+  nomgc] = analysis_frame(xvar, com, options, secdim);
 lm = lmem.stiff;
 lm_weight = lmem.weight;
 
@@ -387,6 +392,7 @@ if nargout==3
   restoration.lmwfs = lmwfs;
   restoration.slr = slr;
 
+  result.secdim = secdim;
   result.cxl = cxl;
   result.cyl = cyl;
   result.Q_nb = Q_nb;

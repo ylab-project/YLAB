@@ -31,7 +31,7 @@ classdef SectionConstraintValidator < handle
 
   properties (Access = private)
     % 内部実装の詳細
-    validSectionFlagCell_   % 断面リストごとの有効性フラグ {nlist×1} cell配列
+    validSectionFlagCell_   % 断面リスト別の有効性フラグ
     secList_                % SectionListHandlerへの参照
     standardAccessor_       % SectionStandardAccessorへの参照
     idMapper_               % IdMapperインスタンス
@@ -69,7 +69,7 @@ classdef SectionConstraintValidator < handle
       %   入力引数:
       %     secList - SectionListHandlerオブジェクト
       %     standardAccessor - SectionStandardAccessorオブジェクト
-      %     isVarofSlist - 変数-断面リストマッピング [nxvar×nlist] 論理値行列
+      %     isVarofSlist - 変数-断面リスト対応 [nxvar×nlist]
       %     idMapper - IdMapperオブジェクト
       %     columnBaseList - 柱脚リスト [1×ncbs] 構造体配列
       %
@@ -90,6 +90,9 @@ classdef SectionConstraintValidator < handle
       obj.columnBaseList = columnBaseList;
       obj.validSectionFlagCell_ = {};
       obj.idMapper_ = idMapper;
+      obj.initValidSectionFlagCell();
+
+      return
     end
 
     %% get.nlist
@@ -119,13 +122,13 @@ classdef SectionConstraintValidator < handle
       % 変数総数を取得
       nxvar_ = length(obj.idMapper_.idvar2vtype);
     end
-    
+
     %% get.validSectionFlagCell
     function val = get.validSectionFlagCell(obj)
       % 有効断面フラグ全体を取得（cell配列）
       val = obj.validSectionFlagCell_;
     end
-    
+
     %% set.validSectionFlagCell
     function set.validSectionFlagCell(obj, val)
       % 有効断面フラグ全体を設定（cell配列）
@@ -140,25 +143,25 @@ classdef SectionConstraintValidator < handle
     function val = get.idvar2vtype(obj)
       val = obj.idMapper_.idvar2vtype;
     end
-    
+
     function val = get.idsec2slist(obj)
       % 1列版を返す（断面リストIDのみ）
       val = obj.idMapper_.idSectionList;
     end
-    
+
     function val = get.idsec2stype(obj)
       val = obj.idMapper_.idsec2stype;
     end
-    
+
     function val = get.idsec2wfs(obj)
       % idsec2wfsを計算
       val = obj.idMapper_.mapSectionToWfs();
     end
-    
+
     function val = get.idsec2srep(obj)
       val = obj.idMapper_.idsec2srep;
     end
-    
+
     function val = get.idme2sec(obj)
       val = obj.idMapper_.idme2sec;
     end
@@ -218,7 +221,7 @@ classdef SectionConstraintValidator < handle
         end
       end
     end
-    
+
   end
 
   methods (Access = private)

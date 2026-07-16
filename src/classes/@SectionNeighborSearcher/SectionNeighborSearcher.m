@@ -19,7 +19,7 @@ properties (SetAccess = private)
   standardAccessor_ % 標準値アクセサオブジェクト
   constraintValidator_ % 制約検証オブジェクト
   dimension_   % 全断面のdimension配列（初期化時に設定）
-  braceSteelCache_  % ブレース鋼材キャッシュ構造体
+
   idvar2wfsCell_   % 変数ID→WFS断面リスト {nxvar×1} cell配列
   idvar2hssCell_   % 変数ID→HSS断面リスト {nxvar×1} cell配列
 end
@@ -65,11 +65,6 @@ methods
   obj.standardAccessor_ = standardAccessor;
   obj.constraintValidator_ = constraintValidator;
   obj.dimension_ = dimension;
-  obj.braceSteelCache_ = struct( ...
-    'initialized', false(size(dimension, 1), 1), ...
-    'secdim', zeros(size(dimension, 1), 7), ...
-    'idslist', zeros(size(dimension, 1), 1), ...
-    'idsec', zeros(size(dimension, 1), 1));
 
   % 変数→断面マッピングを事前計算
   obj.computeVariableToSectionMappings();

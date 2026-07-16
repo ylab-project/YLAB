@@ -12,8 +12,8 @@ function val = getStandardV2(obj, idsList)
 %         BRB以外の断面タイプの場合は空配列
 
 if obj.secList_.section_type(idsList) == PRM.BRB
-  secdim = obj.secList_.getDimension(idsList, obj.idPhase_);
-  val = unique(secdim(:,PRM.SECLIST_BRB_SUBTYPE))';
+  val = obj.secList_.getDimensionValues(idsList, ...
+    PRM.SECLIST_BRB_SUBTYPE, obj.idPhase_);
 else
   val = [];
 end

@@ -2,7 +2,8 @@ function [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, ...
   vix, viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, ...
   dfn0, state, sw, lf, lr, lmem, lnm, lbnm, Iy0, Iz0, ...
   gphiI, gphiAs, gphiAn, cphiI, cbs, baseline, node, ...
-  story, floor, Cn, nomgc] = analysis_frame(xvar, com, options)
+  story, floor, Cn, nomgc] = analysis_frame( ...
+  xvar, com, options, mapped_secdim)
 %analysis_frame - 骨組のマトリクス解析本体（剛性組立・変位・応力算定）
 %
 %   [msprop, secdim, ...] = analysis_frame(xvar, com, options) は、
@@ -14,7 +15,8 @@ function [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, ...
 %   入力引数:
 %     xvar    - 断面変数ベクトル（最適化設計変数）
 %     com     - 共通オブジェクト（節点・部材・断面・材料情報を保持）
-%     options - 計算オプション構造体（剛床・自重・浮き上がり等のフラグ）
+%     options       - 計算オプション構造体
+%     mapped_secdim - 写像済み断面寸法。省略可能
 %
 %   出力引数:
 %     msprop   - 部材断面性能の構造体（A, Iy, Iz, E, F 等）
@@ -160,8 +162,15 @@ fnode = com.fnode;  % (nnode, 6, nlc)
 faddnode = com.faddnode;  % (nnode, 6, nlc)
 
 %% ---
+if nargin < 4
+  mapped_secdim = [];
+end
 if (options.discretization)
-  secdim = secmgr.findNearestSection(xvar, options);
+  if isempty(mapped_secdim)
+    secdim = secmgr.findNearestSection(xvar, options);
+  else
+    secdim = mapped_secdim;
+  end
   ids2slist = SectionManager.getSectionListMapping(secdim);
 else
   % TODO:要見直し

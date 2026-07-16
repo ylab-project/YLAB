@@ -63,18 +63,16 @@ for igr = 1:ngr
           iv = ids2var(is,:);
           sdim = sprintf('%s, %s, %s, %s', vname{iv(1:4)});
         else
-          secglist = seclist{secg.id_section_list(ig)};
-          symbol = secglist.symbol{...
-            secglist.H==secdim(is,1) & secglist.B==secdim(is,2) ...
-            & secglist.tw==secdim(is,3) & secglist.tf==secdim(is,4)};
+          idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+          idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
+          secglist = seclist{idslist};
+          symbol = secglist.symbol{idsection};
           if secdim(is,5)==0
             % sdim = sprintf('%s-%g×%g×%g×%g', ...
             %   secg.type_name{ig}, secdim(is,1:4));
-            sdim = sprintf('%s-%gx%gx%gx%g', ...
-              symbol, secdim(is,1:4));
+            sdim = sprintf('%s-%gx%gx%gx%g', symbol, secdim(is,1:4));
           else
-            sdim = sprintf('%s-%gx%gx%gx%gx%g', ...
-              symbol, secdim(is,1:5));
+            sdim = sprintf('%s-%gx%gx%gx%gx%g', symbol, secdim(is,1:5));
           end
         end
         gsbody{nstory-ist+1,igr+1} = sdim;
@@ -119,9 +117,10 @@ for icr = 1:ncr
           iv = ids2var(is,:);
           sdim = sprintf('%s, %s', vname{iv(1:2)});
         else
-          secclist = seclist{secc.id_section_list(ic)};
-          symbol = secclist.symbol{...
-            secclist.D == secdim(is,1) & secclist.t == secdim(is,2)};
+          idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+          idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
+          secclist = seclist{idslist};
+          symbol = secclist.symbol{idsection};
           sdim = sprintf('%s-%gx%gx%gx%g', symbol, secdim(is,[1 1 2 3]));
         end
         csbody{nstory-ist+1,icr+1} = sdim;

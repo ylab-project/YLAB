@@ -49,6 +49,8 @@ classdef IdMapper < handle
     idrepwfs2wfs_  % 代表WFS→最初のWFS断面 [nrepwfs×1]
     idhss2rephss_  % HSS断面→代表HSS断面 [nhss×1]
     idrephss2hss_  % 代表HSS→最初のHSS断面 [nrephss×1]
+    idbrbs2repbrbs_ % BRB断面→代表BRB断面 [nbrbs×1]
+    idrepbrbs2brbs_ % 代表BRB→最初のBRB断面 [nrepbrbs×1]
     idhsr2rephsr_  % HSR断面→代表HSR断面 [nhsr×1]
     idrephsr2hsr_  % 代表HSR→最初のHSR断面 [nrephsr×1]
     idsrep2sec_    % 代表断面→断面 [nsrep×1]
@@ -212,12 +214,14 @@ classdef IdMapper < handle
       %     mapper = IdMapper(idSectionList, idsec2stype, ...
       %       idsec2srep, idme2sec, idvar2vtype, idsrep2sec, idsec2var, ...
       %       idH2var, idB2var, idtw2var, idtf2var, idD2var, idt2var, ...
-      %       idHsrD2var, idHsrt2var, idBrb1_var, idBrb2_var, idme2mtype, idvar2srep, ...
+      %       idHsrD2var, idHsrt2var, idBrb1_var, idBrb2_var, ...
+      %       idme2mtype, idvar2srep, ...
       %       idsublistCell);
 
       if nargin ~= 20
         error('IdMapper:InvalidArguments', ...
-          'IdMapperは20個の引数が必要です（受け取った引数: %d個）', nargin);
+          ['IdMapperは20個の引数が必要です' ...
+           '（受け取った引数: %d個）'], nargin);
       end
       
       % 基本データの保存
@@ -269,6 +273,22 @@ classdef IdMapper < handle
         obj.idhss2rephss_ = [];
       end
       
+      % BRB断面マッピング
+      isBrbs = (obj.idsec2stype_ == PRM.BRB);
+      if any(isBrbs)
+        [~, ia, ic] = unique(obj.idsec2srep_(isBrbs));
+        obj.idrepbrbs2brbs_ = ia;
+        obj.idbrbs2repbrbs_ = ic;
+      else
+        obj.idrepbrbs2brbs_ = [];
+        obj.idbrbs2repbrbs_ = [];
+      end
+
+      % HSR断面は全断面が代表断面
+      nhsr_ = sum(obj.idsec2stype_ == PRM.HSR);
+      obj.idhsr2rephsr_ = (1:nhsr_)';
+      obj.idrephsr2hsr_ = (1:nhsr_)';
+
       % データ整合性検証
       obj.validateDataConsistency();
     end
@@ -322,7 +342,7 @@ classdef IdMapper < handle
     
     function n = get.nrepbrbs(obj)
       % 代表BRB断面数を計算
-      n = length(obj.idrepbrbs2brbs);
+      n = length(obj.idrepbrbs2brbs_);
     end
 
     function n = get.nrephsr(obj)
@@ -427,15 +447,11 @@ classdef IdMapper < handle
     end
     
     function val = get.idrepwfs2wfs(obj)
-      % 代表WFS断面→WFS断面配列を取得
-      % mapRepresentativeToWfsメソッドを呼び出す
-      val = obj.mapRepresentativeToWfs();
+      val = obj.idrepwfs2wfs_;
     end
-    
+
     function val = get.idrephss2hss(obj)
-      % 代表HSS断面→HSS断面配列を取得
-      % mapRepresentativeToHssメソッドを呼び出す
-      val = obj.mapRepresentativeToHss();
+      val = obj.idrephss2hss_;
     end
     
     function val = get.idrepwfs2var(obj)
@@ -482,15 +498,11 @@ classdef IdMapper < handle
     end
 
     function val = get.idbrbs2repbrbs(obj)
-      % BRB断面→代表BRB断面マッピングを取得
-      % mapBrbsToRepresentativeメソッドを呼び出す
-      val = obj.mapBrbsToRepresentative();
+      val = obj.idbrbs2repbrbs_;
     end
-    
+
     function val = get.idrepbrbs2brbs(obj)
-      % 代表BRB断面→BRB断面マッピングを取得
-      % mapRepresentativeToBrbsメソッドを呼び出す
-      val = obj.mapRepresentativeToBrbs();
+      val = obj.idrepbrbs2brbs_;
     end
     
     function val = get.idrepbrbs2var(obj)

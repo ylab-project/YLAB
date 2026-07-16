@@ -729,11 +729,12 @@ classdef SectionManager < handle
     end
     
     %% 近傍探索系メソッド（委譲のみ）
-    function [xlist, idvlist] = generateNeighborhoodSet( ...
-        secmgr, xvar, isvar, options)
+    function [xlist, idvlist, sdlist] = generateNeighborhoodSet( ...
+        secmgr, xvar, isvar, options, initial_guess, com_constant)
     %generateNeighborhoodSet 近傍断面集合の生成
-    %   [xlist, idvlist] = generateNeighborhoodSet(secmgr, xvar, isvar,
-    %     options) は、指定された変数値から近傍断面の集合を生成します。
+    %   [xlist, idvlist, sdlist] = generateNeighborhoodSet( ...
+    %     secmgr, xvar, isvar, options) は、指定された変数値から
+    %   近傍断面の集合を生成します。
     %
     %   入力引数:
     %     xvar    - 現在の変数値 [1×nxvar]
@@ -743,21 +744,41 @@ classdef SectionManager < handle
     %   参考:
     %     SectionNeighborSearcher.generateNeighborhoodSet
       
-      % SectionNeighborSearcherに委譲
-      [xlist, idvlist] = secmgr.neighborSearcher ...
-        .generateNeighborhoodSet(xvar, isvar, options);
+      if nargin < 5
+        initial_guess = [];
+      end
+      if nargin < 6
+        com_constant = [];
+      end
+      [xlist, idvlist, sdlist] = secmgr.neighborSearcher ...
+        .generateNeighborhoodSet(xvar, isvar, options, ...
+        initial_guess, com_constant);
     end
     
-    function secdim = findNearestSection(secmgr, xvar, options)
-    %findNearestSection 設計変数から最近傍の規格断面を選択
-    %   secdim = findNearestSection(secmgr, xvar, options) は、
-    %   設計変数から最近傍の規格断面を選択します。
+    function [secdim, id] = findNearestSection(secmgr, xvar, ...
+        options, initial_guess)
+    %findNearestSection - 設計変数から最近傍の規格断面を選択
+    %   [secdim, id] = findNearestSection(secmgr, xvar, options,
+    %     initial_guess) は、設計変数から最近傍の規格断面を選択します。
+    %
+    %   入力引数:
+    %     secmgr       - SectionManagerインスタンス
+    %     xvar         - 設計変数ベクトル [1×nxvar]
+    %     options      - 共通オプション
+    %     initial_guess - 直前の写像結果。省略時は既存処理
+    %
+    %   出力引数:
+    %     secdim - 断面寸法配列 [nsec×7]
+    %     id     - 断面リストIDと断面IDを保持する構造体
     %
     %   参考:
     %     SectionNeighborSearcher.findNearestSection
       
-      % SectionNeighborSearcherに完全委譲
-      secdim = secmgr.neighborSearcher.findNearestSection(xvar, options);
+      if nargin < 4
+        initial_guess = [];
+      end
+      [secdim, id] = secmgr.neighborSearcher.findNearestSection( ...
+        xvar, options, initial_guess);
     end
     
     function [wfsec, repwfs, id] = findNearestSectionWfs( ...
@@ -802,28 +823,56 @@ classdef SectionManager < handle
           xvar, idslist, options);
     end
     
-    function xlist = findNearestXList(secmgr, xlist, options)
+    function [xlist, sdlist] = findNearestXList( ...
+        secmgr, xlist, options, initial_guess, com_constant)
     %findNearestXList 変数リストから最近傍断面を選択
-    %   xlist = findNearestXList(secmgr, xlist, options) は、
+    %   [xlist, sdlist] = findNearestXList(secmgr, xlist, options) は、
     %   変数値リストの各要素について最近傍の規格断面を選択します。
     %
     %   参考:
     %     SectionNeighborSearcher.findNearestXList
       
-      % SectionNeighborSearcherに委譲
-      xlist = secmgr.neighborSearcher.findNearestXList(xlist, options);
+      if nargin < 4
+        initial_guess = [];
+      end
+      if nargin < 5
+        com_constant = [];
+      end
+      [xlist, sdlist] = secmgr.neighborSearcher.findNearestXList( ...
+        xlist, options, initial_guess, com_constant);
     end
     
-    function xvar = findNearestXvar(secmgr, secdim, options)
-    %findNearestXvar 断面寸法から変数値を抽出
-    %   xvar = findNearestXvar(secmgr, secdim, options) は、
-    %   断面寸法データから対応する変数値を抽出します。
+    function [xvar, mapping_info] = findNearestXvar( ...
+        secmgr, secdim, options, initial_guess)
+    %findNearestXvar - 断面寸法から変数値を抽出
+    %
+    %   [xvar, mapping_info] = findNearestXvar(secmgr, secdim, options,
+    %   initial_guess) は、断面寸法データから対応する変数値を抽出する。
+    %   initial_guess指定時は変更代表断面だけを再計算する。
+    %   initial_guessを省略した場合は、既存の全逆写像を実行する。
+    %
+    %   入力引数:
+    %     secdim - 断面寸法データ [nsec×7]
+    %     options - 共通オプション
+    %     initial_guess - 直前の逆写像結果（.x、.secdim）。省略可能
+    %
+    %   出力引数:
+    %     xvar - 変数値ベクトル [1×nxvar]
+    %     mapping_info - 再利用した断面行数と設計変数数
     %
     %   参考:
     %     SectionNeighborSearcher.findNearestXvar
       
-      % SectionNeighborSearcherに委譲
-      xvar = secmgr.neighborSearcher.findNearestXvar(secdim, options);
+      if nargin < 4
+        initial_guess = [];
+      end
+      if nargout >= 2
+        [xvar, mapping_info] = secmgr.neighborSearcher ...
+          .findNearestXvar(secdim, options, initial_guess);
+      else
+        xvar = secmgr.neighborSearcher.findNearestXvar( ...
+          secdim, options, initial_guess);
+      end
     end
     
     function xvar = findNearestXvarofWfs(secmgr, repwfs, xvar0, options)

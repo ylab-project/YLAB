@@ -10,13 +10,6 @@ function idhsr2rephsr = mapHsrToRepresentative(obj)
 %   例:
 %     idhsr2rephsr = mapper.mapHsrToRepresentative();
 
-if isempty(obj.idhsr2rephsr_)
-  % HSRは全断面が代表断面
-  isHsr = (obj.idsec2stype_ == PRM.HSR);
-  nhsr = sum(isHsr);
-  obj.idhsr2rephsr_ = (1:nhsr)';
-end
-
 idhsr2rephsr = obj.idhsr2rephsr_;
 
 return

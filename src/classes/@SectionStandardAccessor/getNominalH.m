@@ -12,8 +12,8 @@ function val = getNominalH(obj, idsList)
 %         WFS以外の断面タイプの場合は空配列
 
 if obj.secList_.section_type(idsList) == PRM.WFS
-  secdim = obj.secList_.getDimension(idsList, obj.idPhase_);
-  val = unique(secdim(:,PRM.SECDIM_WFS_H_NOM))';
+  val = obj.secList_.getDimensionValues(idsList, PRM.SECDIM_WFS_H_NOM, ...
+    obj.idPhase_);
 else
   val = [];
 end

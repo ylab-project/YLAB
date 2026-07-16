@@ -130,6 +130,9 @@ classdef PRM
     % 変数種別番号
     MAX_NVAR = 1000; % 最大変数次元
     MAX_NSVAR = 4;  % 1断面の最大変数次元
+    MAPPED_SECDIM_NCOL = 7;  % 写像済み断面寸法の列数
+    MAPPED_SECDIM_SLIST = 6; % 写像済み断面リストID列
+    MAPPED_SECDIM_SECTION = 7; % 写像済み断面ID列
 
     %% H形鋼変数
     WFS_H = 201           % せい(H)

@@ -27,13 +27,6 @@ if nargin < 3
      '形式で呼び出してください。']);
 end
 
-% 有効断面リストが初期化されていない場合
-if isempty(obj.validSectionFlagCell_) || ...
-    length(obj.validSectionFlagCell_) < idsList || ...
-    isempty(obj.validSectionFlagCell_{idsList})
-  obj.initValidSectionFlagCell();
-end
-
 slist_type = obj.secList_.section_type(idsList);
 switch slist_type
   case PRM.WFS

@@ -1,5 +1,5 @@
 function [fval, fdetail, cost] = objective_lsr(xvar, ...
-  secmgr, ~, node, section, member, ~, floor, options)
+  secmgr, ~, node, section, member, ~, floor, options, secdim)
 %objective_lsr - 断面最適化の目的関数（鉄骨コスト）
 %
 %   [fval, fdetail, cost] = objective_lsr(xvar,
@@ -16,11 +16,16 @@ function [fval, fdetail, cost] = objective_lsr(xvar, ...
 %     member  - 部材データ構造体
 %     floor   - 床データ構造体
 %     options - 計算オプション構造体
+%     secdim  - 写像済み断面寸法。省略可能
 %
 %   出力引数:
 %     fval    - 総コスト [スカラ]
 %     fdetail - 部位別の重量・コスト詳細 [構造体]
 %     cost    - 積算用データ [構造体]
+
+if nargin < 10
+  secdim = [];
+end
 
 % 共通配列
 stype = secmgr.idsec2stype;
@@ -38,7 +43,9 @@ column_base = section.column_base;
 column_base_list = secmgr.column_base_list;
 
 % 断面積の計算
-secdim = secmgr.findNearestSection(xvar, options);
+if isempty(secdim)
+  secdim = secmgr.findNearestSection(xvar, options);
+end
 sprop = calc_secprop(secdim, stype, [], secmgr);
 A = sprop.A;
 Am = A(idm2s);
