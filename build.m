@@ -27,6 +27,11 @@ fprintf('Building Standalone Application (from YLAB.p)\n');
 
 % Pコードからは依存関係が自動抽出されないため、src フォルダを明示的に追加
 srcDir = fullfile(pwd, 'src');
+appDir = fileparts(mfilename('fullpath'));
+lsfrDir = fullfile(fileparts(appDir), 'src', 'lsfr');
+if exist(lsfrDir, 'dir')
+  addpath(lsfrDir);
+end
 
 % Toolboxの有無を確認
 hasReportGen = ~isempty(ver('rptgen')) || ~isempty(ver('rptgencore'));
@@ -54,6 +59,9 @@ if isempty(excludePatterns)
 else
   additionalFiles = collectSourceFiles(srcDir, excludePatterns);
   fprintf('  Excluded files based on available toolboxes\n');
+end
+if exist(lsfrDir, 'dir')
+  additionalFiles{end + 1} = lsfrDir;
 end
 
 % Pファイル解析警告を一時的に抑制（srcDir で依存関係を手動追加済み）
