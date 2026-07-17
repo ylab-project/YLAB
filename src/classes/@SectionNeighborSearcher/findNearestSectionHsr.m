@@ -1,5 +1,5 @@
 function [hsrsec, rephsrs, id] = ...
-  findNearestSectionHsr(obj, xvar, idslist, options)
+  findNearestSectionHsr(obj, xvar, idslist, ~)
 %findNearestSectionHsr HSR断面の最近傍選択
 %   [hsrsec, rephsrs, id] = findNearestSectionHsr(obj, xvar, idslist,
 %     options) は、変数値から最近傍のHSR断面を選択します。
@@ -25,22 +25,14 @@ function [hsrsec, rephsrs, id] = ...
 %     rephsrs - 代表HSR断面（HSRでは全断面が代表）[nhsrs×2]
 %     id      - ID構造体（.slist, .section）
 
-% HSR断面の断面リストIDを取得
-idsec2stype = obj.idMapper_.idsec2stype;
-idSectionList = obj.idMapper_.idSectionList;
-isHsr = (idsec2stype == PRM.HSR);
-idhsrs2sec = find(isHsr);
-nhsrs = length(idhsrs2sec);
-
-% 代表HSR断面の変数IDを取得
+% 代表HSR断面の変数IDを取得（HSRでは全断面が代表）
 idrephsr2hsr = obj.idMapper_.idrephsr2hsr;
 idrephsr2var = obj.idMapper_.idrephsr2var;
+nhsrs = length(idrephsr2hsr);
 
 % 断面リストの寸法データを取得
 secdimlist_all = obj.standardAccessor_.getSectionDimension(idslist);
-% idPhaseはstandardAccessorから取得
-idPhase = obj.standardAccessor_.idPhase;
-isvalid = obj.constraintValidator_.extractValidSectionFlags(idslist, idPhase);
+isvalid = obj.constraintValidator_.extractValidSectionFlags(idslist);
 secdimlist = secdimlist_all(isvalid,:);
 
 % 代表HSR断面に対応する変数値を抽出（D,t）

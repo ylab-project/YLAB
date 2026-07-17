@@ -81,9 +81,7 @@ end
 
 % 変更した代表断面に必要なカタログと有効フラグを取得
 secdimlist_all = obj.standardAccessor_.getSectionDimension(idslist);
-idPhase = obj.standardAccessor_.idPhase;
-isvalid = obj.constraintValidator_.extractValidSectionFlags( ...
-  idslist, idPhase);
+isvalid = obj.constraintValidator_.extractValidSectionFlags(idslist);
 
 % 小さいH断面の丸め処理
 is_small_H = repHBnominal(:, 1) < 200;

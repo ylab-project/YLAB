@@ -34,8 +34,8 @@ for idsList = 1:obj.nlist
   sdimlist = secmgr.getDimension(idsList, idphase);
   n = size(sdimlist, 1);
   
-  % リストに対応する断面番号の抽出
-  isvalid = obj.extractValidSectionFlags(idsList, idphase);
+  % 制限適用中は全フェーズの有効性フラグ正本を参照
+  isvalid = obj.validSectionFlagCell_{idsList};
   
   % 断面種別ごと
   switch obj.secList_.section_type(idsList)

@@ -136,8 +136,9 @@ classdef SectionManager < handle
     end
     
     function set.idphase(secmgr, val)
-      % フェーズIDをstandardAccessorに設定
+      % フェーズIDと現在フェーズ用検索配列を同期
       secmgr.standardAccessor_.idPhase = val;
+      secmgr.constraintValidator_.updateValidSectionFlagCell(val);
     end
     
     %% neighborSearcherから取得するプロパティのgetter
@@ -554,58 +555,47 @@ classdef SectionManager < handle
     end
     %----------------------------------------------------------------------
     function idsrep2var = get.idsrep2var(secmgr)
-      idsrep2var = secmgr.idsec2var(secmgr.idsrep2sec,:);
+      idsrep2var = secmgr.idMapper_.idsrep2var;
     end
     function idsrep2stype = get.idsrep2stype(secmgr)
-      idsrep2stype = secmgr.idsec2stype(secmgr.idsrep2sec,:);
+      idsrep2stype = secmgr.idMapper_.idsrep2stype;
     end
     %---
     function idrephss2sec = get.idrephss2sec(secmgr)
-      idrephss2sec = secmgr.idsrep2sec(...
-        secmgr.idsec2stype(secmgr.idsrep2sec)==PRM.HSS);
+      idrephss2sec = secmgr.idMapper_.idrephss2sec;
     end
     function idrephss2var = get.idrephss2var(secmgr)
-      idrephss2var = secmgr.idsec2var(secmgr.idsrep2sec,:);
-      idrephss2var = idrephss2var(secmgr.idsrep2stype==PRM.HSS,:);
+      idrephss2var = secmgr.idMapper_.idrephss2var;
     end
     function idrephss2hss = get.idrephss2hss(secmgr)
-      [~, idrephss2hss] = ...
-        unique(secmgr.idsec2srep(secmgr.idsec2stype==PRM.HSS));
+      idrephss2hss = secmgr.idMapper_.idrephss2hss;
     end
     %---
     function idrepwfs2sec = get.idrepwfs2sec(secmgr)
-      idrepwfs2sec = secmgr.idsrep2sec(...
-        secmgr.idsec2stype(secmgr.idsrep2sec)==PRM.WFS);
+      idrepwfs2sec = secmgr.idMapper_.idrepwfs2sec;
     end
     function idrepwfs2var = get.idrepwfs2var(secmgr)
-      idrepwfs2var = secmgr.idsec2var(secmgr.idsrep2sec,:);
-      idrepwfs2var = idrepwfs2var(secmgr.idsrep2stype==PRM.WFS,:);
+      idrepwfs2var = secmgr.idMapper_.idrepwfs2var;
     end
     function idrepwfs2wfs = get.idrepwfs2wfs(secmgr)
-      [~, idrepwfs2wfs] = ...
-        unique(secmgr.idsec2srep(secmgr.idsec2stype==PRM.WFS));
+      idrepwfs2wfs = secmgr.idMapper_.idrepwfs2wfs;
     end
     %---
     function idreprcrs2sec = get.idreprcrs2sec(secmgr)
-      idreprcrs2sec = secmgr.idsrep2sec(...
-        secmgr.idsec2stype(secmgr.idsrep2sec)==PRM.RCRS);
+      idreprcrs2sec = secmgr.idMapper_.idreprcrs2sec;
     end
     function idreprcrs2rcrs = get.idreprcrs2rcrs(secmgr)
-      [~, idreprcrs2rcrs] = ...
-        unique(secmgr.idsec2srep(secmgr.idsec2stype==PRM.RCRS));
+      idreprcrs2rcrs = secmgr.idMapper_.idreprcrs2rcrs;
     end
     %---
-    function idrepbrb2sec = get.idrepbrbs2sec(secmgr)
-      idrepbrb2sec = secmgr.idsrep2sec(...
-        secmgr.idsec2stype(secmgr.idsrep2sec)==PRM.BRB);
+    function idrepbrbs2sec = get.idrepbrbs2sec(secmgr)
+      idrepbrbs2sec = secmgr.idMapper_.idrepbrbs2sec;
     end
     function idrepbrbs2var = get.idrepbrbs2var(secmgr)
-      idrepbrbs2var = secmgr.idsec2var(secmgr.idsrep2sec,:);
-      idrepbrbs2var = idrepbrbs2var(secmgr.idsrep2stype==PRM.BRB,:);
+      idrepbrbs2var = secmgr.idMapper_.idrepbrbs2var;
     end
     function idrepbrbs2brbs = get.idrepbrbs2brbs(secmgr)
-      [~, idrepbrbs2brbs] = ...
-        unique(secmgr.idsec2srep(secmgr.idsec2stype==PRM.BRB));
+      idrepbrbs2brbs = secmgr.idMapper_.idrepbrbs2brbs;
     end
     
     %% PropertyCalculatorへの委譲（材料関連）
@@ -1106,11 +1096,12 @@ classdef SectionManager < handle
     %     SectionConstraintValidator.extractValidSectionFlags
       
       if nargin == 2
-        idphase = secmgr.idphase;
+        isvalid = secmgr.constraintValidator ...
+          .extractValidSectionFlags(idslist);
+      else
+        isvalid = secmgr.constraintValidator ...
+          .extractValidSectionFlags(idslist, idphase);
       end
-      
-      isvalid = secmgr.constraintValidator ...
-        .extractValidSectionFlags(idslist, idphase);
     end
     
     function limit_jbs_section(secmgr, isjbs, ...

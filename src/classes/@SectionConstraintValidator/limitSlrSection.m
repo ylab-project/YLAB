@@ -62,8 +62,8 @@ for idsList = 1:nlist_
   Zpylist = sproplist.Zpy;
   Flist = secmgr.getIdSecList2F(idsList);
   
-  % リストに対応するH形断面番号の抽出
-  isvalid = obj.extractValidSectionFlags(idsList, idphase);
+  % 制限適用中は全フェーズの有効性フラグ正本を参照
+  isvalid = obj.validSectionFlagCell_{idsList};
   
   % OKか判定
   isec_targets = 1:nsec;

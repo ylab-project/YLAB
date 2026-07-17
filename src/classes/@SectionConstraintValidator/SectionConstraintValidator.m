@@ -31,8 +31,9 @@ classdef SectionConstraintValidator < handle
 
   properties (Access = private)
     % 内部実装の詳細
-    validSectionFlagCell_   % 断面リスト別の有効性フラグ
-    secList_                % SectionListHandlerへの参照
+    validSectionFlagCell_        % 全フェーズの有効性フラグ正本
+    currentValidSectionFlagCell_ % 現在フェーズの有効性フラグ
+    secList_                     % SectionListHandlerへの参照
     standardAccessor_       % SectionStandardAccessorへの参照
     idMapper_               % IdMapperインスタンス
   end
@@ -89,6 +90,7 @@ classdef SectionConstraintValidator < handle
       obj.isVarofSlist = isVarofSlist;
       obj.columnBaseList = columnBaseList;
       obj.validSectionFlagCell_ = {};
+      obj.currentValidSectionFlagCell_ = {};
       obj.idMapper_ = idMapper;
       obj.initValidSectionFlagCell();
 
@@ -207,8 +209,7 @@ classdef SectionConstraintValidator < handle
             % HSR/BRB断面: 1×nsecOfList
             obj.validSectionFlagCell_{idsList} = ...
               true(1, nsecOfList(idsList));
-          case {PRM.BWFS, PRM.BHSS, PRM.BHSR, ...
-              PRM.RCRS, PRM.TB}
+          case {PRM.BWFS, PRM.BHSS, PRM.BHSR, PRM.RCRS, PRM.TB}
             % 最適化対象外: 空の論理行列
             obj.validSectionFlagCell_{idsList} = ...
               true(0, nsecOfList(idsList));

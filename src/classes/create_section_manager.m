@@ -76,6 +76,7 @@ secmgr.createNeighborSearcher(...
   secmgr.constraintValidator, ...
   com.section.property.dimension);
 
-secmgr.initValidSectionFlagCell
+% 全構成要素の生成後に現在フェーズ用検索配列を初期化
+secmgr.idphase = idphase;
 return
 end

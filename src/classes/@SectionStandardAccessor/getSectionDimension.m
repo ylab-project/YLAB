@@ -24,16 +24,16 @@ function dimension = getSectionDimension(obj, idList, idPhase)
 
 % 引数の検証
 if nargin < 2
-  error('SectionStandardAccessor:InvalidArgs', ...
-    '断面リストIDが必要です');
+  error('SectionStandardAccessor:InvalidArgs', '断面リストIDが必要です');
 end
 
-% idPhaseの設定
+% 省略時は現在フェーズ用の保存値を返す
 if nargin < 3
-  idPhase = obj.idPhase_;
+  dimension = obj.currentSectionDimensionCell_{idList};
+  return
 end
 
-% SectionListHandlerのgetDimensionを呼び出し
+% 明示された任意フェーズは正本から動的に抽出する
 dimension = obj.secList_.getDimension(idList, idPhase);
 
 return

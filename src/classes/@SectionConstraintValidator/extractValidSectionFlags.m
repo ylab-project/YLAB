@@ -1,42 +1,31 @@
 function isvalid = extractValidSectionFlags(obj, idsList, idPhase)
 %extractValidSectionFlags 指定断面リストの有効フラグを抽出
-%   isvalid = extractValidSectionFlags(obj, idsList, idPhase) は、
-%   断面リストIDとフェーズIDに基づいて有効な断面のフラグ配列を返します。
-%   WFS断面の場合はフェーズによるフィルタリングも行います。
+%   isvalid = extractValidSectionFlags(obj, idsList) は、現在フェーズ用に
+%   保存した有効断面フラグを返します。
+%
+%   isvalid = extractValidSectionFlags(obj, idsList, idPhase) は、指定した
+%   フェーズについて正本から有効断面フラグを動的に抽出します。
 %
 %   入力引数:
 %     idsList - 断面リストID (スカラー整数、1～nlist)
-%     idPhase - フェーズID (スカラー整数)
+%     idPhase - フェーズID (スカラー整数、省略可能)
 %
 %   出力引数:
 %     isvalid - 有効断面のフラグ配列 (論理値配列)
-%               WFS断面: [nwfs×nsecOfList] の論理値行列
-%               HSS/BRB断面: [1×nsecOfList] の論理値ベクトル
-%
-%   例:
-%     % 断面リスト1、フェーズ3の有効フラグを取得
-%     isvalid = validator.extractValidSectionFlags(1, 3);
 %
 %   参考:
-%     initValidSectionFlagCell, SectionConstraintValidator
+%     initValidSectionFlagCell, updateValidSectionFlagCell
 
 if nargin < 3
-  error('SectionConstraintValidator:MissingArgument', ...
-    ['idPhaseは必須引数です。' ...
-     'extractValidSectionFlags(idsList, idPhase)の' ...
-     '形式で呼び出してください。']);
+  isvalid = obj.currentValidSectionFlagCell_{idsList};
+  return
 end
 
-slist_type = obj.secList_.section_type(idsList);
-switch slist_type
-  case PRM.WFS
-    istarget = obj.secList_.idphase{idsList} <= idPhase;
-    isvalid = obj.validSectionFlagCell_{idsList};
-    isvalid = isvalid(:,istarget);
-  case PRM.HSS
-    istarget = obj.secList_.idphase{idsList} <= idPhase;
-    isvalid = obj.validSectionFlagCell_{idsList};
-    isvalid = isvalid(:, istarget);
+slistType = obj.secList_.section_type(idsList);
+switch slistType
+  case {PRM.WFS, PRM.HSS, PRM.HSR}
+    isTarget = obj.secList_.idphase{idsList} <= idPhase;
+    isvalid = obj.validSectionFlagCell_{idsList}(:, isTarget);
   otherwise
     isvalid = obj.validSectionFlagCell_{idsList};
 end

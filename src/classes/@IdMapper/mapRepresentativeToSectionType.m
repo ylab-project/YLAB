@@ -9,8 +9,7 @@ function idsrep2stype = mapRepresentativeToSectionType(obj)
 %   参考:
 %     mapRepresentativeToSection
 
-idsrep2sec = obj.mapRepresentativeToSection();
-idsrep2stype = obj.idsec2stype_(idsrep2sec);
+idsrep2stype = obj.idsrep2stype_;
 
 return
 end

@@ -55,6 +55,12 @@ classdef IdMapper < handle
     idrephsr2hsr_  % 代表HSR→最初のHSR断面 [nrephsr×1]
     idsrep2sec_    % 代表断面→断面 [nsrep×1]
     idsec2var_     % 断面→変数 [nsec×ndim]
+    idsrep2var_    % 代表断面→変数 [nsrep×ndim]
+    idsrep2stype_  % 代表断面→断面タイプ [nsrep×1]
+    idrepwfs2var_  % 代表WFS断面→変数 [nrepwfs×ndim]
+    idrephss2var_  % 代表HSS断面→変数 [nrephss×ndim]
+    idrepbrbs2var_ % 代表BRB断面→変数 [nrepbrbs×ndim]
+    idrephsr2var_  % 代表HSR断面→変数 [nrephsr×2]
 
     % 変数IDマッピング配列
     idH2var_       % H変数ID配列（WFS断面）
@@ -249,6 +255,9 @@ classdef IdMapper < handle
       obj.idme2mtype_ = idme2mtype;
       obj.idvar2srep_ = idvar2srep;
       obj.idsublistCell = idsublistCell;
+
+      % 代表断面から変数・断面種への派生マッピングを事前生成
+      obj.initializeDerivedMappings();
 
       % 事前計算マッピングの生成
       % WFS断面マッピング
@@ -456,14 +465,12 @@ classdef IdMapper < handle
     
     function val = get.idrepwfs2var(obj)
       % 代表WFS断面→変数マッピングを取得
-      % mapRepresentativeWfsToVariableメソッドを呼び出す
-      val = obj.mapRepresentativeWfsToVariable();
+      val = obj.idrepwfs2var_;
     end
     
     function val = get.idrephss2var(obj)
       % 代表HSS断面→変数マッピングを取得
-      % mapRepresentativeHssToVariableメソッドを呼び出す
-      val = obj.mapRepresentativeHssToVariable();
+      val = obj.idrephss2var_;
     end
     
     %% 断面リストマッピングのゲッター
@@ -507,8 +514,7 @@ classdef IdMapper < handle
     
     function val = get.idrepbrbs2var(obj)
       % 代表BRB断面→変数マッピングを取得
-      % mapRepresentativeBrbsToVariableメソッドを呼び出す
-      val = obj.mapRepresentativeBrbsToVariable();
+      val = obj.idrepbrbs2var_;
     end
 
     function val = get.idrephsr2hsr(obj)
@@ -525,8 +531,7 @@ classdef IdMapper < handle
 
     function val = get.idrephsr2var(obj)
       % 代表HSR断面→変数マッピングを取得
-      % mapRepresentativeHsrToVariableメソッドを呼び出す
-      val = obj.mapRepresentativeHsrToVariable();
+      val = obj.idrephsr2var_;
     end
 
     function val = get.idme2var(obj)
@@ -537,8 +542,7 @@ classdef IdMapper < handle
     
     function val = get.idsrep2stype(obj)
       % 代表断面→断面タイプマッピングを取得
-      % mapRepresentativeToSectionTypeメソッドを呼び出す
-      val = obj.mapRepresentativeToSectionType();
+      val = obj.idsrep2stype_;
     end
     
     %% 断面タイプ変換マッピングのゲッター
@@ -634,7 +638,7 @@ classdef IdMapper < handle
     %% その他のマッピングのゲッター
     function val = get.idsrep2var(obj)
       % 代表断面→変数マッピングを取得
-      val = obj.mapRepresentativeToVariable();
+      val = obj.idsrep2var_;
     end
     
     function val = get.idme2stype(obj)
@@ -649,6 +653,7 @@ classdef IdMapper < handle
   end
   
   methods (Access = private)
+    initializeDerivedMappings(obj) % 派生マッピングを事前生成
     validateDataConsistency(obj)  % 外部ファイルに定義
   end
 end

@@ -31,9 +31,10 @@ classdef SectionStandardAccessor < handle
 %   hValues = accessor.getNominalH(idsList);
 
 properties (Access = private)
-  secList_   % SectionListHandlerへの参照
-  idMapper_  % IdMapperへの参照
-  idPhase_   % 現在のフェーズID (デフォルト: 999)
+  secList_                     % SectionListHandlerへの参照
+  idMapper_                    % IdMapperへの参照
+  idPhase_                     % 現在のフェーズID
+  currentSectionDimensionCell_ % 現在フェーズの断面寸法
 end
 
 properties (Dependent)
@@ -43,23 +44,28 @@ end
 
 methods
   %% SectionStandardAccessor
-  function obj = SectionStandardAccessor(secList, idMapper)
+  function obj = SectionStandardAccessor(secList, idMapper, idPhase)
     % コンストラクタ
     %
     % 入力:
     %   secList - SectionListHandlerオブジェクト（必須）
     %   idMapper - IdMapperオブジェクト（getStandardValuesで必要）
+    %   idPhase - 初期フェーズID（省略時999）
     
     if nargin < 1
       error('SectionStandardAccessor:InvalidArgs', ...
         'SectionListHandlerオブジェクトが必要です');
+    end
+    if nargin < 3
+      idPhase = 999;
     end
     
     obj.secList_ = secList;
     if nargin >= 2
       obj.idMapper_ = idMapper;
     end
-    obj.idPhase_ = 999;  % デフォルト値
+    obj.currentSectionDimensionCell_ = cell(obj.secList_.nlist, 1);
+    obj.idPhase = idPhase;
     return
   end
   
@@ -81,6 +87,10 @@ methods
         '有効なフェーズID（0以上の数値）が必要です');
     end
     obj.idPhase_ = idPhase;
+    for idsList = 1:obj.secList_.nlist
+      obj.currentSectionDimensionCell_{idsList} = ...
+        obj.getSectionDimension(idsList, idPhase);
+    end
     return
   end
   

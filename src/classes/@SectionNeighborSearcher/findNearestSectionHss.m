@@ -71,9 +71,7 @@ end
 
 % 変更した代表断面に必要なカタログと有効フラグを取得
 secdimlist_all = obj.standardAccessor_.getSectionDimension(idslist);
-idPhase = obj.standardAccessor_.idPhase;
-isvalid_all = obj.constraintValidator_.extractValidSectionFlags( ...
-  idslist, idPhase);
+isvalid_all = obj.constraintValidator_.extractValidSectionFlags(idslist);
 
 % 変更した代表断面だけを検索
 for id_ = changed_idx(:)'

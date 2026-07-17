@@ -10,8 +10,8 @@ function val = getStandardHsrT(obj, idsList)
 %   val - t規格値の配列（1 x n）
 
 if obj.secList_.section_type(idsList) == PRM.HSR
-  secdim = obj.secList_.getDimension(idsList, obj.idPhase_);
-  val = unique(secdim(:,2))';  % 第2列が板厚t
+  val = obj.secList_.getDimensionValues(idsList, PRM.SECDIM_HSR_T, ...
+    obj.idPhase_);
 else
   val = [];
 end

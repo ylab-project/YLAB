@@ -10,8 +10,8 @@ function val = getStandardHsrD(obj, idsList)
 %   val - D規格値の配列（1 x n）
 
 if obj.secList_.section_type(idsList) == PRM.HSR
-  secdim = obj.secList_.getDimension(idsList, obj.idPhase_);
-  val = unique(secdim(:,1))';  % 第1列が外径D
+  val = obj.secList_.getDimensionValues(idsList, PRM.SECDIM_HSR_D, ...
+    obj.idPhase_);
 else
   val = [];
 end
