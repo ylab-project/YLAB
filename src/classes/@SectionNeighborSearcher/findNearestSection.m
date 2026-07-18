@@ -1,5 +1,5 @@
-function [secdim, id] = findNearestSection(obj, xvar, options, ...
-  initial_guess)
+function [secdim, id, selection_info] = findNearestSection( ...
+  obj, xvar, options, initial_guess)
 %findNearestSection - 全断面タイプの最近傍を選択する
 %
 %   [secdim, id] = findNearestSection(obj, xvar, options,
@@ -15,6 +15,7 @@ function [secdim, id] = findNearestSection(obj, xvar, options, ...
 %   出力引数:
 %     secdim - 断面寸法配列 [nsec×7]
 %     id     - ID構造体（.slist、.section）
+%     selection_info - 補正済み変数値と共有変数の集約対象マスク
 
 if nargin < 4
   initial_guess = [];
@@ -49,6 +50,11 @@ else
   id.section = zeros(nsec, 1);
 end
 
+collect_mapping = nargout >= 3;
+if collect_mapping
+  selection_info.xvar = xvar(:)';
+  selection_info.aggregate_variable = false(1, id_mapper.nxvar);
+end
 % 各断面タイプのマッピング取得
 idwfs2slist = obj.idMapper_.idwfs2slist;
 idhss2slist = obj.idMapper_.idhss2slist;
@@ -67,16 +73,36 @@ for idslist = 1:nlist
   switch section_type
     case PRM.WFS
       is_target_wfs = (idwfs2slist == idslist);
-      [secwfs, ~, id_temp] = obj.findNearestSectionWfs( ...
-        xvar, idslist, options, initial_guess);
+      if collect_mapping
+        [secwfs, ~, id_temp, type_selection] = ...
+          obj.findNearestSectionWfs(xvar, idslist, options, ...
+          initial_guess, selection_info.xvar);
+        selection_info.xvar = type_selection.xvar;
+        selection_info.aggregate_variable = ...
+          selection_info.aggregate_variable | ...
+          type_selection.aggregate_variable;
+      else
+        [secwfs, ~, id_temp] = obj.findNearestSectionWfs( ...
+          xvar, idslist, options, initial_guess);
+      end
       secdim(is_target, 1:5) = secwfs(is_target_wfs, :);
       id.slist(is_target) = id_temp.slist(is_target_wfs);
       id.section(is_target) = id_temp.section(is_target_wfs);
 
     case PRM.HSS
       is_target_hss = (idhss2slist == idslist);
-      [sechss, ~, id_temp] = obj.findNearestSectionHss( ...
-        xvar, idslist, options, initial_guess);
+      if collect_mapping
+        [sechss, ~, id_temp, type_selection] = ...
+          obj.findNearestSectionHss(xvar, idslist, options, ...
+          initial_guess, selection_info.xvar);
+        selection_info.xvar = type_selection.xvar;
+        selection_info.aggregate_variable = ...
+          selection_info.aggregate_variable | ...
+          type_selection.aggregate_variable;
+      else
+        [sechss, ~, id_temp] = obj.findNearestSectionHss( ...
+          xvar, idslist, options, initial_guess);
+      end
       secdim(is_target, 1:3) = sechss(is_target_hss, 1:3);
       id.slist(is_target) = id_temp.slist(is_target_hss);
       id.section(is_target) = id_temp.section(is_target_hss);

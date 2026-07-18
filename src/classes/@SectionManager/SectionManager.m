@@ -771,6 +771,39 @@ classdef SectionManager < handle
         xvar, options, initial_guess);
     end
     
+    function [xvar, secdim, mapping_info] = ...
+        findNearestSectionAndXvar(secmgr, xvar0, options, initial_guess)
+    %findNearestSectionAndXvar - 最近傍断面と変数値を一体で求める
+    %   [xvar, secdim, mapping_info] = findNearestSectionAndXvar(
+    %     secmgr, xvar0, options, initial_guess) は、最近傍断面を選択し、
+    %   影響する設計変数だけを断面値へ補正します。
+    %
+    %   入力引数:
+    %     secmgr - SectionManagerインスタンス
+    %     xvar0 - 写像前の設計変数ベクトル [1×nxvar]
+    %     options - 共通オプション
+    %     initial_guess - 直前の写像結果。省略可能
+    %
+    %   出力引数:
+    %     xvar - 写像後の設計変数ベクトル [1×nxvar]
+    %     secdim - 写像後の断面寸法配列 [nsec×7]
+    %     mapping_info - 再利用行数、再計算変数数、補正変数数
+    %
+    %   参考:
+    %     SectionNeighborSearcher.findNearestSectionAndXvar
+
+      if nargin < 4
+        initial_guess = [];
+      end
+      if nargout >= 3
+        [xvar, secdim, mapping_info] = secmgr.neighborSearcher ...
+          .findNearestSectionAndXvar(xvar0, options, initial_guess);
+      else
+        [xvar, secdim] = secmgr.neighborSearcher ...
+          .findNearestSectionAndXvar(xvar0, options, initial_guess);
+      end
+    end
+
     function [wfsec, repwfs, id] = findNearestSectionWfs( ...
         secmgr, xvar, idslist, options)
     %findNearestSectionWfs WFS断面の最近傍選択

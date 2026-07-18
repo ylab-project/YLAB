@@ -1,5 +1,5 @@
-function [wfsec, repwfs, id] = findNearestSectionWfs( ...
-  obj, xvar, idslist, options, initial_guess)
+function [wfsec, repwfs, id, selection_info] = findNearestSectionWfs( ...
+  obj, xvar, idslist, options, initial_guess, mapped_xvar)
 %findNearestSectionWfs - WFS断面の最近傍選択
 %   [wfsec, repwfs, id] = findNearestSectionWfs(obj, xvar,
 %   idslist, options, initial_guess) は、変数値から最近傍のWFS断面を
@@ -24,11 +24,13 @@ function [wfsec, repwfs, id] = findNearestSectionWfs( ...
 %     idslist   - 断面リストID (スカラー)
 %     options   - オプション構造体（tolHgap、tolBgapを含む）
 %     initial_guess - 直前の写像結果（.x、.secdim）。省略可能
+%     mapped_xvar - 断面リスト間で引き継ぐ補正済み変数値。省略可能
 %
 %   出力引数:
 %     wfsec  - WFS断面寸法 [nwfs×5]（実寸値）
 %     repwfs - 代表WFS断面 [nrepwfs×5]（実寸値）
 %     id     - ID構造体（.slist, .section）
+%     selection_info - 補正済み変数値と共有変数の集約対象マスク
 
 % 共通定数と配列の取得
 nrepwfs = obj.idMapper_.nrepwfs;
@@ -72,6 +74,17 @@ end
 
 % 全代表断面が不変ならカタログを取得せず終了
 changed_idx = relevant_idx(~is_unchanged(relevant_idx));
+collect_mapping = nargout >= 4;
+if collect_mapping
+  if nargin < 6
+    mapped_xvar = xvar(:)';
+  end
+  aggregate_variable = false(1, obj.idMapper_.nxvar);
+  idvar2srep = obj.idMapper_.idvar2srep;
+  idsrep2stype = obj.idMapper_.idsrep2stype;
+  selection_info.xvar = mapped_xvar;
+  selection_info.aggregate_variable = aggregate_variable;
+end
 if isempty(changed_idx)
   wfsec = repwfs(idwfs2repwfs, :);
   id.slist = id.slist(idwfs2repwfs);
@@ -125,7 +138,8 @@ for id_ = changed_idx(:)'
     (B_target == B_nom_values) & (tw_target == tw_values) & ...
     (tf_target == tf_values);
   
-  if any(exact_match)
+  is_exact_match = any(exact_match);
+  if is_exact_match
     idx_found = find(exact_match, 1);
   else
     % Step 1: H値が許容範囲内でB値が最も近い断面を検索（公称値で比較）
@@ -172,10 +186,30 @@ for id_ = changed_idx(:)'
   
   % 結果を保存（実寸値）
   repwfs(id_, 1:5) = secdimlist(idx_found, 1:5);
+  if collect_mapping && ~is_exact_match
+    selected_components = [H_nom_values(idx_found), ...
+      B_nom_values(idx_found), tw_values(idx_found), ...
+      tf_values(idx_found)];
+    for component_id = 1:4
+      variable_id = idrepwfs2var(id_, component_id);
+      representative_ids = idvar2srep{variable_id};
+      num_representative = sum( ...
+        idsrep2stype(representative_ids) == PRM.WFS);
+      if num_representative == 1
+        mapped_xvar(variable_id) = selected_components(component_id);
+      else
+        aggregate_variable(variable_id) = true;
+      end
+    end
+  end
   id.slist(id_) = idslist;
   id.section(id_) = valid_indices(idx_found);
 end
 
+if collect_mapping
+  selection_info.xvar = mapped_xvar;
+  selection_info.aggregate_variable = aggregate_variable;
+end
 % WFS断面の抽出（実寸値）
 wfsec = repwfs(idwfs2repwfs, :);
 id.slist = id.slist(idwfs2repwfs);
