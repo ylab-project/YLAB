@@ -202,8 +202,6 @@ for i=1:size(data,1)
       options.maxcache = data{i,2};
     case 'local_search_method'
       options.local_search_method = char(data{i,2});
-    case 'lsfr_ordering'
-      options.lsfr_ordering = (data{i,2}=='Y');
     case 'max_fusion_depth'
       options.max_fusion_depth = data{i,2};
     case 'max_num_fusion_seed'

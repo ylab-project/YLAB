@@ -21,8 +21,6 @@ for i=1:size(mat,1)
       options.consider_foundation_uplift = (mat{i,2}=='T');
     case 'do_parallel'
       options.do_parallel = (mat{i,2}=='T');
-    case 'lsfr_ordering'
-      options.lsfr_ordering = (mat{i,2}=='T');
   end
 
   % --- 値 ---

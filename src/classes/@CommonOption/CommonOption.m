@@ -171,7 +171,6 @@ classdef CommonOption
       mustBeInteger} = 10
     max_num_restoration_candidate (1,1) double {mustBePositive, ...
       mustBeInteger} = 10
-    lsfr_ordering (1,1) logical = false
     lsfr_diagnostic_file (1,:) char = ''
 
     % 制約条件オプション
