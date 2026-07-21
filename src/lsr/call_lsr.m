@@ -27,6 +27,7 @@ xopt = [];
 if ~isempty(options.matfile)
   resume = load(options.matfile);
   validate_resume_variables();
+  resume.history = ensure_lsr_history_info(resume.history);
 end
 
 % 初期ペナルティ係数
@@ -40,6 +41,9 @@ f0 = (fub+flb)/2;
 % 最大断面での制約チェック
 [cvec_ub, result_ub] = analysis_constraint(ub, com, options);
 check_max_section_violation(cvec_ub, result_ub, options);
+
+% LSR全体で不変の制約数を共通構造体へ保存する
+com.ncon = result_ub.ncon;
 
 % 初期解
 if ~isempty(options.x0)
@@ -80,13 +84,7 @@ for idtrial = iter_set
       end
       history = [];
     end
-    if strcmp(options.local_search_method, 'LSFR') ...
-        && (options.do_lsfr_all_phases || idphase >= 2)
-      [xopt, fval, exitflag, history] = lsr(x0, com, history, ...
-        options, @lsfr_iteration);
-    else
-      [xopt, fval, exitflag, history] = lsr(x0, com, history, options);
-    end
+    [xopt, fval, exitflag, history] = lsr(x0, com, history, options);
     save_trial
   end
 end

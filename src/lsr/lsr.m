@@ -1,10 +1,9 @@
 function [xopt, fopt, exitflag, history] = lsr( ...
-  xvar, com, history, options, iteration_evaluator)
+  xvar, com, history, options)
 
-if nargin < 5
-  iteration_evaluator = [];
-end
-is_pure_lsr = isempty(iteration_evaluator);
+do_lsfr = strcmp(options.local_search_method, 'LSFR') && ...
+  (options.do_lsfr_all_phases || options.idphase >= 2);
+is_pure_lsr = ~do_lsfr;
 collect_lsr_timing = is_pure_lsr && ~isempty(options.lsfr_diagnostic_file);
 
 tic;
@@ -85,7 +84,7 @@ end
 % --- パラメータ設定 ---
 tau = options.tau;
 omega = options.omega;
-ncon = result.ncon;
+ncon = com.ncon;
 nc = length(cvec);
 % nvio = length(ncon);
 nvio = nc;
@@ -120,7 +119,7 @@ iter = 1;
 nlist0 = 1;
 nlist = 1;
 idpfval = 1;
-lsfr_history_info = struct('is_fusion', false, 'error_percent', nan, ...
+lsfr_history_info = struct('algorithm', nan, 'error_percent', nan, ...
   'depth', 0);
 % isupdatedmu = false;
 
@@ -137,6 +136,7 @@ if isempty(history)
   print_status(start_iter);
 else
   validate_resume_history();
+  history = ensure_lsr_history_info(history);
   resume_index = history_index_by_iter(options.iter_resume);
   history = trim_history(history, resume_index);
   start_iter = options.iter_resume;
@@ -148,7 +148,7 @@ else
     [pfvalold, viold] = pffun(fvalold, cvecold);
   end
 end
-history = ensure_lsr_timing(history);
+history = ensure_lsr_history_info(history);
 exitflag = PRM.EXITFLAG_MAXITER;
 
 % ---　局所探索スタート ---
@@ -187,11 +187,10 @@ for iter = start_iter+1:max_iter+1
   % [~, ~, ~, ~, st, stc, ~, C, vix, viy] = ...
   %   analysis_frame(xvar, com, options);
 
-  if ~is_pure_lsr
-    [xlist, pflist, flist, clist, vlist, isexec, ...
-      nlist0, lsfr_history_info] = iteration_evaluator( ...
-      xvar, fval, cvec, result, restoration, ncon, ...
-      pffun, @update_lsfr_penalty_values, com, com_constant, options);
+  if do_lsfr
+    [xlist, pflist, flist, clist, vlist, isexec, nlist0, ...
+      lsfr_history_info] = lsfr_iteration(xvar, fval, cvec, result, ...
+      restoration, pffun, @update_lsfr_penalty_values, com, options);
     nlist = size(xlist, 1);
   else
     % --- 近傍解生成 ---
@@ -605,7 +604,7 @@ return
     history.nexec = history.nexec(1:last_index,:);
     history.time = history.time(1:last_index,:);
     history.iter = history.iter(1:last_index,:);
-    history = trim_lsr_timing(history, last_index);
+    history = trim_history_info(history, last_index);
     return
   end
 %--------------------------------------------------------------------------
@@ -777,9 +776,11 @@ return
     history.nexec(iter,1) = nexec;
     history.time(iter,1) = time;
     history.iter(iter,1) = iter;
-    history.lsr_timing.neighborhood(iter,1) = time_neighborhood;
-    history.lsr_timing.correction(iter,1) = time_correction;
-    history.lsr_timing.evaluation(iter,1) = time_evaluation;
+    info_row = struct;
+    info_row.lsr.timing = struct('neighborhood', time_neighborhood, ...
+      'correction', time_correction, 'evaluation', time_evaluation);
+    info_row.lsfr.selection = lsfr_history_info;
+    history = save_history_info(history, info_row, iter);
     last_history_index = iter;
   end
 %--------------------------------------------------------------------------
@@ -795,34 +796,38 @@ return
     history.nexec = history.nexec(1:last_history_index,:);
     history.time = history.time(1:last_history_index,:);
     history.iter = history.iter(1:last_history_index,:);
-    history = trim_lsr_timing(history, last_history_index);
+    history = trim_history_info(history, last_history_index);
   end
 %--------------------------------------------------------------------------
-  function history_ = ensure_lsr_timing(history_)
-    names = {'neighborhood', 'correction', 'evaluation'};
-    nrow = size(history_.iter, 1);
-    if ~isfield(history_, 'lsr_timing')
-      history_.lsr_timing = struct;
+
+%--------------------------------------------------------------------------
+  function history_ = trim_history_info(history_, last_index_)
+    if ~isfield(history_, 'info')
+      return
     end
-    for id_ = 1:numel(names)
-      name_ = names{id_};
-      if ~isfield(history_.lsr_timing, name_)
-        history_.lsr_timing.(name_) = nan(nrow, 1);
+    schema = lsr_history_info_schema();
+    for id_ = 1:numel(schema)
+      m_ = schema(id_).method;
+      c_ = schema(id_).category;
+      for jd_ = 1:numel(schema(id_).fields)
+        f_ = schema(id_).fields{jd_};
+        values_ = history_.info.(m_).(c_).(f_);
+        history_.info.(m_).(c_).(f_) = values_(1:last_index_, :);
       end
     end
 
     return
   end
 %--------------------------------------------------------------------------
-  function history_ = trim_lsr_timing(history_, last_index_)
-    if ~isfield(history_, 'lsr_timing')
-      return
-    end
-    names = fieldnames(history_.lsr_timing);
-    for id_ = 1:numel(names)
-      name_ = names{id_};
-      values_ = history_.lsr_timing.(name_);
-      history_.lsr_timing.(name_) = values_(1:last_index_, :);
+  function history_ = save_history_info(history_, info_row, iter_)
+    schema = lsr_history_info_schema();
+    for id_ = 1:numel(schema)
+      m_ = schema(id_).method;
+      c_ = schema(id_).category;
+      for jd_ = 1:numel(schema(id_).fields)
+        f_ = schema(id_).fields{jd_};
+        history_.info.(m_).(c_).(f_)(iter_, 1) = info_row.(m_).(c_).(f_);
+      end
     end
 
     return

@@ -329,6 +329,12 @@ classdef PRM
     MAX_NUM_RESTORATION_SEED = 50
     MAX_NUM_RESTORATION_CANDIDATE = 50
     TOL_MAX_VIOLATION = 1e-4
+
+    %% LSFR採択戦略種別
+    LSFR_CURRENT = 0          % 現在点
+    LSFR_PRIMITIVE = 1        % primitive候補
+    LSFR_FUSION = 2           % fusion候補
+    LSFR_RESTORATION = 3      % restoration候補
     
     %% UIモード
     UIMODE_CUI = 1;           % コマンドラインモード
