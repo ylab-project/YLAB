@@ -1,17 +1,16 @@
 function [pflist, flist, clist, vlist, isexec] = ...
-  compute_pflist(pffun, xlist, com_or_constant, options, cache, ...
+  compute_pflist(pffun, xlist, com, options, cache, ...
   evaluation_ids, sdlist)
 %COMPUTE_PFLIST 候補断面を並列評価
 % 概要: 複数の候補断面を並列実行戦略を用いて効率的に評価。
 %       戦略はタスク数とワーカー数に基づいて自動選択される。
 % 構文: [pflist, flist, clist, vlist, isexec] = ...
-%        compute_pflist(pffun, xlist, com_or_constant,
-%        options, cache, evaluation_ids
+%        compute_pflist(pffun, xlist, com, options, cache,
+%        evaluation_ids, sdlist)
 % 入力:
 %   pffun          - ペナルティ関数ハンドル
 %   xlist          - 候補断面配列 [lsize×nvar]
-%   com_or_constant - parallel.pool.Constant または
-%                     共通構造体（com）
+%   com - 共通構造体（worker配布用com.constantを含む）
 %   options - オプション構造体（並列戦略、表示設定等）
 %   cache   - キャッシュ構造体（既計算結果の再利用）
 %   evaluation_ids - 候補ごとの安定したSubstream番号（省略可）
@@ -25,15 +24,6 @@ function [pflist, flist, clist, vlist, isexec] = ...
 % 備考: 並列戦略は sequential, parfor, parfeval から自動選択
 % See also: compute_individual, analysis_constraint, objective_lsr
 
-% com と com_constant の取得
-if isa(com_or_constant, 'parallel.pool.Constant')
-  com_constant = com_or_constant;
-  com = [];
-else
-  com = com_or_constant;
-  com_constant = [];
-end
-
 % パラメータの取得
 numc = options.numc;                          % 制約関数の数（スカラー）
 numvio = options.numvio;                      % 制約違反の数（スカラー）
@@ -43,6 +33,11 @@ if nargin < 6 || isempty(evaluation_ids)
 end
 if nargin < 7
   sdlist = [];
+end
+if isfield(com, 'constant')
+  use_worker_cache = isa(com.constant, 'parallel.pool.Constant');
+else
+  use_worker_cache = false;
 end
 
 % 出力配列を事前割当（メモリ効率化）
@@ -104,11 +99,6 @@ return
   stream = RandStream('Threefry');
   prev_stream = RandStream.setGlobalStream(stream);
 
-  evaluation_com = com;
-  if isempty(evaluation_com)
-    evaluation_com = com_constant.Value;
-  end
-
   % 各候補断面を順次評価
   for id = 1:lsize
     % タスクIDごとに異なる乱数系列を使用（再現性の保証）
@@ -121,7 +111,7 @@ return
     end
     [flist(id), clist(id, :), pflist(id), vlist(id, :), ...
       isexec(id)] = compute_individual(xlist(id, :), pffun, ...
-      evaluation_com, options, cache, candidate_secdim);
+      com, options, cache, candidate_secdim);
   end
 
   % 元の乱数ストリームに戻す
@@ -150,7 +140,7 @@ return
     % fprintf('  strategy=parfor: lsize=%d workers=%d\n', lsize, nworkers);
   end
 
-  if isempty(com_constant)
+  if ~use_worker_cache
     parfor id = 1:lsize
       stream = stream_constant.Value;
       prev_stream = RandStream.setGlobalStream(stream);
@@ -166,11 +156,12 @@ return
       RandStream.setGlobalStream(prev_stream);
     end
   else
+    worker_com_cache = com.constant;
     parfor id = 1:lsize
       stream = stream_constant.Value;
       prev_stream = RandStream.setGlobalStream(stream);
       stream.Substream = evaluation_ids(id);
-      worker_com = com_constant.Value; %#ok<PFBNS>
+      worker_com = worker_com_cache.Value; %#ok<PFBNS>
       if isempty(sdlist)
         candidate_secdim = [];
       else
@@ -208,9 +199,15 @@ return
     return
   end
 
-  % 共有データを並列プール全体で共有（データ転送を最小化）
-  if isempty(com_constant)
-    com_constant = parallel.pool.Constant(com);
+  % 直接呼出しでもpool生成後のworkerキャッシュを保証する
+  if use_worker_cache
+    worker_com_cache = com.constant;
+  else
+    worker_com = com;
+    if isfield(worker_com, 'constant')
+      worker_com = rmfield(worker_com, 'constant');
+    end
+    worker_com_cache = parallel.pool.Constant(worker_com);
   end
   stream_constant = parallel.pool.Constant(@() RandStream('Threefry'));
 
@@ -233,7 +230,7 @@ return
     end
     futures(iw) = parfeval(pool, @evaluate_block, 5, ...
       xlist(blocks{iw}, :), block_secdim, ...
-      evaluation_ids(blocks{iw}), pffun, com_constant, ...
+      evaluation_ids(blocks{iw}), pffun, worker_com_cache, ...
       stream_constant, options, cache);
   end
 
@@ -460,7 +457,7 @@ end
 %--------------------------------------------------------------------------
 function [flist_block, clist_block, pflist_block, vlist_block, ...
   isexec_block] = evaluate_block(xlist, sdlist, evaluation_ids, ...
-  pffun, com_constant, stream_constant, options, cache)
+  pffun, worker_com_cache, stream_constant, options, cache)
 %EVALUATE_BLOCK ワーカーでブロック内タスクを連続実行
 % parfeval戦略でワーカーに割り当てられたブロックを処理
 %
@@ -469,7 +466,7 @@ function [flist_block, clist_block, pflist_block, vlist_block, ...
 %   sdlist - ブロック内候補の写像済み断面寸法
 %   evaluation_ids - ブロック内候補のSubstream番号
 %   pffun - ペナルティ関数ハンドル
-%   com_constant - 共有された共通構造体（Constant）
+%   worker_com_cache - worker配布用の共通構造体キャッシュ
 %   stream_constant - 共有された乱数ストリーム（Constant）
 %   options - オプション構造体
 %   cache - キャッシュ構造体
@@ -498,7 +495,7 @@ if block_size == 0
 end
 
 % Constantから実際の値を取得
-com = com_constant.Value;          % 共通構造体
+com = worker_com_cache.Value;      % 共通構造体
 stream = stream_constant.Value;    % 乱数ストリーム
 
 % 現在のグローバル乱数ストリームを保存して切り替え

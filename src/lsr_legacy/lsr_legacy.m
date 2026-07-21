@@ -125,6 +125,9 @@ print_status(start_iter);
 save_history();
 exitflag = PRM.EXITFLAG_MAXITER;
 
+% phase確定後の共通構造体をworkerへ一度だけ配布する
+com = prepare_lsr_worker_com(com, options.do_parallel);
+
 % ---　局所探索スタート ---
 for iter = start_iter+1:max_iter
   options.iter = iter;

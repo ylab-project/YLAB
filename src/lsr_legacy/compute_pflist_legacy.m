@@ -17,6 +17,11 @@ function [pflist, flist, clist, vlist, isexec] = ...
 numc = options.numc;     % 制約関数の数
 numvio = options.numvio;  % 制約違反の数
 lsize = size(xlist, 1);   % 評価する断面候補の数
+if isfield(com, 'constant')
+  use_worker_cache = isa(com.constant, 'parallel.pool.Constant');
+else
+  use_worker_cache = false;
+end
 
 % 出力配列を事前割当（メモリ効率化）
 flist = zeros(lsize, 1);         % 目的関数値
@@ -154,13 +159,15 @@ return
     return
   end
 
-  % 共有データを並列プール全体で共有（転送は1回のみ）
-  if isfield(options, 'com_constant') && ...
-      isa(options.com_constant, 'parallel.pool.Constant') && ...
-      isvalid(options.com_constant)
-    com_constant = options.com_constant;                % 事前生成された構造体データ
+  % 直接呼出しでもpool生成後のworkerキャッシュを保証する
+  if use_worker_cache
+    worker_com_cache = com.constant;
   else
-    com_constant = parallel.pool.Constant(com);         % フォールバックで生成
+    worker_com = com;
+    if isfield(worker_com, 'constant')
+      worker_com = rmfield(worker_com, 'constant');
+    end
+    worker_com_cache = parallel.pool.Constant(worker_com);
   end
   stream_constant = ...
     parallel.pool.Constant(@() RandStream('Threefry')); % 乱数ストリーム
@@ -178,7 +185,7 @@ return
   for iw = 1:num_blocks
     start_times{iw} = tic;
     futures(iw) = parfeval(pool, @evaluate_block, 5, blocks{iw}, ...
-      xlist, pffun, com_constant, stream_constant, options, cache);
+      xlist, pffun, worker_com_cache, stream_constant, options, cache);
   end
 
   % 実行時間計測開始
@@ -361,7 +368,7 @@ end
 %--------------------------------------------------------------------------
 function [flist_block, clist_block, pflist_block, vlist_block, ...
   isexec_block] = evaluate_block(indices, xlist, pffun, ...
-  com_constant, stream_constant, options, cache)
+  worker_com_cache, stream_constant, options, cache)
 %EVALUATE_BLOCK ワーカーでブロック内タスクを連続実行
 % parfeval戦略でワーカーに割り当てられたブロックを処理
 %
@@ -369,7 +376,7 @@ function [flist_block, clist_block, pflist_block, vlist_block, ...
 %   indices - このブロックが処理するインデックス配列
 %   xlist - 全断面候補の配列
 %   pffun - ペナルティ関数ハンドル
-%   com_constant - 共有された共通構造体（Constant）
+%   worker_com_cache - worker配布用の共通構造体キャッシュ
 %   stream_constant - 共有された乱数ストリーム（Constant）
 %   options - オプション構造体
 %   cache - キャッシュ構造体
@@ -398,7 +405,7 @@ if block_size == 0
 end
 
 % Constantから実際の値を取得
-com = com_constant.Value;          % 共通構造体
+com = worker_com_cache.Value;      % 共通構造体
 stream = stream_constant.Value;    % 乱数ストリーム
 
 % 現在のグローバル乱数ストリームを保存して切り替え

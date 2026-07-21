@@ -720,7 +720,7 @@ classdef SectionManager < handle
     
     %% 近傍探索系メソッド（委譲のみ）
     function [xlist, idvlist, sdlist] = generateNeighborhoodSet( ...
-        secmgr, xvar, isvar, options, initial_guess, com_constant)
+        secmgr, xvar, isvar, options, initial_guess, com)
     %generateNeighborhoodSet 近傍断面集合の生成
     %   [xlist, idvlist, sdlist] = generateNeighborhoodSet( ...
     %     secmgr, xvar, isvar, options) は、指定された変数値から
@@ -738,11 +738,11 @@ classdef SectionManager < handle
         initial_guess = [];
       end
       if nargin < 6
-        com_constant = [];
+        com = [];
       end
       [xlist, idvlist, sdlist] = secmgr.neighborSearcher ...
         .generateNeighborhoodSet(xvar, isvar, options, ...
-        initial_guess, com_constant);
+        initial_guess, com);
     end
     
     function [secdim, id] = findNearestSection(secmgr, xvar, ...
@@ -847,7 +847,7 @@ classdef SectionManager < handle
     end
     
     function [xlist, sdlist] = findNearestXList( ...
-        secmgr, xlist, options, initial_guess, com_constant)
+        secmgr, xlist, options, initial_guess, com)
     %findNearestXList 変数リストから最近傍断面を選択
     %   [xlist, sdlist] = findNearestXList(secmgr, xlist, options) は、
     %   変数値リストの各要素について最近傍の規格断面を選択します。
@@ -859,10 +859,10 @@ classdef SectionManager < handle
         initial_guess = [];
       end
       if nargin < 5
-        com_constant = [];
+        com = [];
       end
       [xlist, sdlist] = secmgr.neighborSearcher.findNearestXList( ...
-        xlist, options, initial_guess, com_constant);
+        xlist, options, initial_guess, com);
     end
     
     function [xvar, mapping_info] = findNearestXvar( ...

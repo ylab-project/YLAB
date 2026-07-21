@@ -1,9 +1,9 @@
 function [xlist, idvlist, sdlist] = generateNeighborhoodSet( ...
-  obj, xvar, isvar, options, initial_guess, com_constant)
+  obj, xvar, isvar, options, initial_guess, com)
 %generateNeighborhoodSet - 近傍断面集合を生成
 %
 %   [xlist, idvlist, sdlist] = generateNeighborhoodSet(...
-%     obj, xvar, isvar, options, initial_guess, com_constant) は、
+%     obj, xvar, isvar, options, initial_guess, com) は、
 %   指定された変数値から近傍断面の集合を生成する。
 %
 %   入力引数:
@@ -12,7 +12,7 @@ function [xlist, idvlist, sdlist] = generateNeighborhoodSet( ...
 %     isvar         - 変数の有効フラグ [nxvar×1]
 %     options       - 共通オプション
 %     initial_guess - 共通基点（.x、.secdim）。省略可能
-%     com_constant  - worker配布済みcom。省略可能
+%     com           - worker用constantを持つ共通構造体。省略可能
 %
 %   出力引数:
 %     xlist   - 近傍断面の変数値リスト [nlist×nxvar]
@@ -28,7 +28,7 @@ if nargin < 5
   initial_guess = [];
 end
 if nargin < 6
-  com_constant = [];
+  com = [];
 end
 
 % 変数タイプ配列を取得
@@ -45,12 +45,15 @@ idvlist_(1:nvar) = struct('up', [], 'dw', []);
 
 % 並列処理フラグの確認（デフォルトはfalse）
 do_parallel = isfield(options, 'do_parallel') && options.do_parallel;
-use_constant = do_parallel && isa(com_constant, 'parallel.pool.Constant');
+use_worker_cache = do_parallel && isstruct(com) && ...
+  isfield(com, 'constant') && ...
+  isa(com.constant, 'parallel.pool.Constant');
 
 % worker配布済みcom、通常の並列処理、逐次処理を切り替える。
-if use_constant
+if use_worker_cache
+  worker_com_cache = com.constant;
   parfor idvar = 1:nvar
-    worker_com = com_constant.Value; %#ok<PFBNS>
+    worker_com = worker_com_cache.Value; %#ok<PFBNS>
     worker_searcher = worker_com.secmgr.neighborSearcher;
     if ~isvar(idvar)
       xcell{idvar} = xvar;
@@ -125,7 +128,7 @@ idvlist = idvlist(ia);
 
 % 最近傍断面に調整し、同じ写像で得た断面寸法を保持
 [xlist, sdlist] = obj.findNearestXList(xlist, options, ...
-  initial_guess, com_constant);
+  initial_guess, com);
 
 return
 end

@@ -53,6 +53,7 @@ consider_column_diameter_gap = copts.consider_column_diameter_gap;
 consider_slenderness_ratio = copts.consider_slenderness_ratio;
 consider_joint_bearing_strength = copts.consider_joint_bearing_strength;
 secmgr.idphase = options.idphase;
+com = prepare_lsr_worker_com(com, options.do_parallel);
 
 resume_rng_state = [];
 if ~isempty(history)
@@ -150,14 +151,6 @@ end
 history = ensure_lsr_timing(history);
 exitflag = PRM.EXITFLAG_MAXITER;
 
-% --- 並列プール共有データの事前生成 ---
-pool = gcp('nocreate');
-if ~isempty(pool)
-  com_constant = parallel.pool.Constant(com);
-else
-  com_constant = com;
-end
-
 % ---　局所探索スタート ---
 for iter = start_iter+1:max_iter+1
   previous_iter = iter-1;
@@ -207,7 +200,7 @@ for iter = start_iter+1:max_iter+1
     end
     initial_guess = struct('x', xvar, 'secdim', result.secdim);
     [xlist, idvlist, sdlist] = secmgr.generateNeighborhoodSet( ...
-      xvar, isvar, options, initial_guess, com_constant);
+      xvar, isvar, options, initial_guess, com);
     x_neighborhood = xlist;
     sd_neighborhood = sdlist;
     if collect_lsr_timing
@@ -290,11 +283,12 @@ for iter = start_iter+1:max_iter+1
       n_cgsr_in = size(xlist_slr, 1);
       cgsr_sdlist = zeros(size(result.secdim, 1), ...
         size(result.secdim, 2), n_cgsr_in);
-      use_constant = options.do_parallel && ...
-        isa(com_constant, 'parallel.pool.Constant');
-      if use_constant
+      use_worker_cache = options.do_parallel && ...
+        isa(com.constant, 'parallel.pool.Constant');
+      if use_worker_cache
+        worker_com_cache = com.constant;
         parfor il = 1:n_cgsr_in
-          worker_com = com_constant.Value;
+          worker_com = worker_com_cache.Value; %#ok<PFBNS>
           cgsr_sdlist(:, :, il) = ...
             worker_com.secmgr.findNearestSection( ...
             xlist_slr(il, :), options, initial_guess);
@@ -355,7 +349,7 @@ for iter = start_iter+1:max_iter+1
     sd_neighborhood(:, :, reuse_index(is_reused));
   if any(~is_reused)
     [~, missing_sdlist] = secmgr.findNearestXList( ...
-      xlist(~is_reused, :), options, initial_guess, com_constant);
+      xlist(~is_reused, :), options, initial_guess, com);
     candidate_sdlist(:, :, ~is_reused) = missing_sdlist;
   end
   sdlist = candidate_sdlist;
@@ -368,8 +362,7 @@ for iter = start_iter+1:max_iter+1
     stage_timer = tic;
   end
   [pflist, flist, clist, vlist, isexec] = ...
-    compute_pflist(pffun, xlist, com_constant, options, cache, ...
-    [], sdlist);
+    compute_pflist(pffun, xlist, com, options, cache, [], sdlist);
   if collect_lsr_timing
     time_evaluation = toc(stage_timer);
   end
