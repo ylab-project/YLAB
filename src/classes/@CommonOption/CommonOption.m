@@ -223,6 +223,11 @@ classdef CommonOption
     do_legacy_output (1,1) logical = false
   end
 
+  properties (Dependent)
+    % lsfr_diagnostic_file が指定されているか（診断収集ゲート）
+    has_lsfr_diagnostic
+  end
+
   methods
     function obj = CommonOption()
     %CommonOption - コンストラクタ
@@ -233,6 +238,17 @@ classdef CommonOption
     %   出力引数:
     %     obj - CommonOptionインスタンス
       obj.coptions = ConstraintOption();
+    end
+
+    function value = get.has_lsfr_diagnostic(obj)
+    %get.has_lsfr_diagnostic - 診断収集ゲートの取得
+    %
+    %   value = get.has_lsfr_diagnostic(obj) は、lsfr_diagnostic_file が
+    %   指定されているか（非空か）を論理値で返す。
+    %
+    %   出力引数:
+    %     value - 診断ファイル指定時に true (1,1 logical)
+      value = ~isempty(obj.lsfr_diagnostic_file);
     end
 
     function validate(obj)

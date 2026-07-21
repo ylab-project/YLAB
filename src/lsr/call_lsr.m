@@ -9,6 +9,9 @@ story = com.story;
 floor = com.floor;
 max_idphase = min(options.maxphase, com.sectionList.getMaxIdPhase() + 1);
 
+% 診断ロガーを今回実行の設定へ初期化する（診断ファイル未指定なら無効）
+init_logger(options.lsfr_diagnostic_file);
+
 % 上下限値
 lb = secmgr.lb;
 ub = secmgr.ub;
