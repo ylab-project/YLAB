@@ -171,12 +171,12 @@ return
     if exist('resume', 'var')
       trials_history = resume.history;
       if size(trials_history, 1) < n1 || size(trials_history, 2) < n2
-        trials_history(n1,n2) = struct(history);
+        trials_history(n1, n2) = struct(history);
       end
-      trials_history = trials_history(1:n1,1:n2);
+      trials_history = trials_history(1:n1, 1:n2);
     else
       trials_history = struct(history);
-      trials_history(n1,n2) = struct(history);
+      trials_history(n1, n2) = struct(history);
     end
     return
   end

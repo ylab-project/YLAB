@@ -55,5 +55,3 @@ for i=1:size(mat,1)
 end
 
 end
-
-
