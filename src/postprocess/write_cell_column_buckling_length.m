@@ -13,7 +13,7 @@ function [cblhead, cblbody] = write_cell_column_buckling_length( ...
 %
 %   出力引数:
 %     cblhead - 表のヘッダ行セル配列 [3×14]
-%     cblbody - 表のボディ行セル配列 [nnc×14]
+%     cblbody - 表のボディ行セル配列 [nrow×14]
 
 % 定数
 nnc = com.num.nominal_column;
@@ -73,8 +73,10 @@ for i = 1:nstory
   for iy = 1:nbly
     for ix = 1:nblx
       for iz = 1:nblz
+        % SS7互換: 断面算定対象外の柱（RC柱等）は選択から除外
         inc = iccc(idnm2story==ist & idnm2x(:,1)==ix ...
-          & idnm2y(:,1)==iy & idnm2z(:,1)==iz);
+          & idnm2y(:,1)==iy & idnm2z(:,1)==iz ...
+          & nominal_column.is_allowable_stress(:));
         if isempty(inc)
           continue
         end
@@ -114,6 +116,9 @@ for i = 1:nstory
     end
   end
 end
+
+% 空行を削除
+cblbody = cblbody(1:irow,:);
 
 return
 end

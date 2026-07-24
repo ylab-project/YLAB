@@ -34,7 +34,7 @@ msdim = secdim(idm2s, :);
 mstype = stype(idm2s);
 dfn = result.dfn;
 fbn = result.fbn;
-fcn = result.fcn;
+fcn_display = result.fcnDisplay;
 A = result.msprop.A;
 Asc = result.msprop.Asc;
 Asy = result.msprop.Asy;
@@ -262,10 +262,13 @@ for i = 1:nstory
         % λx ≷ λy で対の方向の lbc_nominal を選択
         % λx > λy → y方向梁の補剛、λy > λx → x方向梁の補剛
         if lambday(im1) > lambdaz(im1)
-          lbc_sel = lbc_nominal.y(inc, :);
+          lbc_sel = lbc_nominal.y;
         else
-          lbc_sel = lbc_nominal.x(inc, :);
+          lbc_sel = lbc_nominal.x;
         end
+        lbc_count = lbc_sel.count(inc);
+        lbc_is = lbc_sel.is(inc);
+        lbc_ie = lbc_sel.ie(inc);
 
         % 部材長 + 中央 X 応力（値は未出力）
         irow = irow + 1;
@@ -276,8 +279,8 @@ for i = 1:nstory
         % 方向ヘッダ + 補剛数 + 柱脚 X 応力
         irow = irow + 1;
         write_direction_label(irow);
-        if lbc_sel.count > 1
-          sccbody{irow, 7} = sprintf('補剛数 %d', lbc_sel.count - 1);
+        if lbc_count > 1
+          sccbody{irow, 7} = sprintf('補剛数 %d', lbc_count - 1);
         end
         write_stress_row(irow, '柱脚', lfcx(ic1, 1), stress_spec_bot_x, ...
           1, ilx);
@@ -285,8 +288,8 @@ for i = 1:nstory
         % Lk/h + Lb2 + <Y>柱頭 応力
         irow = irow + 1;
         write_lkh_label(irow, ic1);
-        if lbc_sel.count > 1
-          sccbody{irow, 7} = sprintf('Lb2 %.0f', lbc_sel.ie);
+        if lbc_count > 1
+          sccbody{irow, 7} = sprintf('Lb2 %.0f', lbc_ie);
         end
         write_stress_row(irow, '<Y>柱頭', lfcy(ic2, 2), ...
           stress_spec_top_y, 1, jly);
@@ -294,8 +297,8 @@ for i = 1:nstory
         % Lk + Lb1 + 中央 Y 応力（値は未出力）
         irow = irow + 1;
         write_lk_label(irow, im1);
-        if lbc_sel.count > 1
-          sccbody{irow, 7} = sprintf('Lb1 %.0f', lbc_sel.is);
+        if lbc_count > 1
+          sccbody{irow, 7} = sprintf('Lb1 %.0f', lbc_is);
         end
         sccbody{irow, 10} = '中央';
         sccbody{irow, ncol} = PRM.CONT_MARKER;
@@ -796,12 +799,14 @@ return
   %write_fcl_label - 長期側許容圧縮応力度 fcL ラベルを col 2 に書く
   %
   %   write_fcl_label(irow_) は、長期側許容圧縮応力度
-  %   fcn(inm, 1, 1) を col 2 に 'fcL <値>' として書き込む。
-  %   外側スコープの sccbody, fcn, inm を共有する。
+  %   fcn_display(inm, 1, 1) を col 2 に 'fcL <値>' として書き込む。
+  %   引張置換前の fc を表示する（SS7出力編7.3.11）。
+  %   外側スコープの sccbody, fcn_display, inm を共有する。
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
-    sccbody{irow_, 2} = sprintf('fcL  %.0f', ceil_abs(fcn(inm, 1, 1), 0));
+    fcl_ = ceil_abs(fcn_display(inm, 1, 1), 0);
+    sccbody{irow_, 2} = sprintf('fcL  %.0f', fcl_);
     return
   end
 
@@ -809,12 +814,14 @@ return
   %write_fcs_label - 短期側許容圧縮応力度 fcS ラベルを col 2 に書く
   %
   %   write_fcs_label(irow_) は、短期側許容圧縮応力度
-  %   fcn(inm, 1, 2) を col 2 に 'fcS <値>' として書き込む。
-  %   外側スコープの sccbody, fcn, inm を共有する。
+  %   fcn_display(inm, 1, 2) を col 2 に 'fcS <値>' として書き込む。
+  %   引張置換前の fc を表示する（SS7出力編7.3.11）。
+  %   外側スコープの sccbody, fcn_display, inm を共有する。
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
-    sccbody{irow_, 2} = sprintf('fcS  %.0f', ceil_abs(fcn(inm, 1, 2), 0));
+    fcs_ = ceil_abs(fcn_display(inm, 1, 2), 0);
+    sccbody{irow_, 2} = sprintf('fcS  %.0f', fcs_);
     return
   end
 
