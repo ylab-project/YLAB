@@ -20,9 +20,7 @@ output = options.outputfile;
 secmgr = com.secmgr;
 section = com.section;
 member = com.member;
-baseline = com.baseline;
 node = com.node;
-story = com.story;
 floor = com.floor;
 
 % 断面関連
@@ -30,12 +28,12 @@ secb = com.section.brace;
 stype = com.section.property.type;
 
 %% 解析
-[cvec, result] = analysis_constraint(xvar, com, options);
-[fval, fdetail, cost] = objective_lsr(xvar, secmgr, ...
-  baseline, node, section, member, story, floor, options);
+[cvec, result] = analysis_constraint_xvar(xvar, com, options);
 
 % 最適解
 secdim = result.secdim;
+[fval, fdetail, cost] = objective_lsr(secdim, secmgr, node, ...
+  section, member, floor);
 
 % 初期解
 if ~isempty(options.x0)
@@ -102,7 +100,7 @@ write_table(fout, '節点座標(構造心)', nchead, ncbody, true);
 
 %% 柱梁断面リスト
 [gshead, gsbody, cshead, csbody] = write_cell_section_list(...
-  xvar, com, options);
+  secdim, com, options);
 write_table(fout, '柱断面リスト', cshead, csbody, true);
 write_table(fout, '梁断面リスト', gshead, gsbody, true);
 

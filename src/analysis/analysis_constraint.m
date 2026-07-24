@@ -1,18 +1,18 @@
 function [cvec, result, restoration] = analysis_constraint( ...
-  xvar, com, options, secdim)
+  xvar, secdim, com, options)
 %analysis_constraint - 構造解析を実行し制約条件を評価する
 %
 %   [cvec, result, restoration] =
-%     analysis_constraint(xvar, com, options) は、
+%     analysis_constraint(xvar, secdim, com, options) は、
 %   フレーム解析を実行し、許容応力度比・層間変形・幅厚比等の
 %   制約を評価して制約値ベクトルを返す。評価対象の制約は
 %   options.coptions で制御する。
 %
 %   入力引数:
 %     xvar    - 設計変数ベクトル [nvar×1]
+%     secdim  - xvar から写像済みの断面寸法 [nsec×7]
 %     com     - 共通データ構造体
 %     options - 解析オプション構造体
-%     secdim  - 写像済み断面寸法。省略可能
 %
 %   出力引数:
 %     cvec        - 制約値ベクトル [1×ncon]（正の値が制約違反）
@@ -20,11 +20,12 @@ function [cvec, result, restoration] = analysis_constraint( ...
 %     restoration - 復元用データ構造体
 %
 %   備考:
-%     - 関連関数: analysis_frame, eval_nominal_allowable_stress_ratio
-
-if nargin < 4
-  secdim = [];
-end
+%     - xvar と secdim は同一評価点の整合ペアであることを前提とし、
+%       本関数では対応検査も再写像も行わない。写像は呼出し側の責務
+%       とする。設計変数だけを持つ境界では analysis_constraint_xvar
+%       を使う。
+%     - 関連関数: analysis_constraint_xvar, analysis_frame,
+%       eval_nominal_allowable_stress_ratio
 
 % 共通定数の取得
 nsec = com.nsec;                              % 断面数
@@ -75,11 +76,11 @@ coptions = options.coptions;                  % 制約オプション
 xvar = xvar(:);                               % 設計変数を列ベクトルに
 
 %% マトリクス解析
-[msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, vix, ...
-  viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, dfn0, ...
+[msprop, dvec, dnode, felement, stn, stcn, Mc, C, vix, viy, ...
+  rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, dfn0, ...
   state, sw, lf, lr, lmem, lnm, lb, Iy, Iz, gphiI, gphiAs, ...
   gphiAn, cphiI, cbs, baseline, node, story, floor, Cn, ...
-  nomgc] = analysis_frame(xvar, com, options, secdim);
+  nomgc] = analysis_frame(secdim, com, options);
 lm = lmem.stiff;
 lm_weight = lmem.weight;
 

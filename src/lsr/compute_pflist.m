@@ -1,20 +1,20 @@
 function [pflist, flist, clist, vlist, isexec] = ...
-  compute_pflist(pffun, xlist, com, options, cache, ...
-  evaluation_ids, sdlist)
+  compute_pflist(pffun, xlist, sdlist, com, options, cache, ...
+  evaluation_ids)
 %COMPUTE_PFLIST 候補断面を並列評価
 % 概要: 複数の候補断面を並列実行戦略を用いて効率的に評価。
 %       戦略はタスク数とワーカー数に基づいて自動選択される。
 % 構文: [pflist, flist, clist, vlist, isexec] = ...
-%        compute_pflist(pffun, xlist, com, options, cache,
-%        evaluation_ids, sdlist)
+%        compute_pflist(pffun, xlist, sdlist, com, options, cache,
+%        evaluation_ids)
 % 入力:
 %   pffun          - ペナルティ関数ハンドル
 %   xlist          - 候補断面配列 [lsize×nvar]
+%   sdlist - xlistと対の写像済み断面寸法 [nsec×7×lsize]
 %   com - 共通構造体（worker配布用com.constantを含む）
 %   options - オプション構造体（並列戦略、表示設定等）
 %   cache   - キャッシュ構造体（既計算結果の再利用）
 %   evaluation_ids - 候補ごとの安定したSubstream番号（省略可）
-%   sdlist - 候補別の写像済み断面寸法 [nsec×7×lsize]（省略可）
 % 出力:
 %   pflist - ペナルティ付き目的関数値 [lsize×1]
 %   flist  - 純粋な目的関数値 [lsize×1]
@@ -28,11 +28,8 @@ function [pflist, flist, clist, vlist, isexec] = ...
 numc = options.numc;                          % 制約関数の数（スカラー）
 numvio = options.numvio;                      % 制約違反の数（スカラー）
 lsize = size(xlist, 1);                       % 評価する断面候補の数
-if nargin < 6 || isempty(evaluation_ids)
+if nargin < 7 || isempty(evaluation_ids)
   evaluation_ids = (1:lsize)';
-end
-if nargin < 7
-  sdlist = [];
 end
 if isfield(com, 'constant')
   use_worker_cache = isa(com.constant, 'parallel.pool.Constant');
@@ -104,14 +101,9 @@ return
     % タスクIDごとに異なる乱数系列を使用（再現性の保証）
     stream.Substream = evaluation_ids(id);
 
-    if isempty(sdlist)
-      candidate_secdim = [];
-    else
-      candidate_secdim = sdlist(:, :, id);
-    end
     [flist(id), clist(id, :), pflist(id), vlist(id, :), ...
-      isexec(id)] = compute_individual(xlist(id, :), pffun, ...
-      com, options, cache, candidate_secdim);
+      isexec(id)] = compute_individual(xlist(id, :), ...
+      sdlist(:, :, id), pffun, com, options, cache);
   end
 
   % 元の乱数ストリームに戻す
@@ -145,14 +137,9 @@ return
       stream = stream_constant.Value;
       prev_stream = RandStream.setGlobalStream(stream);
       stream.Substream = evaluation_ids(id);
-      if isempty(sdlist)
-        candidate_secdim = [];
-      else
-        candidate_secdim = sdlist(:, :, id);
-      end
       [flist(id), clist(id, :), pflist(id), vlist(id, :), ...
-        isexec(id)] = compute_individual(xlist(id, :), pffun, ...
-        com, options, cache, candidate_secdim);
+        isexec(id)] = compute_individual(xlist(id, :), ...
+        sdlist(:, :, id), pffun, com, options, cache);
       RandStream.setGlobalStream(prev_stream);
     end
   else
@@ -162,14 +149,9 @@ return
       prev_stream = RandStream.setGlobalStream(stream);
       stream.Substream = evaluation_ids(id);
       worker_com = worker_com_cache.Value; %#ok<PFBNS>
-      if isempty(sdlist)
-        candidate_secdim = [];
-      else
-        candidate_secdim = sdlist(:, :, id);
-      end
       [flist(id), clist(id, :), pflist(id), vlist(id, :), ...
-        isexec(id)] = compute_individual(xlist(id, :), pffun, ...
-        worker_com, options, cache, candidate_secdim);
+        isexec(id)] = compute_individual(xlist(id, :), ...
+        sdlist(:, :, id), pffun, worker_com, options, cache);
       RandStream.setGlobalStream(prev_stream);
     end
   end
@@ -223,13 +205,8 @@ return
   % 各ブロックをワーカーに非同期投入
   for iw = 1:num_blocks
     start_times{iw} = tic;
-    if isempty(sdlist)
-      block_secdim = [];
-    else
-      block_secdim = sdlist(:, :, blocks{iw});
-    end
     futures(iw) = parfeval(pool, @evaluate_block, 5, ...
-      xlist(blocks{iw}, :), block_secdim, ...
+      xlist(blocks{iw}, :), sdlist(:, :, blocks{iw}), ...
       evaluation_ids(blocks{iw}), pffun, worker_com_cache, ...
       stream_constant, options, cache);
   end
@@ -352,17 +329,17 @@ end
 
 %--------------------------------------------------------------------------
 function [fval, cvec, pfval, vio, isexec] = compute_individual( ...
-  xvar, pffun, com, options, cache, secdim)
+  xvar, secdim, pffun, com, options, cache)
 %COMPUTE_INDIVIDUAL 単一の候補断面を評価
-% 概要: 与えられた設計変数に対して制約評価と目的関数計算を実行。
+% 概要: 与えられた評価ペアに対して制約評価と目的関数計算を実行。
 %       キャッシュが有効な場合は既計算結果を再利用。
 % 入力:
 %   xvar    - 設計変数ベクトル [1×nvar]
+%   secdim  - xvarと対の写像済み断面寸法 [nsec×7]
 %   pffun   - ペナルティ関数ハンドル
 %   com     - 共通構造体
 %   options - オプション構造体
 %   cache   - キャッシュ構造体
-%   secdim  - 写像済み断面寸法。省略可能
 % 出力:
 %   fval   - 目的関数値（スカラー）
 %   cvec   - 制約関数値 [1×numc]
@@ -370,17 +347,11 @@ function [fval, cvec, pfval, vio, isexec] = compute_individual( ...
 %   vio    - 制約違反量 [1×numvio]
 %   isexec - 実行フラグ（true=新規計算, false=キャッシュ）
 
-if nargin < 6
-  secdim = [];
-end
-
 % 共通構造体から必要なデータを取得
 secmgr = com.secmgr;
 section = com.section;
 member = com.member;
-baseline = com.baseline;
 node = com.node;
-story = com.story;
 floor = com.floor;
 
 % キャッシュ検索
@@ -402,12 +373,8 @@ end
 
 % キャッシュミスの場合は新規計算
 if isempty(id)
-  if isempty(secdim)
-    secdim = secmgr.findNearestSection(xvar, options);
-  end
-  cvec = analysis_constraint(xvar, com, options, secdim);
-  fval = objective_lsr(xvar, secmgr, baseline, node, section, ...
-    member, story, floor, options, secdim);
+  cvec = analysis_constraint(xvar, secdim, com, options);
+  fval = objective_lsr(secdim, secmgr, node, section, member, floor);
   isexec = true;
 end
 
@@ -507,15 +474,10 @@ for k = 1:block_size
   % 全戦略で同じSubstreamを使用することで結果の一貫性を保つ
   stream.Substream = evaluation_ids(k);
 
-  if isempty(sdlist)
-    candidate_secdim = [];
-  else
-    candidate_secdim = sdlist(:, :, k);
-  end
   [flist_block(k), clist_block(k, :), ...
     pflist_block(k), vlist_block(k, :), isexec_block(k)] = ...
-    compute_individual(xlist(k, :), pffun, com, ...
-    options, cache, candidate_secdim);
+    compute_individual(xlist(k, :), sdlist(:, :, k), pffun, ...
+    com, options, cache);
 end
 
 % 元の乱数ストリームに戻す

@@ -1,31 +1,27 @@
-function [fval, fdetail, cost] = objective_lsr(xvar, ...
-  secmgr, ~, node, section, member, ~, floor, options, secdim)
+function [fval, fdetail, cost] = objective_lsr(secdim, ...
+  secmgr, node, section, member, floor)
 %objective_lsr - 断面最適化の目的関数（鉄骨コスト）
 %
-%   [fval, fdetail, cost] = objective_lsr(xvar,
-%   secmgr, ~, node, section, member, ~,
-%   floor, options) は、
-%   設計変数 xvar に対応する断面寸法から部材重量・
-%   コストを算出し、目的関数値を返す。
+%   [fval, fdetail, cost] = objective_lsr(secdim, secmgr,
+%   node, section, member, floor) は、写像済み断面寸法から
+%   部材重量・コストを算出し、目的関数値を返す。
 %
 %   入力引数:
-%     xvar    - 設計変数ベクトル
+%     secdim  - 写像済み断面寸法 [nsec×7]
 %     secmgr  - SectionManager オブジェクト
 %     node    - 節点データ構造体
 %     section - 断面データ構造体
 %     member  - 部材データ構造体
 %     floor   - 床データ構造体
-%     options - 計算オプション構造体
-%     secdim  - 写像済み断面寸法。省略可能
 %
 %   出力引数:
 %     fval    - 総コスト [スカラ]
 %     fdetail - 部位別の重量・コスト詳細 [構造体]
 %     cost    - 積算用データ [構造体]
-
-if nargin < 10
-  secdim = [];
-end
+%
+%   備考:
+%     - 断面写像は呼出し側の責務とする。設計変数だけを持つ境界では
+%       objective_lsr_xvar を使う。
 
 % 共通配列
 stype = secmgr.idsec2stype;
@@ -43,9 +39,6 @@ column_base = section.column_base;
 column_base_list = secmgr.column_base_list;
 
 % 断面積の計算
-if isempty(secdim)
-  secdim = secmgr.findNearestSection(xvar, options);
-end
 sprop = calc_secprop(secdim, stype, [], secmgr);
 A = sprop.A;
 Am = A(idm2s);

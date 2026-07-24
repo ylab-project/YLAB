@@ -72,13 +72,12 @@ xlist = [];
 secdim = secmgr.findNearestSection(xvar, options);
 msdim = secdim(idm2s,1:4);
 sprop = calc_secprop(secdim, stype, scallop, secmgr);
-msprop = sprop(idm2s,:);
 
 % 部材の諸元
-A = msprop.A;
-Iz = msprop.Iz;
-Zy = msprop.Zy;
-Zpy = msprop.Zpy;
+A = sprop.A(idm2s);
+Iz = sprop.Iz(idm2s);
+Zy = sprop.Zy(idm2s);
+Zpy = sprop.Zpy(idm2s);
 % HAf = msdim(:,1)./(msdim(:,2).*msdim(:,4));
 
 % 材料定数

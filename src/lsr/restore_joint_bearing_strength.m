@@ -88,10 +88,9 @@ xlist = [];
 secdim = secmgr.findNearestSection(xvar, options);
 msdim = secdim(idm2s, 1:4);
 sprop = calc_secprop(secdim, stype, scallop, secmgr);
-msprop = sprop(idm2s,:);
 
 % 部材の諸元
-Zpy = msprop.Zpy;
+Zpy = sprop.Zpy(idm2s);
 
 % 材料定数
 F = secmgr.extractMemberMaterialF(secdim, matF);
@@ -185,8 +184,7 @@ stype = secmgr.idsec2stype;
 secdim = secmgr.findNearestSection(xvar, options);
 msdim = secdim(idm2s, 1:4);
 sprop = calc_secprop(secdim, stype, scallop, secmgr);
-msprop = sprop(idm2s, :);
-Zpy = msprop.Zpy;
+Zpy = sprop.Zpy(idm2s);
 F = secmgr.extractMemberMaterialF(secdim, matF);
 grade_mem = secmgr.extractMemberMaterialGrade(secdim, matGrade);
 

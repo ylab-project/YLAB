@@ -23,14 +23,11 @@ warning('off','MATLAB:print:ContentTypeImageSuggested');
 secmgr = com.secmgr;
 section = com.section;
 member = com.member;
-baseline = com.baseline;
 node = com.node;
-% 解析
-story = com.story;
 floor = com.floor;
-[fval, fdetail] = objective_lsr(xvar, secmgr, baseline, node, ...
-  section, member, story, floor, options);
-[cvec, result] = analysis_constraint(xvar, com, options);
+% 解析
+[~, result] = analysis_constraint_xvar(xvar, com, options);
+fval = objective_lsr(result.secdim, secmgr, node, section, member, floor);
 % TODO: とりあえず
 com.baseline = result.baseline;
 com.node = result.node;
@@ -100,7 +97,7 @@ append(ch, LineBreak());
 fprintf('.');
 
 % --- 断面リスト ---
-sec = report_section_dimensions(xvar, com, result, options);
+sec = report_section_dimensions(com, result, options);
 append(ch, sec); fprintf('.');
 append(ch, PageBreak()); 
 

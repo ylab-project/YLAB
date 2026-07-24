@@ -1,5 +1,22 @@
 function [gshead, gsbody, cshead, csbody] = write_cell_section_list(...
-  xvar, com, options)
+  secdim, com, options)
+%write_cell_section_list - 柱梁断面リストのセル配列を生成する
+%
+%   [gshead, gsbody, cshead, csbody] =
+%     write_cell_section_list(secdim, com, options) は、断面寸法から
+%   梁・柱の断面リスト表を生成する。secdim が空の場合は、寸法値の
+%   代わりに設計変数名を表示する。
+%
+%   入力引数:
+%     secdim  - 写像済み断面寸法 [nsec×7]。空なら変数名を表示
+%     com     - 共通データ構造体
+%     options - オプション構造体
+%
+%   出力引数:
+%     gshead - 梁断面リストの見出し行
+%     gsbody - 梁断面リストの本体
+%     cshead - 柱断面リストの見出し行
+%     csbody - 柱断面リストの本体
 
 % 共通定数
 nstory = com.nstory;
@@ -7,18 +24,12 @@ nstory = com.nstory;
 % 共通配列
 secg = com.section.girder;
 secc = com.section.column;
-secmgr = com.secmgr;
 seclist = com.sectionList.list;
 story = com.story;
 ids2var = com.section.property.idvar;
 vname = com.design.variable.name;
 gstype = com.section.girder.type;
 cstype = com.section.column.type;
-
-% 断面寸法の計算
-if ~isempty(xvar)
-  secdim = secmgr.findNearestSection(xvar, options);
-end
 
 if isempty(options.output_girder_list_label)
   [grname, iddd] = unique(secg.name,'stable');
@@ -59,7 +70,7 @@ for igr = 1:ngr
       if secg.idstory(ig)==ist && istarget(ig)
         gshead{1,igr+1} = secg.name{ig};
         is = secg.idsec(ig);
-        if isempty(xvar)
+        if isempty(secdim)
           iv = ids2var(is,:);
           sdim = sprintf('%s, %s, %s, %s', vname{iv(1:4)});
         else
@@ -113,7 +124,7 @@ for icr = 1:ncr
       if secc.idstory(ic)==ist && istarget(ic)
         cshead{1,icr+1} = secc.name{ic};
         is = secc.idsec(ic);
-        if isempty(xvar)
+        if isempty(secdim)
           iv = ids2var(is,:);
           sdim = sprintf('%s, %s', vname{iv(1:2)});
         else

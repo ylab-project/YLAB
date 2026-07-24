@@ -79,14 +79,13 @@ nmg = sum(member.property.type==PRM.GIRDER);
 % 断面計算
 secdim = secmgr.findNearestSection(xvar, options);
 sprop = calc_secprop(secdim, stype, scallop, secmgr);
-mprop = sprop(idm2s,:);
-A = mprop.A;
-Iy = mprop.Iy;
+A = sprop.A(idm2s);
+Iy = sprop.Iy(idm2s);
 phiI = ones(nmg,1);
 phiI(comp_effect==1) = 1.3;
 phiI(comp_effect==2) = 1.5;
 Iy(mtype==PRM.GIRDER) = Iy(mtype==PRM.GIRDER).*phiI;
-Iz = mprop.Iz;
+Iz = sprop.Iz(idm2s);
 
 % 材料定数
 ids2slist = SectionManager.getSectionListMapping(secdim);

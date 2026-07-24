@@ -1,6 +1,7 @@
 function [x, fval, com] = call_ga(com, options)
 % --- common ---
 secmgr = com.secmgr;
+section = com.section;
 member = com.member;
 node = com.node;
 story = com.story;
@@ -18,7 +19,7 @@ else
   x0 = secmgr.generateRandomXvar(0, lm, options);
 end
 x0 = x0(:)';
-cvec0 = analysis_constraint(x0, com, options);
+cvec0 = analysis_constraint_xvar(x0, com, options);
 
 % サイズ
 nvar = com.nvar;
@@ -100,8 +101,8 @@ return
     end
     fval = zeros(npop,1);
     parfor i=1:npop
-      fval(i) = objective_lsr(xmat(i,:), lm, secmgr, ...
-        node, member, story, floor, options);
+      fval(i) = objective_lsr_xvar(xmat(i,:), secmgr, node, ...
+        section, member, floor, options);
     end
     return
   end
@@ -114,7 +115,7 @@ return
     end
     c = zeros(npop,nc);
     parfor i=1:npop
-      c(i,:) = analysis_constraint(xmat(i,:), com, options);
+      c(i,:) = analysis_constraint_xvar(xmat(i,:), com, options);
     end
     % c = c*1000;
     ceq = [];

@@ -35,18 +35,21 @@ end
 
 % 初期ペナルティ係数
 options.idphase = max_idphase;
-fub = objective_lsr(ub, secmgr, baseline, node, section, ...
-  member, story, floor, options);
-flb = objective_lsr(lb, secmgr, baseline, node, section, ...
-  member, story, floor, options);
+% ub/lb の断面を idphase 設定後に1回ずつ写像し、ペナルティ係数と
+% 制約チェックで共有する（_xvar ラッパ内の再写像を避ける）
+secdim_ub = secmgr.findNearestSection(ub, options);
+secdim_lb = secmgr.findNearestSection(lb, options);
+fub = objective_lsr(secdim_ub, secmgr, node, section, member, floor);
+flb = objective_lsr(secdim_lb, secmgr, node, section, member, floor);
 f0 = (fub+flb)/2;
 
-% 最大断面での制約チェック
-[cvec_ub, result_ub] = analysis_constraint(ub, com, options);
-check_max_section_violation(cvec_ub, result_ub, options);
+% 最大断面での制約チェック（限定結果から制約メタデータを取得する）
+[cvec, result, ~] = analysis_constraint(ub, secdim_ub, com, options);
+check_max_section_violation(cvec, result, options);
 
-% LSR全体で不変の制約数を共通構造体へ保存する
-com.ncon = result_ub.ncon;
+% LSR全体で不変の制約数と制約ラベルを共通構造体へ保存する
+com.ncon = result.ncon;
+com.conlabel = result.conlabel;
 
 % 初期解
 if ~isempty(options.x0)

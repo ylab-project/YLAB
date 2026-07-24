@@ -1,26 +1,24 @@
-function [msprop, secdim, dvec, dnode, felement, stn, stcn, Mc, C, ...
-  vix, viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, ...
-  dfn0, state, sw, lf, lr, lmem, lnm, lbnm, Iy0, Iz0, ...
-  gphiI, gphiAs, gphiAn, cphiI, cbs, baseline, node, ...
-  story, floor, Cn, nomgc] = analysis_frame( ...
-  xvar, com, options, mapped_secdim)
+function [msprop, dvec, dnode, felement, stn, stcn, Mc, C, ...
+  vix, viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, dfn0, state, ...
+  sw, lf, lr, lmem, lnm, lbnm, Iy0, Iz0, gphiI, gphiAs, gphiAn, cphiI, ...
+  cbs, baseline, node, story, floor, Cn, nomgc] = analysis_frame( ...
+  secdim, com, options)
 %analysis_frame - 骨組のマトリクス解析本体（剛性組立・変位・応力算定）
 %
-%   [msprop, secdim, ...] = analysis_frame(xvar, com, options) は、
-%   断面変数 xvar と共通オブジェクト com から、部材断面性能・剛性行列を
-%   組み立て、荷重ケースごとの変位解析・部材応力算定・重ね合わせを行い、
+%   [msprop, ...] = analysis_frame(secdim, com, options) は、
+%   確定済みの断面寸法 secdim と共通オブジェクト com から、部材断面性能・
+%   剛性行列を組み立て、荷重ケースごとの変位解析・部材応力算定・
+%   重ね合わせを行い、
 %   公称部材レベルの設計応力度および関連諸元を算出する。引張ブレースの
 %   圧縮除去および支点浮き上がりの収束ループを内部に含む。
 %
 %   入力引数:
-%     xvar    - 断面変数ベクトル（最適化設計変数）
+%     secdim  - 解析に使用する断面寸法 [nsec x ncol] mm
 %     com     - 共通オブジェクト（節点・部材・断面・材料情報を保持）
-%     options       - 計算オプション構造体
-%     mapped_secdim - 写像済み断面寸法。省略可能
+%     options - 計算オプション構造体
 %
 %   出力引数:
 %     msprop   - 部材断面性能の構造体（A, Iy, Iz, E, F 等）
-%     secdim   - 解析で使用された断面寸法 [nsec x ncol] mm
 %     dvec     - 自由度別変位ベクトル [ndf x nlc]
 %     dnode    - 節点変位（剛床補正後） [nnode x 6 x nlc]
 %     felement - 等価節点荷重（要素荷重起因） [nnode x 6 x nlc]
@@ -161,25 +159,13 @@ yr = com.node.yr;
 fnode = com.fnode;  % (nnode, 6, nlc)
 faddnode = com.faddnode;  % (nnode, 6, nlc)
 
-%% ---
-if nargin < 4
-  mapped_secdim = [];
-end
-if (options.discretization)
-  if isempty(mapped_secdim)
-    secdim = secmgr.findNearestSection(xvar, options);
-  else
-    secdim = mapped_secdim;
-  end
-  ids2slist = SectionManager.getSectionListMapping(secdim);
-else
-  % TODO:要見直し
-  % mewfs = [Ho(Hn) Bo(Bn) two(twn) tfo(tfn) zeros(length(tfn),1)];
-  % mehss = [Do(Dn) to(tn) zeros(length(tn),1)];
-end
+%% 断面諸元
+ids2slist = SectionManager.getSectionListMapping(secdim);
 sprop = calc_secprop(secdim, stype, scallop, secmgr);
-sprop.F = secmgr.extractSectionMaterialF(secdim, matF);
-msprop = sprop(idm2s,:);
+msprop = structfun(@(values) values(idm2s,:), sprop, ...
+  'UniformOutput', false);
+Fs = secmgr.extractSectionMaterialF(secdim, matF);
+msprop.F = Fs(idm2s);
 msdim = secdim(idm2s,:);
 A = msprop.A;
 Asc = msprop.Asc;
@@ -225,16 +211,12 @@ Em(stype(idm2s) == PRM.TB) = PRM.ES;
 
 % 結果の保存
 msprop.E = Em;
-% msprop.F = Fm;  % 既に108行目で設定済み
 msprop.pr = prm;
 msprop.G = Gm;
 msprop.isSN = isSNm;
 msprop.steel_grade = steel_grade_m;
 msprop.idmaterial = idm2mat;
 msprop.material_name = material_name_m;
-
-% 構造体への変換
-msprop = table2struct(msprop,"ToScalar",true);
 
 % 設計応力割増
 sec_stress_factor = secmgr.getSectionStressFactor(ids2slist);

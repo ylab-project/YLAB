@@ -30,9 +30,7 @@ section = com.section;
 member = com.member;
 % member_girder = com.member.girder;
 % member_property = com.member.girder;
-baseline = com.baseline;
 node = com.node;
-story = com.story;
 floor = com.floor;
 isvar = com.design.variable.isvar;
 
@@ -73,8 +71,11 @@ if do_restration
 end
 
 % 制約評価（構造解析）
-[cvec, result] = analysis_constraint(xvar, com, options);
-fval = objfun(xvar);
+% restoration 後の xvar に対応する断面を1回だけ写像し、制約評価と
+% 目的関数評価で共有する（_xvar ラッパ内の二重写像を避ける）
+secdim = secmgr.findNearestSection(xvar, options);
+cvec = analysis_constraint(xvar, secdim, com, options);
+fval = objective_lsr(secdim, secmgr, node, section, member, floor);
 cache = initialize_cache();
 save_cache(xvar, fval, cvec);
 if ~isempty(resume_rng_state)
@@ -90,7 +91,7 @@ nc = length(cvec);
 nvio = nc;
 
 mx = size(xvar,2);
-clabel = result.conlabel;
+clabel = com.conlabel;
 
 % --- ペナルティ係数設定 ---
 muvec = mu*ones(nvio, 1);
@@ -176,7 +177,8 @@ for iter = start_iter+1:max_iter+1
   % end
 
   % 解析結果の更新
-  [cvec, result, restoration] = analysis_constraint(xvar, com, options);
+  [cvec, result, restoration] = analysis_constraint_xvar( ...
+    xvar, com, options);
   cxl = result.cxl;
   % st = restoration.st;
   % stc = restoration.stc;
@@ -185,7 +187,7 @@ for iter = start_iter+1:max_iter+1
   viy = restoration.viy;
 
   % [~, ~, ~, ~, st, stc, ~, C, vix, viy] = ...
-  %   analysis_frame(xvar, com, options);
+  %   analysis_frame(secdim, com, options);
 
   if do_lsfr
     [xlist, pflist, flist, clist, vlist, isexec, nlist0, ...
@@ -361,7 +363,7 @@ for iter = start_iter+1:max_iter+1
     stage_timer = tic;
   end
   [pflist, flist, clist, vlist, isexec] = ...
-    compute_pflist(pffun, xlist, com, options, cache, [], sdlist);
+    compute_pflist(pffun, xlist, sdlist, com, options, cache);
   if collect_lsr_timing
     time_evaluation = toc(stage_timer);
   end
@@ -392,8 +394,6 @@ hist_x = history.xvar;
 hist_f = history.fval;
 hist_v = history.vio;
 [xopt, ~, fopt, vopt] = find_best_point(hist_x, hist_f, hist_v);
-% fopt_ = objfun(xopt);
-cvec = analysis_constraint(xopt, com, options);
 maxvio = max(vopt);%
 fprintf(1,'\t 目的関数値:%6.1f 違反量:%6.3f 計算時間:%6.1f[sec])\n', ...
   fopt, maxvio, time);
@@ -445,12 +445,6 @@ return
         end
       otherwise
     end
-  end
-%--------------------------------------------------------------------------
-  function fval = objfun(xvar)
-    fval = objective_lsr(xvar, secmgr, baseline, node, ...
-      section, member, story, floor, options);
-    return
   end
 %--------------------------------------------------------------------------
 % function muvec = initialize_muvec(mu)

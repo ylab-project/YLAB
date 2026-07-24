@@ -1,4 +1,4 @@
-function section = report_section_dimensions(xvar ,com, result, options)
+function section = report_section_dimensions(com, result, options)
 import mlreportgen.report.*
 import mlreportgen.dom.*
 import mlreportgen.utils.*
@@ -16,7 +16,7 @@ append(section, para);
 
 % ヘッダと本体
 [gshead, gsbody, cshead, csbody] = write_cell_section_list(...
-  xvar, com, options);
+  result.secdim, com, options);
 
 % --- 梁断面リスト ---
 maxcols = 4;
