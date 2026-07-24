@@ -22,9 +22,9 @@ function [lbc_nominal, lbc_nominal_bk] = calc_nominal_lb_column( ...
 %     idmc2m         - 柱セグメント→全部材番号
 %
 %   出力引数:
-%     lbc_nominal    - 控除前テーブル [nnmc×4 table]
-%     lbc_nominal_bk - 控除後テーブル [nnmc×4 table]
-%       共通フィールド:
+%     lbc_nominal    - 控除前補剛間隔 [nnmc×4 double]
+%     lbc_nominal_bk - 控除後補剛間隔 [nnmc×4 double]
+%       列順: is, ie, max, count
 %         is:    開始端補剛間隔（最下端区間 = Lb1）
 %         ie:    終了端補剛間隔（最上端区間 = Lb2）
 %         max:   最大補剛間隔
@@ -33,12 +33,8 @@ function [lbc_nominal, lbc_nominal_bk] = calc_nominal_lb_column( ...
 nnmc = size(nominal_column.idmec, 1);
 idnmc2mc = nominal_column.idmec;
 
-[lbc_, lbc_bk_] = calc_with_bracing(lmc, lmc_bk, nnmc, ...
-  idnmc2mc, js, je, is_girder, onfg_col, idmc2m);
-
-vn = {'is','ie','max','count'};
-lbc_nominal = array2table(lbc_, 'VariableNames', vn);
-lbc_nominal_bk = array2table(lbc_bk_, 'VariableNames', vn);
+[lbc_nominal, lbc_nominal_bk] = calc_with_bracing(lmc, lmc_bk, ...
+  nnmc, idnmc2mc, js, je, is_girder, onfg_col, idmc2m);
 
 return
 end

@@ -1,6 +1,4 @@
-function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
-  fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, ...
-  id_center_sel, girder_axial_mask, fbn_by_fb1, nomgc] = ...
+function [stress_constraint, stress_result] = ...
   eval_nominal_allowable_stress_ratio(msdim, stn, stcn, A, Iy, Iz, ...
   Zyc, C, mtype, stype, isxdir, isydir, wgx, wgy, Em, Fm, ...
   idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, ...
@@ -8,17 +6,10 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
   col_idstory, onfg_x, onfg_y, Cn, nomgc, column_buckling_K)
 %eval_nominal_allowable_stress_ratio - 名目部材の許容応力度比を算定する
 %
-%   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij,
-%     fcn, fbn, fsn, ftn, kcx, kcy, lkx, lky, ration,
-%     bkinfo, id_center_sel, girder_axial_mask,
-%     fbn_by_fb1] = eval_nominal_allowable_stress_ratio(msdim, stn,
-%     stcn, A, Iy, Iz, C, mtype, stype, isxdir, isydir, wgx,
-%     wgy, Em, Fm, idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint,
-%     nominal, isgmirrored, idmg2ng, idmc2nc, options,
-%     beta, lcdir, col_idstory, onfg_x, onfg_y, Cn,
-%     nomgc, column_buckling_K) は、
-%   方向別に calc_buckling_length を2回呼び出して柱座屈長さ
-%   係数を算定し、許容応力度および各端部の許容応力度比を返す。
+%   [stress_constraint, stress_result] =
+%     eval_nominal_allowable_stress_ratio(...) は、方向別の柱座屈長さ、
+%   許容応力度比および5種類の応力制約を算定する。第2出力を要求した
+%   場合だけ、最終解析と帳票に必要な詳細結果を返す。
 %
 %   入力引数:
 %     msdim       - 部材断面寸法 [nme×ndim]
@@ -59,29 +50,30 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, ...
 %                         .Kx, .Ky [nmec×1]（NaN=自動計算）
 %
 %   出力引数:
-%     gri, grj, grc - 梁i/j端・中央の曲げ応力比 [nng×ncomb]
-%     cri, crj      - 柱i/j端の曲げ応力比 [nnc×ncomb]
-%     gsi, gsj      - 梁i/j端のせん断応力比 [nng×ncomb]
-%     csi, csj      - 柱i/j端のせん断応力比 [nnc×ncomb]
-%     bnij          - ブレース軸力比 [nnb×ncomb]
-%     fcn, fbn      - 許容圧縮・曲げ応力度 [nnm×npos×nlc]
-%     fsn, ftn      - 許容せん断・引張応力度 [nnm×2]
-%     kcx, kcy      - X/Y方向の座屈長さ係数 [nmc×1]
-%     lkx           - X方向座屈長さ [nme×1]
-%     lky           - Y方向座屈長さ（梁は補剛長）[nme×3]
-%     ration        - 位置・成分別応力比 [nnm×ncomp×nlc]
-%     bkinfo        - 座屈長さ係数の中間値 (struct)
-%                     .lbc_nominal.x / .y       : 控除前テーブル
-%                     .lbc_nominal.bk.x / .bk.y : 控除後テーブル
-%     id_center_sel - 梁中央位置の選択インデックス [nng×nlc]
-%     girder_axial_mask - S梁軸力考慮マスク (struct)
-%     fbn_by_fb1 - fb1式でfbが決定した位置 [nnm×npos×nlc]
-%     nomgc - 中央検定の採用応力度を追加した名目梁中央データ
+%     stress_constraint - 応力制約の集約値 (struct)
+%       .gr, .gs - 梁曲げ・せん断応力制約
+%       .cr, .cs - 柱曲げ・せん断応力制約
+%       .bn      - ブレース応力制約
+%     stress_result - 最終解析・帳票用の詳細結果 (struct)
+%       .gri～.bnij - 位置・ケース別応力制約
+%       .fcn, .fbn, .fsn, .ftn - 許容応力度
+%       .fcn_display - 引張置換前の許容圧縮応力度（fcL/fcS表示用）
+%       .kcx, .kcy, .lkx, .lky - 座屈長さ係数・座屈長さ
+%       .lambday, .lambdaz - 細長比
+%       .ration - 位置・成分別応力比
+%       .bkinfo, .lbc_nominal - 柱座屈の帳票用結果
+%       .id_center_sel - 梁中央位置の選択インデックス
+%       .girder_axial_mask - S梁軸力考慮マスク
+%       .fbn_by_fb1 - fb1式でfbが決定した位置
+%       .nomgc - 中央検定の採用応力度を追加した名目梁中央データ
 
 % 共通配列
 nme = length(mtype);
+nng = size(nominal.girder.idmeg, 1);
+nnc = size(nominal.column.idmec, 1);
 nmtype = nominal.property.mtype;
 idnm2m = nominal.property.idme;
+need_result = nargout == 2;
 idm2n1 = idm2n(:,1);
 idm2n2 = idm2n(:,2);
 
@@ -98,17 +90,23 @@ ilc_y = lcdir==PRM.EYP | lcdir==PRM.EYN;
 lg_bk_end = calc_buckling_girder_end_length(lnm, lm, mtype, ...
   idm2n1, idm2n2, nominal.girder);
 
-% X方向の座屈長さ係数
-[lk_x, kcx, bkinfox] = calc_buckling_length(Iy, mtype, idm2n1, ...
-  idm2n2, isxdir, wgx, lg_bk_end, lnm, lm, lm_bk_x, Em, ...
-  mejoint(:,[1 2]), nominal, idmc2nc, options, beta, ilc_x, ...
-  col_idstory, onfg_x, column_buckling_K.Kx);
-
-% Y方向の座屈長さ係数
-[lk_y, kcy, bkinfoy] = calc_buckling_length(Iy, mtype, idm2n1, ...
-  idm2n2, isydir, wgy, lg_bk_end, lnm, lm, lm_bk_y, Em, ...
-  mejoint(:,[3 4]), nominal, idmc2nc, options, beta, ilc_y, ...
-  col_idstory, onfg_y, column_buckling_K.Ky);
+% 方向別の座屈長さを算定（完全結果時のみ第2出力の詳細を受け取る）
+bkx_out = cell(1, 1+need_result);
+[bkx_out{:}] = calc_buckling_length(Iy, mtype, idm2n1, idm2n2, ...
+  isxdir, wgx, lg_bk_end, lnm, lm, lm_bk_x, Em, mejoint(:,[1 2]), ...
+  nominal, idmc2nc, options, beta, ilc_x, col_idstory, onfg_x, ...
+  column_buckling_K.Kx);
+bky_out = cell(1, 1+need_result);
+[bky_out{:}] = calc_buckling_length(Iy, mtype, idm2n1, idm2n2, ...
+  isydir, wgy, lg_bk_end, lnm, lm, lm_bk_y, Em, mejoint(:,[3 4]), ...
+  nominal, idmc2nc, options, beta, ilc_y, col_idstory, onfg_y, ...
+  column_buckling_K.Ky);
+lk_x = bkx_out{1};
+lk_y = bky_out{1};
+if need_result
+  buckling_x = bkx_out{2};
+  buckling_y = bky_out{2};
+end
 
 % 座屈長さの組み立て
 lkx = lk_x;
@@ -116,29 +114,9 @@ lky = zeros(nme, 3);
 lky(:,1) = lk_y;
 lky(mtype==PRM.GIRDER,:) = lb(mtype==PRM.GIRDER,1:3);
 
-% bkinfo のマージ（既存フィールド名を保持）
-bkinfo.IcLc = bkinfox.IcLc;
-bkinfo.sumIcTop = bkinfox.sumIcTop;
-bkinfo.sumIcBot = bkinfox.sumIcBot;
-bkinfo.sumIgTopX = bkinfox.sumIgTop;
-bkinfo.sumIgBotX = bkinfox.sumIgBot;
-bkinfo.sumIgTopY = bkinfoy.sumIgTop;
-bkinfo.sumIgBotY = bkinfoy.sumIgBot;
-bkinfo.GAx = bkinfox.GA;
-bkinfo.GBx = bkinfox.GB;
-bkinfo.GAy = bkinfoy.GA;
-bkinfo.GBy = bkinfoy.GB;
-bkinfo.kcxRaw = bkinfox.kcRaw;
-bkinfo.kcyRaw = bkinfoy.kcRaw;
-bkinfo.kcx = bkinfox.kc;
-bkinfo.kcy = bkinfoy.kc;
-bkinfo.lbc_nominal.x = bkinfox.lbc_nominal;
-bkinfo.lbc_nominal.y = bkinfoy.lbc_nominal;
-bkinfo.lbc_nominal.bk.x = bkinfox.lbc_nominal_bk;
-bkinfo.lbc_nominal.bk.y = bkinfoy.lbc_nominal_bk;
-
-% 許容圧縮応力度の算定
-fc = calc_fc(A, Iy, Iz, clam, mtype, stype, Fm, lkx, lky);
+% 細長比と許容圧縮応力度の算定
+[lambday, lambdaz] = calc_lambda(A, Iy, Iz, mtype, stype, lkx, lky);
+fc = calc_fc(lambday, lambdaz, clam, Fm);
 
 % 曲げ許容応力度の算定
 mewfs = msdim(stype==PRM.WFS,:);
@@ -243,7 +221,11 @@ for ilc = 1:nlc_
   nomgc.ratioTotalCandidate(:, 2, ilc) = r4;
 end
 
-% 許容応力度比の算定。fcn/fbn はSS7帳票・検定用の確定値とする。
+% 表示用許容圧縮応力度（引張置換前）。SS7は引張時の検定にft
+% （計算編 式6.18）、fcL/fcS欄の表示にfcを使う（出力編7.3.11）。
+fcn_display = fcn;
+
+% 許容応力度比の算定。fcn/fbn は検定用の確定値（引張置換後）とする。
 [ration, fcn, fbn] = calc_nominal_allowable_stress_ratio( ...
   stn, stcn, ftn, fcn, fbn, fsn, nmtype, nomgc.Ncn, An, ...
   girder_axial_mask);
@@ -256,14 +238,80 @@ end
 ration = calc_nominal_allowable_stress_ratio_tension_brace(...
   ration, stn, nominal, stype, A, msdim);
 
-% 制約値の計算
+% 位置・ケース別の制約値
 [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij] = ...
   calc_nominal_stress_constraints(ration, nominal, girder_axial_mask);
 
-% ミラー配置
+% ミラー配置後に候補評価用の5制約群へ集約
 ngsub = nominal.girder.idsub(:,2);
 [gri, grj, gsi, gsj] = mirror_arrangement(isgmirrored, ...
   idmg2ng, ngsub, gri, grj, gsi, gsj);
+stress_constraint.gr = max(reshape([gri; grj; grc], nng, []), [], 2);
+stress_constraint.gs = max(reshape([gsi; gsj], nng, []), [], 2);
+stress_constraint.cr = max(reshape([cri; crj], nnc, []), [], 2);
+stress_constraint.cs = max(reshape([csi; csj], nnc, []), [], 2);
+stress_constraint.bn = max(bnij, [], 2);
+
+if ~need_result
+  return
+end
+
+% 位置・ケース別制約
+stress_result.gri = gri;
+stress_result.grj = grj;
+stress_result.grc = grc;
+stress_result.cri = cri;
+stress_result.crj = crj;
+stress_result.gsi = gsi;
+stress_result.gsj = gsj;
+stress_result.csi = csi;
+stress_result.csj = csj;
+stress_result.bnij = bnij;
+
+% 許容応力度と座屈長さ
+stress_result.fcn = fcn;
+stress_result.fcn_display = fcn_display;
+stress_result.fbn = fbn;
+stress_result.fsn = fsn;
+stress_result.ftn = ftn;
+stress_result.kcx = buckling_x.kc;
+stress_result.kcy = buckling_y.kc;
+stress_result.lkx = lkx;
+stress_result.lky = lky;
+stress_result.lambday = lambday;
+stress_result.lambdaz = lambdaz;
+stress_result.ration = ration;
+
+% 柱座屈長さ係数の帳票用中間値
+bkinfo.IcLc = buckling_x.IcLc;
+bkinfo.sumIcTop = buckling_x.sumIcTop;
+bkinfo.sumIcBot = buckling_x.sumIcBot;
+bkinfo.sumIgTopX = buckling_x.sumIgTop;
+bkinfo.sumIgBotX = buckling_x.sumIgBot;
+bkinfo.sumIgTopY = buckling_y.sumIgTop;
+bkinfo.sumIgBotY = buckling_y.sumIgBot;
+bkinfo.GAx = buckling_x.GA;
+bkinfo.GBx = buckling_x.GB;
+bkinfo.GAy = buckling_y.GA;
+bkinfo.GBy = buckling_y.GB;
+bkinfo.kcxRaw = buckling_x.kcRaw;
+bkinfo.kcyRaw = buckling_y.kcRaw;
+bkinfo.kcx = buckling_x.kcNominal;
+bkinfo.kcy = buckling_y.kcNominal;
+stress_result.bkinfo = bkinfo;
+
+% 柱補剛間隔は座屈係数中間値と分離する
+lbc_nominal.x = buckling_x.lbc_nominal;
+lbc_nominal.y = buckling_y.lbc_nominal;
+lbc_nominal.bk.x = buckling_x.lbc_nominal_bk;
+lbc_nominal.bk.y = buckling_y.lbc_nominal_bk;
+stress_result.lbc_nominal = lbc_nominal;
+
+% 梁中央検定と帳票用補助結果
+stress_result.id_center_sel = id_center_sel;
+stress_result.girder_axial_mask = girder_axial_mask;
+stress_result.fbn_by_fb1 = fbn_by_fb1;
+stress_result.nomgc = nomgc;
 
 return
 end

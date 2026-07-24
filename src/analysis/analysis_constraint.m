@@ -30,8 +30,6 @@ function [cvec, result, restoration] = analysis_constraint( ...
 % 共通定数の取得
 nsec = com.nsec;                              % 断面数
 nme = com.nme;                                % 部材数
-nng = size(com.nominal.girder.idmeg,1);      % 名目梁数
-nnc = size(com.nominal.column.idmec,1);      % 名目柱数
 
 % ID配列の取得
 idn2st = com.node.idstory;                    % 節点→層番号
@@ -151,18 +149,21 @@ frame_shear_ratio = calc_frame_shear_ratio(com, rs_analysis0, cxl, cyl, ...
   Q_nb, brace_in_story);
 
 %% 許容応力度比制約
-if coptions.consider_stress_ratio
+need_result = nargout == 2;
+do_stress_eval = coptions.consider_stress_ratio || need_result;
+% 応力制約とブレース分担率は評価しない場合の空値で初期化
+beta = [];
+gr = []; gs = []; cr = []; cs = []; bn = [];
+if do_stress_eval
   % ブレース水平力分担率の算出（出力階解決後の [story×lc]）
   beta = calc_brace_force_share_ratio(frame_shear_ratio);
 
   % ブレース・柱の座屈長さ用部材長を算出
-  % ブレース分は analysis_frame で算出済みの lmem.buckling を流用
   lm_bk_x = lm;
   lm_bk_y = lm;
   lm_bk_x(mtype==PRM.BRACE) = lmem.buckling(mtype==PRM.BRACE);
   lm_bk_y(mtype==PRM.BRACE) = lmem.buckling(mtype==PRM.BRACE);
   if options.column_member_length_type == 1
-    % 柱剛性表と同じ剛域長さを端部控除に使う
     lm_bk_x(mtype==PRM.COLUMN) = calc_column_buckling_segment_length( ...
       com.nominal.column, lm(mtype==PRM.COLUMN), lr.columnx);
     lm_bk_y(mtype==PRM.COLUMN) = calc_column_buckling_segment_length( ...
@@ -175,70 +176,58 @@ if coptions.consider_stress_ratio
   else
     Zyc = msprop.Zyf;
   end
-  [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij, fcn, fbn, ...
-    fsn, ftn, kcx, kcy, lkx, lky, ration, bkinfo, id_center_sel, ...
-    girderSectionAxialMask, fbn_by_fb1, nomgc] = ...
-    eval_nominal_allowable_stress_ratio(msdim, stn, stcn, A, Iy, Iz, ...
-    Zyc, C, mtype, mstype, isxdir_member, isydir_member, ...
-    wgx, wgy, Em, Fm, idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, ...
-    mejoint, nominal, isgmirrored, idmg2mng, idmc2mnc, options, ...
-    beta, lcdir, idmc2st, com.member.column.onfg_x, ...
-    com.member.column.onfg_y, Cn, nomgc, com.column_buckling_K);
+  % 完全結果を要求する場合だけ第2出力（詳細結果）を受け取る
+  stress_out = cell(1, 1+need_result);
+  [stress_out{:}] = eval_nominal_allowable_stress_ratio(msdim, stn, ...
+    stcn, A, Iy, Iz, Zyc, C, mtype, mstype, isxdir_member, ...
+    isydir_member, wgx, wgy, Em, Fm, idm2n, lb, lm, lm_bk_x, ...
+    lm_bk_y, lnm, mejoint, nominal, isgmirrored, idmg2mng, ...
+    idmc2mnc, options, beta, lcdir, idmc2st, ...
+    com.member.column.onfg_x, com.member.column.onfg_y, Cn, ...
+    nomgc, com.column_buckling_K);
+  stress_constraint = stress_out{1};
+  if need_result
+    stress_result = stress_out{2};
+  end
 
-  % S梁断面算定表の表示用採用ケース
-  tiebreak = zeros(1, size(gri, 2));
-  tiebreak(PRM.LT) = eps;
-  tiebreak(PRM.EXP) = eps;
-  tiebreak(PRM.EYP) = eps;
-  [~, girderSectionCase.ilc] = max(gri + tiebreak, [], 2);
-  [~, girderSectionCase.clc] = max(grc + tiebreak, [], 2);
-  [~, girderSectionCase.jlc] = max(grj + tiebreak, [], 2);
+  % 制約への組込みは制約オプションに従う
+  if coptions.consider_stress_ratio
+    gr = stress_constraint.gr + coptions.alfa_stress_ratio;
+    gs = stress_constraint.gs + coptions.alfa_stress_ratio;
+    cr = stress_constraint.cr + coptions.alfa_stress_ratio;
+    cs = stress_constraint.cs + coptions.alfa_stress_ratio;
+    bn = stress_constraint.bn + coptions.alfa_stress_ratio;
+  end
 
-  % S梁断面算定表の軸力検定表示有無
-  inm = nominal.girder.idnominal(:);
-  ilc = girderSectionCase.ilc(:);
-  clc = girderSectionCase.clc(:);
-  jlc = girderSectionCase.jlc(:);
-  sz = size(girderSectionAxialMask.i);
-  has_i = girderSectionAxialMask.i(sub2ind(sz, inm, ilc));
-  has_c = girderSectionAxialMask.c(sub2ind(sz, inm, clc));
-  has_j = girderSectionAxialMask.j(sub2ind(sz, inm, jlc));
-  girderSectionHasAxial = has_i | has_c | has_j;
+  if need_result
+    % 表示用ケース選択で使う梁応力比と軸力マスクだけ取り出す
+    % 他の応力・座屈結果は末尾で stress_result から直接代入する
+    gri = stress_result.gri;
+    grj = stress_result.grj;
+    grc = stress_result.grc;
+    girderSectionAxialMask = stress_result.girder_axial_mask;
 
-  % 正確な細長比を算出
-  [lambday, lambdaz] = calc_lambda(A, Iy, Iz, mtype, mstype, lkx, lky);
+    % S梁断面算定表の表示用採用ケース
+    tiebreak = zeros(1, size(gri, 2));
+    tiebreak(PRM.LT) = eps;
+    tiebreak(PRM.EXP) = eps;
+    tiebreak(PRM.EYP) = eps;
+    [~, girderSectionCase.ilc] = max(gri + tiebreak, [], 2);
+    [~, girderSectionCase.clc] = max(grc + tiebreak, [], 2);
+    [~, girderSectionCase.jlc] = max(grj + tiebreak, [], 2);
 
-  gr = max([reshape([gri; grj; grc],nng,[])],[],2) ...
-    +coptions.alfa_stress_ratio;
-  gs = max([reshape([gsi; gsj],nng,[])],[],2) + coptions.alfa_stress_ratio;
-  cr = max([reshape([cri; crj],nnc,[])],[],2) + coptions.alfa_stress_ratio;
-  cs = max([reshape([csi; csj],nnc,[])],[],2) + coptions.alfa_stress_ratio;
-  bn = max(bnij,[],2)+coptions.alfa_stress_ratio;
-else
-  lm_bk_x = lm;
-  lm_bk_y = lm;
-  beta = [];
-  gri = []; grj = []; grc = [];
-  cri = []; crj = [];
-  gsi = []; gsj = [];
-  csi = []; csj = []; bnij = [];
-  fcn = []; fbn = []; fsn = [];
-  fbn_by_fb1 = [];
-  kcx = []; kcy = [];
-  lkx = lm; lky = [lm lm lm];
-  lambday = []; lambdaz = []; ration = [];
-  bkinfo = []; id_center_sel = [];
-  girderSectionCase.ilc = [];
-  girderSectionCase.clc = [];
-  girderSectionCase.jlc = [];
-  girderSectionAxialMask.i = [];
-  girderSectionAxialMask.c = [];
-  girderSectionAxialMask.j = [];
-  girderSectionHasAxial = [];
-  gr = []; gs = []; cr = []; cs = []; bn = [];
-
+    % S梁断面算定表の軸力検定表示有無
+    inm = nominal.girder.idnominal(:);
+    ilc = girderSectionCase.ilc(:);
+    clc = girderSectionCase.clc(:);
+    jlc = girderSectionCase.jlc(:);
+    sz = size(girderSectionAxialMask.i);
+    has_i = girderSectionAxialMask.i(sub2ind(sz, inm, ilc));
+    has_c = girderSectionAxialMask.c(sub2ind(sz, inm, clc));
+    has_j = girderSectionAxialMask.j(sub2ind(sz, inm, jlc));
+    girderSectionHasAxial = has_i | has_c | has_j;
+  end
 end
-
 %% 層間変形角制約
 if coptions.consider_inter_story
   [condrift, drift_angle, drift_idcolumn, drift_dx, drift_dy, ...
@@ -275,10 +264,16 @@ end
 
 %% 幅厚比制約
 if coptions.consider_section_wt_ratio
-  [conwtg, conwtc, wtratio] = calc_wtratio(secdim, Fs, ...
-    idsrep2s, idsrep2stype, grank, crank, isSNsec, options);
-  conwtg = conwtg+coptions.alfa_section_wt_ratio;
-  conwtc = conwtc+coptions.alfa_section_wt_ratio;
+  % 完全結果を要求する場合だけ第3出力（判定ランク）を受け取る
+  wtout = cell(1, 2+need_result);
+  [wtout{:}] = calc_wtratio(secdim, Fs, idsrep2s, idsrep2stype, ...
+    grank, crank, isSNsec, options);
+  conwtg = wtout{1}+coptions.alfa_section_wt_ratio;
+  conwtc = wtout{2}+coptions.alfa_section_wt_ratio;
+  wtratio = [];
+  if need_result
+    wtratio = wtout{3};
+  end
 else
   conwtg = []; conwtc = []; wtratio = [];
 end
@@ -362,6 +357,19 @@ if nargout<2
   return
 end
 
+%% 制約メタデータ（限定結果と完全結果で共通）
+result.ncon = [length(gr) length(gs) length(cr) ...
+  length(cs) length(bn) length(congdef) ...
+  length(conwtg) length(conwtc) length(conslr) ...
+  length(conjbs) length(condrift) length(concgsr) ...
+  length(congapstd) length(conhgapvar) ...
+  length(conhgapsec) length(condgapvar) length(conhsmoothvar)];
+result.conlabel = {'梁曲げ応力', '梁せん断応力', '柱曲げ応力', ...
+  '柱せん断応力', 'ブレース応力', '梁たわみ', '梁幅厚比', ...
+  '柱幅厚比', '保有耐力横補剛', '保有耐力接合(仕口)', ...
+  '層間変形', '柱梁耐力比', '断面規格', '梁せい差-呼称', ...
+  '梁せい差-寸法', '柱外径', '梁せい分布'};
+
 %% 出力引数に応じた結果の設定
 if nargout==3
   restoration.slratio = slratio;
@@ -379,27 +387,16 @@ if nargout==3
   result.frame_shear_ratio = frame_shear_ratio;
   return
 end
-result.ncon = [length(gr) length(gs) length(cr) ...
-  length(cs) length(bn) length(congdef) ...
-  length(conwtg) length(conwtc) length(conslr) ...
-  length(conjbs) length(condrift) length(concgsr) ...
-  length(congapstd) length(conhgapvar) ...
-  length(conhgapsec) length(condgapvar) length(conhsmoothvar)];
-result.conlabel = {'梁曲げ応力', '梁せん断応力', '柱曲げ応力', ...
-  '柱せん断応力', 'ブレース応力', '梁たわみ', '梁幅厚比', ...
-  '柱幅厚比', '保有耐力横補剛', '保有耐力接合(仕口)', ...
-  '層間変形', '柱梁耐力比', '断面規格', '梁せい差-呼称', ...
-  '梁せい差-寸法', '柱外径', '梁せい分布'};
 result.gri = gri;
 result.grj = grj;
 result.grc = grc;
-result.cri = cri;
-result.crj = crj;
-result.gsi = gsi;
-result.gsj = gsj;
-result.csi = csi;
-result.csj = csj;
-result.bnij = bnij;
+result.cri = stress_result.cri;
+result.crj = stress_result.crj;
+result.gsi = stress_result.gsi;
+result.gsj = stress_result.gsj;
+result.csi = stress_result.csi;
+result.csj = stress_result.csj;
+result.bnij = stress_result.bnij;
 result.form = congdef;
 result.wid_thick = conwtg;
 result.wid_c = conwtc;
@@ -442,23 +439,19 @@ result.dfn = dfn;
 result.dfn0 = dfn0;
 result.stn = stn;
 result.stcn = stcn;
-result.fbn = fbn;
-result.fbnByFb1 = fbn_by_fb1;
-result.fcn = fcn;
-result.fsn = fsn;
-result.ftn = ftn;
-result.kcx = kcx;
-result.kcy = kcy;
-result.bkinfo = bkinfo;
-if isfield(bkinfo, 'lbc_nominal')
-  result.lbc_nominal = bkinfo.lbc_nominal;
-else
-  result.lbc_nominal = struct('x', [], 'y', [], 'bk', ...
-    struct('x', [], 'y', []));
-end
-result.lambday = lambday;
-result.lambdaz = lambdaz;
-result.ration = ration;
+result.fbn = stress_result.fbn;
+result.fbnByFb1 = stress_result.fbn_by_fb1;
+result.fcn = stress_result.fcn;
+result.fcnDisplay = stress_result.fcn_display;
+result.fsn = stress_result.fsn;
+result.ftn = stress_result.ftn;
+result.kcx = stress_result.kcx;
+result.kcy = stress_result.kcy;
+result.bkinfo = stress_result.bkinfo;
+result.lbc_nominal = stress_result.lbc_nominal;
+result.lambday = stress_result.lambday;
+result.lambdaz = stress_result.lambdaz;
+result.ration = stress_result.ration;
 result.dvec = dvec;
 result.dnode = dnode;
 result.rvec = rvec;
@@ -475,8 +468,8 @@ result.lr = lr;
 result.lm = lm;
 % ブレース部はSS7マニュアル3.8.1の内法長さ（座屈長算定用）
 result.lm_buckling = lmem.buckling;
-result.lkx = lkx;
-result.lky = lky;
+result.lkx = stress_result.lkx;
+result.lky = stress_result.lky;
 result.lm_weight = lm_weight;
 result.lm_nominal = lnm;
 lm_bk_nom_x = lm_bk_x;
@@ -501,11 +494,11 @@ result.cxl = cxl;
 result.cyl = cyl;
 result.felement = felement;
 result.state = state;
-result.id_center_sel = id_center_sel;
+result.id_center_sel = stress_result.id_center_sel;
 result.girderSectionCase = girderSectionCase;
 result.girderSectionAxialMask = girderSectionAxialMask;
 result.girderSectionHasAxial = girderSectionHasAxial;
-result.nomgc = nomgc;
+result.nomgc = stress_result.nomgc;
 return
 end
 

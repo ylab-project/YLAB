@@ -1,16 +1,14 @@
-function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
+function [lk, result] = calc_buckling_length(Iy, mtype, ...
   js, je, is_girder, wg, lg_end, lnm, lm, lm_bk, Em, ...
   mejoint, nominal, idmc2nc, options, beta, ilc, col_idstory, ...
   onfg, kcUser)
 %calc_buckling_length - 柱部材の座屈長さを計算する（1方向分）
 %
-%   [lk, kc, bkinfo] = calc_buckling_length(Iy,
-%   mtype, js, je, is_girder, wg, lg_end, lnm, lm,
-%   lm_bk, Em, mejoint, nominal, idmc2nc, options, beta, ilc,
-%   col_idstory, onfg, kcUser) は、
-%   構造骨組みにおける柱部材の座屈長さを算出する。
-%   呼び出し側で方向別の引数を準備し、本関数を
-%   X方向・Y方向それぞれ1回ずつ呼び出す。
+%   [lk, result] = calc_buckling_length(Iy, mtype, js, je, ...
+%     is_girder, wg, lg_end, lnm, lm, lm_bk, Em, mejoint, nominal, ...
+%     idmc2nc, options, beta, ilc, col_idstory, onfg, kcUser) は、
+%   構造骨組みにおける柱部材の座屈長さを算出する。第2出力を
+%   要求した場合だけ、座屈長さ係数と帳票用中間値を返す。
 %
 %   入力引数:
 %     Iy          - 断面2次モーメント [nme×1]
@@ -40,22 +38,27 @@ function [lk, kc, bkinfo] = calc_buckling_length(Iy, mtype, ...
 %
 %   出力引数:
 %     lk     - 座屈長さ [nme×1]
-%     kc     - 座屈長さ係数 [nmc×1]
-%     bkinfo - 中間値 (struct)
+%     result - 座屈長さ係数と帳票用中間値 (struct)
 
 % 定数
 nme = length(mtype);
 nnc = size(nominal.column.idmec,1);
 BK_MAX_IG_LG = 9999.99e3;  % 梁剛比上限 [mm3]
+need_result = nargout == 2;
 
 % ヤング係数比で補正
 Iy = Iy.*Em/max(Em);
 
 % 計算の準備
 nominal_column = nominal.column;
+% 名目柱ループの table 要素参照を避けるため配列へ退避する
+nc_idsub = nominal_column.idsub;
+nc_idmec = nominal_column.idmec;
 idmc2m = 1:nme;
 idmc2m = idmc2m(mtype==PRM.COLUMN)';
 Gast = zeros(1,nnc); Gbst = zeros(1,nnc);
+% 帳票用中間値はループ内で常時書き込み、末尾の result 組立だけを
+% need_result でガードする（ループ内の個別ガードを避ける）
 bk_IcLc = zeros(1,nnc);
 bk_sumIcTop = zeros(1,nnc);
 bk_sumIcBot = zeros(1,nnc);
@@ -78,9 +81,9 @@ immm = 1:nme;
 for inc = 1:nnc
 
   % 柱頭・柱脚の判定
-  idsub = nominal_column.idsub(inc,1:2);
+  idsub = nc_idsub(inc,1:2);
   nsub = idsub(2);
-  idmec = nominal_column.idmec(inc,1:nsub);
+  idmec = nc_idmec(inc,1:nsub);
   idme = idmc2m(idmec);
   ima = idme(nsub);     % 柱頭側部材番号
   imb = idme(1);        % 柱脚側部材番号
@@ -111,7 +114,7 @@ for inc = 1:nnc
     gcb = 0;
   end
 
-  % 中間値の保存
+  % 帳票用中間値の保存
   bk_IcLc(inc) = gc;
   bk_sumIcTop(inc) = gc + gca;
   bk_sumIcBot(inc) = gc + gcb;
@@ -161,8 +164,8 @@ if options.consider_column_buckling_length_factor
   kcn_raw = kcn;
   alpha = options.brace_share_threshold;
   for inc = 1:nnc
-    nsub = nominal_column.idsub(inc, 2);
-    idmec = nominal_column.idmec(inc, 1:nsub);
+    nsub = nc_idsub(inc, 2);
+    idmec = nc_idmec(inc, 1:nsub);
     ist = col_idstory(idmec);
     if any(ilc)
       bmin = min(beta(ist, ilc), [], 'all');
@@ -184,7 +187,7 @@ end
 % 通し柱は柱脚側部材（idmec(inc,1)）のユーザー指定値のみ参照する
 if ~isempty(kcUser)
   for inc = 1:nnc
-    imec_primary = nominal_column.idmec(inc, 1);
+    imec_primary = nc_idmec(inc, 1);
     userK = kcUser(imec_primary);
     if ~isnan(userK)
       kcn(inc) = userK;
@@ -193,26 +196,29 @@ if ~isempty(kcUser)
   end
 end
 
-% 結果の整理
+% 座屈長さの組み立て
 kc = kcn(idmc2nc(:,1));
-lbmax = lbc_nominal_bk.max(idmc2nc(:,1));
-
-% 非柱部材は lm_bk（控除後部材長）を座屈長とする（柱は次行で上書き）
+lbmax = lbc_nominal_bk(idmc2nc(:,1), 3);
 lk = lm_bk(:);
 lk(mtype==PRM.COLUMN) = kc.*lbmax;
 
-% 座屈長さ係数の中間値
-bkinfo.IcLc = bk_IcLc(:);
-bkinfo.sumIcTop = bk_sumIcTop(:);
-bkinfo.sumIcBot = bk_sumIcBot(:);
-bkinfo.sumIgTop = bk_sumIgTop(:);
-bkinfo.sumIgBot = bk_sumIgBot(:);
-bkinfo.GA = Gast(:);
-bkinfo.GB = Gbst(:);
-bkinfo.kcRaw = kcn_raw(:);
-bkinfo.kc = kcn(:);
-bkinfo.lbc_nominal = lbc_nominal;
-bkinfo.lbc_nominal_bk = lbc_nominal_bk;
+if ~need_result
+  return
+end
+
+% 座屈長さ係数と帳票用中間値
+result.kc = kc;
+result.kcNominal = kcn(:);
+result.IcLc = bk_IcLc(:);
+result.sumIcTop = bk_sumIcTop(:);
+result.sumIcBot = bk_sumIcBot(:);
+result.sumIgTop = bk_sumIgTop(:);
+result.sumIgBot = bk_sumIgBot(:);
+result.GA = Gast(:);
+result.GB = Gbst(:);
+result.kcRaw = kcn_raw(:);
+result.lbc_nominal = make_lbc_result(lbc_nominal);
+result.lbc_nominal_bk = make_lbc_result(lbc_nominal_bk);
 
 return
 %--------------------------------------------------------------
@@ -257,6 +263,21 @@ return
     end
     return
   end
+end
+
+%--------------------------------------------------------------
+function result = make_lbc_result(lbc)
+%make_lbc_result - 補剛間隔行列をstruct-of-arraysへ変換する
+%
+%   result = make_lbc_result(lbc) は、is、ie、max、countの列を持つ
+%   補剛間隔行列を、同名フィールドを持つ構造体へ変換する。
+
+result.is = lbc(:, 1);
+result.ie = lbc(:, 2);
+result.max = lbc(:, 3);
+result.count = lbc(:, 4);
+
+return
 end
 
 %--------------------------------------------------------------
