@@ -173,6 +173,11 @@ classdef CommonOption
       mustBeInteger} = 10
     lsfr_diagnostic_file (1,:) char = ''
 
+    % Fusion候補のseed並列生成方式（parfeval=既定, parfor=seed単位）
+    lsfr_fusion_parallel_method (1,:) char ...
+      {mustBeMember(lsfr_fusion_parallel_method, ...
+      {'parfeval', 'parfor'})} = 'parfeval'
+
     % 制約条件オプション
     coptions
 
