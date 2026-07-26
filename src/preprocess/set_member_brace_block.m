@@ -552,8 +552,8 @@ return
     % 中間節点配列の事前確保（既存節点採用分・新規生成分を統合）
     idnode_mid_array = zeros(n,1);
 
-    % K形中央位置は標準座標で判定する。採用後の解析座標は、
-    % 既存の node.x/y/z をそのまま使う。
+    % K形中央位置は通り心の標準座標値で判定する。採用後の
+    % 節点座標は、既存の node.x/y/z をそのまま使う。
     coord_std = calc_baseline_coord_std(span);
     cx_std = coord_std.x;
     cy_std = coord_std.y;
@@ -599,9 +599,20 @@ return
     iab_new = iab(ia_new);
     na_new = length(iab_new);
 
-    % 対象梁の取得と方向の判定（新規生成対象のみ）
+    % K形ブレース左右端点節点の取得（新規生成対象のみ）
+    idnode_k_L_ = idnode_k_L(ia_new);
+    idnode_k_R_ = idnode_k_R(ia_new);
+
+    % 中間節点の座標を先に確定する。分割対象の梁は確定した
+    % 位置から選ぶ。補間に必要な軸方向はブレース配置から
+    % 決まるため、梁を特定する前に求められる。
+    [x_mid, y_mid, z_mid, dz_mid, zs_mid] = ...
+      calc_kbrace_mid_node_coord(idnode_k_L_, idnode_k_R_, ...
+      idir(iab_new), x_mid_std_all(ia_new), y_mid_std_all(ia_new), ...
+      node);
+
+    % 対象梁の取得と方向一致の検証（新規生成対象のみ）
     idg = zeros(na_new,1);
-    girder_idir = zeros(na_new,1);
     for ia=1:na_new
       tid = iab_new(ia);
       % K上形：上階の梁、K下形：下階の梁を取得
@@ -612,29 +623,27 @@ return
       end
       idg_ = find_idgirder_from_idxyz(idx(tid,:), idy(tid,:), ...
         idz_girder, member_girder, [], baseline);
-      if numel(idg_) ~= 1 || idg_ <= 0
-        error('K形ブレース対象梁を一意に特定できません。');
+      % 検索結果はK形範囲に含まれる梁セグメントの列挙であり、
+      % 通し梁が複数区間に分かれていれば複数本になる。分割
+      % 対象は、中間節点位置を区間内部に含む1本を選ぶ。
+      idg(ia) = select_kbrace_girder_func(idg_(idg_ > 0), ...
+        x_mid(ia), y_mid(ia), member_girder, node, match_tol, ...
+        tid);
+      % 座標補間はブレースの idir、梁選択は梁自身の idir を
+      % 使う。両者の一致はアルゴリズムの前提であり、不一致は
+      % 内部構造の不整合として停止する。
+      if member_girder.idir(idg(ia)) ~= idir(tid)
+        error(['K形ブレース(番号%d)と対象梁の方向が一致' ...
+          'しません。'], tid);
       end
-      idg(ia) = idg_;
-      girder_idir(ia) = member_girder.idir(idg(ia));
     end
-
-    % K形ブレース左右端点節点の取得（新規生成対象のみ）
-    idnode_k_L_ = idnode_k_L(ia_new);
-    idnode_k_R_ = idnode_k_R(ia_new);
-
-    % 中間節点の解析座標を標準位置から補間する。
-    [x_mid, y_mid, z_mid, dz_mid, zs_mid] = ...
-      calc_kbrace_mid_node_coord(idnode_k_L_, idnode_k_R_, ...
-      girder_idir, x_mid_std_all(ia_new), y_mid_std_all(ia_new), ...
-      node);
 
     % 重複する中間節点の統合（同一位置は1つだけ作成）
     [~, idu2o, ido2u] = unique([idnode_k_L_ idnode_k_R_], ...
       'rows', 'stable');
 
-    % ユニーク梁の方向
-    girder_idir_unique = girder_idir(idu2o);
+    % 中間節点ごとの方向。梁との一致は上で検証済み
+    idir_unique = idir(iab_new(idu2o));
 
     % 中間節点番号の割り当て
     idnode_mid = (1:length(idu2o))' + nnode;
@@ -653,7 +662,7 @@ return
     % 通り線情報の設定とダミー通りの作成
     for iu=1:length(idu2o)
       tid = iab_new(idu2o(iu));
-      if girder_idir_unique(iu) == PRM.X
+      if idir_unique(iu) == PRM.X
         % X方向梁：X方向にダミー通り追加
         baseline.x = [baseline.x; baseline.x(idx(tid,1),:)];
         nx = size(baseline.x,1);
@@ -699,7 +708,7 @@ return
 
     % 新規梁（KBRACE2、右側）の通り情報を中間節点に合わせる
     for iu=1:length(idu2o)
-      if girder_idir_unique(iu) == PRM.X
+      if idir_unique(iu) == PRM.X
         % X方向梁：始点X通りをダミー通りに更新
         addgirder.idx(iu,1) = addnode.idx(iu);
         addgirder.coord_name{iu,1} = addnode.xname{iu};
@@ -716,7 +725,7 @@ return
     % 元の梁（KBRACE1、左側）の通り情報を中間節点に合わせる
     for iu=1:length(idu2o)
       ig = idg_unique(iu);
-      if girder_idir_unique(iu) == PRM.X
+      if idir_unique(iu) == PRM.X
         % X方向梁：終点X通りをダミー通りに更新
         member_girder.idx(ig,2) = addnode.idx(iu);
         member_girder.coord_name{ig,2} = addnode.xname{iu};
@@ -751,8 +760,32 @@ return
 
   function [x_mid, y_mid, z_mid, dz_mid, zs_mid] = ...
       calc_kbrace_mid_node_coord(idnode_left, idnode_right, ...
-      girder_idir_list, x_mid_std, y_mid_std, node_data)
-    %calc_kbrace_mid_node_coord - K形中間節点の解析座標を補間
+      idir_list, x_mid_std, y_mid_std, node_data)
+    %calc_kbrace_mid_node_coord - K形中間節点の座標を補間
+    %
+    %   [x_mid, y_mid, z_mid, dz_mid, zs_mid] = ...
+    %     calc_kbrace_mid_node_coord(idnode_left, idnode_right,
+    %       idir_list, x_mid_std, y_mid_std, node_data) は、
+    %   K形中間節点の座標を求める。K形中央は通り心の中点と
+    %   して決まる位置であり、梁方向の座標は標準座標値が
+    %   そのまま節点座標になる。t は中央位置を梁両端の間の
+    %   相対位置に換算した値で、梁方向以外の成分（直交方向
+    %   の寄り、レベル、階高）を同じ位置で内分するために使う。
+    %
+    %   入力引数:
+    %     idnode_left  - K形左端の節点番号 [n x 1]
+    %     idnode_right - K形右端の節点番号 [n x 1]
+    %     idir_list    - 補間軸の方向 [n x 1]（PRM.X / PRM.Y）
+    %     x_mid_std    - K形中央のx標準座標値 [n x 1]
+    %     y_mid_std    - K形中央のy標準座標値 [n x 1]
+    %     node_data    - 節点データ
+    %
+    %   出力引数:
+    %     x_mid  - 中間節点のx座標 [n x 1]
+    %     y_mid  - 中間節点のy座標 [n x 1]
+    %     z_mid  - 中間節点のz座標 [n x 1]
+    %     dz_mid - 中間節点のレベル調整量 [n x 1]
+    %     zs_mid - 中間節点の標準レベル [n x 1]
 
     n_mid = length(idnode_left);
     x_mid = zeros(n_mid,1);
@@ -766,7 +799,7 @@ return
     for i_mid=1:n_mid
       nL = idnode_left(i_mid);
       nR = idnode_right(i_mid);
-      if girder_idir_list(i_mid) == PRM.X
+      if idir_list(i_mid) == PRM.X
         p_std = x_mid_std(i_mid);
         a_struct = node_data.x(nL);
         b_struct = node_data.x(nR);
@@ -931,4 +964,68 @@ return
 
     return
   end
+end
+
+
+function idgirder = select_kbrace_girder_func(idgirder_list, ...
+  x_mid, y_mid, member_girder, node, match_tol, idbrace)
+%select_kbrace_girder_func - 中間節点位置を含む梁の選択
+%
+%   idgirder = select_kbrace_girder_func(idgirder_list, x_mid,
+%     y_mid, member_girder, node, match_tol, idbrace) は、
+%   K形ブレース範囲に含まれる梁セグメントから、確定済みの
+%   中間節点位置を区間内部に含む1本を選択する。中間節点位置
+%   が梁端と一致する場合は呼出し元の既存節点採用で処理済み
+%   のため、ここでは区間内部の包含だけを判定する。
+%
+%   入力引数:
+%     idgirder_list - 候補梁部材番号 [1 x k]
+%     x_mid         - 中間節点のx座標
+%     y_mid         - 中間節点のy座標
+%     member_girder - 梁部材データ
+%     node          - 節点データ
+%     match_tol     - 位置一致の許容差 [mm]
+%     idbrace       - 対象ブレース番号（診断用）
+%
+%   出力引数:
+%     idgirder - 分割対象の梁部材番号
+
+ncand = numel(idgirder_list);
+if ncand == 0
+  error('K形ブレース(番号%d)の対象梁が見つかりません。', idbrace);
+end
+
+is_inside = false(ncand,1);
+for ic=1:ncand
+  ig = idgirder_list(ic);
+  % 梁方向の軸で、両端節点の座標区間を求める
+  if member_girder.idir(ig) == PRM.X
+    cs = [node.x(member_girder.idnode1(ig)), ...
+      node.x(member_girder.idnode2(ig))];
+    p_mid = x_mid;
+  elseif member_girder.idir(ig) == PRM.Y
+    cs = [node.y(member_girder.idnode1(ig)), ...
+      node.y(member_girder.idnode2(ig))];
+    p_mid = y_mid;
+  else
+    error('梁(番号%d)の方向が不正です。', ig);
+  end
+  % 梁端と一致する場合は既存節点採用で処理済みのため、
+  % 区間内部の包含だけを判定する
+  is_inside(ic) = p_mid > min(cs) + match_tol && ...
+    p_mid < max(cs) - match_tol;
+end
+
+ninside = nnz(is_inside);
+if ninside == 0
+  error(['K形ブレース(番号%d)の中間節点位置を区間内部に' ...
+    '含む梁がありません。候補%d本。'], idbrace, ncand);
+end
+if ninside > 1
+  error(['K形ブレース(番号%d)の対象梁を一意に特定でき' ...
+    'ません。内包%d本。'], idbrace, ninside);
+end
+idgirder = idgirder_list(is_inside);
+
+return
 end
