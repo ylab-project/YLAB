@@ -166,15 +166,12 @@ for ing=1:nnmg
   end
 end
 
-% 通し梁判定
+% 通し梁判定。元梁が2本以上なら通し梁指定で連結されている。
+% K形分割は元梁を割るだけなので idmeg0 では1本に戻る
 isthrough = false(nnmg, 1);
 for i = 1:nnmg
   ncol_ = nnz(idmeg(i,:));
-  if ncol_ > 1
-    ids_ = idmeg(i, 1:ncol_);
-    isthrough(i) = ...
-      all(girder.type(ids_) == PRM.GIRDER_STANDARD);
-  end
+  isthrough(i) = numel(unique(idmeg0(i, 1:ncol_))) > 1;
 end
 
 % 断面グループ（代表部材から取得）

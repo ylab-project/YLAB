@@ -152,51 +152,18 @@ return
     segments = repmat(template, ng, 1);
     nseg = 0;
     nng = size(nominal_girder, 1);
+    % 名目梁1本を1行とする。通し梁は元梁境界で分けず、K形分割の
+    % 中間節点も表に出さない
     for ing_ = 1:nng
       ids_all = nominal_girder.idmeg(ing_, :);
       ids_all = ids_all(ids_all > 0);
       if isempty(ids_all)
         continue
       end
-      if is_report_through_girder(ing_)
-        nseg = nseg + 1;
-        segments(nseg) = make_segment(ing_, ids_all);
-      else
-        idorig = get_original_girder_ids(ing_, numel(ids_all));
-        ibeg = 1;
-        for k_ = 2:numel(ids_all)
-          if idorig(k_) ~= idorig(k_ - 1)
-            ids_ = ids_all(ibeg:k_ - 1);
-            nseg = nseg + 1;
-            segments(nseg) = make_segment(ing_, ids_);
-            ibeg = k_;
-          end
-        end
-        ids_ = ids_all(ibeg:end);
-        nseg = nseg + 1;
-        segments(nseg) = make_segment(ing_, ids_);
-      end
+      nseg = nseg + 1;
+      segments(nseg) = make_segment(ing_, ids_all);
     end
     segments = segments(1:nseg);
-
-    return
-  end
-
-  function tf = is_report_through_girder(ing_)
-  %is_report_through_girder - 通常通し梁の帳票単位かを返す
-    tf = has_table_field(nominal_girder, 'isthrough') ...
-      && nominal_girder.isthrough(ing_);
-
-    return
-  end
-
-  function idorig = get_original_girder_ids(ing_, nsub)
-  %get_original_girder_ids - 表示単位判定用の元梁番号を返す
-    if has_table_field(nominal_girder, 'idmeg0')
-      idorig = nominal_girder.idmeg0(ing_, 1:nsub);
-    else
-      idorig = nominal_girder.idmeg(ing_, 1:nsub);
-    end
 
     return
   end
