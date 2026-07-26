@@ -242,7 +242,7 @@ for i = 1:nng
   end
 end
 
-% 名目梁単位の補剛区間数（stiffening_lbの累積）
+% 名目梁単位の補剛区間数
 nstiff_nom = zeros(nng, 1);
 stiffening_n = nan(nng, 1);
 stiffening_lb_report = nan(nng, 4);
@@ -252,23 +252,31 @@ for ing = 1:nng
   lnom = lgmn(isubs(1));
   lbend_ = lbend_nom(ing, :);
   xc_ = xc_nom(ing, :);
+
+  % 中央検定区間。xcは中央補剛位置であり区間数とは独立に決まる
   xa = xc_(1);
   xb = lnom - xc_(2);
-  has_center_4 = all(~ismissing(lbend_)) && all(lbend_ > 0) ...
-    && all(~ismissing(xc_)) && all(xc_ >= 0) && xa < xb && xb <= lnom;
-  if has_center_4
+  if all(~ismissing(xc_)) && all(xc_ >= 0) && xa < xb && xb <= lnom
     xc_bounds_nom(ing, :) = [xa xb];
-    stiffening_n(ing) = 4;
-    % 帳票Lb1-4順: 入力 Lb_end=[左1 左2 右1 右2] の右ペアを反転
-    stiffening_lb_report(ing, :) = ...
-      [lbend_(1) lbend_(2) lbend_(4) lbend_(3)];
-    nstiff_nom(ing) = 5;
-    continue
   end
-  cum = cumsum(lbn(ing, :));
-  nint = find(cum >= lnom - 0.5, 1, 'first');
-  if isempty(nint)
-    nint = numel(cum) + ceil((lnom - cum(end)) / max(lbn(ing, :)));
+
+  if all(~ismissing(lbend_)) && all(lbend_ > 0)
+    % 横補剛の直接入力あり。SS7入力編 表9.9.1 の採用順に従い
+    % 左側1→右側1→左側2→右側2 で累積し名目梁長で打ち切る
+    nint = find(cumsum(lbend_([1 3 2 4])) >= lnom - 0.5, 1, 'first');
+    % 4間隔すべてを使っても名目梁長に届かない場合
+    is_lb_all_used = isempty(nint);
+    if is_lb_all_used
+      % 上限。連携CSVのLb欄は4つで、4間隔＋中央1区間の
+      % 5区間までしか表現できない
+      nint = 5;
+      stiffening_n(ing) = 4;
+      % 帳票Lb1-4順: 入力 Lb_end=[左1 左2 右1 右2] の右ペアを反転
+      stiffening_lb_report(ing, :) = lbend_([1 2 4 3]);
+    end
+  else
+    % 等間隔配置。lbnの左右は同値になる
+    nint = ceil(lnom / lbn(ing, 1));
   end
   nstiff_nom(ing) = nint;
 end
