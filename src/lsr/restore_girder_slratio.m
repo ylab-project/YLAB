@@ -1,5 +1,21 @@
-function xlist = restore_girder_slratio(...
-  xlist0, member, matF, restoration, secmgr, options)
+function xlist = restore_girder_slratio(xlist0, member, matF, ...
+  restoration, secmgr, options)
+%restore_girder_slratio - 横補剛制約を満たす梁断面候補を生成
+%
+%   xlist = restore_girder_slratio(xlist0, member, matF, ...
+%     restoration, secmgr, options) は、各候補の横補剛制約を
+%   満たす最寄りの梁断面を選び、復元後の設計変数候補を返す。
+%
+%   入力引数:
+%     xlist0 - 復元前の設計変数候補 [候補数×設計変数数]
+%     member - 部材情報構造体
+%     matF - 部材ごとの基準強度
+%     restoration - 横補剛制約の復元用データ
+%     secmgr - SectionManagerインスタンス
+%     options - 解析オプション
+%
+%   出力引数:
+%     xlist - 復元後の設計変数候補 [候補数×設計変数数]
 
 % 計算の準備
 [nlist0, nx] = size(xlist0);
@@ -21,15 +37,13 @@ else
 end
 if do_parallel
   parfor id=1:nlist0
-    xcell{id} = restore_individual(...
-      xlist0(id,:), member_girder, mstype, matF, ...
-      restoration, secmgr, options);
+    xcell{id} = restore_individual(xlist0(id,:), member_girder, ...
+      mstype, matF, restoration, secmgr, options);
   end
 else
   for id=1:nlist0
-    xcell{id} = restore_individual(...
-      xlist0(id,:), member_girder, mstype, matF, ...
-      restoration, secmgr, options);
+    xcell{id} = restore_individual(xlist0(id,:), member_girder, ...
+      mstype, matF, restoration, secmgr, options);
   end
 end
 
@@ -43,12 +57,30 @@ for id=1:nlist0
 end
 xlist = xlist(1:nlist,:);
 xlist = unique(xlist,'rows','stable');
+
 return
 end
 
 %--------------------------------------------------------------------------
-function xlist = restore_individual(...
-  xvar, member_girder, mstype, matF, restoration, secmgr, options)
+function xlist = restore_individual(xvar, member_girder, mstype, ...
+  matF, restoration, secmgr, options)
+%restore_individual - 1候補の横補剛制約を満たす梁断面を復元
+%
+%   xlist = restore_individual(xvar, member_girder, mstype, matF, ...
+%     restoration, secmgr, options) は、横補剛制約に違反する
+%   代表断面を、同じ断面リスト内の最寄りの許容断面へ置き換える。
+%
+%   入力引数:
+%     xvar - 復元前の設計変数 [1×設計変数数]
+%     member_girder - 梁部材情報構造体
+%     mstype - 部材ごとの断面種別
+%     matF - 部材ごとの基準強度
+%     restoration - 横補剛制約の復元用データ
+%     secmgr - SectionManagerインスタンス
+%     options - 解析オプション
+%
+%   出力引数:
+%     xlist - 復元後の設計変数候補 [0または1×設計変数数]
 
 % 共通配列(ID変換)
 idm2s = secmgr.idme2sec;
@@ -99,10 +131,10 @@ lbg = restoration.lbwfs;
 lmg = restoration.lmwfs;
 slr = restoration.slr;
 msdimg = msdim(mstype==PRM.WFS,:);
-conslr = calc_girder_stiffening(...
-  msdimg, Ag, Izg, Zyg, Zpyg, lbg, lmg, Fg, slr);
+conslr = calc_girder_stiffening(msdimg, Ag, Izg, Zyg, Zpyg, ...
+  lbg, lmg, Fg, slr);
 conslr = conslr+options.coptions.alfa_slenderness_ratio;
-if conslr>0
+if all(conslr <= 0)
   return
 end
 
@@ -148,12 +180,16 @@ for i=1:nstarget
     slri.istarget = repmat(slr_target(iwfs,:),n,1);
     slri.lb = repmat(slr_lb(iwfs,:),n,1);
     slri.lbmax = repmat(slr_lbmax(iwfs,:),n,1);
-    consr_ = calc_girder_stiffening(...
-      sdimlist, Alist, Izlist, Zylist, Zpylist, lbi, lmi, Fi, slri);
+    consr_ = calc_girder_stiffening(sdimlist, Alist, Izlist, ...
+      Zylist, Zpylist, lbi, lmi, Fi, slri);
     isok(:,j) = consr_<0;
   end
   isok = all(isok,2);
   sdimlist_ = sdimlist(isok,:);
+  % 許容断面がない代表断面は現在断面を維持する
+  if isempty(sdimlist_)
+    continue
+  end
   sdim_res = find_feasible_section(sdim_, sdimlist_);
 
   % 代表断面に変換
@@ -162,12 +198,26 @@ for i=1:nstarget
   secdim_res(idsec,:) = sdim_res;
 end
 xlist = secmgr.findNearestXvar(secdim_res, options);
+
 return
+
   function sdimcand_ = find_feasible_section(sdim_, sdimlist_)
+  %find_feasible_section - 現在断面に最も近い許容断面を選択
+  %
+  %   sdimcand_ = find_feasible_section(sdim_, sdimlist_) は、
+  %   許容断面の中から現在断面との寸法差が最小の断面を返す。
+  %
+  %   入力引数:
+  %     sdim_ - 現在断面の寸法 [1×4]
+  %     sdimlist_ - 許容断面の寸法と識別情報 [候補数×7]
+  %
+  %   出力引数:
+  %     sdimcand_ - 選択した断面の寸法と識別情報 [1×7]
+
     ddd = pdist2(sdim_, sdimlist_(:,1:4));
     [~,idcand] = min(ddd);
     sdimcand_ = sdimlist_(idcand,:);
+
+    return
   end
 end
-
-
