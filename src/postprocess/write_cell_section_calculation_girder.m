@@ -169,6 +169,9 @@ for i = 1:nstory
       idsub_nomgc = result.nomgc.idsub(ing, :);
       ig1 = idnm2mg(ing, idsub(1));
       im1 = idmg2m(ig1);
+      % slratio はH形梁のみを対象とし、その連番でインデックス
+      % される。梁番号から変換して引く
+      iwfs1 = girder.idmewfs(ig1);
       ig2 = idnm2mg(ing, idsub(2));
       im2 = idmg2m(ig2);
       sel_center = id_center_sel(ing, clc);
@@ -232,7 +235,7 @@ for i = 1:nstory
         fmt_ceil_abs(delta_, 3), dL_, deflection_suffix_);
       scgbody{irow,13} = sprintf('補剛数 %d', ns_);
       if ns_ > 0 && has_slr_report_
-        maxLb_ = slratio.lbmax(ig1);
+        maxLb_ = slratio.lbmax(iwfs1);
         scgbody{irow,15} = sprintf('最大Lb %.0f', maxLb_);
       end
 
@@ -266,11 +269,11 @@ for i = 1:nstory
         scgbody{irow,10} = 'Lb4';
       end
       if has_slr_report_
-        nreq_ = abs(slratio.nreq(ig1));
-        lam_ = slratio.lambda(ig1);
-        is_ok_equal_ = slratio.isOkEqual(ig1);
-        is_ok_end_ = slratio.isOkEnd(ig1);
-        is_ok_slr_ = slratio.isOk(ig1);
+        nreq_ = abs(slratio.nreq(iwfs1));
+        lam_ = slratio.lambda(iwfs1);
+        is_ok_equal_ = slratio.isOkEqual(iwfs1);
+        is_ok_end_ = slratio.isOkEnd(iwfs1);
+        is_ok_slr_ = slratio.isOk(iwfs1);
         scgbody{irow,11} = '均等';
         % 等間隔配置の限界Lbを最大Lbが超える場合は補剛不能を示す *
         if ~is_ok_equal_
@@ -286,11 +289,11 @@ for i = 1:nstory
       lbreq2_str_ = '';
       lbreq2_suffix_ = '';
       if has_slr_report_ && ~is_ok_equal_
-        lbreq2_ = slratio.lbreq2(ig1);
+        lbreq2_ = slratio.lbreq2(iwfs1);
         % 端部本数: Myを超える範囲を端部限界Lb間隔で配置する
         if lbreq2_ > 0
-          nl_ = ceil(slratio.lbmy(ig1, 1) / lbreq2_);
-          nr_ = ceil(slratio.lbmy(ig1, 2) / lbreq2_);
+          nl_ = ceil(slratio.lbmy(iwfs1, 1) / lbreq2_);
+          nr_ = ceil(slratio.lbmy(iwfs1, 2) / lbreq2_);
         end
         lbreq2_str_ = fmt_ceil_abs(lbreq2_, 0);
         if ~is_ok_end_
@@ -318,8 +321,8 @@ for i = 1:nstory
             scgbody{irow, 6 + ilb_} = sprintf('%.0f', lb_report_(ilb_));
           end
         else
-          lb1_ = slratio.lb(ig1, 1);
-          lb4_ = slratio.lb(ig1, 2);
+          lb1_ = slratio.lb(iwfs1, 1);
+          lb4_ = slratio.lb(iwfs1, 2);
           scgbody{irow, 7} = sprintf('%.0f', lb1_);
           scgbody{irow,10} = sprintf('%.0f', lb4_);
           if ns_ >= 2

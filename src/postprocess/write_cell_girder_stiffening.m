@@ -77,22 +77,29 @@ return
     body{irow,4} = coord2;
     isg = girder.idsecg(ig);
     body{irow,5} = make_section_symbol(secg, isg);
-    lg_ = slratio.lg(ig);
+    % slratio と conslr はH形梁のみを対象とし、その連番で
+    % インデックスされる。梁番号から変換して引く。
+    iwfs = girder.idmewfs(ig);
+    lg_ = slratio.lg(iwfs);
+    nreq_ = slratio.nreq(iwfs);
+    lbreq1_ = slratio.lbreq1(iwfs);
+    lbmy_ = slratio.lbmy(iwfs, :);
+    lbmax_raw_ = slratio.lbmax(iwfs);
     [lb1_, is_lb1_full] = normalize_full_length_interval( ...
-      slratio.lb(ig, 1), lg_);
+      slratio.lb(iwfs, 1), lg_);
     [lb2_, is_lb2_full] = normalize_full_length_interval( ...
-      slratio.lb(ig, 2), lg_);
-    lbmax_ = normalize_full_length_interval(slratio.lbmax(ig), lg_);
+      slratio.lb(iwfs, 2), lg_);
+    lbmax_ = normalize_full_length_interval(lbmax_raw_, lg_);
     [n_, lb_report_, has_report_lb_] = ...
-      get_stiffening_lb_report(nominal_girder, ing, slratio.n(ig));
+      get_stiffening_lb_report(nominal_girder, ing, slratio.n(iwfs));
     body{irow,6} = fmt_ceil_abs(lg_, 0);
     if has_report_lb_
       body{irow,7} = sprintf('%.0f', n_);
       body{irow,8} = fmt_ceil_abs(lb_report_(1), 0);
-      if lb_report_(1) < slratio.lbmy(ig,1)
+      if lb_report_(1) < lbmy_(1)
         body{irow,9} = fmt_ceil_abs(lb_report_(2), 0);
       end
-      if lb_report_(4) < slratio.lbmy(ig,2)
+      if lb_report_(4) < lbmy_(2)
         body{irow,10} = fmt_ceil_abs(lb_report_(3), 0);
       end
       body{irow,11} = fmt_ceil_abs(lb_report_(4), 0);
@@ -111,26 +118,26 @@ return
       end
     end
     body{irow,12} = fmt_ceil_abs(lbmax_, 0);
-    body{irow,13} = sprintf('%.0f', slratio.lambda(ig));
+    body{irow,13} = sprintf('%.0f', slratio.lambda(iwfs));
     % 必要n=0 の場合、等間隔配置の限界LbはSS7に合わせて空白
-    if slratio.nreq(ig) > 0
-      body{irow,14} = fmt_ceil_abs(slratio.lbreq1(ig), 0);
+    if nreq_ > 0
+      body{irow,14} = fmt_ceil_abs(lbreq1_, 0);
     end
     % 必要n: 最大Lbが限界Lbを超える場合は補剛不能を示す *
-    nreq_str = sprintf('%d', slratio.nreq(ig));
-    if slratio.nreq(ig) > 0 && slratio.lbmax(ig) > slratio.lbreq1(ig)
+    nreq_str = sprintf('%d', nreq_);
+    if nreq_ > 0 && lbmax_raw_ > lbreq1_
       nreq_str = [nreq_str '*'];
     end
     body{irow,15} = nreq_str;
-    body{irow,16} = fmt_ceil_abs(slratio.lbmy(ig,1), 0);
-    body{irow,17} = fmt_ceil_abs(slratio.lbmy(ig,2), 0);
+    body{irow,16} = fmt_ceil_abs(lbmy_(1), 0);
+    body{irow,17} = fmt_ceil_abs(lbmy_(2), 0);
     % 端部 限界Lb: 端部配置で満足しない場合のみ補剛不能を示す *
-    lbreq2_str = fmt_ceil_abs(slratio.lbreq2(ig), 0);
-    if ~slratio.isOkEnd(ig)
+    lbreq2_str = fmt_ceil_abs(slratio.lbreq2(iwfs), 0);
+    if ~slratio.isOkEnd(iwfs)
       lbreq2_str = [lbreq2_str '*'];
     end
     body{irow,18} = lbreq2_str;
-    if conslr(ig)<=0
+    if conslr(iwfs)<=0
       judgement = 'OK';
     else
       judgement = 'NG';

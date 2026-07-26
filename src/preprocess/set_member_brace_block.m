@@ -739,6 +739,13 @@ return
     node = [node; addnode];
     member_girder = [member_girder; addgirder];
 
+    % 梁の追加でH形梁の連番が変わるため、変換表を作り直す。
+    % set_member_girder_block で設定された値は分割前のもの。
+    is_wfs_ = member_girder.section_type == PRM.WFS;
+    idmewfs_ = zeros(size(member_girder,1),1);
+    idmewfs_(is_wfs_) = 1:sum(is_wfs_);
+    member_girder.idmewfs = idmewfs_;
+
     return
   end
 
