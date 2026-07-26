@@ -1,6 +1,18 @@
 function [nominal_girder, idnominal] = countup_nominal_girder(com)
-%CALC_GIRDER_THROUGH_LENGTH この関数の概要をここに記述
-%   詳細説明をここに記述
+%countup_nominal_girder - 通し梁（名目梁）を集約
+%
+%   [nominal_girder, idnominal] = countup_nominal_girder(com) は、
+%   梁の接続情報 idconnected_girder をたどって通し梁を集約し、
+%   名目梁テーブルを生成する。構成部材は座標順に並べ、両端の通り
+%   番号・通り名は先頭部材のi端と末尾部材のj端から取る。
+%
+%   入力引数:
+%     com - 共通オブジェクト
+%
+%   出力引数:
+%     nominal_girder - 名目梁テーブル [nnmg×15]
+%     idnominal      - 梁部材番号から名目梁への逆引き [nmg×2]
+%                      （1列目が名目梁番号、2列目が構成部材位置）
 
 % 共通配列
 idconnected_girder = com.member.girder.idconnected_girder;
@@ -8,6 +20,8 @@ idx_girder = com.member.girder.idx;
 idy_girder = com.member.girder.idy;
 girder = com.member.girder;
 issgas = com.exclusion.is_section_girder_allowable_stress;
+xcoord = com.baseline.x.coord;
+ycoord = com.baseline.y.coord;
 
 % 計算の準備
 nmg = length(idconnected_girder);
@@ -65,7 +79,7 @@ mcol = max(sum(idmeg>0,2));
 nnmg = igt;
 idmeg = idmeg(1:nnmg, 1:mcol);
 
-% 通り順に並び替え
+% 座標順に並び替え（ダミー通りは通り番号が座標順にならない）
 for i=1:nnmg
   ncol = nnz(idmeg(i,:));
   if ncol==1
@@ -76,10 +90,10 @@ for i=1:nnmg
   idy = idy_girder(iddd,1);
   if idy(1)==idy(2)
     % X方向
-    [~, idsort] = sort(idx);
+    [~, idsort] = sort(xcoord(idx));
   else
     % Y方向
-    [~, idsort] = sort(idy);
+    [~, idsort] = sort(ycoord(idy));
   end
   idmeg(i,1:ncol) = idmeg(i,idsort);
 end

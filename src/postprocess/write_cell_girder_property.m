@@ -27,7 +27,6 @@ gphiI = result.gphiI;
 gphiAs = result.gphiAs;
 gphiAn = result.gphiAn;
 lm = result.lm;
-lnm = result.lm_nominal;
 lfg = result.lf.girder;
 lrg = result.lr.girder;
 
@@ -73,7 +72,7 @@ return
   %write_gp_entry - 梁1組（左右ペアまたは単独）を gpbody に出力
   %
   %   write_gp_entry(ig_left, ig_right) は、左右の梁番号を受け
-  %   gpbody の現在 irow 位置に左端／右端情報を書き出す。
+  %   gpbody の現在 irow 位置に左端／右端情報と部材長を書き出す。
   %   ig_right<=0 の場合は単独梁として ig_left を両端に用いる。
   %
   %   入力引数:
@@ -87,6 +86,13 @@ return
     end
     write_gp_left(irow, ig_left);
     write_gp_right(irow, ig_right);
+    % 部材長。K形分割の左右ペアは合計が分割前の梁長になる。
+    % 名目梁は通し梁指定でさらに連結されうるため使わない
+    lg_ = lm(girder.idme(ig_left));
+    if ig_right ~= ig_left
+      lg_ = lg_ + lm(girder.idme(ig_right));
+    end
+    gpbody{irow*2-1,15} = sprintf('%.0f', lg_);
   end
 
   function write_gp_left(irow_, ig_)
@@ -118,11 +124,6 @@ return
       msprop.Asy(idm_) * gphiAs(ig_) * 1.d-2);
     gpbody{irow_*2-1,13} = 1;
     gpbody{irow_*2-1,14} = 1;
-    if girder.type(ig_) == PRM.GIRDER_FOR_KBRACE1
-      gpbody{irow_*2-1,15} = sprintf('%.0f', lnm(idm_));
-    else
-      gpbody{irow_*2-1,15} = sprintf('%.0f', lm(idm_));
-    end
     gpbody{irow_*2-1,16} = sprintf('%.0f', lrg(ig_,1));
     gpbody{irow_*2-1,17} = sprintf('%.0f', lfg(ig_,1));
     gpbody{irow_*2-1,19} = joint_label(girder.joint(ig_,1));
