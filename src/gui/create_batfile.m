@@ -23,7 +23,7 @@ bat_name = ['run_' name '.bat'];
 bat_path = fullfile(output_dir, bat_name);
 
 % EXEパスの決定
-% options.prgroot は通常 "C:\Program Files\TUS\YLAB\application" 等
+% options.prgroot は通常 "C:\Program Files\YLAB\YLAB\application" 等
 exepath = fullfile(options.prgroot, 'YLAB.exe');
 
 fid = fopen(bat_path, 'w');
