@@ -1,11 +1,13 @@
-function sw = comp_self_weight(A, lm_weight, lm, member_property, ...
-  msdim, slab, cxl, cyl, nnode, mejoint, face_deduct, options, ...
-  member_column, brace_unit_weight, Df_foundation, girder_level, ...
-  girder_isfg, idsup2n, rho_rc_member)
+function sw = comp_self_weight(A, lm_weight, lm_lower_extension, lm, ...
+  member_property, msdim, slab, cxl, cyl, nnode, mejoint, ...
+  face_deduct, options, member_column, brace_unit_weight, ...
+  Df_foundation, girder_level, girder_isfg, idsup2n, ...
+  rho_rc_member)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
-%   sw = comp_self_weight(A, lm_weight, lm, member_property, msdim, ...
-%   slab, cxl, cyl, nnode, mejoint, face_deduct, options, ...
+%   sw = comp_self_weight(A, lm_weight, lm_lower_extension, lm, ...
+%   member_property, msdim, slab, cxl, cyl, nnode, mejoint, ...
+%   face_deduct, options, ...
 %   member_column, brace_unit_weight, Df_foundation, girder_level, ...
 %   girder_isfg, idsup2n, rho_rc_member) は、
 %   柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを
@@ -14,12 +16,14 @@ function sw = comp_self_weight(A, lm_weight, lm, member_property, ...
 %
 %   入力引数:
 %     A               - 断面積配列
-%     lm_weight       - 荷重計算用部材長配列（等価節点荷重用）
-%     lm              - 実際の部材長配列（CMQ計算用）
+%     lm_weight         - 荷重計算用部材長配列（等価節点荷重用）
+%     lm_lower_extension - 柱脚節点より下に延びる物理長配列
+%     lm                - 実際の部材長配列（CMQ計算用）
 %     member_property - 部材プロパティ構造体
 %     msdim           - 部材断面寸法配列
 %     slab            - スラブ情報構造体（RC梁の重複スラブ控除用、
-%                       .width/.thickness/.width_lower/.thickness_lower）
+%                       .width/.thickness/.width_lower/.thickness_lower
+%                       /.deck_height/.deck_height_lower）
 %     cxl,cyl         - 部材座標系の方向余弦
 %     nnode           - 全節点数
 %     mejoint         - 結合条件配列
@@ -185,8 +189,11 @@ for im = 1:nme
 
     ar(im,:) = zeros(1,12);
     W = wi * li_w;  % 総自重
-    fi_global = [0, 0, W/2, 0, 0, 0];
-    fj_global = [0, 0, W/2, 0, 0, 0];
+    % lm_lower_extension は柱脚節点より下に延びる物理長である。
+    % この区間の自重は柱脚節点へ全量、残りは両端へ等分する。
+    W_lower = wi * lm_lower_extension(im);
+    fi_global = [0, 0, (W + W_lower)/2, 0, 0, 0];
+    fj_global = [0, 0, (W - W_lower)/2, 0, 0, 0];
 
     fc(in1, :) = fc(in1, :) + fi_global;
     fc(in2, :) = fc(in2, :) + fj_global;

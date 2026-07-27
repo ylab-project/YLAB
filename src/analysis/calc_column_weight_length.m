@@ -1,13 +1,15 @@
-function lm_weight = calc_column_weight_length(...
-  member_column, member_girder, floor, node, ...
-  stype_sec, idsecc2sec, idsecg2sec, secdim)
+function [lm_weight, lm_lower_extension] = calc_column_weight_length( ...
+  member_column, member_girder, floor, node, stype_sec, ...
+  idsecc2sec, idsecg2sec, secdim)
 %calc_column_weight_length - 柱荷重計算用の部材長を算出
 %
-% SS7マニュアル「4.1.2 柱」に基づき、柱の自重・仕上重量計算用の部材長を算出する。
+% SS7マニュアル「4.1.2 柱」に基づき、柱の自重・仕上重量計算用の
+% 部材長を算出する。
 %
 % SS7の定義:
 %   梁天端〜梁天端 = 階高（基本）
-%   部材長 = 標準階高 + (-dz(柱脚) + dz(柱頭)) + max(柱頭側glv) - max(柱脚側glv)
+%   部材長 = 標準階高 + (-dz(柱脚) + dz(柱頭))
+%     + max(柱頭側glv) - max(柱脚側glv)
 %   glvは下げが負の値。max(glv)は最も高い梁天端を選択する。
 %   1階/下層柱抜け: 同種別（S-S, RC-RC）なら最大梁せい分を追加
 %
@@ -26,7 +28,8 @@ function lm_weight = calc_column_weight_length(...
 %   secdim        - 断面寸法配列 [nsec×ncol]
 %
 % Outputs:
-%   lm_weight - 柱荷重計算用の部材長配列 [nmec x 1]
+%   lm_weight          - 柱荷重計算用の部材長配列 [nmec x 1]
+%   lm_lower_extension - 柱脚節点より下に延びる物理長 [nmec x 1]
 
 % 柱数
 nmec = length(member_column.idme);
@@ -45,8 +48,9 @@ is_steel_sec = stype_sec == PRM.HSS | stype_sec == PRM.WFS;
 
 % 梁せいの取得（断面種別ごと）
 Hs = zeros(size(secdim,1),1);
-Hs(stype_sec==PRM.WFS) = secdim(stype_sec==PRM.WFS,1);   % H形鋼: 1列目がせい
-Hs(stype_sec==PRM.RCRS) = secdim(stype_sec==PRM.RCRS,2); % RC梁: 2列目がせい
+% H形鋼は1列目、RC梁は2列目がせい
+Hs(stype_sec==PRM.WFS) = secdim(stype_sec==PRM.WFS,1);
+Hs(stype_sec==PRM.RCRS) = secdim(stype_sec==PRM.RCRS,2);
 
 % 梁の情報
 glv = member_girder.level;       % 梁レベル調整（下げが負）
@@ -81,12 +85,22 @@ for ic = 1:nmec
     continue
   end
   nominal_id = member_column.idnominal(ic, 1);
-  ic_b1 = find( ...
-    member_column.idnominal(:,1) == nominal_id & is_brace1, 1);
+  ic_b1 = find(member_column.idnominal(:,1) == nominal_id & is_brace1, 1);
   if ~isempty(ic_b1)
     brace1_pair(ic) = ic_b1;
   end
 end
+
+% 物理的な柱脚を持つ柱への対応（BRACE2はBRACE1を参照）
+idmc2base = (1:nmec)';
+has_brace1_pair = brace1_pair > 0;
+idmc2base(has_brace1_pair) = brace1_pair(has_brace1_pair);
+idmc2nbase = idmc2n1(idmc2base);
+
+% 下層柱抜け判定: 1階柱と人工分割されたBRACE1は対象外
+has_lower_column = ismember(idmc2nbase, idmc2n2);
+is_lower_column_missing = ~is_first_story & ~is_brace1 & ~has_lower_column;
+needs_beam_depth = is_first_story | is_lower_column_missing;
 
 % 通し梁フラグ [nmeg×3]: 列1=i端が通し, 列2=j端が通し, 列3=中央部が通し
 isthrough = member_girder.isthrough;
@@ -98,18 +112,15 @@ girder_idnode2 = member_girder.idnode2;
 % 初期値: 柱脚〜柱頭間の標準階高を合算 + 節点移動分
 % （ダミー層を含む複数階にまたがる柱に対応）
 lm_weight = zeros(nmec, 1);
+lm_lower_extension = zeros(nmec, 1);
 for ic = 1:nmec
   % BRACE1は基礎梁内のRC部分でありS柱自重の対象外
   if ctype(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
     continue
   end
 
-  % BRACE2: BRACE1のnode1を使用（分割節点のidzはフロア範囲外）
-  if is_brace2(ic) && brace1_pair(ic) > 0
-    in1 = idmc2n1(brace1_pair(ic));
-  else
-    in1 = idmc2n1(ic);
-  end
+  % BRACE2はBRACE1のnode1を使用（分割節点のidzはフロア範囲外）
+  in1 = idmc2nbase(ic);
   in2 = idmc2n2(ic);
   ifl1 = node.idz(in1);       % 柱脚のフロアID
   ifl2 = node.idz(in2) - 1;   % 柱頭のフロアID - 1
@@ -130,12 +141,8 @@ for ic = 1:nmec
   end
 
   % --- 柱脚側: 取り付く梁の最大glv ---
-  % BRACE2: BRACE1のface1を使用（分割節点には梁接続なし）
-  if is_brace2(ic) && brace1_pair(ic) > 0
-    ic_f1 = brace1_pair(ic);
-  else
-    ic_f1 = ic;
-  end
+  % BRACE2はBRACE1のface1を使用（分割節点には梁接続なし）
+  ic_f1 = idmc2base(ic);
   idg1 = [idgx1(ic_f1,:) idgy1(ic_f1,:)];
   idg1 = idg1(idg1 > 0);
   if ~isempty(idg1)
@@ -156,14 +163,13 @@ for ic = 1:nmec
   % --- 部材長 = 階高 + glv差分 ---
   lm_weight(ic) = lm_weight(ic) + max_glv2 - max_glv1;
 
-  % --- 1階柱: 柱脚側の梁が同種別なら最大梁せい分を追加 ---
-  % SS7の定義: 1階柱では柱脚側の梁を見て、同種別なら梁せい分を追加
-  % ただし、通し梁の中間部の場合は追加しない
-  if is_first_story(ic) && ~isempty(idg1)
+  % --- 1階/下層柱抜け: 同種別なら最大梁せい分を追加 ---
+  % 柱脚側の梁を見て、通し梁の中間部は追加対象から除外する
+  if needs_beam_depth(ic) && ~isempty(idg1)
     % 柱脚側の梁で、柱と同種別（S-S または RC-RC）のものの最大梁せいを取得
     % 通し梁の中間部（両端でない）は除外
     same_type_mask = is_steel_g(idg1) == is_steel_c(ic);
-    in1 = idmc2n1(ic_f1);  % 柱脚節点（BRACE2はBRACE1のnode1）
+    in1 = idmc2nbase(ic);  % 柱脚節点（BRACE2はBRACE1のnode1）
     for k = 1:length(idg1)
       ig = idg1(k);
       % 梁のどちら側が柱脚に接続しているか
@@ -182,11 +188,15 @@ for ic = 1:nmec
     if any(same_type_mask)
       max_beam_height = max(Hg(idg1(same_type_mask)));
       lm_weight(ic) = lm_weight(ic) + max_beam_height;
+      if is_lower_column_missing(ic)
+        lm_lower_extension(ic) = max_beam_height;
+      end
     end
   end
 
   % --- 通し梁中間部: 柱頭側の梁が通し梁の中間部なら梁せい分を減算 ---
-  % SS7の定義: 柱頭側の梁に一本部材の指定があり、両端でない中間箇所では梁下面まで
+  % SS7の定義: 柱頭側の梁が一本部材の中間箇所の場合は
+  % 梁下面までとする
   if ~isempty(idg2)
     in2 = idmc2n2(ic);
     for k = 1:length(idg2)
