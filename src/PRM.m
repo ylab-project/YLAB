@@ -87,6 +87,7 @@ classdef PRM
     XY = 12;              % XY方向(45度方向)
     TOL_DIR = 0.01;       % 方向判定用許容差
     TOL_FORCE_N = 1000;   % 力・軸力判定用許容差 [N]
+    TOL_IGNORED_MOMENT_NMM = 1e-6  % 無視モーメント警告 [N.mm]
     TOL_STIFF_UNSTABLE = 1e-6  % 不安定自由度判定用剛性許容差
 
     %% 節点種別
@@ -215,6 +216,8 @@ classdef PRM
     %% 剛性低減係数
     % 剛性組立で「剛性 0」相当を表現する微小値（完全 0 は数値問題）
     STIFF_IGNORE_FACTOR = 1e-6
+    % 孤立回転自由度をθ=0とする数値上の対角剛性 [N.mm/rad]
+    STIFF_ROTATIONAL_DOF_REGULARIZATION = 1e10
 
     %% 支点浮き上がり（SS7計算編 5.6）
     % 浮き上がり判定の数値許容差 [N]（支点鉛直ばね力、上向き正）

@@ -1,8 +1,9 @@
-function [msprop, dvec, dnode, felement, stn, stcn, Mc, C, ...
-  vix, viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, Mc0, dfn0, state, ...
-  sw, lf, lr, lmem, lnm, lbnm, Iy0, Iz0, gphiI, gphiAs, gphiAn, cphiI, ...
-  cbs, baseline, node, story, floor, Cn, nomgc] = analysis_frame( ...
-  secdim, com, options)
+function [msprop, dvec, dnode, felement, ignored_moment, ...
+  stn, stcn, Mc, C, vix, viy, rvec, rs, dfn, rvec0, rs0, ...
+  rs_analysis0, Mc0, dfn0, state, sw, lf, lr, lmem, lnm, ...
+  lbnm, Iy0, Iz0, gphiI, gphiAs, gphiAn, cphiI, cbs, baseline, ...
+  node, story, floor, Cn, nomgc] = analysis_frame(secdim, ...
+  com, options)
 %analysis_frame - 骨組のマトリクス解析本体（剛性組立・変位・応力算定）
 %
 %   [msprop, ...] = analysis_frame(secdim, com, options) は、
@@ -22,6 +23,7 @@ function [msprop, dvec, dnode, felement, stn, stcn, Mc, C, ...
 %     dvec     - 自由度別変位ベクトル [ndf x nlc]
 %     dnode    - 節点変位（剛床補正後） [nnode x 6 x nlc]
 %     felement - 等価節点荷重（要素荷重起因） [nnode x 6 x nlc]
+%     ignored_moment - 0にした回転モーメント（member、node）
 %     stn      - 公称部材の応力度（一般位置） 構造体
 %     stcn     - 公称部材の応力度（中央位置） 構造体
 %     Mc       - 部材中央曲げモーメント（重ね合わせ後）
@@ -317,9 +319,6 @@ lbnm = zeros(nme,4);
 lbnm(mtype==PRM.GIRDER,:) = nomgc.lb(idg2ng, :);
 lbnm(mtype==PRM.COLUMN,1:3) = lbnc;
 
-% 等価外力（要素荷重）の更新
-felement = update_felement(ar, cxl, cyl, idm2n, nnode, nlc);
-
 %% 柱梁端部の結合条件
 % mejoint: 1:X柱脚, 2:X柱頭, 3:Y柱脚, 4:Y柱頭
 gjoint = member_girder.joint;
@@ -327,6 +326,10 @@ cjoint = member_column.joint;
 mejoint = PRM.FIX*ones(nme,4);
 mejoint(idmg2m,:) = gjoint;
 mejoint(idmc2m,:) = cjoint;
+
+% ピン端固定端モーメントは全体外力組立前に除外する
+[ar, ignored_member_moment] = clear_pinjoint_end_moments(ar, mejoint);
+felement = update_felement(ar, cxl, cyl, idm2n, nnode, nlc);
 
 %% 荷重計算用の部材長を算出（自重計算の有無にかかわらず常に計算）
 stype_sec = com.section.property.type;
@@ -412,9 +415,6 @@ fvec = fnode_dof + rest_dof;
 flag = struct("consider_shear_deformation", ...
   options.consider_shear_deformation);
 
-%% ピン節点の外力解除
-[fvec, ar] = modify_force_for_pinjoint(fvec, ar, mejoint);
-
 %% λeによる引張のみブレース判定
 is_steel_brace = (mtype == PRM.BRACE) ...
   & (stype(idm2s) == PRM.BHSR | stype(idm2s) == PRM.BHSS ...
@@ -461,8 +461,13 @@ ksmat0 = stif_sys_matrix(An, Asy, Asz, Iy, Iz, JJ, cxl, ...
   cyl, lm_stiff, Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
   idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
   nbw, flag, br_stif, hstiff_type, factor_J);
-validate_node_rotational_stiffness(ksmat0, node, idf2n, idsup2n, ...
-  isfixedsup, idn2df);
+[ksmat0, fvec, ignored_node_moment] = ...
+  regularize_inactive_rotational_dofs(ksmat0, fvec, ...
+  idf2n, idn2df, idsup2n, isfixedsup);
+ignored_moment.member = ignored_member_moment;
+ignored_moment.node = ignored_node_moment;
+warn_ignored_rotational_moments(ignored_moment, node, ...
+  idm2n1, idm2n2, com.loadcase.name);
 
 %% 初期化
 isuplifted = false(nsup, nlc);
@@ -776,37 +781,6 @@ for ilc = 1:nlc
 end
 vix = vi(:,[PRM.EXP PRM.EXN]);
 viy = vi(:,[PRM.EYP PRM.EYN]);
-return
-end
-
-% -------------------------------------------------------------------------
-function [fvec, ar] = modify_force_for_pinjoint(fvec0, ar0, mejoint)
-%modify_force_for_pinjoint - ピン接合端の外力解除
-%
-%   [fvec, ar] = modify_force_for_pinjoint(fvec0, ar0, mejoint) は、
-%   部材端接合条件 mejoint がピンの要素について、長期荷重ケース
-%   （ilc=1）の材端モーメント成分を 0 にクリアする。
-%
-%   入力引数:
-%     fvec0 - 節点荷重ベクトル（変更前）
-%     ar0 - 部材材端力配列（変更前） [nme×12×nlc]
-%     mejoint - 部材端接合条件 [nme×2]（1列目=i端, 2列目=j端）
-%
-%   出力引数:
-%     fvec - 節点荷重ベクトル（現状は変更なし）
-%     ar - 部材材端力配列（ピン端のモーメント=0に設定）
-
-% 初期化
-fvec = fvec0;
-ar = ar0;
-
-% ピン節点の外力解除
-isipin = mejoint(:,1) == PRM.PIN;
-isjpin = mejoint(:,2) == PRM.PIN;
-
-% 長期のみ
-ar(isipin,5,1) = 0;
-ar(isjpin,11,1) = 0;
 return
 end
 

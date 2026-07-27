@@ -2,11 +2,9 @@ function [nlhead, nlbody] = write_cell_nodal_equiv_load(...
   com, result, doRedistribute)
 %write_cell_nodal_equiv_load - 等価節点荷重の出力セル配列を生成
 %
-% 節点単位の等価節点荷重 (fnode+faddnode-felement-sw.f) を
-% 表示する。追加節点荷重の2巡目（片持梁先端Qo相当）は
-% com.faddnode_report_excl として帳票から差し引く（SS7準拠）。
-% 剛床集約や偏心モーメント加算は行わないため、剛床上の各節点には
-% 純粋な節点荷重寄与が表示される。
+% 分析層が確定したresult.nodal_equiv_loadを帳票形式へ変換する。
+% 回転剛性のない自由度で無視したモーメントは、分析層で0にした
+% 値を表示する。追加節点荷重の帳票除外も分析層で反映済みである。
 %
 % doRedistribute: KBRACE-MID荷重をグリッド節点に再配分するか
 %   true（既定）: 再配分する（節点重量表と整合）
@@ -21,16 +19,10 @@ nn = com.nnode;
 nblx = com.nblx;
 nbly = com.nbly;
 nstory = com.nstory;
-nlc = com.nlc;
 
-% 共通配列（すべて (nnode, 6) / (nnode, 6, nlc)）
+% 分析層で確定した解析使用後の等価節点荷重
 node = com.node;
-sw = result.sw;
-sw_f_lc = zeros(nn, 6, nlc);
-sw_f_lc(:, :, 1) = sw.f;
-% 追加節点荷重の2巡目（片持梁先端Qo相当）は帳票では非計上とする
-faddnode_rep = com.faddnode - com.faddnode_report_excl;
-fvec_nnode = com.fnode + faddnode_rep - result.felement - sw_f_lc;
+fvec_nnode = result.nodal_equiv_load;
 
 % KBRACE-MID節点の等価荷重をグリッド節点に再配分（出力表示用）
 if doRedistribute
