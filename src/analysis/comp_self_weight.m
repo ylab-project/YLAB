@@ -80,12 +80,15 @@ idme2ig(mtype==PRM.GIRDER) = 1:sum(mtype==PRM.GIRDER);
 % 独立に差し引く。各半分の差し引き後は 0 でクリップ（スラブ厚が
 % 梁せいを上回る入力に対する保護）。
 % S梁は対象外（床荷重は梁要素荷重として別途考慮される）。
+% デッキ床は SS7 式4.3 の対象外（「床（デッキ床除く）」）のため、
+% デッキ高さが入力された側は控除しない。t_left/t_right は仕上の
+% 周長控除（式4.9 の -Ls・t）でも再利用される。
 gstype = stype(mtype==PRM.GIRDER);
 is_rc = (gstype == PRM.RCRS);
-has_slab_u = slab.width > 0;
+has_slab_u = slab.width > 0 & slab.deck_height == 0;
 t_u1 = slab.thickness(:,1) .* has_slab_u(:,1);
 t_u2 = slab.thickness(:,2) .* has_slab_u(:,2);
-has_slab_l = slab.width_lower > 0;
+has_slab_l = slab.width_lower > 0 & slab.deck_height_lower == 0;
 t_l1 = slab.thickness_lower(:,1) .* has_slab_l(:,1);
 t_l2 = slab.thickness_lower(:,2) .* has_slab_l(:,2);
 % S梁の t は 0（差し引きなし）
