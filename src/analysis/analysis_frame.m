@@ -486,8 +486,8 @@ if ~options.consider_foundation_uplift && ~has_tension_brace
   dvec = eqsoln(ksmat, fvec, nbw, ndf);
   sks = repmat(sks, 1, nlc);
   dnode = trans_dvec2dnode(ilcset_, dnode, dvec);
-  rvec = reaction_force(ilcset_, dnode, frvec, rvec, ...
-    sks, xr, yr, idn2df, idsup2n, isfixedsup);
+  rvec = reaction_force(ilcset_, dnode, frvec, rvec, sks, ...
+    idn2df, idsup2n, isfixedsup);
 else
   %% === 統合収束ループ（G+P + 地震） ===
   for ilc = 1:nlc
@@ -541,8 +541,11 @@ else
       % 浮き上がり判定（地震のみ）
       if ilc >= 2 && options.consider_foundation_uplift
         isuplifted_prev_ = isuplifted(:, ilc);
-        isuplifted(:, ilc) = check_uplift_case(idn2df, ...
-          idsup2n, isfixedsup, dvec, ilc);
+        % 解除した支点は復帰させない（SS7 5.6(2) の圧縮ブレースに
+        % 準じる）。状態は単調増加となり必ず収束する。
+        isuplifted(:, ilc) = isuplifted(:, ilc) | ...
+          check_uplift_case(idn2df, idsup2n, isfixedsup, ...
+          sks, dvec, ilc);
         if ~all(isuplifted(:, ilc) == isuplifted_prev_)
           converged_ = false;
         end
@@ -555,10 +558,10 @@ else
     if ilc == 1
       dnode = trans_dvec2dnode(1, dnode, dvec);
       rvec = reaction_force(1, dnode, frvec, rvec, sks, ...
-        xr, yr, idn2df, idsup2n, isfixedsup);
+        idn2df, idsup2n, isfixedsup);
       if options.consider_foundation_uplift
-        frvec = uplift_force(idn2df, idm2n1, idsup2n, ...
-          isfixedsup, rvec, fvec, isuplifted);
+        frvec = uplift_force(idn2df, idsup2n, isfixedsup, ...
+          rvec, fvec, isuplifted);
       else
         frvec = fvec;
       end
@@ -567,12 +570,12 @@ else
 
   %% 全ケース完了後: frvec, dnode, rvec確定
   if options.consider_foundation_uplift
-    frvec = uplift_force(idn2df, idm2n1, idsup2n, isfixedsup, ...
+    frvec = uplift_force(idn2df, idsup2n, isfixedsup, ...
       rvec, fvec, isuplifted);
   end
   dnode = trans_dvec2dnode(2:nlc, dnode, dvec);
   rvec = reaction_force(2:nlc, dnode, frvec, rvec, sks, ...
-    xr, yr, idn2df, idsup2n, isfixedsup);
+    idn2df, idsup2n, isfixedsup);
 end
 
 % 応力計算

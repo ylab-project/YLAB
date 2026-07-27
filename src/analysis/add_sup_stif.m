@@ -6,7 +6,7 @@ function [ks, sks] = add_sup_stif(ks, xr, yr, idsup2n, ...
 %     isuplifted, idn2df) は、各支点の拘束自由度に SS7 マニュアル
 %   §5.2.6 準拠の絶対値ばね剛性を付与し、剛床オフセットを考慮した
 %   座標変換を行って全体剛性行列 ks に重ね合わせる。浮き上がり時は
-%   鉛直ばねを SS7 値の 1e-6 倍まで低減する。単位系は N, mm
+%   鉛直ばねを完全解除する。単位系は N, mm
 %   （回転は N*mm/rad）。
 %
 %   入力引数:
@@ -24,7 +24,7 @@ function [ks, sks] = add_sup_stif(ks, xr, yr, idsup2n, ...
 %   備考:
 %     - SS7 絶対値: 並進水平 1e10 N/mm, 並進鉛直 1e13 N/mm,
 %       回転 1e18 N*mm/rad。
-%     - 浮き上がり低減は鉛直方向（k==3）のみに適用。
+%     - 浮き上がり支点の鉛直ばねは完全解除する。
 %     - nlc>1 の場合は sks のみ返し ks への加算は行わない。
 
 nsup = length(idsup2n);
@@ -39,15 +39,15 @@ ss7_spring = [1.d10 1.d10 1.d13 1.d18 1.d18 1.d18];
 sks = zeros(ns6, nlc);
 for ilc = 1:nlc
   for isup = 1:nsup
-    m1 = 6*(isup-1);
+    m1 = 6 * (isup - 1);
     for k = 1:6
-      if isfixedsup(isup,k)
-        if (isuplifted(isup,ilc) && k==3)
-          sks(m1+k,ilc) = ss7_spring(k)*1.d-6;
-        else
-          sks(m1+k,ilc) = ss7_spring(k);
-        end
+      if ~isfixedsup(isup, k)
+        continue
       end
+      if isuplifted(isup, ilc) && k == 3
+        continue
+      end
+      sks(m1 + k, ilc) = ss7_spring(k);
     end
   end
 end
