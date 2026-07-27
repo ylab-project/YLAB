@@ -124,17 +124,21 @@ for i = 1:nfl
           body(block_start, 2:3) = column.coord_name(ic_bottom, 1:2);
           body{block_start, 4} = make_section_symbol(secc, idsc);
 
+          % 「部位」は同じ仕口部の先頭行だけに表示する
+          joint_part_label = '仕口部';
+
           % 仕口部(柱頭): chain 最上階柱頭に梁がとりつくとき
           if jt(ic_top) > 0
             W_jt = Am(idm_bottom) * jt(ic_top) * PRM.RHOS * 1e-9;
-            irow = write_body_row(irow, '仕口部', '柱頭', ...
+            irow = write_body_row(irow, joint_part_label, '柱頭', ...
               jt(ic_top), W_jt);
+            joint_part_label = '';
           end
 
           % 仕口部(柱脚): chain 最下階に下階柱がないとき
           if output_jb
             W_jb = Am(idm_bottom) * jb(ic_bottom) * PRM.RHOS * 1e-9;
-            irow = write_body_row(irow, '仕口部', '柱脚', ...
+            irow = write_body_row(irow, joint_part_label, '柱脚', ...
               jb(ic_bottom), W_jb);
           end
           % ブロック内の中間行に CONT_MARKER を付与
@@ -161,7 +165,7 @@ return
   %
   %   入力引数:
   %     irow_in    - 書き込み前の行番号（現在の最終行）
-  %     part_label - 部位名（'柱' / '仕口部'）
+  %     part_label - 部位名（'柱' / '仕口部' / 空）
   %     sub_label  - 補足ラベル（'柱頭' / '柱脚' / 空）
   %     L_mm       - 長さ [mm]
   %     W_t        - 重量 [t]
