@@ -151,17 +151,7 @@ for i=1:n
 end
 
 % 通り心ベース方向余弦のZ成分（斜め柱の投影補正用）
-% node.z_standard は標準階高ベースの通り心Z座標で preprocess 後不変
-cz_std = nan(n,1);
-isvalid_node = idnode1 > 0 & idnode2 > 0;
-in1 = idnode1(isvalid_node);
-in2 = idnode2(isvalid_node);
-zs = node.z_standard;
-dx = node.x(in2) - node.x(in1);
-dy = node.y(in2) - node.y(in1);
-dz = zs(in2) - zs(in1);
-L_std = sqrt(dx.^2 + dy.^2 + dz.^2);
-cz_std(isvalid_node) = dz ./ L_std;
+cz_std = calc_column_standard_cosine_z(idnode1, idnode2, node);
 
 % 結果をテーブルに格納し、無効な柱を除去
 member_column.idsecc = idsecc;

@@ -1732,45 +1732,60 @@ end
 
 %--------------------------------------------------------------------------
 function joint = set_member_girder_joint_block(dbc, com)
+%set_member_girder_joint_block - 梁の結合状態を読み込む
+%
+%   joint = set_member_girder_joint_block(dbc, com) は、CSV入力の
+%   梁端結合状態を梁部材へ設定する。K形ブレース用の分割梁では
+%   元梁の物理外端だけへ入力を引き継ぎ、人工分割端を固定とする。
+%
+%   入力引数:
+%     dbc - データブロッククラスオブジェクト
+%     com - 共通データ構造体
+%
+%   出力引数:
+%     joint - 梁の端部結合状態 [nmeg x 4]
+%       列順: 鉛直面内左端・右端、水平面内左端・右端
+
+% 入力データと共通配列
 data = dbc.get_data_block('梁の結合状態');
 n = size(data,1);
-
-% 共通配列
 baseline = com.baseline;
 member_girder = com.member.girder;
 nmeg = com.nmeg;
 
-% 層名・通り名
+% 層名・通り名から入力対象の梁を検索
 story_name = cell(n,1);
 frame_name = cell(n,1);
 coord_name = cell(n,2);
-for i=1:n
+for i = 1:n
   story_name{i} = tochar(data{i,1});
   frame_name{i} = tochar(data{i,2});
   coord_name(i,:) = tochar(data(i,3:4));
 end
-
-% 梁部材番号
 [idx, idy, idz, ~] = find_idxyz_girder(story_name, frame_name, ...
   coord_name, baseline);
 idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder, ...
   [], baseline);
 
-% 結合状態
+% KBRACE2の左端とKBRACE1の右端は人工分割端として固定を保つ
 joint = PRM.FIX*ones(nmeg,4);
-for i=1:n
+artificial_end_types = [PRM.GIRDER_FOR_KBRACE2, PRM.GIRDER_FOR_KBRACE1];
+for i = 1:n
   ids = idmeg(i,:);
   ids = ids(ids > 0);
-  if isempty(ids); continue; end
-  for j=1:4
-    val = data{i,j+4};
-    if ismissing(val); continue; end
-    switch val
-      case 0
-        joint(ids,j) = PRM.PIN;
-      otherwise
-        joint(ids,j) = PRM.FIX;
-    end
+  if isempty(ids)
+    continue
+  end
+
+  for idir = 1:2
+    joint_columns = (1:2) + 2*(idir - 1);
+    data_columns = (5:6) + 2*(idir - 1);
+    end_values = nan(1,2);
+    end_values(1) = normalize_member_joint_value(data{i,data_columns(1)});
+    end_values(2) = normalize_member_joint_value(data{i,data_columns(2)});
+    joint(:,joint_columns) = set_physical_member_end_values( ...
+      joint(:,joint_columns), ids, member_girder.type, end_values, ...
+      artificial_end_types);
   end
 end
 
@@ -1781,84 +1796,90 @@ end
 function joint = set_member_column_joint_block(dbc, com)
 %set_member_column_joint_block - 柱の結合状態を読み込む
 %
-%   joint = set_member_column_joint_block(dbc, com) は、
-%   CSVデータブロック「柱の結合状態」から柱部材の
-%   結合状態（ピン/固定）を読み込み、柱部材配列に
-%   対応する結合状態配列を返す。
+%   joint = set_member_column_joint_block(dbc, com) は、CSV入力の
+%   柱脚・柱頭結合状態を柱部材へ設定する。ブレース接続用の分割柱では
+%   元柱の物理外端だけへ入力を引き継ぎ、人工分割端を固定とする。
 %
 %   入力引数:
 %     dbc - データブロッククラスオブジェクト
 %     com - 共通データ構造体
 %
 %   出力引数:
-%     joint - 結合状態 [nmec x 4]
-%       列順: X柱脚, X柱頭, Y柱脚, Y柱頭
-%       値: PRM.FIX(固定) / PRM.PIN(ピン)
+%     joint - 柱の端部結合状態 [nmec x 4]
+%       列順: X柱脚・柱頭、Y柱脚・柱頭
 %
 %   備考:
-%     CSVデータ構造:
-%     階, X軸, Y軸, 結合状態(X)柱頭, 結合状態(X)柱脚,
-%     結合状態(Y)柱頭, 結合状態(Y)柱脚
-%     結合状態: 0=ピン, それ以外=固定
+%     CSV列順はX柱頭・柱脚、Y柱頭・柱脚である。
 
+% 入力データと共通配列
 data = dbc.get_data_block('柱の結合状態');
 n = size(data,1);
-
-% 共通配列
 baseline = com.baseline;
 story = com.story;
 member_column = com.member.column;
 nmec = com.nmec;
 
-% 層名・通り名の抽出
+% 階名・通り名から入力対象の柱を検索
 floor_name = cell(n,1);
 xcoord_name = cell(n,1);
 ycoord_name = cell(n,1);
-for i=1:n
+for i = 1:n
   floor_name{i} = tochar(data{i,1});
   xcoord_name{i} = tochar(data{i,2});
   ycoord_name{i} = tochar(data{i,3});
 end
-
-% 柱部材番号の特定
-[idx_search, idy_search, idz_search] = find_idxyz_column(...
+[idx_search, idy_search, idz_search] = find_idxyz_column( ...
   floor_name, xcoord_name, ycoord_name, baseline, story);
 
-% 結合状態の設定
-% joint配列の構成: [X方向柱脚, X方向柱頭, Y方向柱脚, Y方向柱頭]
+% BODYの柱脚とFOUNDATIONの柱頭は人工分割端として固定を保つ
 joint = PRM.FIX*ones(nmec,4);
-
-for i=1:n
-  idmec = find_idcolumn_from_idxyz(idx_search(i,:), ...
-    idy_search(i,:), idz_search(i,:), member_column);
-
-  if isempty(idmec)
-    continue  % 部材が見つからない場合はスキップ
+artificial_end_types = [PRM.COLUMN_FOR_BRACE_BODY, ...
+  PRM.COLUMN_FOR_BRACE_FOUNDATION];
+for i = 1:n
+  ids = find_idcolumn_from_idxyz(idx_search(i,:), idy_search(i,:), ...
+    idz_search(i,:), member_column);
+  if isempty(ids)
+    continue
   end
-  im = idmec;
 
-  % 結合状態の読み取り (4列目～7列目)
-  % 4列目: 結合状態(X)柱頭
-  % 5列目: 結合状態(X)柱脚
-  % 6列目: 結合状態(Y)柱頭
-  % 7列目: 結合状態(Y)柱脚
-  for j=1:4
-    val = data{i,j+3};
-    if ismissing(val)
-      continue
-    end
-
-    switch val
-      case 0
-        joint(im,j) = PRM.PIN;
-      otherwise
-        joint(im,j) = PRM.FIX;
-    end
+  for idir = 1:2
+    joint_columns = (1:2) + 2*(idir - 1);
+    data_top = 4 + 2*(idir - 1);
+    end_values = nan(1,2);
+    end_values(1) = normalize_member_joint_value(data{i,data_top + 1});
+    end_values(2) = normalize_member_joint_value(data{i,data_top});
+    joint(:,joint_columns) = set_physical_member_end_values( ...
+      joint(:,joint_columns), ids, member_column.type, end_values, ...
+      artificial_end_types);
   end
 end
 
-% 柱頭・柱脚の位置合わせ
-joint = joint(:,[2 1 4 3]);
+return
+end
+
+%--------------------------------------------------------------------------
+function joint_value = normalize_member_joint_value(input_value)
+%normalize_member_joint_value - CSVの結合状態を内部定数へ変換
+%
+%   joint_value = normalize_member_joint_value(input_value) は、
+%   CSVの結合状態0をピン、それ以外を固定へ変換する。未指定値は
+%   呼び出し側の初期値を維持できるようNaNで返す。
+%
+%   入力引数:
+%     input_value - CSVから読み込んだ結合状態
+%
+%   出力引数:
+%     joint_value - PRM.PIN、PRM.FIXまたはNaN
+
+joint_value = NaN;
+if ismissing(input_value)
+  return
+end
+if input_value == 0
+  joint_value = PRM.PIN;
+else
+  joint_value = PRM.FIX;
+end
 
 return
 end

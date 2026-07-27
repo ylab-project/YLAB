@@ -505,6 +505,8 @@ return
     add_node.zname(:) = baseline.z.name(nz);
 
     % 柱の分割（下側：FOUNDATION、上側：BODY）
+    ncolumn_original = size(member_column,1);
+    member_column.idsplit = zeros(ncolumn_original,1);
     add_column = member_column(iac,:);
     add_column.type(:) = PRM.COLUMN_FOR_BRACE_FOUNDATION;
     add_column.idnode2 = (1:length(iac))' + nnode;
@@ -513,9 +515,15 @@ return
     member_column.idz(iac,1) = nz;
     member_column.type(iac) = PRM.COLUMN_FOR_BRACE_BODY;
 
-    % 結果の更新
+    % 元の名目柱を検索したとき上下両要素を取得できるようにする
+    member_column.idsplit(iac) = ncolumn_original + (1:length(iac))';
+    add_column.idsplit = iac;
+
+    % 結果の更新と分割後の柱軸方向余弦の再計算
     node = [node; add_node];
     member_column = [member_column; add_column];
+    member_column.cz_std = calc_column_standard_cosine_z( ...
+      member_column.idnode1, member_column.idnode2, node);
 
     return
   end
