@@ -1921,32 +1921,60 @@ Lb = nan(n,3);
 Lb_end = nan(n,4);
 xc = nan(n,2);
 xc_points = nan(n,3);
+is_new_format = is_girder_stiffening_new_format(data);
 for i=1:n
-  lb1_l = data{i,6};
-  lb2_l = data{i,7};
-  lb1_r = data{i,8};
-  lb2_r = data{i,9};
-  Lbmax = data{i,10};
-  x1 = data{i,11};
-  x2 = data{i,12};
-  x3 = nan;
-  if size(data, 2) >= 13 && ~ismissing(data{i,13})
+  if is_new_format
+    lb1_l = data{i,6};
+    lb2_l = data{i,7};
+    lb1_r = data{i,8};
+    lb2_r = data{i,9};
+    Lbmax = data{i,10};
+    x1 = data{i,11};
+    x2 = data{i,12};
     x3 = data{i,13};
-  end
 
-  Lb(i,1) = lb1_l;
-  Lb(i,2) = lb1_r;
-  Lb(i,3) = Lbmax;
-  Lb_end(i,:) = [lb1_l lb2_l lb1_r lb2_r];
-  xc(i,1) = x1;
-  xc(i,2) = x2;
-  if ~ismissing(x3)
-    xc_points(i,:) = [x1 x2 x3];
+    Lb(i,:) = [lb1_l lb1_r Lbmax];
+    Lb_end(i,:) = [lb1_l lb2_l lb1_r lb2_r];
+    xc(i,:) = [x1 x2];
+    if ~isnan(x3)
+      xc_points(i,:) = [x1 x2 x3];
+    end
+  else
+    lb_l = data{i,6};
+    lb_r = data{i,7};
+    Lbmax = data{i,8};
+    x1 = data{i,9};
+    x2 = data{i,10};
+
+    Lb(i,:) = [lb_l lb_r Lbmax];
+    Lb_end(i,:) = [lb_l nan lb_r nan];
+    xc(i,:) = [x1 x2];
   end
 end
 
 % 結果の保存
 girder_stiffening = table(idmeg, Lb, Lb_end, xc, xc_points);
+return
+end
+%-------------------------------------------------------
+function tf = is_girder_stiffening_new_format(data)
+%is_girder_stiffening_new_format - 入力列から新形式を判定する
+% 構文:
+%   tf = is_girder_stiffening_new_format(data)
+%
+% 入力引数:
+%   data - 梁横補剛ブロックの正規化済みセル配列
+%
+% 出力引数:
+%   tf - 新形式の場合true
+if size(data, 2) < 13
+  tf = false;
+  return
+end
+
+position_data = cell2mat(data(:,11:13));
+tf = any(~isnan(position_data), 'all');
+
 return
 end
 
