@@ -26,8 +26,8 @@ for i=1:ng
 end
 
 % 通り番号・方向
-[idx, idy, idz] = find_idxyz_girder(...
-  story_name, frame_name, coord_name, baseline);
+[idx, idy, idz] = find_idxyz_girder(story_name, frame_name, ...
+  coord_name, baseline);
 for i=1:ng
   for j=1:2
     isused_girder(idx(i,j),idy(i,j),idz(i,j)) = true;
@@ -55,8 +55,8 @@ for i=1:nc
 end
 
 % 通り番号・方向
-[idx, idy, idz] = find_idxyz_column(...
-  floor_name, xcoord_name, ycoord_name, baseline, story);
+[idx, idy, idz] = find_idxyz_column(floor_name, xcoord_name, ...
+  ycoord_name, baseline, story);
 for i=1:nc
   for j=1:2
     isused_column(idx(i,j),idy(i,j),idz(i,j)) = true;
@@ -65,6 +65,24 @@ end
 
 % 梁か柱で使われている
 isused = isused_girder|isused_column;
+
+%% 節点の同一化ブロックから移動先を読み込み
+isused_destination = false(nblx, nbly, nblz);
+data_destination = dbc.get_data_block('節点の同一化');
+nd = size(data_destination,1);
+if nd > 0
+  story_name_dest = cell(nd,1);
+  coord_name_dest = cell(nd,2);
+  for i=1:nd
+    story_name_dest{i} = tochar(data_destination{i,4});
+    coord_name_dest(i,:) = tochar(data_destination(i,5:6));
+  end
+  [idx_dest, idy_dest, idz_dest] = find_idxyz_node(story_name_dest, ...
+    coord_name_dest, baseline);
+  for i=1:nd
+    isused_destination(idx_dest(i), idy_dest(i), idz_dest(i)) = true;
+  end
+end
 
 %% 節点ブロックからダミー指定を読み込み（保持対象の節点）
 iskeep_node = false(nblx, nbly, nblz);
@@ -88,12 +106,13 @@ if n > 0
     end
   end
 end
-% ダミー指定された節点はisusedにも追加
-isused = isused | iskeep_node;
+% ダミー指定された節点と同一化移動先はisusedにも追加
+isused = isused | iskeep_node | isused_destination;
 
-%% ダミー層で柱梁がとりつかない節点は削除（ダミー指定された節点は保持）
+%% ダミー層で柱梁がとりつかない節点は削除（保持対象の節点は残す）
 isdummy_node(:,:,story.isdummy) = true;
-isdummy_node = isdummy_node & ~isused_girder & ~iskeep_node;
+isdummy_node = isdummy_node & ~isused_girder & ~iskeep_node ...
+  & ~isused_destination;
 isused = isused & ~isdummy_node;
 
 %% 節点
