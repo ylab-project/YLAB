@@ -144,9 +144,9 @@ idmg2n = [member_girder.idnode1 member_girder.idnode2];
   member_girder, idmc2sf1x, idmc2sf2x, ...
   idmc2sf1y, idmc2sf2y, idmc2mf1x, idmc2mf2x, ...
   idmc2mf1y, idmc2mf2y);
+gcxl = cxl(mtype == PRM.GIRDER, :);
+gcyl = cyl(mtype == PRM.GIRDER, :);
 if options.consider_allowable_stress_at_face
-  gcxl = cxl(mtype==PRM.GIRDER,:);
-  gcyl = cyl(mtype==PRM.GIRDER,:);
   lf.girder = comp_face_length_girder(secdim, idmg2sfl, ...
     idmg2sfr, idscb2s, cbs.Df, gcxl, gcyl, idmg2n, idsup2n);
   [lf.columnx, lf.columny] = comp_face_length_column(...
@@ -184,7 +184,7 @@ if options.consider_rigid_zone
   % 梁剛域
   lr.girder = calc_rigid_zone_girder(mgstype, idmg2sfl, ...
     idmg2sfr, idscb2s, cbs.Df, sdimgm, secdim, stype, ...
-    gdir, idmg2n, idsup2n);
+    gdir, gcxl, idmg2n, idsup2n);
 end
 
 return
