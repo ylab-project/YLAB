@@ -66,18 +66,17 @@ for ilc = 1:nlc
       case PRM.COLUMN
         % 組合せ応力度比 sqrt(σ^2+3τ^2)/ft（角形・円形鋼管等）
         %   σ = 軸+両曲げの縁応力度（端部ごとの絶対値和）
-        %   τ = 端部せん断応力度（X方向=9列, Y方向=8列）
+        %   τ = 同端部のX/Yせん断応力度の大きい方
         %   断面算定表に表示する内訳値。検定比一覧には用いない。
         ftc = ftn(inm,ilc_);
         sgb = abs(st(inm,1,ilc)) + abs(st(inm,5,ilc)) + abs(st(inm,6,ilc));
         sgt = abs(st(inm,1,ilc)) + abs(st(inm,11,ilc)) ...
           + abs(st(inm,12,ilc));
-        tcx = abs(st(inm,9,ilc));
-        tcy = abs(st(inm,8,ilc));
-        ration(inm,15,ilc) = sqrt(sgb^2 + 3*tcx^2) / ftc;
-        ration(inm,16,ilc) = sqrt(sgb^2 + 3*tcy^2) / ftc;
-        ration(inm,17,ilc) = sqrt(sgt^2 + 3*tcx^2) / ftc;
-        ration(inm,18,ilc) = sqrt(sgt^2 + 3*tcy^2) / ftc;
+        tc = max(abs(st(inm,9,ilc)), abs(st(inm,8,ilc)));
+        ration(inm,15,ilc) = sqrt(sgb^2 + 3*tc^2) / ftc;
+        ration(inm,16,ilc) = sqrt(sgb^2 + 3*tc^2) / ftc;
+        ration(inm,17,ilc) = sqrt(sgt^2 + 3*tc^2) / ftc;
+        ration(inm,18,ilc) = sqrt(sgt^2 + 3*tc^2) / ftc;
       case PRM.GIRDER
         % 梁中央は中央2区間選定後の確定値を呼び出し側で設定する。
         % 中央N/fc（引張正）

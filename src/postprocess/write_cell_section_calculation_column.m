@@ -137,6 +137,7 @@ for i = 1:nstory
       inc = group_cands_(icand_);
       inm = idnmc2nm(inc);
       warn_axial_bending = false;
+      warn_shear = false;
       warn_combined = false;
 
       % --- 最大ケースの判定 ---
@@ -362,16 +363,20 @@ for i = 1:nstory
 
       % SS7 互換の警告行を柱エントリ末尾に出力する
       if warn_axial_bending
-        append_warning_row(['　　　警告  692： S柱で軸力と' ...
+        append_warning_row(['警告  692： S柱で軸力と' ...
           '曲げモーメントによる応力度が許容応力度を' ...
           '超えています。']);
       end
+      if warn_shear
+        append_warning_row(['警告  693： S柱でせん断応力度が' ...
+          '許容せん断応力度を超えています。']);
+      end
       if warn_combined
-        append_warning_row(['　　　警告  694： S柱で組合せ応力度が' ...
+        append_warning_row(['警告  694： S柱で組合せ応力度が' ...
           '許容応力度を超えています。']);
       end
       if warn_slenderness
-        append_warning_row(['　　　警告  697： S柱で細長比が' ...
+        append_warning_row(['警告  697： S柱で細長比が' ...
           '200を超えています。']);
       end
 
@@ -455,6 +460,7 @@ return
   %     20:組合せ / 25:CONT_MARKER
     total = r_n + r_bx + r_by;
     warn_axial_bending = warn_axial_bending || total > 1.0;
+    warn_shear = warn_shear || tau > 1.0;
     warn_combined = warn_combined || combined > 1.0;
     % 検定比は SS7 互換で小数2桁切り上げ表示(丸め規則を一元化)
     fmt2 = @(r) fmt_ratio(r, true);
@@ -626,7 +632,9 @@ return
     F_top_ = F(im_top_);
     F_bot_ = F(im_bot_);
     irow = irow + 1;
-    sccbody{irow, 1} = '鉄骨      柱頭      Ｆ値    柱脚      Ｆ値';
+    material_header_ = ['鉄　骨   　   柱頭　     Ｆ値　 　 ', ...
+      '柱脚　     Ｆ値'];
+    sccbody{irow, 1} = material_header_;
     sccbody{irow, ncol} = PRM.CONT_MARKER;
     irow = irow + 1;
     sccbody{irow, 1} = sprintf('[ %-9s]  %.1f  [ %-9s]  %.1f', ...
