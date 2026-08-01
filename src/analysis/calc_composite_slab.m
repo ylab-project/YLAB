@@ -1,5 +1,18 @@
 function phiI = calc_composite_slab(member_girder, sdim, A0, I0)
 %calc_composite_slab - 合成スラブによる断面二次モーメント増大率を計算
+%
+%   phiI = calc_composite_slab(member_girder, sdim, A0, I0) は、
+%   S梁とRC梁に取り付くスラブを考慮し、断面二次モーメントの
+%   増大率を計算する。
+%
+%   入力引数:
+%     member_girder - 梁部材とスラブの情報
+%     sdim          - 梁断面寸法 [nmg×ncol]
+%     A0            - スラブ非考慮の断面積 [nmg×1] (mm2)
+%     I0            - スラブ非考慮の断面二次モーメント [nmg×1] (mm4)
+%
+%   出力引数:
+%     phiI - スラブによる断面二次モーメント増大率 [nmg×1]
 
 % 定数
 nmg = size(sdim,1);
@@ -24,55 +37,27 @@ Hc = Hc0(stype==PRM.WFS,:);
 Ec = Ec0(stype==PRM.WFS);
 Hd = Hd0(stype==PRM.WFS,:);
 ba = ba0(stype==PRM.WFS,:);
-issymmetric = (Hc(:,1)==Hc(:,2)&Hd(:,1)==Hd(:,2));
-% issymmetric = true;
-if issymmetric
-  % 対称な場合
-  ba = sum(ba,2);
-  Ba = Bs+ba;
-  Hc = Hc(:,1);
-  Hd = Hd(:,1);
-  g = (Ec.*Ba.*Hc.*(Hc/2)+Es.*As.*(Hc+Hd+Hs/2))./(Ec.*Ba.*Hc+Es.*As);
-  Icom = (Ec/Es).*Ba.*(Hc.^3/12+Hc.*(g-Hc/2).^2)+Is+As.*(g-Hc-Hd-Hs/2).^2;
-else
-  % 非対称な場合
-  nwfs = sum(stype==PRM.WFS);
-  i1 = zeros(nwfs,1);
-  i2 = zeros(nwfs,1);
-  for i=1:nwfs
-    if Hc(i,1)<Hc(i,2) || ba(i,1)==0
-      i1(i) = 2;
-      i2(i) = 1;
-    else
-      i1(i) = 1;
-      i2(i) = 2;
-    end
-  end
-  ba1 = zeros(nwfs,1);
-  ba2 = zeros(nwfs,1);
-  Hc1 = zeros(nwfs,1);
-  Hc2 = zeros(nwfs,1);
-  Hd1 = zeros(nwfs,1);
-  Hd2 = zeros(nwfs,1);
-  for i=1:nwfs
-    ba1(i) = ba(i,i1(i));
-    ba2(i) = ba(i,i2(i));
-    Hc1(i) = Hc(i,i1(i));
-    Hc2(i) = Hc(i,i2(i));
-    Hd1(i) = Hd(i,i1(i));
-    Hd2(i) = Hd(i,i2(i));
-  end
-  Ba = Bs+ba1;
-  % g = (Ec.*Ba.*Hc1.*(Hc1/2) ...
-  %   +Ec.*ba2.*Hc2.*(Hc1-Hc2/2) ...
-  %   +Es.*As.*(Hc1+Hd1+Hs/2)) ...
-  %   ./(Ec.*Ba.*Hc1+Ec.*ba2.*Hc2+Es.*As);
-  g = (Ec.*Ba.*Hc1.*(Hc1/2)+Ec.*ba2.*Hc2.*(Hc2/2) ...
-    +Es.*As.*(Hc1+Hd1+Hs/2))./(Ec.*Ba.*Hc1+Ec.*ba2.*Hc2+Es.*As);
-  Icom = (Ec/Es).*(Ba.*Hc1.^3/12+Ba.*Hc1.*(g-Hc1/2).^2 ...
-    +ba2.*Hc2.^3/12+ba2.*Hc2.*(g-Hc2/2).^2) ...
-    +Is+As.*(g-Hc1-Hd1-Hs/2).^2;
-end
+% スラブ左右の厚さ・デッキ高さは異なり得るため、基準側を選んで
+% 共通座標で扱う（左右対称の場合も同式に帰着する）
+nwfs = sum(stype==PRM.WFS);
+swap = Hc(:,1) < Hc(:,2) | ba(:,1) == 0;  % true: 2列目を基準側
+idx = (1:nwfs)';
+lin1 = idx + nwfs*swap;   % 基準側の線形インデックス
+lin2 = idx + nwfs*~swap;  % 反対側の線形インデックス
+ba1 = ba(lin1);
+ba2 = ba(lin2);
+Hc1 = Hc(lin1);
+Hc2 = Hc(lin2);
+Hd1 = Hd(lin1);
+Hd2 = Hd(lin2);
+Ba = Bs+ba1;
+% 基準側スラブ上面を原点とし、反対側も同じ座標で表す
+zslab2 = Hc1+Hd1-Hd2-Hc2/2;
+g = (Ec.*Ba.*Hc1.*(Hc1/2)+Ec.*ba2.*Hc2.*zslab2 ...
+  +Es.*As.*(Hc1+Hd1+Hs/2))./(Ec.*Ba.*Hc1+Ec.*ba2.*Hc2+Es.*As);
+Icom = (Ec/Es).*(Ba.*Hc1.^3/12+Ba.*Hc1.*(g-Hc1/2).^2 ...
+  +ba2.*Hc2.^3/12+ba2.*Hc2.*(g-zslab2).^2) ...
+  +Is+As.*(g-Hc1-Hd1-Hs/2).^2;
 
 % 接合条件の場合分け
 I = (Icom+Is)/2;
