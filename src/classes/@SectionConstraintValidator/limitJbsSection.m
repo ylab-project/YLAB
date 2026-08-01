@@ -8,7 +8,9 @@ function limitJbsSection(obj, isjbs, nominal_girder, ...
 %   のみを有効とする。H形鋼断面に対して接合部の
 %   耐力をチェックし、条件を満たさない断面を無効化
 %   する。最も有利な柱（最大値）でもNGとなる梁断面
-%   を除外する。
+%   を除外する。絞り込みはJBS対象（isjbs）の名目梁が
+%   使う断面に限り、ピン接合等で対象外の梁だけが使う
+%   断面は制限しない（SS7は端部ピンを検討しない）。
 %
 %   入力引数:
 %     obj            - SectionConstraintValidatorオブジェクト
@@ -45,6 +47,10 @@ wfs_slist = obj.idsec2slist(find(wfs_mask));
 % 名目梁 → WFS断面番号
 ng_wfs = idsecg2wfs(nominal_girder.idsecg);
 
+% JBS対象の名目梁が使うWFS断面。対象外（ピン接合等）の梁だけが
+% 使う断面は絞り込み対象にしない
+jbs_wfs = unique(ng_wfs(any(isjbs, 2) & ng_wfs > 0));
+
 % HSS柱候補の最大値を計算（最大柱でもNGなら除外）
 % HSS柱がない場合は柱側制約なしとして [] を渡す
 hss_secc = section_column.type == PRM.HSS;
@@ -77,6 +83,13 @@ for idsList = 1:nlist_
     continue
   end
 
+  % リストに対応するWFS断面と仕口対象断面の抽出
+  iwfs_targets = find(wfs_slist == idsList);
+  iwfs_jbs = intersect(iwfs_targets, jbs_wfs);
+  if isempty(iwfs_jbs)
+    continue
+  end
+
   % リストの抽出
   sdimlist = secmgr.getDimension(idsList, idphase);
 
@@ -86,9 +99,8 @@ for idsList = 1:nlist_
   Flist = secmgr.getIdSecList2F(idsList);
   gradelist = secmgr.getIdSecList2Grade(idsList);
 
-  % リストに対応するWFS断面の抽出と判定
+  % リストの有効性フラグ正本
   isvalid = obj.validSectionFlagCell_{idsList};
-  iwfs_targets = find(wfs_slist == idsList);
 
   % OKか判定（最大柱でもNGなら除外。HSS柱なしは[]で柱制約なし）
   nsec_ = size(sdimlist, 1);
@@ -111,7 +123,7 @@ for idsList = 1:nlist_
   end
   isvalid_ = (conjbs_ < 0)';
 
-  for iwfs = iwfs_targets'
+  for iwfs = iwfs_jbs'
     isvalid(iwfs, :) = isvalid(iwfs, :) & isvalid_;
   end
 
