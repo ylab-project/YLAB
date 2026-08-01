@@ -58,9 +58,20 @@ uibutton(bg_btns, 'Text', '実行', ...
   'ButtonPushedFcn', @on_run_current, ...
   'Tooltip', '現在のMATLABセッションで実行します');
 
+% batファイル生成は配布実行時のみ有効（EXEの場所が確定する）
+if isempty(options.exepath)
+  bat_enable = 'off';
+  bat_tooltip = ['EXEの場所が確定しないため使用できません。' ...
+    'MATLAB実行時は m-script 生成を使用します'];
+else
+  bat_enable = 'on';
+  bat_tooltip = '実行用バッチファイルを作成します';
+end
+
 uibutton(bg_btns, 'Text', 'batファイル生成', ...
   'ButtonPushedFcn', @on_create_batch, ...
-  'Tooltip', '実行用バッチファイルを作成します');
+  'Enable', bat_enable, ...
+  'Tooltip', bat_tooltip);
 
 uibutton(bg_btns, 'Text', 'm-script生成', ...
   'ButtonPushedFcn', @on_create_mscript, ...
@@ -228,7 +239,7 @@ target_output = target_output_file;
       end
       if isempty(current_path) || ...
           ~exist(fullfile(current_path, 'YLAB.m'), 'file')
-        p_ylab = which('YLAB');
+        p_ylab = get_ylab_mfile_path();
         if ~isempty(p_ylab)
           current_path = fileparts(p_ylab);
         else

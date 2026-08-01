@@ -11,7 +11,8 @@ classdef CommonOption
   properties
     % --- ディレクトリパス ---
     approot (1,:) char
-    prgroot (1,:) char
+    % 実行中の YLAB.exe のフルパス（配布実行時のみ。MATLAB実行時は空）
+    exepath (1,:) char
     inputfile (1,:) char
     outputfile (1,:) char
     solutionfile (1,:) char
@@ -260,8 +261,9 @@ classdef CommonOption
     %validate - オプション値の検証
     %
     %   validate(obj) は、必須プロパティの型・範囲と必須パス
-    %   (approot, prgroot, inputfile, outputfile) の設定有無を
-    %   検証し、不正時はエラーを投げる。
+    %   (approot, inputfile, outputfile) の設定有無を検証し、
+    %   不正時はエラーを投げる。exepath は配布実行時のみ値を持つ
+    %   ため必須としない。
     %
     %   入力引数:
     %     obj - CommonOptionインスタンス
@@ -282,9 +284,6 @@ classdef CommonOption
       % 必須パスの検証
       if isempty(obj.approot)
         error('CommonOption:InvalidPath', 'approot must be set');
-      end
-      if isempty(obj.prgroot)
-        error('CommonOption:InvalidPath', 'prgroot must be set');
       end
       if isempty(obj.inputfile)
         error('CommonOption:InvalidPath', 'inputfile must be set');
