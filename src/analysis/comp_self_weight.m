@@ -1,13 +1,13 @@
 function sw = comp_self_weight(A, lm_weight, lm_lower_extension, lm, ...
   member_property, msdim, slab, cxl, cyl, nnode, mejoint, ...
-  face_deduct, options, member_column, brace_unit_weight, ...
+  weight_deduct, options, member_column, brace_unit_weight, ...
   Df_foundation, girder_level, girder_isfg, idsup2n, ...
   rho_rc_member)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
 %   sw = comp_self_weight(A, lm_weight, lm_lower_extension, lm, ...
 %   member_property, msdim, slab, cxl, cyl, nnode, mejoint, ...
-%   face_deduct, options, ...
+%   weight_deduct, options, ...
 %   member_column, brace_unit_weight, Df_foundation, girder_level, ...
 %   girder_isfg, idsup2n, rho_rc_member) は、
 %   柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを
@@ -16,7 +16,8 @@ function sw = comp_self_weight(A, lm_weight, lm_lower_extension, lm, ...
 %
 %   入力引数:
 %     A               - 断面積配列
-%     lm_weight         - 荷重計算用部材長配列（等価節点荷重用）
+%     lm_weight         - 柱・ブレースの荷重計算用部材長配列
+%                         （等価節点荷重用。梁では未使用）
 %     lm_lower_extension - 柱脚節点より下に延びる物理長配列
 %     lm                - 実際の部材長配列（CMQ計算用）
 %     member_property - 部材プロパティ構造体
@@ -27,7 +28,9 @@ function sw = comp_self_weight(A, lm_weight, lm_lower_extension, lm, ...
 %     cxl,cyl         - 部材座標系の方向余弦
 %     nnode           - 全節点数
 %     mejoint         - 結合条件配列
-%     face_deduct     - 梁の柱面減算量 [nmeg x 2]（列1: i端, 列2: j端）
+%     weight_deduct   - 梁の符号付き自重控除長 [nmeg x 2]
+%                       （列1: i端, 列2: j端。正値は分布荷重から
+%                       控除し、負値は端部集中重量として加算）
 %     options         - オプション構造体
 %     member_column   - 柱部材構造体
 %     brace_unit_weight - ブレース単位重量 [nmeb x 1] N/mm
@@ -172,7 +175,7 @@ czl = cross(cxl, cyl, 2);
 
 for im = 1:nme
   % --- 共通 ---
-  li_w = lm_weight(im);  % 等価節点荷重用（荷重計算用部材長）
+  li_w = lm_weight(im);  % 柱・ブレースの等価節点荷重用（梁では未使用）
   wi = w(im);
   in1 = idme2j1(im);
   in2 = idme2j2(im);
@@ -199,32 +202,34 @@ for im = 1:nme
     fc(in2, :) = fc(in2, :) + fj_global;
   elseif mtype(im) == PRM.GIRDER
     % === 梁の処理 ===
-    li_m = lm(im);  % CMQ用（実際の部材長）
+    L = lm(im);  % 部材長（通り心間距離）
     t = [cxl(im,:); cyl(im,:); czl(im,:)];
     wv = t*[0; 0; wi];  % 要素座標系での荷重（CMQ計算用）
 
-    % 等価節点荷重の計算（柱面間分布荷重の偏心配分）
-    % 鉛直荷重成分（PX, PY, PZ）は全体座標系で直接計算（SS7方式）
+    % 符号付き自重控除長を分布区間と端部集中重量へ分離する。
+    % 正値は分布荷重から控除し、負値は節点外側の重量として
+    % 対応する端部PZへ加算する。
     ig = idme2ig(im);
-    d1 = face_deduct(ig, 1);  % i端の柱面減算量
-    % d2 = face_deduct(ig, 2) は li_w = li_m - d1 - d2 に既に反映済み
-    W = wi * li_w;            % 総荷重
-    x_cg = d1 + li_w / 2;     % 荷重重心のi端節点からの距離
-    % 偏心配分（モーメントのつり合いから）
-    fv_i3 = W * (li_m - x_cg) / li_m;  % i端の鉛直荷重
-    fv_j3 = W * x_cg / li_m;           % j端の鉛直荷重
-    % 等価節点荷重は全体座標系で直接設定（PX=0, PY=0）
+    deduct_i = weight_deduct(ig, 1);
+    deduct_j = weight_deduct(ig, 2);
+    a = max(deduct_i, 0);       % 分布荷重のi端控除長
+    b = max(deduct_j, 0);       % 分布荷重のj端控除長
+    lump_i = max(-deduct_i, 0); % i端へ集中させる節点外長さ
+    lump_j = max(-deduct_j, 0); % j端へ集中させる節点外長さ
+    Lb = L - b;                 % 分布荷重の右端位置
+
+    % 分布荷重は区間 [a, L-b] の重心で偏心配分し、端部集中重量は
+    % モーメントを発生させず対応端へ直接加算する。
+    distribution_weight = wi * (Lb - a);
+    distribution_cg = (a + Lb) / 2;
+    fv_i3 = distribution_weight * (L - distribution_cg) / L + wi * lump_i;
+    fv_j3 = distribution_weight * distribution_cg / L + wi * lump_j;
     fvi = [0; 0; fv_i3];
     fvj = [0; 0; fv_j3];
 
     % 接合条件に応じたCMQ計算
     % mejoint: 1:i端(強軸), 2:j端(強軸), 3:i端(弱軸), 4:j端(弱軸)
     joint = mejoint(im,:);
-    a = face_deduct(ig, 1);  % i端の柱面減算量
-    % j端の柱面減算量（変数名 b との重複を避けるため末尾_）
-    b_ = face_deduct(ig, 2);
-    L = li_m;                % 通り心間距離
-    Lb = L - b_;             % = a + L' (荷重右端位置)
     w3 = wv(3);              % 要素座標系での鉛直荷重成分
     % 柱面間分布荷重に対し区間 [a, L-b] で積分して算出する。
     %   単位集中荷重 P が位置 x に作用するときの固定端 M:
@@ -259,12 +264,12 @@ for im = 1:nme
     % ピン端のモーメント解放に伴うせん断力の再配分
     if joint(1)==PRM.PIN && joint(2)~=PRM.PIN
       % i端ピン: CMQ_jに応じてPZを再配分
-      dv = cvj(2) / li_m;
+      dv = cvj(2) / L;
       fvi(3) = fvi(3) - dv;
       fvj(3) = fvj(3) + dv;
     elseif joint(2)==PRM.PIN && joint(1)~=PRM.PIN
       % j端ピン: CMQ_iに応じてPZを再配分
-      dv = cvi(2) / li_m;
+      dv = cvi(2) / L;
       fvi(3) = fvi(3) + dv;
       fvj(3) = fvj(3) - dv;
     end
@@ -299,10 +304,10 @@ for im = 1:nme
 
     fg(in1, :) = fg(in1, :) + [fi_force; fi_moment]';
     fg(in2, :) = fg(in2, :) + [fj_force; fj_moment]';
-    % 柱面間 [a, L-b] に等分布する荷重の単純梁中央 M (SS7 互換)
+    % 区間 [a, L-b] に等分布する荷重の単純梁中央 M (SS7 互換)
     % M(L/2) = w * (L²/8 - (a² + b²)/4)
     % SS7 マニュアル 4.1.1(1) 式 4.5: 自重は柱面間 L で計算
-    m0m = wv(3)*(li_m^2/8 - (a^2 + b_^2)/4);
+    m0m = wv(3)*(L^2/8 - (a^2 + b^2)/4);
     M0(im) = m0m;
   elseif mtype(im) == PRM.BRACE
     % === ブレースの処理 ===

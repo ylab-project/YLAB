@@ -1,4 +1,4 @@
-function [lm_girder_weight, face_deduct] = calc_girder_weight_length( ...
+function [lm_girder_weight, weight_deduct] = calc_girder_weight_length( ...
   member_girder, node, cxl, stype_sec, idsecg2sec, secdim, ...
   Df_foundation, coord_shift)
 %calc_girder_weight_length - 梁荷重計算用の部材長を算出
@@ -25,7 +25,7 @@ function [lm_girder_weight, face_deduct] = calc_girder_weight_length( ...
 %   「通り心まで」となる梁端（一本部材の中間端、柱面控除がゼロに
 %   なる異種構造の組合せ）は、寄り反映後の構造心節点ではなく
 %   通り心を基準とする。通り心と構造心のズレは coord_shift で
-%   受け取り、梁軸方向に投影して柱面控除量へ加算する。
+%   受け取り、梁軸方向に投影して自重控除長へ加算する。
 %   柱面まで端は構造心基準を維持する（柱寄りが通りごとに一様な
 %   場合は柱心に一致する。柱ごとに寄りが異なる一般ケースは未対応）。
 %
@@ -43,9 +43,9 @@ function [lm_girder_weight, face_deduct] = calc_girder_weight_length( ...
 %
 % Outputs:
 %   lm_girder_weight - 梁荷重計算用の部材長配列 [nmeg x 1]
-%   face_deduct      - 柱面減算量 [nmeg x 2]（列1: i端, 列2: j端。
-%                      通り心まで端の基準点補正を含み、節点の外側へ
-%                      延びる場合は負値）
+%   weight_deduct    - 符号付き自重控除長 [nmeg x 2]（列1: i端,
+%                      列2: j端。通り心まで端の基準点補正を含み、
+%                      節点の外側へ延びる場合は負値）
 
 % 梁数
 nmeg = length(member_girder.idme);
@@ -95,9 +95,11 @@ end
 [face_deduct, ~, ~] = calc_girder_face_deduct(face_dimension, cxl);
 
 % 通り心まで端の基準点補正
-% 構造心節点から通り心へ戻すズレを梁軸方向に投影し、控除量へ
-% 加える（i端は減算、j端は加算）。節点の外側へ延びる場合は負の
-% 控除になる。通りに載らない節点はズレ0で補正されない。
+% 柱面控除に、構造心節点から通り心へ戻すズレを梁軸方向に投影して
+% 加えたものを自重控除長とする（i端は減算、j端は加算）。節点の
+% 外側へ延びる場合は負の控除になる。通りに載らない節点はズレ0で
+% 補正されない。
+weight_deduct = face_deduct;
 if nargin >= 8 && ~isempty(coord_shift)
   node_sx = zeros(size(node.x));
   node_sy = zeros(size(node.y));
@@ -111,11 +113,11 @@ if nargin >= 8 && ~isempty(coord_shift)
     s_axis = node_sx(idnode_end{iend}).*cxl(:,1) ...
       + node_sy(idnode_end{iend}).*cxl(:,2);
     mask = is_to_grid(:, iend);
-    face_deduct(mask, iend) = face_deduct(mask, iend) ...
+    weight_deduct(mask, iend) = weight_deduct(mask, iend) ...
       + sgn(iend)*s_axis(mask);
   end
 end
-lm_girder_weight = lm_girder_weight - sum(face_deduct, 2);
+lm_girder_weight = lm_girder_weight - sum(weight_deduct, 2);
 
 return
 end
