@@ -30,7 +30,7 @@ classdef CommonOption
     % --- フロー制御 ---
     version (1,:) char
     uimode (1,1) double = PRM.UIMODE_CUI
-    exemode char {mustBeMember(exemode, {'OPT', 'GA', 'CHECK', ...
+    exemode char {mustBeMember(exemode, {'OPT', 'CHECK', ...
       'CONVERT'})} = 'OPT'
     developer_mode logical = false;
     do_limit_initial_girder_height(1,1) logical = false
@@ -160,9 +160,8 @@ classdef CommonOption
 
     % 最適化計算オプション
     penalty_method = PRM.PENALTY_MAXIMUM;
-    local_search_method (1,:) char {mustBeMember(local_search_method, ...
-      {'LSR', 'LSFR'})} = 'LSFR'
-    do_lsfr_all_phases (1,1) logical = false
+    algorithm (1,:) char {mustBeMember(algorithm, {'LSR', ...
+      'LSFR', 'LSR_LSFR', 'GA'})} = 'LSR_LSFR'
     max_fusion_depth (1,1) double {mustBeInteger, ...
       mustBeGreaterThanOrEqual(max_fusion_depth, 2)} = 6
     max_num_fusion_seed (1,1) double {mustBePositive, mustBeInteger} = 50
@@ -175,9 +174,9 @@ classdef CommonOption
     lsfr_diagnostic_file (1,:) char = ''
 
     % Fusion候補のseed並列生成方式（parfeval=既定, parfor=seed単位）
-    lsfr_fusion_parallel_method (1,:) char ...
-      {mustBeMember(lsfr_fusion_parallel_method, ...
-      {'parfeval', 'parfor'})} = 'parfeval'
+    lsfr_fusion_parallel_method (1,:) char {mustBeMember( ...
+      lsfr_fusion_parallel_method, {'parfeval', 'parfor'})} = ...
+      'parfeval'
 
     % 制約条件オプション
     coptions

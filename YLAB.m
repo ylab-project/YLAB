@@ -32,9 +32,10 @@ function [exitflag, result, com] = YLAB(varargin)
 %     -legacy      - SS7互換の旧フォーマットで出力
 %     -nopreprocess - 断面リスト事前処理を無効化
 %     -sequential  - 並列計算を無効化（プロファイリング用）
-%     -LSFR        - 第2Phase以降でLSFRを使用
-%     -LSFR:full   - 全PhaseでLSFRを使用
-%     -LSR         - 局所探索法をLSRへ切替（デフォルト）
+%     -alg:LSR      - 全PhaseでLSRを使用
+%     -alg:LSFR     - 全PhaseでLSFRを使用
+%     -alg:LSR_LSFR - Phase 1はLSR、以降はLSFR（デフォルト）
+%     -alg:GA       - GAを使用
 %     -dev         - 開発者モード（GUIで起動）
 %     -version     - バージョン情報を表示して終了
 %

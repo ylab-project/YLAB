@@ -33,8 +33,8 @@ for i=1:size(mat,1)
       options.maxiter_in_LS = str2double(mat{i,2});
     case 'maxcache'
       options.maxcache = str2double(mat{i,2});
-    case 'local_search_method'
-      options.local_search_method = char(mat{i,2});
+    case 'algorithm'
+      options.algorithm = char(mat{i,2});
     case 'max_fusion_depth'
       options.max_fusion_depth = str2double(mat{i,2});
     case 'max_num_fusion_seed'

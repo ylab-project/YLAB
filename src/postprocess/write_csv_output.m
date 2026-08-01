@@ -51,9 +51,11 @@ if fout == -1
 end
 
 %% 一般
-fprintf(fout, 'ApName,%s\n','YLAB/LSR');
-fprintf(fout, 'Version,%s\n',options.version);
-fprintf(fout, '計算日,%s\n',datetime("today"));
+fprintf(fout, 'ApName,YLAB\n');
+fprintf(fout, 'Version,%s\n', options.version);
+fprintf(fout, 'ExeMode,%s\n', options.exemode);
+fprintf(fout, 'Algorithm,%s\n', options.algorithm);
+fprintf(fout, '計算日,%s\n', datetime('today'));
 
 %% 最適化問題
 write_csv_optimization_problem(com, result, options, fval, cvec, fout);

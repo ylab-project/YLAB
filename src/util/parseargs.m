@@ -20,14 +20,19 @@ function options = parseargs(options, varargin)
 %       '-legacy'     - レガシー出力形式を使用
 %       '-nopreprocess' - 断面リスト事前処理を無効化
 %       '-sequential' - 並列計算を無効化（プロファイリング用）
-%       '-LSFR'       - 第2Phase以降でLSFRを使用
-%       '-LSFR:full'  - 全PhaseでLSFRを使用
-%       '-LSR'        - 局所探索法をLSRへ切り替える
+%       '-alg:<名前>' - 最適化アルゴリズム指定。候補は
+%                       CommonOption.algorithm の mustBeMember を参照
 
 n = length(varargin);
 tf = true(1,n);
-local_search_method_flag = '';
+algorithm_flag = '';
 for i=1:n
+  % '-alg:' 接頭辞はアルゴリズム指定（妥当性は代入時に検証される）
+  if strncmp(varargin{i}, '-alg:', 5)
+    tf(i) = false;
+    algorithm_flag = varargin{i}(6:end);
+    continue
+  end
   switch varargin{i}
     case '-nopdf'
       tf(i) = false;
@@ -47,18 +52,6 @@ for i=1:n
     case '-sequential'
       tf(i) = false;
       options.do_parallel = false;
-    case '-LSFR'
-      tf(i) = false;
-      local_search_method_flag = 'LSFR';
-      options.do_lsfr_all_phases = false;
-    case '-LSFR:full'
-      tf(i) = false;
-      local_search_method_flag = 'LSFR';
-      options.do_lsfr_all_phases = true;
-    case '-LSR'
-      tf(i) = false;
-      local_search_method_flag = 'LSR';
-      options.do_lsfr_all_phases = false;
   end
 end
 varargin = varargin(tf);
@@ -139,8 +132,8 @@ if ~isempty(options.optionfile)
       ME.message);
   end
 end
-if ~isempty(local_search_method_flag)
-  options.local_search_method = local_search_method_flag;
+if ~isempty(algorithm_flag)
+  options.algorithm = algorithm_flag;
 end
 
 return

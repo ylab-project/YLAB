@@ -47,6 +47,7 @@ fprintf(fid, 'echo Running YLAB...\r\n');
 fprintf(fid, '%%EXE_PATH%% ^\r\n');
 fprintf(fid, '  uimode CUI ^\r\n');
 fprintf(fid, '  exemode %s ^\r\n', options.exemode);
+fprintf(fid, '  -alg:%s ^\r\n', options.algorithm);
 fprintf(fid, '  inputfile "%s" ^\r\n', options.inputfile);
 fprintf(fid, '  outputfile "%s"', options.outputfile);
 

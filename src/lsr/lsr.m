@@ -1,8 +1,8 @@
 function [xopt, fopt, exitflag, history] = lsr( ...
   xvar, com, history, options)
 
-do_lsfr = strcmp(options.local_search_method, 'LSFR') && ...
-  (options.do_lsfr_all_phases || options.idphase >= 2);
+do_lsfr = strcmp(options.algorithm, 'LSFR') || ...
+  (strcmp(options.algorithm, 'LSR_LSFR') && options.idphase >= 2);
 is_pure_lsr = ~do_lsfr;
 collect_lsr_timing = is_pure_lsr && ~isempty(options.lsfr_diagnostic_file);
 

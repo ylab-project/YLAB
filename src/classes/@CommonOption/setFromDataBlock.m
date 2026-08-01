@@ -200,8 +200,8 @@ for i=1:size(data,1)
       end
     case 'maxcache'
       options.maxcache = data{i,2};
-    case 'local_search_method'
-      options.local_search_method = char(data{i,2});
+    case 'algorithm'
+      options.algorithm = char(data{i,2});
     case 'max_fusion_depth'
       options.max_fusion_depth = data{i,2};
     case 'max_num_fusion_seed'

@@ -10,9 +10,9 @@ function [action, options, target_output] = show_settings_dialog(options)
 %       action - ユーザーの選択アクション
 %           'continue' : 現在のMATLABセッションで続行 (Run)
 %           'exit'     : 終了 (EXE実行、スクリプト作成、キャンセル含む)
-%       mod_options - 更新されたoptionsオブジェクト
-%       target_output_file - (continueの場合) 最終的にコピーすべきターゲットパス
-%                            コピー不要な場合は空文字
+%       options - 更新されたCommonOptionオブジェクト
+%       target_output - (continueの場合) コピー先のターゲットパス
+%                       コピー不要な場合は空文字
 
 %% 戻り値の初期化
 action = 'exit';
@@ -88,6 +88,8 @@ uibutton(bg_btns, 'Text', '終了', ...
 h_gen.edt_input.ValueChangedFcn = @on_input_changed;
 h_gen.btn_input.ButtonPushedFcn = @on_input_browse;
 h_gen.btn_output.ButtonPushedFcn = @on_output_browse;
+h_gen.dd_exemode.ValueChangedFcn = @on_exemode_changed;
+on_exemode_changed(h_gen.dd_exemode, []);
 
 h_hist.edt_matfile.ValueChangedFcn = @(s,e) analyze_matfile_ui(s.Value);
 h_hist.btn_browse.ButtonPushedFcn = @on_matfile_browse;
@@ -102,6 +104,25 @@ target_output = target_output_file;
 
 
 %% コールバック関数実装
+
+  function on_exemode_changed(source, ~)
+  %on_exemode_changed - 実行内容に応じてアルゴリズム選択を切り替える
+  %
+  %   on_exemode_changed(source, event) は、OPTの場合だけ
+  %   アルゴリズム選択を有効にする。
+  %
+  %   入力引数:
+  %     source - ExeModeドロップダウン
+  %     event  - UIイベント（未使用）
+
+    if strcmp(source.Value, 'OPT')
+      h_gen.dd_algorithm.Enable = 'on';
+    else
+      h_gen.dd_algorithm.Enable = 'off';
+    end
+
+    return
+  end
 
   function on_input_browse(~, ~)
     current_val = h_gen.edt_input.Value;
@@ -324,6 +345,7 @@ target_output = target_output_file;
     mod_options.inputfile = h_gen.edt_input.Value;
     mod_options.outputfile = h_gen.edt_output.Value;
     mod_options.exemode = h_gen.dd_exemode.Value;
+    mod_options.algorithm = h_gen.dd_algorithm.Value;
     mod_options.do_writeout_pdf = h_gen.cb_pdf.Value;
     mod_options.do_preprocess_section_list = ...
       ~h_gen.cb_nopreprocess.Value;
