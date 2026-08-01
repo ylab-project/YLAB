@@ -97,12 +97,14 @@ for ig = 1:nmg
   end
 end
 
-% RC梁の柱面距離を梁材軸方向に換算する。
-[rc_face_axis, ~, ~] = calc_girder_face_deduct(rc_face_dimension, cxl);
+% RC梁の柱面距離を梁材軸方向に換算する（RC梁がある場合のみ）。
 is_rc_girder = mgstype == PRM.RCRS;
-rc_girder_depth = sdimgm(is_rc_girder, 2);
-lrgirder(is_rc_girder, :) = rc_face_axis(is_rc_girder, :) ...
-  - alfa * [rc_girder_depth rc_girder_depth];
+if any(is_rc_girder)
+  rc_face_axis = calc_girder_face_deduct( ...
+    rc_face_dimension(is_rc_girder, :), cxl(is_rc_girder, :));
+  rc_girder_depth = sdimgm(is_rc_girder, 2);
+  lrgirder(is_rc_girder, :) = rc_face_axis - alfa * rc_girder_depth;
+end
 
 % 負値は0に
 lrgirder(lrgirder < 0) = 0;

@@ -41,7 +41,7 @@ end
 if isempty(result.cri) || isempty(result.crj) || isempty(result.ration)
   return
 end
-if size(result.ration, 2) < 18 || size(result.ration, 3) < ilc
+if size(result.ration, 2) < 16 || size(result.ration, 3) < ilc
   return
 end
 
@@ -94,8 +94,8 @@ return
     body{irow, 9} = format_ratio(abs(ration(inm, 8, ilc)));
     body{irow, 10} = format_ratio(abs(ration(inm, 3, ilc)));
     body{irow, 11} = format_ratio(abs(ration(inm, 2, ilc)));
-    body{irow, 12} = format_ratio(max(abs(ration(inm, 17:18, ilc))));
-    body{irow, 13} = format_ratio(max(abs(ration(inm, 15:16, ilc))));
+    body{irow, 12} = format_ratio(abs(ration(inm, 16, ilc)));
+    body{irow, 13} = format_ratio(abs(ration(inm, 15, ilc)));
   end
 
   function s = format_ratio(v)

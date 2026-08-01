@@ -5,8 +5,8 @@ function [ration, fcn, fbn] = calc_nominal_allowable_stress_ratio(...
 % 定数
 [nnm, ~, nlc] = size(st);
 
-% 初期化（15-18列はS柱組合せ応力度比 柱脚X/Y・柱頭X/Y）
-ration = zeros(nnm,18,nlc);
+% 初期化（15,16列はS柱組合せ応力度比 柱脚・柱頭）
+ration = zeros(nnm,16,nlc);
 
 for ilc = 1:nlc
   if (ilc==1)
@@ -16,7 +16,7 @@ for ilc = 1:nlc
     % 短期
     ilc_ = 2;
   end
-  
+
   % 梁
   for inm = 1:nnm
 
@@ -74,9 +74,7 @@ for ilc = 1:nlc
           + abs(st(inm,12,ilc));
         tc = max(abs(st(inm,9,ilc)), abs(st(inm,8,ilc)));
         ration(inm,15,ilc) = sqrt(sgb^2 + 3*tc^2) / ftc;
-        ration(inm,16,ilc) = sqrt(sgb^2 + 3*tc^2) / ftc;
-        ration(inm,17,ilc) = sqrt(sgt^2 + 3*tc^2) / ftc;
-        ration(inm,18,ilc) = sqrt(sgt^2 + 3*tc^2) / ftc;
+        ration(inm,16,ilc) = sqrt(sgt^2 + 3*tc^2) / ftc;
       case PRM.GIRDER
         % 梁中央は中央2区間選定後の確定値を呼び出し側で設定する。
         % 中央N/fc（引張正）
