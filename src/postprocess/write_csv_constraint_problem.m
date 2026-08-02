@@ -38,8 +38,13 @@ for ic = 1:mcon
   body{ic,4} = ncon(ic);
   body{ic,5} = sum(cvec(n1con(ic):n2con(ic))>=options.tolActive);
   body{ic,6} = sum(cvec(n1con(ic):n2con(ic))>tau);
-  [viocon, id] = max(cvec(n1con(ic):n2con(ic)));
-  if viocon>tau
+  convec = cvec(n1con(ic):n2con(ic));
+  [viocon, ~] = max(convec);
+  if viocon > tau
+    % CSV表示が同値の最大違反は最小番号に統一
+    viocon_text = sprintf('%g', viocon);
+    is_display_max = strcmp(compose('%g', convec), viocon_text);
+    id = find(is_display_max, 1);
     body{ic,7} = id+n1con(ic)-1;
     body{ic,8} = viocon;
   end
