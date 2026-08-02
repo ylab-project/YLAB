@@ -69,7 +69,7 @@ ngapjoint = sum(istarget);
 if ngapjoint == 0
   gapjoint = table();
   idgapsec = zeros(0,2);
-  idgapvar = cell(0,1);
+  idgapvar = zeros(0,2);
   return
 end
 
