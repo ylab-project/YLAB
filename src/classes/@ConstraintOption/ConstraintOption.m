@@ -25,7 +25,6 @@ classdef ConstraintOption
     alfa_standard_section_list (1,1) double = 0;
     alfa_girder_height_gap_var (1,1) double = 0;
     alfa_girder_height_gap_section (1,1) double = 0;
-    alfa_girder_height_smooth_var (1,1) double = 1;
     alfa_column_diamter_gap (1,1) double = 0;
 
     % その他
@@ -102,7 +101,9 @@ classdef ConstraintOption
           case '梁せい分布平滑化'
             coptions.consider_girder_height_smooth_var = (data{i,2}=='Y');
             if ~ismissing(alfa)
-              coptions.alfa_girder_height_smooth_var = alfa;
+              error('YLAB:ObsoleteGirderHeightSmoothOption', ...
+                ['梁せい分布平滑化の第3列（方式選択）は廃止され' ...
+                'ました。第3列を空欄にしてください。'])
             end
           case '柱部材種別'
             switch data{i,2}

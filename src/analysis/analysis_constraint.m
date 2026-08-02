@@ -344,8 +344,7 @@ end
 
 %% 梁せい分布平滑化制約
 if coptions.consider_girder_height_smooth_var
-  conhsmoothvar = calc_girder_height_smooth_var(xvar, ...
-    height_smooth, options);
+  conhsmoothvar = calc_girder_height_smooth_var(xvar, height_smooth);
 else
   conhsmoothvar = [];
 end

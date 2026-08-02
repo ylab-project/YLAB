@@ -292,14 +292,7 @@ end
 %% 上下階関係
 column_gapjoint = countup_column_gapjoint(com);
 com.Dgap = column_gapjoint;
-story_axis_idvarH = countup_story_axis_Hvar(com);
-story.idvarH = story_axis_idvarH;
-com.story = story;
-com.height_smooth = ...
-  create_girder_height_smooth_data(story_axis_idvarH);
-
-% %% 上下階関係の除外指定
-% exclude_story_axis_Hvar(com);
+com.height_smooth = create_girder_height_smooth_data(com);
 
 %% 保有耐力接合（仕口）の除外指定
 is_joint_bearing_strength = exclude_joint_bearing_strength(com);

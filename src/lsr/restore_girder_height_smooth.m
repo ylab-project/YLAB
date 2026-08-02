@@ -1,5 +1,22 @@
-function xlist = restore_girder_height_smooth(...
-  xlist0, idvlist, secdim0, secmgr, height_smooth, options)
+function xlist = restore_girder_height_smooth(xlist0, idvlist, ...
+  secmgr, height_smooth, isvar, options)
+%restore_girder_height_smooth - 梁せい分布平滑化違反の復元
+%
+%   xlist = restore_girder_height_smooth(xlist0, idvlist, secmgr,
+%     height_smooth, isvar, options) は、梁せい分布平滑化の違反を
+%   整数計画で解消した変数値候補を生成する。直前に動かした変数と
+%   固定変数は現在値にピン止めして動かさない。
+%
+%   入力引数:
+%     xlist0        - 変数値の候補リスト [nlist×nx]
+%     idvlist       - 直前に動かした変数のグローバルID（0=指定なし）
+%     secmgr        - SectionManagerインスタンス
+%     height_smooth - 平滑化の固定データ（idvarH等）
+%     isvar         - 設計変数フラグ [nx×1]（偽=固定）
+%     options       - 共通オプション
+%
+%   出力引数:
+%     xlist - 復元後の変数値候補
 
 % 計算の準備
 [nlist0, nx] = size(xlist0);
@@ -13,15 +30,13 @@ else
 end
 if do_parallel
   parfor i=1:nlist0
-    xcell{i} = restore_individual(...
-      xlist0(i,:), idvlist(i), secdim0(:,:,i), secmgr, ...
-      height_smooth, options);
+    xcell{i} = restore_individual(xlist0(i,:), idvlist(i), secmgr, ...
+      height_smooth, isvar, options);
   end
 else
   for i=1:nlist0
-    xcell{i} = restore_individual(...
-      xlist0(i,:), idvlist(i), secdim0(:,:,i), secmgr, ...
-      height_smooth, options);
+    xcell{i} = restore_individual(xlist0(i,:), idvlist(i), secmgr, ...
+      height_smooth, isvar, options);
   end
 end
 
@@ -35,14 +50,31 @@ for i=1:nlist0
 end
 xlist = xlist(1:nlist,:);
 xlist = unique(xlist,'rows','stable');
+
+return
 end
 
 %--------------------------------------------------------------------------
-function xvar = restore_individual(...
-  xvar0, idvar, ~, secmgr, height_smooth, options)
+function xvar = restore_individual(xvar0, idvar, secmgr, ...
+  height_smooth, isvar, options)
+%restore_individual - 1候補の梁せい分布平滑化違反を復元
+%
+%   xvar = restore_individual(xvar0, idvar, secmgr, height_smooth, ...
+%     isvar, options) は、1候補の梁せい分布平滑化違反を整数計画で
+%   解消する。直前に動かした変数と固定変数は現在値から動かさない。
+%
+%   入力引数:
+%     xvar0         - 復元前の変数値候補 [1×nx]
+%     idvar         - 直前に動かした変数のグローバルID（0=指定なし）
+%     secmgr        - SectionManagerインスタンス
+%     height_smooth - 平滑化の固定データ（idvarH, Dmat）
+%     isvar         - 設計変数フラグ [nx×1]（偽=固定）
+%     options       - 共通オプション
+%
+%   出力引数:
+%     xvar - 復元後の変数値候補。復元不要の場合は空配列 [1×nx]
 
 % 準備
-% [nstory, mH] = size(idstory2varH);
 xvar = [];
 consider_hsvar = options.coptions.consider_girder_height_smooth_var;
 
@@ -50,17 +82,12 @@ consider_hsvar = options.coptions.consider_girder_height_smooth_var;
 if ~consider_hsvar
   return
 end
-conhsvar = calc_girder_height_smooth_var(...
-  xvar0, height_smooth, options);
+conhsvar = calc_girder_height_smooth_var(xvar0, height_smooth);
 if all(conhsvar<=options.tau)
   return
 end
 
-% 準備
-% Hnset = unique(secmgr.Hnominal);
-% reqHgap = options.reqHgap;
-% tolHgap = options.tolHgap;
-% tau = options.tau;
+% 平滑化対象の梁せい変数
 idvarH = height_smooth.idvarH;
 varH0 = xvar0(idvarH);
 nv = length(idvarH);
@@ -72,12 +99,13 @@ xu = x0; xl = x0;
 % 上下限値＝規格値ワンサイズアップ／ダウン
 dH = 150;
 for iv=1:nv
-  if iv==abs(idvar)
-    % 動かさない変数
+  % 直前に動かした変数と固定変数は動かさない（xu=xl=現在値を維持）
+  % 判定はグローバル変数IDで行う（iv は idvarH 内の局所位置）
+  if idvarH(iv)==abs(idvar) || ~isvar(idvarH(iv))
     continue
   end
-  [~, xup, xdw] = secmgr.enumerateNeighborH(...
-    xvar0, idvarH(iv), options, dH);
+  [~, xup, xdw] = secmgr.enumerateNeighborH(xvar0, idvarH(iv), ...
+    options, dH);
   if ~isempty(xup)
     xu(iv) = round(xup(end,idvarH(iv))/50);
   end
@@ -86,72 +114,34 @@ for iv=1:nv
   end
 end
 
-% 計算準備
-type_hsvar = options.coptions.alfa_girder_height_smooth_var;
-[Dmat, ~, idtstory2H, ~, idtstory2Hmax] = ...
-  Hdiff_matrix(xvar0, height_smooth, options);
-[ntstory, ~] = size(idtstory2H);
-
-% --- 係数行列 ---
-% 目的関数
+% 同一符号列の差分行列を制約評価と共有する。
+Dmat = height_smooth.Dmat;
 ns = size(Dmat,1);
 N = 3*nv+ns;
 f = [zeros(1,nv) ones(1,nv) ones(1,nv) 10*ones(1,ns)]';
-
-% 同一層内
-switch type_hsvar
-  case PRM.GIRDER_HEIGHT_SMOOTH_MAX
-    nnn = nnz(idtstory2H)-ntstory;
-    A1mat = zeros(nnn,nv);
-    irow = 0;
-    for i=1:ntstory
-      idHmax = idtstory2Hmax(i);
-      idH = unique(idtstory2H(i,:));
-      idH(idH==0) = [];
-      idH(idH==idHmax) = [];
-      for j=1:length(idH)
-        irow = irow+1;
-        A1mat(irow,[idHmax idH(j)]) = [-1 1];
-      end
-    end
-  case PRM.GIRDER_HEIGHT_SMOOTH_AXIS
-    A1mat = zeros(0,nv);
-end
-
-% 結合
-A = [A1mat zeros(size(A1mat,1),nv*2+ns) 
-  Dmat zeros(ns,nv*2) -eye(ns)];
-nA = size(A,1);
-b = zeros(nA,1);
+A = [Dmat zeros(ns,nv*2) -eye(ns)];
+b = zeros(ns,1);
 
 % スラック変数
 Aeq = zeros(nv,N);
-beq = x0(1:nv);
+beq = x0;
 for i=1:nv
   Aeq(i,[i i+nv i+nv*2]) = [1 -1 1];
 end
 
 % 変数の設定
-s0 = Dmat*x0(1:nv);
+s0 = Dmat*x0;
 s0(s0<0) = 0;
-x00 = x0;
-y0 = [x00; zeros(nv*2,1); s0];
+y0 = [x0; zeros(nv*2,1); s0];
 lb = [xl; zeros(nv*2,1); zeros(ns,1)];
 ub = [xu; x0-xl; xu-x0; s0];
 
 % オプション設定
-lpopt = optimoptions('intlinprog' ...
-  ...,'Algorithm', 'legacy' ...
-  ...,'Display', 'iter' ...
-  ,'Display', 'off' ...
-  ...,'MaxTime', 3 ...
-  ... ,'OutputFcn', @customFcn ...
-  );
+lpopt = optimoptions('intlinprog', 'Display', 'off');
 
 % 求解
 intcon = 1:nv;
-[ysol,~,~,~] = intlinprog(...
-  f,intcon,A,b,Aeq,beq,lb,ub,y0,lpopt);
+ysol = intlinprog(f,intcon,A,b,Aeq,beq,lb,ub,y0,lpopt);
 Hsol = round(ysol(1:nv))*50;
 xvar = xvar0;
 xvar(idvarH) = Hsol;

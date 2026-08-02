@@ -258,10 +258,6 @@ classdef PRM
     PENALTY_SUM_TOTAL = 0     % 総和
     PENALTY_MAXIMUM = 1       % 最大値
 
-    %% 梁せい平滑化
-    GIRDER_HEIGHT_SMOOTH_MAX = 0   % 最大値ベース
-    GIRDER_HEIGHT_SMOOTH_AXIS = 1  % 軸ベース
-
     %% 結合状態
     PIN = 0               % ピン結合
     FIX = 1               % 剛結合
