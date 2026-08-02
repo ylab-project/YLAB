@@ -162,9 +162,11 @@ for ing = 1:nng
 end
 
 % --- 保有耐力横補剛の対象チェック ---
-% 単材の接合条件
+% 単材の接合条件（H形鋼のみ・SS7計算編 6.4.7）
+% 保有耐力横補剛の判定は断面算定の省略（F）指定に関係なく行う
+% （SS7入力編 12.6.1 符号毎の指定）
 is_target_slr = (gjoint(:,1:2)~=PRM.PIN);
-is_target_slr(member_girder.section_type==PRM.RCRS, :) = false;
+is_target_slr(member_girder.section_type~=PRM.WFS, :) = false;
 slrlb = lb;
 slrlb(~is_target_slr(:,1),1) = 0;
 slrlb(~is_target_slr(:,2),2) = 0;

@@ -141,8 +141,8 @@ classdef CommonOption
       {mustBeNonnegative} = [1.3 1.5];
 
     % RC柱・梁Aの計算方法（YLABではAの腰壁・垂壁は未対応）
-    rc_shear_area_type (1,1) double = PRM.RC_AREA_WALL_ONLY
-    rc_axial_area_type (1,1) double = PRM.RC_AREA_FLOOR_WALL
+    rc_shear_area_type (1,1) double = PRM.RC_AREA_WALL_ONLY_Q
+    rc_axial_area_type (1,1) double = PRM.RC_AREA_FLOOR_WALL_N
 
     % ブレースの取り付き位置
     position_brace_foundation_girder (1,1) double = ...

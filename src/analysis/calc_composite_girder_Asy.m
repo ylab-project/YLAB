@@ -22,14 +22,14 @@ Asy0 = msprop.Asy(idmg2m);
 gphiAs = ones(nmeg, 1);
 
 switch options.rc_shear_area_type
-  case PRM.RC_AREA_FLOOR_WALL
+  case PRM.RC_AREA_FLOOR_WALL_Q
     mgstype = mg.section_type;
     isrc = (mgstype == PRM.RCRS);
     Aslab = calc_girder_slab_area(mg);
     valid = isrc & Asy0 > 0;
     gphiAs(valid) = (Asy0(valid) + Aslab(valid) ./ 1.2) ...
       ./ Asy0(valid);
-  case {PRM.RC_AREA_WALL_ONLY, PRM.RC_AREA_SECTION_ONLY}
+  case {PRM.RC_AREA_WALL_ONLY_Q, PRM.RC_AREA_SECTION_ONLY_Q}
     % YLABではAに対する腰壁・垂壁は当面未対応。
   otherwise
     error('calc_composite_girder_Asy:InvalidRcAreaType', ...

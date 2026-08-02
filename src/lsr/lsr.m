@@ -340,9 +340,7 @@ for iter = start_iter+1:max_iter+1
 
   nlist = size(xlist,1);
   % xlist0 = xlist;
-  for il=1:nlist
-    xlist(il,~isvar) = x0(~isvar);
-  end
+  xlist(:,~isvar) = repmat(x0(~isvar), nlist, 1);
   [is_reused, reuse_index] = ismember(xlist, x_neighborhood, 'rows');
   candidate_sdlist = zeros(size(result.secdim, 1), ...
     size(result.secdim, 2), nlist);

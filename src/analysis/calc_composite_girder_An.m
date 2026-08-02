@@ -22,14 +22,14 @@ A0 = msprop.A(idmg2m);
 gphiAn = ones(nmeg, 1);
 
 switch options.rc_axial_area_type
-  case PRM.RC_AREA_FLOOR_WALL
+  case PRM.RC_AREA_FLOOR_WALL_N
     mgstype = mg.section_type;
     isrc = (mgstype == PRM.RCRS);
     Aslab = calc_girder_slab_area(mg);
     valid = isrc & A0 > 0;
     gphiAn(valid) = (A0(valid) + Aslab(valid)) ./ A0(valid);
-  case {PRM.RC_AREA_WALL_ONLY, PRM.RC_AREA_SECTION_ONLY}
-    % YLABではAに対する腰壁・垂壁は当面未対応。
+  case PRM.RC_AREA_SECTION_ONLY_N
+    % 部材断面のみ。床・壁は考慮しない。
   otherwise
     error('calc_composite_girder_An:InvalidRcAreaType', ...
       '軸変形用Aの計算方法の指定が不正です: %g', ...

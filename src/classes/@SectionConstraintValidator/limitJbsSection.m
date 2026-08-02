@@ -47,9 +47,10 @@ wfs_slist = obj.idsec2slist(find(wfs_mask));
 % 名目梁 → WFS断面番号
 ng_wfs = idsecg2wfs(nominal_girder.idsecg);
 
-% JBS対象の名目梁が使うWFS断面。対象外（ピン接合等）の梁だけが
-% 使う断面は絞り込み対象にしない
-jbs_wfs = unique(ng_wfs(any(isjbs, 2) & ng_wfs > 0));
+% JBS対象の名目梁が使うWFS断面のマスク（対象定義の正本）。
+% 対象外（ピン接合等）の梁だけが使う断面は絞り込み対象にしない
+is_jbs_wfs = false(1, nwfs_);
+is_jbs_wfs(ng_wfs(any(isjbs, 2) & ng_wfs > 0)) = true;
 
 % HSS柱候補の最大値を計算（最大柱でもNGなら除外）
 % HSS柱がない場合は柱側制約なしとして [] を渡す
@@ -75,7 +76,8 @@ for ii = 1:length(hss_lists)
 end
 
 % 断面リストごとに保有耐力接合(仕口)を満たす断面だけに限定
-isvalid_wfs = false(1, nwfs_);
+% JBS対象外のWFS断面（非対象の梁だけが使う断面・未使用断面）はOK
+isvalid_wfs = ~is_jbs_wfs;
 
 for idsList = 1:nlist_
   % H形鋼のみ
@@ -83,9 +85,9 @@ for idsList = 1:nlist_
     continue
   end
 
-  % リストに対応するWFS断面と仕口対象断面の抽出
+  % リストに対応するWFS断面のうちJBS対象断面の抽出
   iwfs_targets = find(wfs_slist == idsList);
-  iwfs_jbs = intersect(iwfs_targets, jbs_wfs);
+  iwfs_jbs = iwfs_targets(is_jbs_wfs(iwfs_targets));
   if isempty(iwfs_jbs)
     continue
   end
@@ -123,27 +125,16 @@ for idsList = 1:nlist_
   end
   isvalid_ = (conjbs_ < 0)';
 
-  for iwfs = iwfs_jbs'
-    isvalid(iwfs, :) = isvalid(iwfs, :) & isvalid_;
-  end
+  isvalid(iwfs_jbs, :) = isvalid(iwfs_jbs, :) & isvalid_;
 
   % 条件を満たさないH形断面の除外
   if apply_filter
     obj.validSectionFlagCell_{idsList} = isvalid;
   end
 
-  % チェック結果の保存（対象リストのWFS断面だけを評価）
-  tmp = any(isvalid(iwfs_targets, :), 2);
-  isvalid_wfs(iwfs_targets) = tmp(:)';
+  % チェック結果の保存（JBS対象のWFS断面だけを評価）
+  isvalid_wfs(iwfs_jbs) = any(isvalid(iwfs_jbs, :), 2);
 end
-
-% JBS非対象/未使用の名目梁に対応するWFS断面はOKとする
-valid_ng = ng_wfs > 0;
-used_wfs = false(1, nwfs_);
-used_wfs(ng_wfs(valid_ng)) = true;
-nojbs = valid_ng & ~any(isjbs, 2);
-isvalid_wfs(ng_wfs(nojbs)) = true;
-isvalid_wfs(~used_wfs) = true;
 
 % 条件を満たす断面が存在しない
 if ~all(isvalid_wfs)

@@ -75,11 +75,7 @@ for i=1:size(data,1)
     case '梁水平面内変形の考慮'
       p = data{i,2};
       if ~ismissing(p)
-        if ~ismember(p, [PRM.GIRDER_HSTIFF_ZERO, ...
-            PRM.GIRDER_HSTIFF_ACTUAL, PRM.GIRDER_HSTIFF_RIGID])
-          error(['梁水平面内変形の考慮は 1/2/3 ' ...
-            'のいずれかを指定してください']);
-        end
+        validate_choice_number(p, data{i,1}, 3);
         options.girder_horizontal_stiffness_type = p;
       end
     case '横座屈の考慮'
@@ -118,19 +114,17 @@ for i=1:size(data,1)
       if data{i,2}==PRM.COMPOSITE_SLAB_DIRECT
         options.composite_slab_coefficient_rc = [data{i,3} data{i,4}];
       end
-    case 'RC柱・梁Aの計算方法'
-      p = data{i,5};
+    case 'RC柱・梁せん断変形用Aの計算方法'
+      p = data{i,2};
       if ~ismissing(p)
-        options.rc_shear_area_type = validate_rc_area_type(p, ...
-          'せん断変形用Aの計算方法');
+        validate_choice_number(p, data{i,1}, 3);
+        options.rc_shear_area_type = p;
       end
-      if i < size(data,1) && isequal(tochar(data{i+1,2}), ...
-          '軸変形用Aの計算方法')
-        p = data{i+1,5};
-        if ~ismissing(p)
-          options.rc_axial_area_type = validate_rc_area_type(p, ...
-            '軸変形用Aの計算方法');
-        end
+    case 'RC柱・梁軸変形用Aの計算方法'
+      p = data{i,2};
+      if ~ismissing(p)
+        validate_choice_number(p, data{i,1}, 2);
+        options.rc_axial_area_type = p;
       end
     case 'ブレースの取り付き位置'
       options.position_brace_foundation_girder = data{i,2};      
@@ -143,11 +137,7 @@ for i=1:size(data,1)
     case 'S梁の軸力を考慮した検定'
       p = data{i,2};
       if ~ismissing(p)
-        if ~ismember(p, [PRM.S_GIRDER_AXIAL_NONE, ...
-            PRM.S_GIRDER_AXIAL_ALL, PRM.S_GIRDER_AXIAL_AUTO])
-          error(['S梁の軸力を考慮した検定は 1/2/3 ' ...
-            'のいずれかを指定してください']);
-        end
+        validate_choice_number(p, data{i,1}, 3);
         options.s_girder_axial_design = p;
       end
     case '保有耐力横補剛の事前処理'
@@ -276,13 +266,22 @@ end
 return
 end
 
-function value = validate_rc_area_type(value, label)
-%validate_rc_area_type - RC柱・梁Aの計算方法の指定値を検証する
-valid = [PRM.RC_AREA_FLOOR_WALL, PRM.RC_AREA_WALL_ONLY, ...
-  PRM.RC_AREA_SECTION_ONLY];
-if ~ismember(value, valid)
-  error('CommonOption:InvalidRcAreaType', ...
-    '%s は 1/2/3 のいずれかを指定してください', label);
+function validate_choice_number(number, label, nchoice)
+%validate_choice_number - 選択肢番号が範囲内かを検証する
+%
+%   validate_choice_number(number, label, nchoice) は、入力CSVの
+%   選択肢番号が 1〜nchoice の範囲にあることを確認する。範囲外は
+%   エラーとする。選択肢の意味は用途ごとに異なるため、PRM列挙は
+%   用途別に定義し（せん断変形用は _Q、軸変形用は _N）、入力値は
+%   写像せずそのまま格納する。
+%
+%   入力引数:
+%     number  - 入力CSVの選択肢番号
+%     label   - エラー表示用の入力キー名
+%     nchoice - 選択肢の個数
+if ~ismember(number, 1:nchoice)
+  nums = char(strjoin(string(1:nchoice), '/'));
+  error('%s は %s のいずれかを指定してください', label, nums);
 end
 return
 end
