@@ -245,14 +245,9 @@ com.member.brace.idmeg2 = idmegb2;
 column_floor_height = countup_column_floor_height(com);
 com.member.column.floor_height = column_floor_height;
 
-%% 断面算定の省略（梁）
-[isvar, girder_rank] = exclude_girder_stress(com);
-% design.variable.isvar = isvar;
-% com.design = design;
-com.design.variable.isvar = isvar;
-section_girder.rank = girder_rank;
-section.girder = section_girder;
-com.section = section;
+%% 断面算定の省略（梁・柱）
+com.section.girder.rank = exclude_girder_stress(com);
+com.section.column.rank = exclude_column_stress(com);
 
 %% 複数梁がとりつく節点
 [gapjoint, idgapsec, idgapvar] = countup_girder_gapjoint(com);

@@ -1,7 +1,5 @@
-function [congdef, deflection_angle] = ...
-  calc_nominal_girder_deflection( ...
-  idmeg, idmg2m, gstype, lm, lf, ...
-  rs, M0sw, Em, Iy, gdmax)
+function [congdef, deflection_angle] = calc_nominal_girder_deflection( ...
+  idmeg, idmg2m, gstype, lm, lf, rs, M0sw, Em, Iy, gdmax)
 %calc_nominal_girder_deflection - 名目梁単位のたわみ算定
 %
 %   SS7マニュアル 6.4.4 式(6.37)に基づき、名目梁単位で
@@ -62,8 +60,7 @@ for ing = 1:nng
 
   % 中央 M（区分的放物線評価）
   xc = lf_l + lgn / 2;
-  Mc = calcMx_pw(xc, sub_x0, sub_lm, ...
-    sub_Ml, sub_Mr, sub_M0);
+  Mc = calcMx_pw(xc, sub_x0, sub_lm, sub_Ml, sub_Mr, sub_M0);
 
   % M0: (ML+MR)/2 - M_center（内部M0と同符号）
   ML = sub_Ml(1);
@@ -74,8 +71,7 @@ for ing = 1:nng
   Eg_ = Em(im_igs(1));
   Iy_ = Iy(im_igs(1));
   Mcg = ML + MR;
-  delta = 5*M0_nom*lgn^2 / (48*Eg_*Iy_) ...
-    - Mcg / (16*Eg_*Iy_) * lgn^2;
+  delta = 5*M0_nom*lgn^2 / (48*Eg_*Iy_) - Mcg / (16*Eg_*Iy_) * lgn^2;
   deflection_angle(ing) = delta / lgn;
 end
 
@@ -85,8 +81,7 @@ return
 end
 
 %------------------------------------------------------------------
-function Mx = calcMx_pw(x, sub_x0, sub_lm, ...
-  sub_Ml, sub_Mr, sub_M0)
+function Mx = calcMx_pw(x, sub_x0, sub_lm, sub_Ml, sub_Mr, sub_M0)
 %calcMx_pw - 区分的放物線でM(x)を評価
 ksub = find(sub_x0 <= x, 1, 'last');
 t = x - sub_x0(ksub);
@@ -94,8 +89,7 @@ lk = sub_lm(ksub);
 Mlk = sub_Ml(ksub);
 Mrk = sub_Mr(ksub);
 M0k = sub_M0(ksub);
-Mx = 4*M0k*t^2/lk^2 ...
-  + (Mrk - Mlk - 4*M0k)*t/lk + Mlk;
+Mx = 4*M0k*t^2/lk^2 + (Mrk - Mlk - 4*M0k)*t/lk + Mlk;
 
 return
 end

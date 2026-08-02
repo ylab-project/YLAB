@@ -1,5 +1,21 @@
-function xlist = restore_girder_height_gap_ip(...
-  xlist0, idvlist, secdim0, secmgr, options)
+function xlist = restore_girder_height_gap_ip(xlist0, idvlist, ...
+  secmgr, isvar, options)
+%restore_girder_height_gap_ip - 梁せい差違反の整数計画による復元
+%
+%   xlist = restore_girder_height_gap_ip(xlist0, idvlist, secmgr,
+%     isvar, options) は、梁せい差（呼称・寸法）の違反を整数計画で
+%   解消した変数値候補を生成する。固定変数は変化量上限を0にして
+%   動かさない。
+%
+%   入力引数:
+%     xlist0  - 変数値の候補リスト [nlist×nx]
+%     idvlist - 直前に動かした変数のグローバルID（0=指定なし）
+%     secmgr  - SectionManagerインスタンス
+%     isvar   - 設計変数フラグ [nx×1]（偽=固定）
+%     options - 共通オプション
+%
+%   出力引数:
+%     xlist - 復元後の変数値候補
 
 % 共通処理
 % nlist0 = size(xlist0,1);
@@ -22,11 +38,11 @@ if ishgv
   % conhgapvar = calc_girder_height_gap_var(xvar, idHgap2v, options);
 else
   idgap2v = [];
-  conhgapvar = [];
 end
 if ishgs
   idgap2s = secmgr.idHgap2sec;
   % conhgapsec = calc_girder_height_gap_section(secdim, idHgap2s, options);
+  % 断面ペアをH変数ペアへ写像（対象はH形鋼のみでidvarは必ず正）
   idgap2s = [secmgr.idsec2var(idgap2s(:,1),1) ...
     secmgr.idsec2var(idgap2s(:,2),1)];
 else
@@ -40,7 +56,7 @@ idgap2v = [idgap2v; idgap2s];
 % end
 
 % 配列の初期化
-[nlist0, nx] = size(xlist0);
+nx = size(xlist0,2);
 
 % Hと整数変数の関係
 [idi2Hvar, idH2ivar, Dimat] = find_idgapvar(idgap2v, nx);
@@ -49,8 +65,8 @@ idgap2v = [idgap2v; idgap2s];
 % 計算の準備
 ilb = ceil(secmgr.lb(idi2Hvar)/50);
 iub = ceil(secmgr.ub(idi2Hvar)/50);
+isfree = isvar(idi2Hvar) > 0;
 [ilist, xlist, idvarlist] = extract_ilist(xlist0, idvlist);
-ilist0 = ilist;
 
 % 梁せい差の解消
 if (size(ilist,1)==1)
@@ -60,13 +76,13 @@ else
 end
 if do_parallel
   parfor i=1:size(ilist,1)
-    ilist(i,:) = restore_individual(...
-      ilist(i,:), idvarlist(i,:), ilb, iub, Dimat, igapreq);
+    ilist(i,:) = restore_individual(ilist(i,:), idvarlist(i,:), ...
+      ilb, iub, isfree, Dimat, igapreq);
   end
 else
   for i=1:size(ilist,1)
-    ilist(i,:) = restore_individual(...
-      ilist(i,:), idvarlist(i,:), ilb, iub, Dimat, igapreq);
+    ilist(i,:) = restore_individual(ilist(i,:), idvarlist(i,:), ...
+      ilb, iub, isfree, Dimat, igapreq);
   end
 end
 
@@ -149,7 +165,7 @@ return
 end
 
 %--------------------------------------------------------------------------
-function x = restore_individual(x0, idvar, xlb, xub, Dmat, dreq)
+function x = restore_individual(x0, idvar, xlb, xub, isfree, Dmat, dreq)
 
 % 計算の準備
 [m,n] = size(Dmat);
@@ -170,6 +186,9 @@ xpub = max(xub-x0,0);
 xpub(xpub>dmax) = dmax;
 xnub = max(-xlb+x0,0);
 xnub(xnub>dmax) = dmax;
+% 固定変数は動かさない（変化量上限を0にピン止め）
+xpub(~isfree) = 0;
+xnub(~isfree) = 0;
 
 % 初期値
 xp = zeros(n,1);
@@ -205,10 +224,8 @@ sn(d0<=-dreq+rp) = 1;
 On = zeros(m,n);
 Om = zeros(m,m);
 Im = eye(m);
-A = [...
-  Dmat -Dmat Om -diag(dimax) dreq*Im -Im Om; ...
-  -Dmat Dmat Om dreq*Im -diag(dimax) Om -Im ; ...
-  ];
+A = [Dmat -Dmat Om -diag(dimax) dreq*Im -Im Om; ...
+  -Dmat Dmat Om dreq*Im -diag(dimax) Om -Im];
 b = [-d0; d0];
 Aeq = [On On Im Im Im Om Om];
 beq = ones(m,1);
@@ -239,7 +256,7 @@ ny = length(y0);
 % check1 = A*y-b;
 % check2 = Aeq*y-beq;
 opts = optimoptions("intlinprog","Display","off");
-[y,~,exitflag] = intlinprog(f,1:ny,A,b,Aeq,beq,lb,ub,y0,opts);
+y = intlinprog(f,1:ny,A,b,Aeq,beq,lb,ub,y0,opts);
 xp = y(1:n);
 xn = y(n+1:2*n);
 x = x0+xp-xn;

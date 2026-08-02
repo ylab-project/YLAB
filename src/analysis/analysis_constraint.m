@@ -254,9 +254,10 @@ if coptions.consider_girder_deflection
   Iyd = msprop.Iy;
   Iyd(idmg2m) = Iyd(idmg2m) .* gphiI;
   [congdef, gdef_angle] = calc_nominal_girder_deflection( ...
-    idmeg_, idmg2m, gstype_, lm, lf, rs, M0sw, Em, Iyd, ...
-    gdmax);
+    idmeg_, idmg2m, gstype_, lm, lf, rs, M0sw, Em, Iyd, gdmax);
   congdef = congdef + coptions.alfa_girder_deflection;
+  % 断面算定省略（F）指定の梁はたわみ検定対象外（応力側と同形）
+  congdef(~nominal.girder.is_allowable_stress) = -1.0;
 else
   congdef = [];
   gdef_angle = [];

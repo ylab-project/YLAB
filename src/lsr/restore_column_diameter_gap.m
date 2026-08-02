@@ -1,5 +1,21 @@
-function xlist = restore_column_diameter_gap(...
-  xlist0, secdim0, Dgap, secmgr, options)
+function xlist = restore_column_diameter_gap(xlist0, Dgap, ...
+  secmgr, isvar, options)
+%restore_column_diameter_gap - 柱外径差違反の整数計画による復元
+%
+%   xlist = restore_column_diameter_gap(xlist0, Dgap, secmgr,
+%     isvar, options) は、柱外径差の違反を整数計画で解消した変数値
+%   候補を生成する。固定変数は近傍列挙をスキップして lb=ub=現在値
+%   を維持し、動かさない。
+%
+%   入力引数:
+%     xlist0  - 変数値の候補リスト [nlist×nx]
+%     Dgap    - 柱外径差ペアデータ（idvar, idxy）
+%     secmgr  - SectionManagerインスタンス
+%     isvar   - 設計変数フラグ [nx×1]（偽=固定）
+%     options - 共通オプション
+%
+%   出力引数:
+%     xlist - 復元後の変数値候補
 
 % 計算の準備
 [nlist0, nx] = size(xlist0);
@@ -13,13 +29,13 @@ else
 end
 if do_parallel
   parfor i=1:nlist0
-    xcell{i} = restore_individual(...
-      xlist0(i,:), secdim0(:,:,i), Dgap, secmgr, options);
+    xcell{i} = restore_individual(xlist0(i,:), Dgap, secmgr, ...
+      isvar, options);
   end
 else
   for i=1:nlist0
-    xcell{i} = restore_individual(...
-      xlist0(i,:), secdim0(:,:,i), Dgap, secmgr, options);
+    xcell{i} = restore_individual(xlist0(i,:), Dgap, secmgr, ...
+      isvar, options);
   end
 end
 
@@ -33,10 +49,12 @@ for i=1:nlist0
 end
 xlist = xlist(1:nlist,:);
 xlist = unique(xlist,'rows','stable');
+
+return
 end
 
 %--------------------------------------------------------------------------
-function xlist = restore_individual(xvar, secdim, Dgap, secmgr, options)
+function xlist = restore_individual(xvar, Dgap, secmgr, isvar, options)
 
 % 準備
 xlist = [];
@@ -47,7 +65,8 @@ if ~iscdg
   return
 end
 idDgap2var = Dgap.idvar;
-[condgap, Dgapval] = calc_column_diameter_gap_var(xvar, idDgap2var, options);
+[condgap, Dgapval] = calc_column_diameter_gap_var(xvar, ...
+  idDgap2var, options);
 if all(condgap<=options.tau)
   return
 end
@@ -68,12 +87,10 @@ lpopt = optimoptions('intlinprog' ...
   ...,'Algorithm', 'legacy' ...
   ,'Display', 'off' ...
   ,'MaxTime', 3 ...
-  ... ,'OutputFcn', @customFcn ...
   );
 
 % 通りごとに探索
 for id = 1:nxy
-  xInts = [];
   target = (idu2==id);
   maxDgapval = max(Dgapval(target));
   if maxDgapval<=tau && -tolMaxDgap-maxDgapval<=tau
@@ -99,7 +116,11 @@ for id = 1:nxy
   lb = [D0(:)/50; 0];
 
   % 上下限値＝規格値ワンサイズアップ／ダウン
+  % 固定変数は近傍列挙をスキップし lb=ub=現在値 を維持する
   for iv=1:nv
+    if ~isvar(idx2v(iv))
+      continue
+    end
     [~, xup, xdw] = secmgr.enumerateNeighborD(xvar, idx2v(iv), options);
     if ~isempty(xup)
       ub(iv) = ceil(xup(idx2v(iv))/50);
@@ -162,10 +183,4 @@ for id = 1:nxy
 end
 
 return
-  function stop = customFcn(x,optimValues,state)
-    if ~isempty(x)
-      xInts = [xInts, x(:)];
-    end
-    stop = false;
-  end
 end

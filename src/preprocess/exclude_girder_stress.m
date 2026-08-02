@@ -1,31 +1,26 @@
-function [isvar, girder_rank] = exclude_girder_stress(com)
-%EXCLUDE_GIRDER_STRESS この関数の概要をここに記述
-%   詳細説明をここに記述
+function girder_rank = exclude_girder_stress(com)
+%exclude_girder_stress - 断面算定省略（F指定）梁の検定除外処理
+%
+%   girder_rank = exclude_girder_stress(com) は、入力の
+%   「断面算定の省略（梁符号毎）」でFが指定された梁断面グループの
+%   ランクをFDにして幅厚比検定を除外する。断面算定の省略は検定の
+%   除外のみを意味し、設計変数は固定しない。
+%
+%   入力引数:
+%     com - 共通データ構造体
+%
+%   出力引数:
+%     girder_rank - 梁断面グループのランク [nsg×1]
+%
+%   備考:
+%     - 断面を固定する場合は、入力の設計変数ブロックでF宣言する
+%       （検定除外からの固定連動は行わない）。
+%     - 関連関数: set_exclusion_girder_stress_block
 
-% 定数
-nsg = com.nsecg;
-
-% 計算の準備
-design_variable = com.design.variable;
-section_girder = com.section.girder;
+% 検定除外断面の処理（幅厚比の除外 -> ランクFD）
+girder_rank = com.section.girder.rank;
 is_girder_stress = com.exclusion.is_section_girder_allowable_stress;
-
-% 検定除外断面の処理
-isvar = design_variable.isvar;
-girder_rank = section_girder.rank;
-for ig=1:nsg
-  if (~is_girder_stress(ig))
-
-    % 設計変数の固定
-    idvar = section_girder.idvar(ig,:);
-    ncol = nnz(idvar);
-    isvar(idvar(1:ncol)) = false;
-
-    % 幅厚比の除外 -> ランクFD
-    girder_rank(ig) = PRM.GIRDER_RANK_FD;
-  end
-end
+girder_rank(~is_girder_stress) = PRM.GIRDER_RANK_FD;
 
 return
 end
-

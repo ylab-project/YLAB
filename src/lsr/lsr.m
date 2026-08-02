@@ -63,7 +63,7 @@ secdim = secmgr.findNearestSection(xvar, options);
 xvar = secmgr.findNearestXvar(secdim, options);
 if do_restration
   % xvar_ = restore_girder_height_gap(xvar, secdim, secmgr, options);
-  xvar_ = restore_girder_height_gap_ip(xvar, 0, secdim, secmgr, options);
+  xvar_ = restore_girder_height_gap_ip(xvar, 0, secmgr, isvar, options);
   if size(xvar_,1)>1
     id = randi(size(xvar_,1));
     xvar = xvar_(id,:);
@@ -219,7 +219,7 @@ for iter = start_iter+1:max_iter+1
       % 梁せい差
       if consider_girder_height_gap
         xlist_ggap = restore_girder_height_gap_ip(...
-          xlist, idvlist, sdlist, secmgr, options);
+          xlist, idvlist, secmgr, isvar, options);
       else
         xlist_ggap = [];
       end
@@ -227,7 +227,7 @@ for iter = start_iter+1:max_iter+1
       % 梁せい分布の平滑化
       if consider_girder_height_smooth
         xlist_gsm = restore_girder_height_smooth(...
-          xlist, idvlist, sdlist, secmgr, com.height_smooth, options);
+          xlist, idvlist, secmgr, com.height_smooth, isvar, options);
       else
         xlist_gsm = [];
       end
@@ -235,7 +235,7 @@ for iter = start_iter+1:max_iter+1
       % 柱外径差
       if consider_column_diameter_gap
         xlist_cgap = restore_column_diameter_gap(...
-          xlist, sdlist, Dgap, secmgr, options);
+          xlist, Dgap, secmgr, isvar, options);
       else
         xlist_cgap = [];
       end

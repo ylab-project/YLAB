@@ -4,7 +4,8 @@ function gapjoint = countup_column_gapjoint(com)
 %   gapjoint = countup_column_gapjoint(com) は、xy通りごとに柱を階順に
 %   並べ、除外柱・RC柱を除いた残りの柱の隣接ペアを生成して、節点番号・
 %   xy通り番号・変数番号の対応テーブルを返す。除外指定の柱やRC柱を
-%   挟んだS柱同士も跨ぎ比較される。
+%   挟んだS柱同士も跨ぎ比較される。両方が固定変数のペアは対象外と
+%   する（段差ペアは少なくとも一方が動かせること）。
 %
 %   入力引数:
 %     com - 共通オブジェクト (struct)
@@ -25,6 +26,7 @@ idmec2z   = com.member.column.idz;        % [下端節点idz, 上端節点idz]
 idmec2n1  = com.member.column.idnode1;
 idn2xy    = [com.node.idx com.node.idy];
 column_type = com.section.column.type(com.member.column.idsecc);
+isv = com.design.variable.isvar;
 
 % 除外柱のmask生成
 idexclude = com.exclusion.column_diameter_gap.idme;
@@ -57,10 +59,11 @@ for ixy = 1:nxy
     mc2 = idcols_valid(k);       % 下階柱
     mc1 = idcols_valid(k+1);     % 上階柱
 
-    % 同じ変数のペアは除外
+    % 同じ変数のペア・両方固定のペアは除外
+    % （段差ペアは少なくとも一方が動かせること）
     var1 = idmec2var(mc1,1);
     var2 = idmec2var(mc2,1);
-    if var1 == var2
+    if var1 == var2 || (~isv(var1) && ~isv(var2))
       continue
     end
 
