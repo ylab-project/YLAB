@@ -27,9 +27,9 @@ Lx_all = calc_brace_Lx(member_brace, node);
 idnode1 = member_brace.idnode1;
 idnode2 = member_brace.idnode2;
 
-% 接続する梁の部材番号（両端）
-brc_idmeg1 = member_brace.idmeg1;
-brc_idmeg2 = member_brace.idmeg2;
+% ブレース両端の採用梁
+selected_girder1 = member_brace.idmeg_selected1;
+selected_girder2 = member_brace.idmeg_selected2;
 
 % 梁レベル調整（下げが負）
 glv = member_girder.level;
@@ -46,23 +46,19 @@ for ib = 1:nmeb
   is_split2 = node.type(in2) == PRM.NODE_BRACE_FOR_COLUMN;
 
   % glv補正（分割節点はnodezに反映済み）
-  idg1 = brc_idmeg1(ib,:);
-  idg1 = idg1(idg1 > 0);
-  if is_split1 || isempty(idg1)
-    max_glv1 = 0;
-  else
-    max_glv1 = glv(idg1(1));
+  ig1 = selected_girder1(ib);
+  glv1 = 0;
+  if ~is_split1 && ig1 > 0
+    glv1 = glv(ig1);
   end
 
-  idg2 = brc_idmeg2(ib,:);
-  idg2 = idg2(idg2 > 0);
-  if is_split2 || isempty(idg2)
-    max_glv2 = 0;
-  else
-    max_glv2 = glv(idg2(1));
+  ig2 = selected_girder2(ib);
+  glv2 = 0;
+  if ~is_split2 && ig2 > 0
+    glv2 = glv(ig2);
   end
 
-  Lz = node.z(in2) - node.z(in1) + max_glv2 - max_glv1;
+  Lz = node.z(in2) - node.z(in1) + glv2 - glv1;
   Lz_all(ib) = Lz;
 
   % 斜め距離（部材長）

@@ -32,9 +32,11 @@ Hg_gir = calc_girder_section_depth(secdim, stype_gir, idmg2s);
 % 梁レベル調整
 glv = member_girder.level;
 
-% 接続梁・ブレース節点
-brc_idmeg1 = member_brace.idmeg1;
-brc_idmeg2 = member_brace.idmeg2;
+% 接続梁候補・採用梁・ブレース節点
+has_girder1 = any(member_brace.idmeg1 > 0, 2);
+has_girder2 = any(member_brace.idmeg2 > 0, 2);
+selected_girder1 = member_brace.idmeg_selected1;
+selected_girder2 = member_brace.idmeg_selected2;
 idnode1 = member_brace.idnode1;
 idnode2 = member_brace.idnode2;
 
@@ -45,17 +47,17 @@ for ib = 1:nmeb
   in1 = idnode1(ib);
   in2 = idnode2(ib);
 
-  % 接続梁
-  idg1 = brc_idmeg1(ib,:);
-  idg1 = idg1(idg1 > 0);
-  idg2 = brc_idmeg2(ib,:);
-  idg2 = idg2(idg2 > 0);
-
-  ig1 = select_brace_end_girder(idg1);
-  ig2 = select_brace_end_girder(idg2);
+  ig1 = selected_girder1(ib);
+  ig2 = selected_girder2(ib);
 
   z1 = node.z(in1);
+  if ig1 == 0 && has_girder1(ib)
+    z1 = node.z_standard(in1);
+  end
   z2 = node.z(in2);
+  if ig2 == 0 && has_girder2(ib)
+    z2 = node.z_standard(in2);
+  end
   is_split1 = node.type(in1) == PRM.NODE_BRACE_FOR_COLUMN;
   is_split2 = node.type(in2) == PRM.NODE_BRACE_FOR_COLUMN;
 

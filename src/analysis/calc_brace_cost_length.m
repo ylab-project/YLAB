@@ -41,9 +41,9 @@ Dc_col = Dc(idmc2s);
 % 梁レベル調整
 glv = member_girder.level;
 
-% ブレース両端の接続梁・柱・節点
-brc_idmeg1 = member_brace.idmeg1;
-brc_idmeg2 = member_brace.idmeg2;
+% ブレース両端の採用梁・接続柱・節点
+selected_girder1 = member_brace.idmeg_selected1;
+selected_girder2 = member_brace.idmeg_selected2;
 brc_idmec1 = member_brace.idmec1;
 brc_idmec2 = member_brace.idmec2;
 idnode1 = member_brace.idnode1;
@@ -56,14 +56,8 @@ for ib = 1:nmeb
   in1 = idnode1(ib);
   in2 = idnode2(ib);
 
-  % 接続梁
-  idg1 = brc_idmeg1(ib,:);
-  idg1 = idg1(idg1 > 0);
-  idg2 = brc_idmeg2(ib,:);
-  idg2 = idg2(idg2 > 0);
-
-  ig1 = select_brace_end_girder(idg1);
-  ig2 = select_brace_end_girder(idg2);
+  ig1 = selected_girder1(ib);
+  ig2 = selected_girder2(ib);
 
   z1 = node.z_standard(in1);
   z2 = node.z_standard(in2);
