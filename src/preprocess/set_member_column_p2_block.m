@@ -25,78 +25,19 @@ function member_column = set_member_column_p2_block(~, com, ~)
 
 % 共通配列の取得
 member_column  = com.member.column;   % P1で作成された柱部材テーブル
-section_column = com.section.column;  % 柱断面テーブル
-idz2zn = com.story.idnominal;         % 層番号→公称層番号の変換表
+% 柱断面テーブル（ループ内のtable参照を避けるため構造体化）
+section_column = table2struct(com.section.column, 'ToScalar', true);
+idz2zn = com.story.idnominal;         % 柱配置階→通常階の対応表
 n = size(member_column,1);            % 柱部材数
 
 % 断面番号の設定
-% 各柱部材に対応する断面を、断面名と公称層番号で照合して特定する
 section_name = member_column.section_name;
 idstory = member_column.idstory;
-idsecc = zeros(n,1);            % 断面番号の格納先
-isvalid = 1:com.nsecc;          % 有効な断面インデックス
-idzn = idz2zn(idstory);         % 柱の公称層番号
-idz = member_column.idz;        % 柱のZ座標範囲 [下端, 上端]
+idzn = idz2zn(idstory);
+idsecc = zeros(n,1);
 for i=1:n
-  % 断面名(name列)と公称層番号で照合
-  idx_name = strcmp(section_column.name, section_name{i}) ...
-    & section_column.idznominal==idzn(i);
-
-  % name列で見つからない場合、full_name列でも照合を試みる
-  if ~any(idx_name)
-    idx_name = strcmp(section_column.full_name, section_name{i});
-  end
-
-  if any(idx_name)
-    id = isvalid(idx_name);
-    if isscalar(id)
-      % 一意に特定できた場合
-      idsecc(i) = id(1);
-    else
-      % 複数候補がある場合、柱の配置範囲内の断面に絞り込む
-      candidate_stories = section_column.idstory(id);
-      z_bottom = idz(i,1) + 1;  % 柱脚の層番号
-      z_top = idz(i,2);         % 柱頭の層番号
-      in_range = (candidate_stories >= z_bottom) & ...
-        (candidate_stories <= z_top);
-      valid_candidates = id(in_range);
-      if isscalar(valid_candidates)
-        idsecc(i) = valid_candidates(1);
-      elseif isempty(valid_candidates)
-        % 配置範囲外救済: 配置範囲内に候補が無い場合、最も近い
-        % 範囲外の断面を採用する。下方向（柱脚より下の階）を優先し、
-        % 下方向に候補が無い場合のみ上方向（柱頭より上の階）を採用。
-        % 距離が同じ複数候補が残ったときは、より下階のものを採用。
-        below = candidate_stories < z_bottom;
-        above = candidate_stories > z_top;
-        if any(below)
-          % 下方向距離: 範囲外（above側）は inf として最小選択から除外
-          d = z_bottom - candidate_stories;
-          d(~below) = inf;
-          mask = below & (d == min(d));
-        elseif any(above)
-          % 上方向距離: 範囲外（below側）は inf として最小選択から除外
-          d = candidate_stories - z_top;
-          d(~above) = inf;
-          mask = above & (d == min(d));
-        else
-          error('柱断面 %s が配置範囲内に見つかりません (階: %s)', ...
-            section_name{i}, member_column.floor_name{i});
-        end
-        % 同距離候補のうち最小階番号（=下階）を採用
-        cand_ids = id(mask);
-        cand_sty = candidate_stories(mask);
-        [~, jmin] = min(cand_sty);
-        idsecc(i) = cand_ids(jmin);
-      else
-        error('柱断面 %s が配置範囲内に複数見つかりました (階: %s)', ...
-          section_name{i}, member_column.floor_name{i});
-      end
-    end
-  else
-    error('柱断面 %s が見つかりません (階: %s)', section_name{i}, ...
-      member_column.floor_name{i});
-  end
+  idsecc(i) = select_section_id(section_column, section_name{i}, ...
+    idstory(i), idzn(i));
 end
 
 % 節点番号の設定
@@ -107,9 +48,9 @@ idy = member_column.idy;      % Y通り番号 [n×2]
 idz = member_column.idz;      % Z座標番号 [n×2]（下端, 上端）
 idfloor = member_column.idfloor;
 % 柱脚
-idnode1 = find_idnode_from_idxyz(idx(:,1), idy(:,1), idz(:,1), node);  
+idnode1 = find_idnode_from_idxyz(idx(:,1), idy(:,1), idz(:,1), node);
 % 柱頭
-idnode2 = find_idnode_from_idxyz(idx(:,2), idy(:,2), idz(:,2), node);  
+idnode2 = find_idnode_from_idxyz(idx(:,2), idy(:,2), idz(:,2), node);
 
 % ダミー節点の処理
 % 節点が見つからない(=0)柱は、接続する他の柱から節点を継承するか削除する

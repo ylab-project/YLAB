@@ -80,7 +80,7 @@ for i = 1:nstory
         isc = column.idsecc(ic1);
         body(irow, 1:4) = {column.floor_name{ic1}, ...
           column.coord_name{ic1,1}, column.coord_name{ic1,2}, ...
-          make_section_symbol(secc, isc)};
+          secc.full_name{isc}};
 
         % X方向（列5-13）[剛比: mm3→cm3]
         body{irow,5} = sprintf('%.2f', bkinfo.IcLc(inc) / 1000);

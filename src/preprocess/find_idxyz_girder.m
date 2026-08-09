@@ -1,8 +1,8 @@
-function [idx, idy, idz, idir, idznominal, iorigin] = ...
-  find_idxyz_girder(story_name, frame_name, coord_name, baseline)
+function [idx, idy, idz, idir, iorigin] = find_idxyz_girder( ...
+  story_name, frame_name, coord_name, baseline)
 %find_idxyz_girder - 梁の通り・階ID特定（「全/ALL」指定の展開対応）
 %
-%   [idx, idy, idz, idir, idznominal, iorigin] = find_idxyz_girder( ...
+%   [idx, idy, idz, idir, iorigin] = find_idxyz_girder( ...
 %     story_name, frame_name, coord_name, baseline) は、入力の層名・
 %   フレーム名・軸名を baseline 上のIDレンジ [1×2] に変換する。
 %   フレームが「全/ALL」のときは X/Y 両方向に 2 行展開（最大 2n 行
@@ -12,15 +12,13 @@ function [idx, idy, idz, idir, idznominal, iorigin] = ...
 %     story_name - 層名 [n×m] cell（m=1:単一, m=2:始端終端）
 %     frame_name - フレーム名 [n×m] cell
 %     coord_name - 軸名 [n×2] cell（始端・終端）
-%     baseline   - 通り情報構造体（.x.name, .y.name, .z.name,
-%                  .z.idnominal 等）
+%     baseline   - 通り情報構造体（.x.name, .y.name, .z.name 等）
 %
 %   出力引数:
 %     idx        - X軸IDレンジ [io×2]
 %     idy        - Y軸IDレンジ [io×2]
 %     idz        - 層Z-IDレンジ [io×2]
 %     idir       - 梁方向 [io×1]（PRM.X / PRM.Y）
-%     idznominal - ダミー層を実層に解決した名目層ID [io×2]
 %     iorigin    - 出力 io 行目に対応する元入力行 i [io×1]
 %                  （フレーム「全」展開で同じ i が 2 回現れる）
 %
@@ -118,10 +116,6 @@ idz = idz(1:io,:);
 idir = idir(1:io);
 iorigin = iorigin(1:io);
 
-% ダミー層 → 名目層
-if nargout>=5
-  idznominal = baseline.z.idnominal(idz);
-end
 return
 end
 

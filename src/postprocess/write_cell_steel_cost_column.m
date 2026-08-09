@@ -122,7 +122,7 @@ for i = 1:nfl
           irow = write_body_row(irow, '柱', '', L_body, W_body);
           body{block_start, 1} = com.floor.name{ifl};
           body(block_start, 2:3) = column.coord_name(ic_bottom, 1:2);
-          body{block_start, 4} = make_section_symbol(secc, idsc);
+          body{block_start, 4} = secc.full_name{idsc};
 
           % 「部位」は同じ仕口部の先頭行だけに表示する
           joint_part_label = '仕口部';

@@ -94,7 +94,7 @@ for i = 1:nstory
             rows{irow,2} = column.coord_name{ic1,1};
             rows{irow,3} = column.coord_name{ic1,2};
             isc = column.idsecc(ic1);
-            rows{irow,4} = make_section_symbol(secc, isc);
+            rows{irow,4} = secc.full_name{isc};
             rows{irow,6} = sprintf('%.0f', lm_nominal(im1));
           end
           rows{irow,5} = label{ilc};

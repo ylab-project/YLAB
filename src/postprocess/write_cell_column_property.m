@@ -121,7 +121,7 @@ return
     cpbody{irow*2-1,1} = floor_name;
     cpbody(irow*2-1,2:3) = column.coord_name(ic,1:2);
     idsc = column.idsecc(ic);
-    cpbody{irow*2-1,4} = make_section_symbol(secc, idsc);
+    cpbody{irow*2-1,4} = secc.full_name{idsc};
     cpbody(irow*2-1:irow*2,5) = {'x'; 'y'};
     cpbody{irow*2-1,6} = Em(idm)*1.d-3;
     cpbody{irow*2-1,7} = sprintf('%.2f', Gm(idm)*1.d-3);

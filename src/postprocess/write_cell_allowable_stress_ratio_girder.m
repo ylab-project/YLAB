@@ -93,7 +93,7 @@ for i = 1:nstory
 
     % 書き出し
     body{irow, 1} = secg.story_name{isg};
-    body{irow, 2} = make_section_symbol(secg, isg);
+    body{irow, 2} = secg.full_name{isg};
     % M: 仕口左(3)=空, 左端(4), 中央(5), 右端(6), 仕口右(7)=空
     body{irow, 4} = sprintf('%.2f', gri_);
     body{irow, 5} = sprintf('%.2f', grc_);

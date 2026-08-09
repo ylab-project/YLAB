@@ -76,7 +76,7 @@ return
     body{irow,3} = coord1;
     body{irow,4} = coord2;
     isg = girder.idsecg(ig);
-    body{irow,5} = make_section_symbol(secg, isg);
+    body{irow,5} = secg.full_name{isg};
     % slratio と conslr はH形梁のみを対象とし、その連番で
     % インデックスされる。梁番号から変換して引く。
     iwfs = girder.idmewfs(ig);

@@ -12,7 +12,7 @@ function [idx, idy, idz] = find_idxyz_column(floor_name, ...
 %     floor_name  - 階名 [n×m] cell（m=1:単一指定, m=2:始端終端指定）
 %     xcoord_name - X軸名 [n×m] cell
 %     ycoord_name - Y軸名 [n×m] cell
-%     baseline    - 通り情報構造体（.x.name, .y.name, .z.idnominal 等）
+%     baseline    - 通り情報構造体（.x.name, .y.name 等）
 %     story       - ストーリー情報構造体（.floor_name 等）
 %
 %   出力引数:

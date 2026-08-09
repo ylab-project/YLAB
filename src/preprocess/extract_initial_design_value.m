@@ -1,21 +1,18 @@
 function xini = extract_initial_design_value(com, options)
-%extract_initial_design_value - 入力データから設計変数の初期値を抽出する
+%extract_initial_design_value - 設計変数の初期値を抽出する
 %
-% 入力CSVで指定された初期断面寸法（柱・梁・ブレース）を解析し、
-% 断面マネージャの設計変数形式に変換する。
+%   xini = extract_initial_design_value(com, options) は、入力CSVの
+%   仮定断面を解析し、断面マネージャの設計変数形式へ変換する。
 %
-% 入力:
-%   com     - 共通オブジェクト
-%   options - 最適化オプション
+%   入力引数:
+%     com     - 共通オブジェクト
+%     options - 最適化オプション
 %
-% 出力:
-%   xini    - 設計変数の初期値ベクトル（断面が未定義の場合は空）
+%   出力引数:
+%     xini - 設計変数の初期値ベクトル
 
 % 共通定数
-nsc = com.nsecc;          % 柱断面グループ数
-nsg = com.nsecg;          % 梁断面グループ数
 nsb = com.nsecb;          % ブレース断面グループ数
-nstory = com.nstory;      % 層数
 
 % 共通配列
 inisecg = com.section.initial.girder;   % 入力梁断面テーブル
@@ -37,20 +34,9 @@ end
 % 柱断面の初期値設定
 % 入力テーブルの各行について、対応する柱断面グループを特定し寸法を設定
 nc = size(inisecc,1);
-ininames = inisecc.full_name;
-floor_names = inisecc.floor_name;
-name = secc.full_name;
-idstory = secc.idstory;
-iddc = 1:nsc;
-idds = 1:nstory;
 for i=1:nc
-  issc = matches(name, ininames{i});
-  if sum(issc)>1
-    % 該当断面が複数ある場合は層で判断
-    idstory_ = idds(matches(com.story.floor_name, floor_names{i}));
-    issc = issc&idstory==idstory_;
-  end
-  idsc = iddc(issc);
+  idsc = find_initial_section_id(secc, inisecc.full_name{i}, ...
+    inisecc.idstory(i), '柱断面');
   ids = idsc2s(idsc);
   switch secc.type(idsc)
     case PRM.HSS
@@ -63,20 +49,9 @@ end
 % 梁断面の初期値設定
 % 入力テーブルの各行について、対応する梁断面グループを特定し寸法を設定
 ng = size(inisecg,1);
-ininames = inisecg.full_name;
-story_names = inisecg.story_name;
-name = secg.full_name;
-idstory = secg.idstory;
-iddg = 1:nsg;
-idds = 1:nstory;
 for i=1:ng
-  issg = matches(name, ininames{i});
-  if sum(issg)>1
-    % 該当断面が複数ある場合は層で判断
-    idstory_ = idds(matches(com.story.name, story_names{i}));
-    issg = issg&idstory==idstory_;
-  end
-  idsg = iddg(issg);
+  idsg = find_initial_section_id(secg, inisecg.full_name{i}, ...
+    inisecg.idstory(i), '梁断面');
   ids = idsg2s(idsg);
   switch secg.type(idsg)
     case PRM.WFS
@@ -140,3 +115,33 @@ xini = com.secmgr.findNearestXvar(secdim, options);
 return
 end
 
+function idsection = find_initial_section_id(section_table, full_name, ...
+  idstory, section_kind)
+%find_initial_section_id - 仮定断面に対応する断面行を取得する
+%
+%   idsection = find_initial_section_id(section_table, full_name, ...
+%     idstory, section_kind) は、符号と階・層に対応する内部IDが
+%   一致する行を返す。
+%
+%   入力引数:
+%     section_table - full_nameとidstoryを持つ断面テーブル
+%     full_name     - 仮定断面の符号
+%     idstory       - 仮定断面の階・層に対応する内部ID
+%     section_kind  - エラー表示用の断面種別
+%
+%   出力引数:
+%     idsection - 対応する断面行番号
+
+% (full_name, idstory)の一意性は断面表確定時に
+% validate_section_identityが保証済みのため、未検出だけを検査する
+is_match = strcmp(section_table.full_name, full_name) & ...
+  section_table.idstory == idstory;
+idsection = find(is_match, 1);
+if isempty(idsection)
+  error('YLAB:Input:InitialSectionNotFound', ...
+    '%s%sが層番号%gに見つかりません', section_kind, ...
+    full_name, idstory);
+end
+
+return
+end

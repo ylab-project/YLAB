@@ -1,10 +1,21 @@
 function member_girder = set_member_girder_block(dbc, com)
-%set_member_girder_block - 大梁配置ブロックの読み込みと梁部材テーブル作成
+%set_member_girder_block - 大梁配置から梁部材テーブルを作成する
+%
+%   member_girder = set_member_girder_block(dbc, com) は、
+%   「大梁配置」を読み込み、断面・節点・方向を設定した梁部材を返す。
+%
+%   入力引数:
+%     dbc - データブロックコンテナ
+%     com - 共通オブジェクト
+%
+%   出力引数:
+%     member_girder - 梁部材テーブル
 data = dbc.get_data_block('大梁配置');
 n = size(data,1);
 
 % 共通配列
-section_girder = com.section.girder;
+% 梁断面テーブル（ループ内のtable参照を避けるため構造体化）
+section_girder = table2struct(com.section.girder, 'ToScalar', true);
 node = com.node;
 x = node.x;
 y = node.y;
@@ -71,20 +82,17 @@ for i=1:n
 end
 
 % 通り番号・方向
-[idx, idy, idz, idir, idzn] = find_idxyz_girder(story_name, ...
+[idx, idy, idz, idir] = find_idxyz_girder(story_name, ...
   frame_name, coord_name, com.baseline);
 
+% ダミー層 → 通常層。1行入力でも[n×2]の並びを保つ
+idzn = reshape(com.story.idnominal(idz), size(idz));
+
 % 断面番号
-idsecg = zeros(n,1); iddd = 1:com.nsecg;
+idsecg = zeros(n,1);
 for i=1:n
-  % id = iddd(matches(section_girder.name, section_name{i}) ...
-  %   & section_girder.idz==idz(i));
-  id = iddd(matches(section_girder.name, section_name{i}) ...
-    & section_girder.idznominal==idzn(i,1));
-  if isempty(id)
-    id = iddd(matches(section_girder.full_name, section_name{i}));
-  end
-  idsecg(i) = id;
+  idsecg(i) = select_section_id(section_girder, section_name{i}, ...
+    idstory(i), idzn(i,1));
 end
 
 % 断面種別

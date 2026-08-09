@@ -169,8 +169,7 @@ baseline.delta = set_baseline_delta_block(dbc, com);
 baseline.setback = set_baseline_setback_block(dbc, com);
 
 %% 座標値
-baseline = set_baseline_coord(baseline, span, floor, story, ...
-  options, idstory2nominal);
+baseline = set_baseline_coord(baseline, span, floor, story, options);
 
 %% 構造スパンの更新（部材の寄りを反映）
 member_column = set_member_column_p1_block(dbc, com);
@@ -240,6 +239,8 @@ if ~isempty(section_rc_column)
   section_column = [section_column; section_rc_column];
   section.column = section_column;
 end
+validate_section_identity(section_column, '柱断面');
+validate_section_identity(section_girder, '梁断面');
 com.section = section;
 
 %% ブレース断面
@@ -303,8 +304,10 @@ section.horizontal_brace = section_horizontal_brace;
 com.section = section;
 
 %% 初期断面
-initial_section_girder = set_initial_section_steel_girder_block(dbc, com);
-initial_section_column = set_initial_section_column_block(dbc, com);
+initial_section_girder = read_initial_section_block(dbc, ...
+  'S梁断面(仮定)', com.story.name);
+initial_section_column = read_initial_section_block(dbc, ...
+  'S柱断面(仮定)', com.story.floor_name);
 initial_section_brace_manufacturer  = ...
   set_initial_section_brace_manufacturer_block(dbc, com);
 initial.girder = initial_section_girder;
@@ -1058,11 +1061,26 @@ end
 %--------------------------------------------------------------------------
 function [column_base, idme2seccb] = set_section_column_base_block( ...
   dbc, com)
+%set_section_column_base_block - メーカー製柱脚断面を読み込む
+%
+%   [column_base, idme2seccb] = ...
+%     set_section_column_base_block(dbc, com) は、柱脚断面を読み込み、
+%   柱部材と柱脚断面の対応を返す。
+%
+%   入力引数:
+%     dbc - データブロックコンテナ
+%     com - 共通オブジェクト
+%
+%   出力引数:
+%     column_base - 柱脚断面テーブル
+%     idme2seccb  - 部材番号から柱脚断面番号への対応
+
 data = dbc.get_data_block('メーカー製柱脚断面');
 n = size(data,1);
 
 % 共通配列
-section_column = com.section.column;
+% 柱断面テーブル（ループ内のtable参照を避けるため構造体化）
+section_column = table2struct(com.section.column, 'ToScalar', true);
 % node = com.node;
 % x = node.x;
 % y = node.y;
@@ -1111,14 +1129,11 @@ for i=1:n
 end
 
 % 断面番号
-idsecc = zeros(n,1); iddl = 1:com.nsecc;
+idznominal = com.story.idnominal(idstory);
+idsecc = zeros(n,1);
 for i=1:n
-  id = iddl(matches(section_column.name, section_name{i}) ...
-    & section_column.idstory==idstory(i));
-  if isempty(id)
-    id = iddl(matches(section_column.full_name, section_name{i}));
-  end
-  idsecc(i) = id;
+  idsecc(i) = select_section_id(section_column, section_name{i}, ...
+    idstory(i), idznominal(i));
 end
 
 % ID逆引き
@@ -1425,59 +1440,6 @@ dimension(mtype==PRM.HORIZONTAL_BRACE,:) = ...
 % 結果の保存
 section_property = table(idsecg, idsecc, idsecb, idsechb, ...
   idstory, type, mtype, id_section_list, idmaterial, idvar, dimension);
-return
-end
-
-%--------------------------------------------------------------------------
-function initial_section_girder = ...
-  set_initial_section_steel_girder_block(dbc, com)
-
-data = dbc.get_data_block('S梁断面(仮定)');
-n = size(data,1);
-
-% 層名
-story_name = cell(n,1);
-for i=1:n
-  story_name{i} = tochar(data{i,1});
-end
-
-% 層・Z通り番号
-idstory = zeros(n,1); idds = 1:com.nstory;
-idz = zeros(n,1); iddz = com.story.idz;
-for i=1:n
-  idstory(i) = idds(matches(com.story.name, story_name{i}));
-  idz(i) = iddz(matches(com.story.name, story_name{i}));
-end
-
-% 符号
-name = cell(n,1);
-for i=1:n
-  name{i} = tochar(data{i,2});
-end
-
-% 添字と断面符号
-subindex = cell(n,1);
-full_name = cell(n,1);
-for i=1:n
-  subindex{i} = data{i,3};
-  if subindex{i}=='-'
-    subindex{i} = num2str(idstory(i));
-  end
-  if isnumeric(subindex{i})
-    subindex{i} = num2str(subindex{i});
-  end
-  full_name{i} = [subindex{i} name{i}];
-end
-
-% 鉄骨登録形状
-dimension = cell(n,1);
-for i=1:n
-  dimension{i} = data{i,4};
-end
-
-% 結果の保存
-initial_section_girder = table(name, subindex , story_name, full_name, ...
-  dimension);
 return
 end
 
@@ -2216,7 +2178,7 @@ for i=1:n
 end
 
 % バッチ呼び出し（iorigin で展開後の行と元入力行の対応を取る）
-[idx, idy, idz, idir, ~, iorigin] = find_idxyz_girder( ...
+[idx, idy, idz, idir, iorigin] = find_idxyz_girder( ...
   story_name, frame_name, coord_name, baseline);
 for io = 1:length(idir)
   idmeg = find_idgirder_from_idxyz(idx(io,:), idy(io,:), ...

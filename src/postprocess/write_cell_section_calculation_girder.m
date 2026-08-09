@@ -224,7 +224,7 @@ for i = 1:nstory
         deflection_suffix_ = '';
       end
       irow = irow + 1;
-      scgbody{irow,1} = sprintf('[ %s ]', make_section_symbol(secg, isg));
+      scgbody{irow,1} = sprintf('[ %s ]', secg.full_name{isg});
       scgbody{irow,2} = sprintf('[%s', girder.story_name{ig1});
       scgbody{irow,3} = girder.frame_name{ig1};
       scgbody{irow,4} = girder.coord_name{ig1, 1};

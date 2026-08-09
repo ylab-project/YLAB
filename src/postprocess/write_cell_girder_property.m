@@ -113,7 +113,7 @@ return
     gpbody{irow_*2-1,3} = girder.coord_name{ig_,1};
     gpbody{irow_*2-1,4} = '';
     idsec_ = girder.idsecg(ig_);
-    gpbody{irow_*2-1,5} = make_section_symbol(secg, idsec_);
+    gpbody{irow_*2-1,5} = secg.full_name{idsec_};
     gpbody{irow_*2-1,6} = sprintf('%.1f', Em(idm_)*1.d-3);
     gpbody{irow_*2-1,7} = fmt_adaptive(msprop.Iy(idm_)*1.d-4);
     gpbody{irow_*2-1,8} = sprintf('%.3f', gphiI(ig_));

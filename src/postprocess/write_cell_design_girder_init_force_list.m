@@ -102,7 +102,7 @@ return
         rows{irow, 3} = girder.coord_name{ig1, 1};
         rows{irow, 4} = girder.coord_name{ig2, 2};
         isg = girder.idsecg(ig1);
-        rows{irow, 5} = make_section_symbol(secg, isg);
+        rows{irow, 5} = secg.full_name{isg};
         rows{irow, 7} = sprintf('%.0f', lm_nominal(im1));
       end
       rows{irow, 6} = PRM.load_case_name(ilc);

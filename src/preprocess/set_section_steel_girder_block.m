@@ -13,16 +13,15 @@ function [section_girder, design_variable] = ...
 %     options - 実行オプション (coptions.rank_girder 等)
 %
 %   出力引数:
-%     section_girder  - S梁断面テーブル [n×15]
-%       主要列: name, subindex, subindex_raw, story_name, full_name,
-%       id_section_list, type_name, idstory, type, idmaterial, idz,
-%       idznominal, idvar, rank, dimension
+%     section_girder  - S梁断面テーブル [n×14]
+%       主要列: name, subindex, story_name, full_name, id_section_list,
+%       type_name, idstory, type, idmaterial, idz, idznominal, idvar,
+%       rank, dimension
 %     design_variable - 更新された設計変数構造体
 %
 %   備考:
-%     - subindex は内部参照用（'-' は層番号に置換）、
-%       subindex_raw は出力用の生値。
-%     - 設計変数 idvar は (Hn,Bn,twn,tfn) 等の順で割り当てる。
+%     - subindexは添字省略を空のcharとして保持する。
+%     - 設計変数idvarは(Hn,Bn,twn,tfn)等の順で割り当てる。
 
 data = dbc.get_data_block('S梁断面');
 n = size(data,1);
@@ -41,7 +40,7 @@ for i=1:n
   idstory(i) = idds(matches(com.story.name, story_name{i}));
   idz(i) = iddz(matches(com.story.name, story_name{i}));
 end
-idznominal = com.baseline.z.idnominal(idz);
+idznominal = com.story.idnominal(idstory);
 
 % 符号
 name = cell(n,1);
@@ -50,12 +49,9 @@ for i=1:n
 end
 
 % 添字
-%   subindex     : 内部参照（full_name 構築）用。'-' は層番号に置換
-%   subindex_raw : 出力用。入力時の生値を保持（'-' のまま）
 subindex = cell(n,1);
-subindex_raw = cell(n,1);
 for i=1:n
-  [subindex{i}, subindex_raw{i}] = make_subindex(data{i,3}, idstory(i));
+  subindex{i} = make_subindex(data{i,3});
 end
 
 % 断面リスト
@@ -73,9 +69,8 @@ for i=1:n
     idsl = iddd(issl);
     id_section_list(i) = idsl(1);
   else
-    throw_err('IO', 'SectionListNotFound', ...
-      section_list_name{i}, 'S梁断面', ...
-      ['層: ' story_name{i} ', 符号: ' name{i}]);
+    throw_err('IO', 'SectionListNotFound', section_list_name{i}, ...
+      'S梁断面', ['層: ' story_name{i} ', 符号: ' name{i}]);
   end
 
   % 同一の鉄骨形状のみ複数リスト指定可
@@ -127,9 +122,9 @@ for i = 1:n
 end
 
 % 結果の保存
-section_girder = table(name, subindex, subindex_raw, story_name, ...
-  full_name, id_section_list, type_name, idstory, type, idmaterial, ...
-  idz, idznominal, idvar, rank, dimension);
+section_girder = table(name, subindex, story_name, full_name, ...
+  id_section_list, type_name, idstory, type, idmaterial, idz, ...
+  idznominal, idvar, rank, dimension);
 
 return
 end

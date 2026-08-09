@@ -143,7 +143,7 @@ return
     body{row_idx,3} = axis_from;
     body{row_idx,4} = axis_to;
     isg = girder.idsecg(ig_);
-    body{row_idx,5} = make_section_symbol(secg, isg);
+    body{row_idx,5} = secg.full_name{isg};
     body{row_idx,6} = seq_;
     % 応力値（部材長、M[kNm]、Q[kN]、N[kN]）
     body{row_idx,7} = fmt_ceil_abs(lm(im), 0);

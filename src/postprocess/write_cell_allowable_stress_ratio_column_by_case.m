@@ -86,7 +86,7 @@ return
     body{irow, 1} = column.floor_name{idnm2mc(inc, 1)};
     body{irow, 2} = column.coord_name{idnm2mc(inc, 1), 1};
     body{irow, 3} = column.coord_name{idnm2mc(inc, 1), 2};
-    body{irow, 4} = make_section_symbol(secc, isc);
+    body{irow, 4} = secc.full_name{isc};
     body{irow, 5} = format_ratio(crj(inc, ilc));
     body{irow, 6} = '';
     body{irow, 7} = format_ratio(cri(inc, ilc));

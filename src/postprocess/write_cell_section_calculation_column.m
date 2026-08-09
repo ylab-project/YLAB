@@ -166,7 +166,7 @@ for i = 1:nstory
 
       % === Row 1: 符号行 + 応力ヘッダ ===
       irow = irow + 1;
-      sccbody{irow, 1} = sprintf('[%s]', make_section_symbol(secc, isc_));
+      sccbody{irow, 1} = sprintf('[%s]', secc.full_name{isc_});
       flnm_ = column.floor_name{ic1};
       sccbody{irow, 3} = sprintf('[%s', flnm_);
       sccbody{irow, 5} = column.coord_name{ic1, 1};

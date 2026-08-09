@@ -1,26 +1,19 @@
-function [sub, sub_raw] = make_subindex(v, expand_id)
-%make_subindex - 入力CSV添字から内部用/出力用のペアを生成
+function subindex = make_subindex(value)
+%make_subindex - 入力CSVの添字を内部表現へ正規化する
 %
-%   [sub, sub_raw] = make_subindex(v, expand_id) は、入力CSVの添字値
-%   v から、内部参照用 sub と出力用 sub_raw を返す。sub_raw は入力値を
-%   そのまま保持し、sub は '-' のとき expand_id（梁=層番号、柱=
-%   階番号）の文字列に置換、それ以外は v を返す。
+%   subindex = make_subindex(value) は、入力CSVの添字 value を
+%   charへ変換する。添字省略記号'-'と欠損値は空のcharを返す。
 %
 %   入力引数:
-%     v         - 入力CSVの添字値（'R', '-', 数値等）
-%     expand_id - '-' のとき展開する番号
+%     value - 入力CSVの添字値
 %
 %   出力引数:
-%     sub     - 内部参照用添字（'-' を expand_id 文字列に置換）
-%     sub_raw - 出力用添字（入力値をそのまま保持）
+%     subindex - 正規化した添字
 
-v = tochar(v);
-sub_raw = v;
-if strcmp(v, '-')
-  sub = num2str(expand_id);
-else
-  sub = v;
+subindex = tochar(value);
+if strcmp(subindex, '-')
+  subindex = '';
 end
 
+return
 end
-

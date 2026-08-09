@@ -103,7 +103,7 @@ return
       rows{irow,3} = nominal_girder.coord_name{ing,1};
       rows{irow,4} = nominal_girder.coord_name{ing,2};
       isg = girder.idsecg(ig);
-      rows{irow,5} = make_section_symbol(secg, isg);
+      rows{irow,5} = secg.full_name{isg};
       rows{irow,6} = kk;
       rows{irow,7} = sprintf('%.0f', lm(im));
       rows{irow,8} = sprintf('%.1f', -rs(im,5)*1.d-6);

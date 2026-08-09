@@ -109,8 +109,11 @@ for i=1:n
 end
 
 % 通り番号・方向の取得
-[idx, idy, idz, idir, idzn] = find_idxyz_brace(floor_name, ...
+[idx, idy, idz, idir] = find_idxyz_brace(floor_name, ...
   frame_name, coord_name, com.baseline, com.story);
+
+% ダミー層 → 通常層。1行入力でも[n×2]の並びを保つ
+idzn = reshape(com.story.idnominal(idz), size(idz));
 
 % 断面番号の取得
 idsecb = zeros(n,1); iddd = 1:com.nsecb;
@@ -138,7 +141,7 @@ for i = 1:n
     end
     idz(i,2) = idz(i,2) + 1;
   end
-  idzn(i,2) = baseline.z.idnominal(idz(i,2));
+  idzn(i,2) = com.story.idnominal(idz(i,2));
 end
 
 % K形ブレース中間節点配列の初期化
@@ -382,7 +385,6 @@ return
     baseline.z.id(nz) = nz;
     baseline.z.idstory(nz) = nz;
     baseline.z.isdummy(nz) = true;
-    baseline.z.idnominal(nz) = 1;
     baseline.z.name(nz) = strcat(baseline.z.name(nz),'-BRACE-JOINT');
 
     % 対象ブレースの抽出（1階のX形・K上形のみ）

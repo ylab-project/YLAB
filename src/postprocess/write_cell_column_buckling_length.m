@@ -91,7 +91,7 @@ for i = 1:nstory
         cblbody{irow,2} = column.coord_name{ic1,1};
         cblbody{irow,3} = column.coord_name{ic1,2};
         isc = column.idsecc(ic1);
-        cblbody{irow,4} = make_section_symbol(secc, isc);
+        cblbody{irow,4} = secc.full_name{isc};
 
         % 部材長（方向別の剛域控除後）
         cblbody{irow,5} = sprintf('%.0f', lm_nominal_x(im1));

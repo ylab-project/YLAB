@@ -84,7 +84,7 @@ for i = 1:nstory
 
     % 書き出し（柱頭=j端, 柱脚=i端）
     asrcbody{irow,1} = secc.floor_name{isc};
-    asrcbody{irow,2} = make_section_symbol(secc, isc);
+    asrcbody{irow,2} = secc.full_name{isc};
     asrcbody{irow,3} = sprintf('%.2f', crj_);
     asrcbody{irow,4} = '';
     asrcbody{irow,5} = sprintf('%.2f', cri_);

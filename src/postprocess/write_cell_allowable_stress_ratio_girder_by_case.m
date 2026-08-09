@@ -93,7 +93,7 @@ return
     body{irow, 2} = nominal_girder.frame_name{ing};
     body{irow, 3} = nominal_girder.coord_name{ing, 1};
     body{irow, 4} = nominal_girder.coord_name{ing, 2};
-    body{irow, 5} = make_section_symbol(secg, isg);
+    body{irow, 5} = secg.full_name{isg};
     body{irow, 6} = format_ratio(gri(ing, ilc));
     body{irow, 7} = format_ratio(grc(ing, ilc));
     body{irow, 8} = format_ratio(grj(ing, ilc));
