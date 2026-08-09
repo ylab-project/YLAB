@@ -11,9 +11,9 @@ function lm_brace_buckling = calc_brace_buckling_length(...
 %   idnode1 は常に下端、idnode2 は常に上端である前提。
 %
 %   入力引数:
-%     member_brace  - ブレース部材テーブル
+%     member_brace  - ブレース部材テーブル (has_girder1/2 必須)
 %     member_girder - 梁部材テーブル
-%     node          - 節点テーブル (z, z_standard 必須)
+%     node          - 節点テーブル (z, z_standard, type 必須)
 %     stype_sec     - 断面種別配列 [nsec×1]
 %     idsecg2sec    - 梁断面ID→統一断面ID変換配列
 %     secdim        - 断面寸法配列 [nsec×ncol]
@@ -32,9 +32,9 @@ Hg_gir = calc_girder_section_depth(secdim, stype_gir, idmg2s);
 % 梁レベル調整
 glv = member_girder.level;
 
-% 接続梁候補・採用梁・ブレース節点
-has_girder1 = any(member_brace.idmeg1 > 0, 2);
-has_girder2 = any(member_brace.idmeg2 > 0, 2);
+% 接続梁の有無・採用梁・ブレース節点
+has_girder1 = member_brace.has_girder1;
+has_girder2 = member_brace.has_girder2;
 selected_girder1 = member_brace.idmeg_selected1;
 selected_girder2 = member_brace.idmeg_selected2;
 idnode1 = member_brace.idnode1;
@@ -50,6 +50,11 @@ for ib = 1:nmeb
   ig1 = selected_girder1(ib);
   ig2 = selected_girder2(ib);
 
+  % 端部の基準レベル。接続梁はあるが採用梁がない端は、引き算の
+  % 対象になる梁がないため階高レベル（大梁天端）のままとする。
+  % 接続梁が1本もない端は、基礎梁天端に合わせた分割節点の node.z
+  % をそのまま使い、階高レベルへ丸めない。node.z は断面寸法から
+  % update_geometry_z が再計算するため、この判定は前処理へ移せない。
   z1 = node.z(in1);
   if ig1 == 0 && has_girder1(ib)
     z1 = node.z_standard(in1);
