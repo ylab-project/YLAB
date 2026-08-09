@@ -24,7 +24,7 @@ secb = com.section.brace;               % ブレース断面グループ
 secdim = com.secmgr.dimension;          % 断面寸法配列（出力用）
 idsg2s = secg.idsec;                    % 梁グループ→断面マネージャID
 idsc2s = secc.idsec;                    % 柱グループ→断面マネージャID
-idsb2s = secb.idsec;                    % ブレースグループ→断面マネージャID
+idsb2s = secb.idsec;                    % ブレース→断面マネージャID
 
 if isempty(inisecc) || isempty(inisecg)
   xini = [];
@@ -71,7 +71,8 @@ for i=1:ng
 end
 
 % ブレース断面の初期値設定
-% 入力テーブルの各行について、対応するブレース断面グループを特定し寸法を設定
+% 入力テーブルの各行について、対応するブレース断面グループを特定し、
+% 寸法を設定する。
 nb = size(inisecb,1);
 ininames = inisecb.name;
 name = secb.name;
@@ -82,8 +83,8 @@ for i=1:nb
   switch secb.type(idsb)
     case PRM.BRB
       % 座屈拘束ブレース: TYPE-Aw(Ap/Aw) → [type, Aw, Ap, Aw] を抽出
-      sss = textscan(inisecb.dimension{i}, ...
-        '%s %f %f %f','Delimiter',{'-','(',')'});
+      sss = textscan(inisecb.dimension{i}, '%s %f %f %f', ...
+        'Delimiter', {'-', '(', ')'});
       ubb_type = PRM.get_id_ubb_type(sss{1});
       secdim(ids,1:4) = [ubb_type sss{2} sss{3} sss{4}];
     case {PRM.HSR, PRM.BHSR}

@@ -126,8 +126,9 @@ member_girder = table(story_name, frame_name, coord_name, ...
 
 % 基礎梁フラグ（両端が支点節点なら基礎梁）
 idsup2n = com.support.idnode;
-member_girder.isfg = ismember(idnode1, idsup2n) & ...
-  ismember(idnode2, idsup2n);
+is_supported1 = ismember(idnode1, idsup2n);
+is_supported2 = ismember(idnode2, idsup2n);
+member_girder.isfg = is_supported1 & is_supported2;
 
 % WFS部材番号の設定
 nmeg = size(member_girder,1);

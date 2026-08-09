@@ -1111,7 +1111,7 @@ idlist = zeros(n,1); iddl = 1:com.ncblist;
 for i=1:n
   name = tochar(data{i,3});
   switch name
-    case "剛性指定"
+    case '剛性指定'
       type(i) = PRM.CB_DIRECT;
       property(i) = data{i,4};
     otherwise
