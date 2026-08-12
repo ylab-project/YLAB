@@ -1,5 +1,5 @@
 function [stress_constraint, stress_result] = ...
-  eval_nominal_allowable_stress_ratio(msdim, stn, stcn, A, Iy, Iz, ...
+  eval_nominal_allowable_stress_ratio(msdim, stn, A, Iy, Iz, ...
   Zyc, C, mtype, stype, isxdir, isydir, wgx, wgy, Em, Fm, ...
   idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, ...
   isgmirrored, idmg2ng, idmc2nc, options, beta, lcdir, ...
@@ -14,7 +14,6 @@ function [stress_constraint, stress_result] = ...
 %   入力引数:
 %     msdim       - 部材断面寸法 [nme×ndim]
 %     stn         - 名目部材の応力 [nnm×ncomp×nlc]
-%     stcn        - 名目梁中央モーメント [nng×nlc]
 %     A           - 断面積 [nme×1]
 %     Iy, Iz      - 断面2次モーメント [nme×1]
 %     Zyc         - 中央曲げ応力度用断面係数 [nme×1]
@@ -58,6 +57,7 @@ function [stress_constraint, stress_result] = ...
 %       .gri～.bnij - 位置・ケース別応力制約
 %       .fcn, .fbn, .fsn, .ftn - 許容応力度
 %       .fcn_display - 引張置換前の許容圧縮応力度（fcL/fcS表示用）
+%       .column_fc_applicable - fcL/fcSを数値表示できる柱 [nnm×1]
 %       .kcx, .kcy, .lkx, .lky - 座屈長さ係数・座屈長さ
 %       .lambday, .lambdaz - 細長比
 %       .ration - 位置・成分別応力比
@@ -165,6 +165,10 @@ end
 nlc_ = size(fbn4, 3);
 girder_axial_mask = build_girder_axial_mask(stn, nomgc.Ncn, ...
   An, nmtype, options);
+axial_on = options.s_girder_axial_design ~= PRM.S_GIRDER_AXIAL_NONE;
+% 端部軸力の引張判定（引張正）。検定のfc・fb→ft置換と、
+% S柱断面算定表のfcL/fcS表示条件で同じ判定を用いる。
+axial_tension = stn(:, [1 7], :) .* An >= PRM.TOL_FORCE_N;
 id_center_sel = 3*ones(nng_, nlc_);
 nomgc.stcN = zeros(size(nomgc.Ncn));
 nomgc.stcM = zeros(size(nomgc.Mcn));
@@ -195,10 +199,14 @@ for ilc = 1:nlc_
   fb_eval = fb4_(:, 3:4);
   fc_eval = fc4_(:, 3:4);
   use_axial_c = girder_axial_mask.c(iggg, ilc);
-  use_ft = use_axial_c & (N_center >= PRM.TOL_FORCE_N);
   ft_center = ftn(iggg, ilc_ft);
+  % 引張はfb・fcともftで検定する
+  use_ft = use_axial_c & (N_center >= PRM.TOL_FORCE_N);
   fb_eval(use_ft, :) = repmat(ft_center(use_ft), 1, 2);
-  fc_eval(use_ft, :) = repmat(ft_center(use_ft), 1, 2);
+  % 圧縮検定が働かない中央（引張または閾値未満のN）は、SS7と
+  % 同じくfcにftを採用する（UN13_14のRG1中央はN=0でfc=156.7）
+  no_comp = axial_on & ~(use_axial_c & (N_center <= -PRM.TOL_FORCE_N));
+  fc_eval(no_comp, :) = repmat(ft_center(no_comp), 1, 2);
   r3 = abs(stcM3) ./ fb_eval(:, 1) + abs(stcN3) ./ fc_eval(:, 1);
   r4 = abs(stcM4) ./ fb_eval(:, 2) + abs(stcN4) ./ fc_eval(:, 2);
   sel = 3*ones(nng_, 1);
@@ -229,10 +237,15 @@ end
 % （計算編 式6.18）、fcL/fcS欄の表示にfcを使う（出力編7.3.11）。
 fcn_display = fcn;
 
+% fcL/fcS欄の表示可否。全断面算定ケースの両端が引張となる柱では、
+% SS7実出力に合わせて数値を表示しない。
+is_all_tension = all(all(axial_tension, 3), 2);
+column_fc_applicable = ~(nmtype == PRM.COLUMN & is_all_tension);
+
 % 許容応力度比の算定。fcn/fbn は検定用の確定値（引張置換後）とする。
-[ration, fcn, fbn] = calc_nominal_allowable_stress_ratio( ...
-  stn, stcn, ftn, fcn, fbn, fsn, nmtype, nomgc.Ncn, An, ...
-  girder_axial_mask);
+[ration, fcn, fbn] = calc_nominal_allowable_stress_ratio(stn, ftn, ...
+  fcn, fbn, fsn, nmtype, nomgc.Ncn, An, girder_axial_mask, ...
+  axial_tension);
 for ilc = 1:nlc_
   ration(iggg, 13, ilc) = nomgc.ratioM(iggg, ilc);
   ration(iggg, 14, ilc) = nomgc.ratioN(iggg, ilc);
@@ -275,6 +288,7 @@ stress_result.bnij = bnij;
 % 許容応力度と座屈長さ
 stress_result.fcn = fcn;
 stress_result.fcn_display = fcn_display;
+stress_result.column_fc_applicable = column_fc_applicable;
 stress_result.fbn = fbn;
 stress_result.fsn = fsn;
 stress_result.ftn = ftn;

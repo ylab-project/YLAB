@@ -35,6 +35,7 @@ mstype = stype(idm2s);
 dfn = result.dfn;
 fbn = result.fbn;
 fcn_display = result.fcnDisplay;
+fc_applicable = result.columnFcApplicable;
 A = result.msprop.A;
 Asc = result.msprop.Asc;
 Asy = result.msprop.Asy;
@@ -715,12 +716,13 @@ return
   %
   %   write_length_label(irow_, im_) は、部材番号 im_ の部材長
   %   lm_nominal(im_) を col 1 に '部材長 <値>' として書き込む。
+  %   SS7実出力に合わせ絶対値方向へ切り上げて表示する。
   %   外側スコープの sccbody, lm_nominal を共有する。
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
   %     im_   - 部材番号
-    sccbody{irow_, 1} = sprintf('部材長 %.0f', lm_nominal(im_));
+    sccbody{irow_, 1} = ['部材長 ' fmt_ceil_abs(lm_nominal(im_), 0)];
     return
   end
 
@@ -807,11 +809,17 @@ return
   %
   %   write_fcl_label(irow_) は、長期側許容圧縮応力度
   %   fcn_display(inm, 1, 1) を col 2 に 'fcL <値>' として書き込む。
-  %   引張置換前の fc を表示する（SS7出力編7.3.11）。
-  %   外側スコープの sccbody, fcn_display, inm を共有する。
+  %   引張置換前の fc を表示する（SS7出力編7.3.11）。全断面算定
+  %   ケースが引張となる柱では、SS7と同じく '---' を表示する。
+  %   外側スコープの sccbody, fcn_display, fc_applicable, inm を
+  %   共有する。
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
+    if ~fc_applicable(inm)
+      sccbody{irow_, 2} = 'fcL  ---';
+      return
+    end
     fcl_ = ceil_abs(fcn_display(inm, 1, 1), 0);
     sccbody{irow_, 2} = sprintf('fcL  %.0f', fcl_);
     return
@@ -822,11 +830,17 @@ return
   %
   %   write_fcs_label(irow_) は、短期側許容圧縮応力度
   %   fcn_display(inm, 1, 2) を col 2 に 'fcS <値>' として書き込む。
-  %   引張置換前の fc を表示する（SS7出力編7.3.11）。
-  %   外側スコープの sccbody, fcn_display, inm を共有する。
+  %   引張置換前の fc を表示する（SS7出力編7.3.11）。全断面算定
+  %   ケースが引張となる柱では、SS7と同じく '---' を表示する。
+  %   外側スコープの sccbody, fcn_display, fc_applicable, inm を
+  %   共有する。
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
+    if ~fc_applicable(inm)
+      sccbody{irow_, 2} = 'fcS  ---';
+      return
+    end
     fcs_ = ceil_abs(fcn_display(inm, 1, 2), 0);
     sccbody{irow_, 2} = sprintf('fcS  %.0f', fcs_);
     return
