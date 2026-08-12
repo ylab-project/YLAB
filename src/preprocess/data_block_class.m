@@ -30,6 +30,10 @@ classdef data_block_class < handle
     bcdata(:,1) double
     casedata(:,1) cell
     origrows(:,1) double
+    blockdata(:,1) double
+    blocklabels(:,1) cell
+    blockheaders(:,1) cell
+    blockorigrows(:,1) double
     checkLabel(1,1) logical = true
     modeSS7(1,1) logical = false
   end
@@ -113,46 +117,51 @@ classdef data_block_class < handle
         obj.comment = {''};
       end
 
-      % ブロック番号の判別
+      % ブロック番号と同名ブロックのインスタンスを判別
       nlines = size(obj.cdata, 1);
-      obj.bcdata = zeros(nlines,1);
-      obj.casedata = cell(nlines,1);
+      obj.bcdata = zeros(nlines, 1);
+      obj.casedata = cell(nlines, 1);
+      obj.blockdata = zeros(nlines, 1);
+      obj.blocklabels = cell(0, 1);
+      obj.blockheaders = cell(0, 1);
+      obj.blockorigrows = zeros(0, 1);
       bid = 0;
+      block_id = 0;
       caselabel = [];
       isdata = true;
-      for iline=2:nlines
+      for iline = 1:nlines
         isheader = false;
-        if ischar(obj.cdata{iline,1})
-          if contains(obj.cdata{iline,1},'name=')
+        first_value = obj.cdata{iline, 1};
+        if ischar(first_value)
+          if startsWith(first_value, 'name=')
             isheader = true;
             bid = 0;
-            if ischar(obj.cdata{iline,2})
-              if contains(obj.cdata{iline,2},'case=')
-                caselabel = obj.cdata{iline,2}(6:end);
-              else
-                caselabel = [];
-              end
-            else
-              caselabel = [];
-            end
-            if (obj.modeSS7)
+            block_id = block_id + 1;
+            obj.blocklabels{block_id, 1} = extractAfter(first_value, 5);
+            obj.blockheaders{block_id, 1} = obj.cdata(iline, :);
+            obj.blockorigrows(block_id, 1) = obj.origrows(iline);
+            caselabel = read_legacy_case_label(obj.cdata(iline, :));
+            if obj.modeSS7
               isdata = false;
             end
-          end
-          if contains(obj.cdata{iline,1},'<data>')
+          elseif contains(first_value, '<data>')
             isheader = true;
             isdata = true;
           end
+          block_bid = obj.bid(first_value);
+          if block_bid > 0
+            bid = block_bid;
+          elseif isheader && obj.checkLabel
+            if startsWith(first_value, 'name=')
+              error('(%d) "%s" は登録されたキーワードではありません', ...
+                iline, first_value);
+            end
+          end
         end
-        if obj.bid(obj.cdata{iline,1})>0
-          bid = obj.bid(obj.cdata{iline,1});
-        elseif isheader&&obj.checkLabel
-          error('(%d) "%s" は登録されたキーワードではありません', ...
-            iline, obj.cdata{iline,1});
-        end
-        if (~isheader&&isdata)
+        if ~isheader && isdata
           obj.bcdata(iline) = bid;
           obj.casedata{iline} = caselabel;
+          obj.blockdata(iline) = block_id;
         end
       end
     end
@@ -187,6 +196,37 @@ classdef data_block_class < handle
             obj.casedata, length(caselabel)),:);
       end
       cdata = obj.normalize_data_block(label, cdata);
+    end
+    function blocks = get_data_blocks(obj, label)
+      %get_data_blocks - 同名ブロックを属性と元CSV行付きで取得する
+      %
+      %   入力引数:
+      %     label - ブロックラベル
+      %
+      %   出力引数:
+      %     blocks - data、rows、origrows、attributes、headerを持つ構造体
+      empty_block = struct('data', {}, 'rows', {}, 'origrows', {}, ...
+        'attributes', {}, 'header', {}, 'header_origrow', {});
+      blocks = empty_block;
+      if isempty(obj.blocklabels)
+        return
+      end
+
+      block_ids = find(strcmp(obj.blocklabels, label));
+      bid = obj.bid(['name=' label]);
+      for index = 1:length(block_ids)
+        block_id = block_ids(index);
+        rows = find(obj.blockdata == block_id & obj.bcdata == bid);
+        block.data = obj.normalize_data_block(label, obj.cdata(rows, :));
+        block.rows = rows;
+        block.origrows = obj.origrows(rows);
+        block.header = obj.blockheaders{block_id};
+        block.attributes = parse_block_attributes(block.header);
+        block.header_origrow = obj.blockorigrows(block_id);
+        blocks(end + 1, 1) = block; %#ok<AGROW>
+      end
+
+      return
     end
     function rows = get_data_block_rows(obj, label)
       %get_data_block_rows - ブロック内各行の cdata 行番号を返す
@@ -244,6 +284,9 @@ classdef data_block_class < handle
       if isempty(fmt) || isempty(cdata)
         return
       end
+      if strcmp(label, '要素荷重')
+        cdata = normalize_element_load_continuation(cdata);
+      end
 
       nfmt = length(fmt);
       if size(cdata, 2) < nfmt
@@ -288,6 +331,60 @@ elseif isempty(value) || (isscalar(value) && ismissing(value))
   value = NaN;
 else
   value = Inf;
+end
+
+return
+end
+
+function caselabel = read_legacy_case_label(header)
+%read_legacy_case_label - 旧API用に第2セルのcase属性を取得する
+caselabel = [];
+if size(header, 2) < 2 || ~ischar(header{2})
+  return
+end
+if startsWith(header{2}, 'case=')
+  caselabel = extractAfter(header{2}, 5);
+end
+
+return
+end
+
+function attributes = parse_block_attributes(header)
+%parse_block_attributes - nameセル以外のキーと値を順序非依存で取得する
+attributes = cell(0, 2);
+for icol = 2:size(header, 2)
+  value = tochar(header{icol});
+  separator = strfind(value, '=');
+  if isempty(separator)
+    continue
+  end
+  position = separator(1);
+  key = strtrim(value(1:position - 1));
+  if isempty(key)
+    continue
+  end
+  attributes(end + 1, :) = {key, strtrim(value(position + 1:end))}; ...
+    %#ok<AGROW>
+end
+
+return
+end
+
+function cdata = normalize_element_load_continuation(cdata)
+%normalize_element_load_continuation - T以後を未入力として25列へ整える
+ncol = 25;
+if size(cdata, 2) < ncol
+  cdata(:, end + 1:ncol) = {missing};
+end
+for irow = 1:size(cdata, 1)
+  tail = string(cdata(irow, 21:ncol));
+  offset = find(matches(tail, 'T'), 1);
+  if isempty(offset)
+    continue
+  end
+  first = 20 + offset;
+  cdata(irow, first:24) = {missing};
+  cdata{irow, 25} = 'T';
 end
 
 return

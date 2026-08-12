@@ -35,21 +35,26 @@ feqvec = result.felement(:, :, 1);  % G+P ケース
 fnode = com.fnode(:, :, 1);
 faddnode = com.faddnode(:, :, 1);
 idsup2n = com.support.idnode;
+has_new = result.element_weight.has_new_input;
+% 要素荷重が無いモデルでは classified は全ゼロで、控除も恒等になる
+classified = result.element_weight.nodal;
+feqvec = feqvec - result.element_weight.analysis_felement(:, :, 1);
 
-% KBRACE-MID節点の自重をグリッド節点に再配分
-[feqvec, fg_r, fw_r, fc_r, f_r] = redistribute_kbrace_mid( ...
-  com, feqvec, sw.fg, sw.fw, sw.fc, sw.f);
+% KBRACE-MID節点の自重と要素荷重をグリッド節点に再配分
+[feqvec, fg_r, fw_r, fc_r, f_r, classified] = ...
+  redistribute_kbrace_mid(com, feqvec, sw.fg, sw.fw, sw.fc, sw.f, ...
+  classified);
 sw.fg = fg_r;
 sw.fw = fw_r;
 sw.fc = fc_r;
 sw.f = f_r;
 
-% 床自重（feqvec PZ成分）の有無でモード切替
-% - 1つでも床自重があれば 2 行/節点モード（14列、概算軸力TL付き）
-% - 全節点で床自重0なら 1 行/節点モード（13列）
-% 閾値は fmt() の表示打切りと一致させる（feqvec は N 単位）
+% 旧入力の床自重またはL.L寄与があれば上下2行で出力する
+% 閾値は fmt() の表示打切りと一致させる（節点力はN単位）
 fmt_threshold_kn = 0.05;
-has_floor = any(abs(feqvec(:, 3)) >= fmt_threshold_kn * 1000);
+ll_all = reshape(sum(classified(:, 3, PRM.ELOAD_CASE_LL, :), 4), nn, 1);
+has_floor = any(abs(feqvec(:, 3)) >= fmt_threshold_kn * 1000) ...
+  || any(abs(ll_all) >= fmt_threshold_kn * 1000);
 
 % --- ヘッダ ---
 if has_floor
@@ -85,21 +90,35 @@ for iy = 1:nbly
       if node.idrep(in) > 0
         continue
       end
-      % PZ (列3) のみ参照
-      floor_ = feqvec(in, 3) * 1.d-3;
+      % PZ成分を旧入力、L.L、D.Lの重量分類へ分ける
+      legacy_floor = feqvec(in, 3) * 1.d-3;
+      ll_type = reshape(classified(in, 3, PRM.ELOAD_CASE_LL, :), ...
+        1, []) * 1.d-3;
+      dl_type = reshape(classified(in, 3, PRM.ELOAD_CASE_DL, :), ...
+        1, []) * 1.d-3;
       fg_ = sw.fg(in, 3) * 1.d-3;
       fw_ = sw.fw(in, 3) * 1.d-3;
       fc_ = sw.fc(in, 3) * 1.d-3;
       nf_ = (fnode(in, 3) + faddnode(in, 3)) * 1.d-3;
-      total_ = floor_ + sw.f(in, 3) * 1.d-3 - nf_;
-      % 節点外力（-nf_）は支点節点では基礎重量として計上、
-      % それ以外は床自重に加算（水平ブレース等の寄与として）
+      % 旧入力の節点外力分類だけは現行規則を維持する
       if any(idsup2n == in)
-        foundation_ = -nf_;
+        legacy_foundation = -nf_;
       else
-        foundation_ = 0;
-        floor_ = floor_ + (-nf_);
+        legacy_foundation = 0;
+        legacy_floor = legacy_floor - nf_;
       end
+      upper_floor = legacy_floor + ll_type(PRM.ELOAD_TYPE_FLOOR);
+      upper_special = ll_type(PRM.ELOAD_TYPE_SPECIAL);
+      upper_total = legacy_floor + sum(ll_type);
+      lower_floor = dl_type(PRM.ELOAD_TYPE_FLOOR);
+      lower_wall = dl_type(PRM.ELOAD_TYPE_WALL);
+      lower_special = dl_type(PRM.ELOAD_TYPE_SPECIAL);
+      lower_correction = dl_type(PRM.ELOAD_TYPE_CORRECTION);
+      lower_frameoutside = dl_type(PRM.ELOAD_TYPE_FRAME_OUT);
+      lower_foundation = legacy_foundation ...
+        + dl_type(PRM.ELOAD_TYPE_FOUNDATION);
+      total_ = legacy_floor + sum(ll_type) + sum(dl_type) ...
+        + sw.f(in, 3) * 1.d-3 + legacy_foundation;
       axial_sum_tl = axial_sum_tl + total_;
       if has_floor
         % 2 行/節点モード: 1 行目は継続行（末尾に CONT_MARKER）
@@ -107,27 +126,40 @@ for iy = 1:nbly
         nwbody{irow,1} = node.xname{in};
         nwbody{irow,2} = node.yname{in};
         nwbody{irow,3} = node.zname{in};
-        nwbody{irow,4} = fmt(floor_);
+        nwbody{irow,4} = fmt(upper_floor);
+        nwbody{irow,7} = fmt(upper_special);
+        if has_new
+          nwbody{irow,12} = fmt(upper_total);
+        end
         nwbody{irow,ncol} = PRM.CONT_MARKER;
-        % 2 行目: 概算軸力列(13)は空出力、marker 空で行末に <RE> 付与
+        % 2行目へD.L分類と自重を出力する
         irow = irow + 1;
+        nwbody{irow,4} = fmt(lower_floor);
         nwbody{irow,5} = fmt(fg_);
-        nwbody{irow,6} = fmt(fw_);
+        nwbody{irow,6} = fmt(lower_wall + fw_);
+        nwbody{irow,7} = fmt(lower_special);
         nwbody{irow,8} = fmt(fc_);
-        nwbody{irow,11} = fmt(foundation_);
+        nwbody{irow,9} = fmt(lower_correction);
+        nwbody{irow,10} = fmt(lower_frameoutside);
+        nwbody{irow,11} = fmt(lower_foundation);
         nwbody{irow,12} = fmt(total_);
         nwbody{irow,14} = fmt(axial_sum_tl);
       else
         % 1 行/節点モード（概算軸力列は空出力）
         irow = irow + 1;
+        merged = ll_type + dl_type;
         nwbody{irow,1} = node.xname{in};
         nwbody{irow,2} = node.yname{in};
         nwbody{irow,3} = node.zname{in};
-        nwbody{irow,4} = fmt(floor_);
+        nwbody{irow,4} = fmt(legacy_floor + merged(PRM.ELOAD_TYPE_FLOOR));
         nwbody{irow,5} = fmt(fg_);
-        nwbody{irow,6} = fmt(fw_);
+        nwbody{irow,6} = fmt(fw_ + merged(PRM.ELOAD_TYPE_WALL));
+        nwbody{irow,7} = fmt(merged(PRM.ELOAD_TYPE_SPECIAL));
         nwbody{irow,8} = fmt(fc_);
-        nwbody{irow,11} = fmt(foundation_);
+        nwbody{irow,9} = fmt(merged(PRM.ELOAD_TYPE_CORRECTION));
+        nwbody{irow,10} = fmt(merged(PRM.ELOAD_TYPE_FRAME_OUT));
+        nwbody{irow,11} = fmt(legacy_foundation ...
+          + merged(PRM.ELOAD_TYPE_FOUNDATION));
         nwbody{irow,12} = fmt(total_);
       end
     end

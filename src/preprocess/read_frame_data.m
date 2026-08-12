@@ -529,7 +529,11 @@ fnode = add_earthquake_force_position_mz(dbc, com, fnode);
   dbc, com);
 
 %% 要素荷重
+% 旧梁要素荷重は互換アダプター内で現行挙動を維持する
 [ar, M0] = set_girder_force_block(dbc, com);
+element_load = set_frame_element_load_block(dbc, com);
+ar = ar + element_load.analysis_ar;
+M0 = M0 + element_load.M0;
 
 %% 荷重ベクトルの保存
 com.fnode = fnode;
@@ -537,6 +541,7 @@ com.faddnode = faddnode;
 com.faddnode_report_excl = faddnode_report_excl;
 com.ar = ar;
 com.M0 = M0;
+com.element_load = element_load;
 
 return
 end

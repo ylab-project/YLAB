@@ -640,6 +640,10 @@ state.tb.is_tension = is_tension(com.member.brace.idme);
 %% 設計応力の計算
 df0 = calc_design_force(rs0, lcdir, idmc2m, idmg2m, lm, lf);
 dfn0 = calc_nominal_design_force(df0, nominal_property);
+element_position0 = calc_element_load_position_stress( ...
+  rs0, M0, lm, com.element_load.position);
+[dfn0, nominal_position0] = apply_element_load_position_stress( ...
+  dfn0, element_position0, nominal_girder, idmg2m, lm, lf);
 % SS7: 設計用せん断力 Q_D = Q_L + n*Q_E の割増率 n は、
 % RC造梁のみに適用する（S造梁は対象外。S造は6.4、RC造は6.9参照）
 n_beam = PRM.route_to_n_beam(options.design_route);
@@ -647,6 +651,8 @@ stype_nm = stype(idm2s(nominal_property.idme(:,1)));
 is_rc_girder_nm = nominal_property.mtype == PRM.GIRDER ...
   & stype_nm == PRM.RCRS;
 dfn = superpose_design_force(dfn0, lcdir, is_rc_girder_nm, n_beam);
+nominal_position = superpose_element_load_position_stress( ...
+  nominal_position0, lcdir);
 
 % 名目部材レベルの中央M（ケース別→重ね合わせ）
 % M0 は sw.M0 加算済み
@@ -656,6 +662,7 @@ Mcn0 = calc_nominal_Mc(rs0, M0, Mc0(idnm2m(:,1), :), ...
 Mcn = superpose_design_force(Mcn0, lcdir);
 nomgc.Mcn = squeeze(Mcn);
 nomgc.Mcn0 = squeeze(Mcn0);
+nomgc.position = nominal_position;
 
 % 名目部材レベルの中央N（ケース別→重ね合わせ）
 nnm = size(idnm2m, 1);

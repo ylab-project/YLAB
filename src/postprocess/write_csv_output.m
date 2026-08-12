@@ -178,6 +178,12 @@ write_table(fout, '保有耐力横補剛', stgcell.head, stgcell.body, true);
 %% 節点重量表
 [nwhead, nwbody] = write_cell_nodal_weight(com, result);
 write_table(fout, '節点重量表(固定+積載)', nwhead, nwbody);
+if result.element_weight.has_seismic
+  [nshead, nsbody] = write_cell_nodal_weight_seismic(com, result);
+  write_table(fout, '節点重量表(地震時)', nshead, nsbody, true);
+  [swhead, swbody] = write_cell_seismic_weight(com, result);
+  write_table(fout, '地震用重量', swhead, swbody);
+end
 
 %% 等価節点荷重
 [nlhead, nlbody] = write_cell_nodal_equiv_load(com, result, false);

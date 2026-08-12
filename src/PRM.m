@@ -77,6 +77,7 @@ classdef PRM
       '節点荷重', ''; ...
       '地震力作用位置の直接入力', ''; ...
       '追加節点荷重', ''; ...
+      '要素荷重', 'CCCCCCCDDDDDDDDDDDDDDDDDC'; ...
       '梁要素荷重', ''; ...
       }
 
@@ -296,6 +297,21 @@ classdef PRM
     COLUMN_STANDARD = 0       % 標準柱
     COLUMN_FOR_BRACE_FOUNDATION = 98  % ブレース柱（下側）
     COLUMN_FOR_BRACE_BODY = 99        % ブレース柱（上側）
+
+    %% 要素荷重の重量分類（weight_ar の第3・4次元）
+    ELOAD_CASE_LL = 1     % 積載荷重（L.L）
+    ELOAD_CASE_DL = 2     % 固定荷重（D.L）
+    ELOAD_CASE_EXEY = 3   % 地震用重量（EX/EY）
+    ELOAD_TYPE_FLOOR = 1       % 床自重
+    ELOAD_TYPE_WALL = 2        % 壁自重
+    ELOAD_TYPE_SPECIAL = 3     % 特殊荷重
+    ELOAD_TYPE_CORRECTION = 4  % 補正
+    ELOAD_TYPE_FRAME_OUT = 5   % ﾌﾚｰﾑ外
+    ELOAD_TYPE_FOUNDATION = 6  % 基礎重量
+    % 入力属性文字列との対応（インデックス = 分類ID）
+    ELOAD_CASE_NAMES = {'LL', 'DL', 'EX/EY'}
+    ELOAD_TYPE_NAMES = {'床自重', '壁自重', '特殊荷重', '補正', ...
+      'ﾌﾚｰﾑ外', '基礎重量'}
 
     %% 部材群種別
     COLUMN_RANK_FA = 1        % 柱FAランク
