@@ -278,6 +278,11 @@ cgsr.istarget = cgsr_istarget;
 com.cgsr = cgsr;
 com.ncgsr = length(cgsr_idnode);
 
+%% 方向別補剛点トポロジー
+% 断面寸法に依存しない補剛点判定を前処理で確定する
+com.column_bracing = countup_column_bracing_topology(com);
+com.girder_bracing = countup_girder_bracing_topology(com);
+
 %% 断面オブジェクト
 secmgr = create_section_manager(Hp, Bp, twp, tfp, Dp, ...
   tp, HsrDp, Hsrtp, brb1p, brb2p, com, secList, options);

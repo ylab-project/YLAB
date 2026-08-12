@@ -3,7 +3,7 @@ function [stress_constraint, stress_result] = ...
   Zyc, C, mtype, stype, isxdir, isydir, wgx, wgy, Em, Fm, ...
   idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, ...
   isgmirrored, idmg2ng, idmc2nc, options, beta, lcdir, ...
-  col_idstory, onfg_x, onfg_y, Cn, nomgc, column_buckling_K)
+  col_idstory, column_bracing, Cn, nomgc, column_buckling_K)
 %eval_nominal_allowable_stress_ratio - 名目部材の許容応力度比を算定する
 %
 %   [stress_constraint, stress_result] =
@@ -42,8 +42,8 @@ function [stress_constraint, stress_result] = ...
 %     beta        - ブレース水平力分担率 [nst×nlc]
 %     lcdir       - 荷重ケース方向 [nlc×1]
 %     col_idstory - 柱の層番号 [nmc×1]
-%     onfg_x      - X方向基礎梁接続フラグ [nmc×1]
-%     onfg_y      - Y方向基礎梁接続フラグ [nmc×1]
+%     column_bracing - 柱の方向別補剛点トポロジー (struct)
+%                   .x, .y [nnmc×(maxseg-1) logical]
 %     Cn          - 名目梁中央係数 (struct)
 %     nomgc       - 名目梁中央データ (struct)
 %     column_buckling_K - 柱座屈長さ係数の直接入力値 (struct)
@@ -92,26 +92,29 @@ lg_bk_end = calc_buckling_girder_end_length(lnm, lm, mtype, ...
 
 % 方向別の座屈長さを算定（完全結果時のみ第2出力の詳細を受け取る）
 bkx_out = cell(1, 1+need_result);
-[bkx_out{:}] = calc_buckling_length(Iy, mtype, idm2n1, idm2n2, ...
-  isxdir, wgx, lg_bk_end, lnm, lm, lm_bk_x, Em, mejoint(:,[1 2]), ...
-  nominal, idmc2nc, options, beta, ilc_x, col_idstory, onfg_x, ...
-  column_buckling_K.Kx);
+[bkx_out{:}] = calc_column_buckling_length(Iy, mtype, idm2n1, ...
+  idm2n2, isxdir, wgx, lg_bk_end, lnm, lm, lm_bk_x, Em, ...
+  mejoint(:,[1 2]), nominal, idmc2nc, options, beta, ilc_x, ...
+  col_idstory, column_bracing.x, column_buckling_K.Kx);
 bky_out = cell(1, 1+need_result);
-[bky_out{:}] = calc_buckling_length(Iy, mtype, idm2n1, idm2n2, ...
-  isydir, wgy, lg_bk_end, lnm, lm, lm_bk_y, Em, mejoint(:,[3 4]), ...
-  nominal, idmc2nc, options, beta, ilc_y, col_idstory, onfg_y, ...
-  column_buckling_K.Ky);
-lk_x = bkx_out{1};
-lk_y = bky_out{1};
+[bky_out{:}] = calc_column_buckling_length(Iy, mtype, idm2n1, ...
+  idm2n2, isydir, wgy, lg_bk_end, lnm, lm, lm_bk_y, Em, ...
+  mejoint(:,[3 4]), nominal, idmc2nc, options, beta, ilc_y, ...
+  col_idstory, column_bracing.y, column_buckling_K.Ky);
+lkc_x = bkx_out{1};
+lkc_y = bky_out{1};
 if need_result
   buckling_x = bkx_out{2};
   buckling_y = bky_out{2};
 end
 
-% 座屈長さの組み立て
-lkx = lk_x;
+% 座屈長さの組み立て（柱は算定結果、柱以外は座屈用部材長）
+is_column = mtype==PRM.COLUMN;
+lkx = lm_bk_x(:);
+lkx(is_column) = lkc_x;
 lky = zeros(nme, 3);
-lky(:,1) = lk_y;
+lky(:,1) = lm_bk_y(:);
+lky(is_column,1) = lkc_y;
 lky(mtype==PRM.GIRDER,:) = lb(mtype==PRM.GIRDER,1:3);
 
 % 細長比と許容圧縮応力度の算定
@@ -136,8 +139,9 @@ nng_ = length(iggg);
 img1 = idnm2m(iggg, 1);
 [fbn4, fbn4_by_fb1] = calc_nominal_fb(msdim(img1, :), Cn, ...
   clam(img1), ft(img1, :), stype(img1), nomgc.lb, options);
+% 強軸側は4位置の鉛直補剛区間、弱軸側は水平補剛区間を用いる
 fcn4 = calc_nominal_fc(A(img1), Iy(img1), Iz(img1), ...
-  clam(img1), Fm(img1), lkx(img1), nomgc.lb);
+  clam(img1), Fm(img1), nomgc.lb_vertical, nomgc.lb);
 center_sub = nomgc.idsub(:, 3:4);
 id_center_m = zeros(nng_, 2);
 for j = 1:2
@@ -152,7 +156,7 @@ for j = 1:2
   [fbn4_c, fb1_c] = calc_nominal_fb(msdim(imc_, :), Cn, ...
     clam(imc_), ft(imc_, :), stype(imc_), nomgc.lb, options);
   fcn4_c = calc_nominal_fc(A(imc_), Iy(imc_), Iz(imc_), ...
-    clam(imc_), Fm(imc_), lkx(imc_), nomgc.lb);
+    clam(imc_), Fm(imc_), nomgc.lb_vertical, nomgc.lb);
   jcol = j + 2;
   fbn4(:, jcol, :) = fbn4_c(:, jcol, :);
   fbn4_by_fb1(:, jcol, :) = fb1_c(:, jcol, :);

@@ -1,13 +1,14 @@
-function [lk, result] = calc_buckling_length(Iy, mtype, ...
+function [lkc, result] = calc_column_buckling_length(Iy, mtype, ...
   js, je, is_girder, wg, lg_end, lnm, lm, lm_bk, Em, ...
   mejoint, nominal, idmc2nc, options, beta, ilc, col_idstory, ...
-  onfg, kcUser)
-%calc_buckling_length - 柱部材の座屈長さを計算する（1方向分）
+  braced, kcUser)
+%calc_column_buckling_length - 柱部材の座屈長さを計算する（1方向分）
 %
-%   [lk, result] = calc_buckling_length(Iy, mtype, js, je, ...
+%   [lkc, result] = calc_column_buckling_length(Iy, mtype, js, je, ...
 %     is_girder, wg, lg_end, lnm, lm, lm_bk, Em, mejoint, nominal, ...
-%     idmc2nc, options, beta, ilc, col_idstory, onfg, kcUser) は、
-%   構造骨組みにおける柱部材の座屈長さを算出する。第2出力を
+%     idmc2nc, options, beta, ilc, col_idstory, braced, kcUser) は、
+%   構造骨組みにおける柱部材の座屈長さを算出する。柱以外の部材の
+%   座屈長さは呼び出し側の責務とし、本関数は返さない。第2出力を
 %   要求した場合だけ、座屈長さ係数と帳票用中間値を返す。
 %
 %   入力引数:
@@ -32,12 +33,13 @@ function [lk, result] = calc_buckling_length(Iy, mtype, ...
 %     beta        - ブレース水平力分担率
 %     ilc         - 荷重ケースマスク [nlc×1]
 %     col_idstory - 柱部材の層番号
-%     onfg        - 基礎梁接続フラグ [nmc×1]
+%     braced      - 内部境界が補剛点か [nnmc×(maxseg-1) logical]
+%                   前処理で確定した方向別トポロジー
 %     kcUser      - ユーザー指定座屈長さ係数 [nmec×1]
 %                   NaN=自動計算、数値=直接入力値
 %
 %   出力引数:
-%     lk     - 座屈長さ [nme×1]
+%     lkc    - 柱セグメントの座屈長さ [nmc×1]
 %     result - 座屈長さ係数と帳票用中間値 (struct)
 
 % 定数
@@ -66,12 +68,11 @@ bk_sumIgTop = zeros(1,nnc);
 bk_sumIgBot = zeros(1,nnc);
 
 % 控除前（S柱断面算定表 Lb1/Lb2 表示用）と控除後（Lk 算定用）の
-% 2系統を 1 回の境界判定走査で同時に算出する
+% 2系統を、前処理で確定した同じ補剛点トポロジーから算出する
 lmc = lm(mtype==PRM.COLUMN);
 lmc_bk = lm_bk(mtype==PRM.COLUMN);
-onfg_col = onfg;
 [lbc_nominal, lbc_nominal_bk] = calc_nominal_lb_column(lmc, lmc_bk, ...
-  nominal_column, js, je, is_girder, onfg_col, idmc2m);
+  nominal_column, braced);
 
 % 剛比計算用の部材長（構造心間距離）
 lmn = lnm;
@@ -196,11 +197,10 @@ if ~isempty(kcUser)
   end
 end
 
-% 座屈長さの組み立て
+% 座屈長さの組み立て（柱セグメントのみ）
 kc = kcn(idmc2nc(:,1));
 lbmax = lbc_nominal_bk(idmc2nc(:,1), 3);
-lk = lm_bk(:);
-lk(mtype==PRM.COLUMN) = kc.*lbmax;
+lkc = kc.*lbmax;
 
 if ~need_result
   return
