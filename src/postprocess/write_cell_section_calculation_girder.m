@@ -478,11 +478,11 @@ for i = 1:nstory
       scgbody{irow,10} = fmt_r(gsi(ing,ilc));
       scgbody{irow,14} = fmt_r(gsj(ing,jlc));
 
-      % --- τ ---
+      % --- τ ---（鉛直方向せん断応力度。分析層の保存値を参照）
       irow = irow + 1;
       scgbody{irow, 1} = 'τ';
-      scgbody{irow, 2} = fmt1(abs(stn(inm,3,ilc)));
-      scgbody{irow, 6} = fmt1(abs(stn(inm,9,jlc)));
+      scgbody{irow, 2} = fmt1(abs(stn(inm,PRM.STN_TAUV_I,ilc)));
+      scgbody{irow, 6} = fmt1(abs(stn(inm,PRM.STN_TAUV_J,jlc)));
 
       % --- 警告・注意行（SS7互換） ---
       if max([gri(ing,ilc), grc(ing,clc), grj(ing,jlc)]) > 1.0

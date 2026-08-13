@@ -1,11 +1,29 @@
 function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij] = ...
   calc_nominal_stress_constraints(ration, nominal, girder_axial_mask)
+%calc_nominal_stress_constraints - 位置・ケース別の制約値を算定する
+%
+%   [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij] =
+%     calc_nominal_stress_constraints(ration, nominal,
+%     girder_axial_mask) は、成分別の応力度比から部材種別・位置別
+%     の制約値（検定比から1を引いた値）を算定する。梁は水平面内
+%     （弱軸）成分を算入せず、曲げは強軸、せん断は鉛直方向の
+%     射影値を用いる（計算編6.4）。許容応力度検定の対象外部材には
+%     -1.0を与える。
+%
+%   入力引数:
+%     ration            - 位置・成分別の応力度比
+%                         [nnm×PRM.RATION_NCOL×nlc]
+%     nominal           - 名目部材データ構造体
+%     girder_axial_mask - S梁の軸力考慮マスク (struct)
+%
+%   出力引数:
+%     gri, grj, grc - 梁の曲げ制約値（i端・j端・中央） [nng×nlc]
+%     gsi, gsj      - 梁のせん断制約値（i端・j端） [nng×nlc]
+%     cri, crj      - 柱の曲げ制約値（i端・j端） [nnc×nlc]
+%     csi, csj      - 柱のせん断制約値（i端・j端） [nnc×nlc]
+%     bnij          - ブレースの軸力制約値 [nb×nlc]
 
 % 共通定数
-% nme = length(mtype);
-% nmc = nnz(mtype==PRM.COLUMN);
-% nmg = nnz(mtype==PRM.GIRDER);
-% nmb = nnz(mtype==PRM.BRACE);
 nnm = size(nominal.property.ntype,1);
 nng = size(nominal.girder.idmeg,1);
 nnc = size(nominal.column.idmec,1);
@@ -28,14 +46,12 @@ gsi = zeros(nng,nlc); gsj = zeros(nng,nlc);
 csi = zeros(nnc,nlc); csj = zeros(nnc,nlc);
 bnij = zeros(nb,nlc);
 
+% 以降は絶対値で比較するため、ここで一括して符号を落とす
 ration = abs(ration);
 innn = 1:nnm;
 iggg = innn(nmtype==PRM.GIRDER);
 iccc = innn(nmtype==PRM.COLUMN);
 ibbb = innn(nmtype==PRM.BRACE);
-% idglc = 1:nng*nlc; idglc = reshape(idglc,nng,[]);
-% idclc = 1:nnc*nlc; idclc = reshape(idclc,nnc,[]);
-% idblc = 1:nmb*nlc; idclb = reshape(idblc,nmb,[]);
 
 for ilc = 1:nlc
   for ing = 1:nng
@@ -44,47 +60,33 @@ for ilc = 1:nlc
 
     % 軸応力度の検定
     if girder_axial_mask.i(inm, ilc)
-      gci = abs(ration(inm,1,ilc));
+      gci = ration(inm,1,ilc);
     else
       gci = 0;
     end
     if girder_axial_mask.j(inm, ilc)
-      gcj = abs(ration(inm,7,ilc));
+      gcj = ration(inm,7,ilc);
     else
       gcj = 0;
     end
 
-    % i端曲げ応力度の検定
-    gi1 = ration(inm,5,ilc);
-    % gi2 = ration(inm,6,ilc);
-    % gri(ing,ilc) = max([gci+gi1, gci+gi2])-1;
-    % 弱軸曲げは見ない？
-    gri(ing,ilc) = gci+gi1-1;
+    % i端曲げ応力度の検定（強軸）
+    gri(ing,ilc) = gci+ration(inm,5,ilc)-1;
 
-    % j端曲げ応力度の検定
-    gj1 = ration(inm,11,ilc);
-    % gj2 = ration(inm,12,ilc);
-    % grj(ing,ilc) = max([gcj+gj1, gcj+gj2])-1;
-    % 弱軸曲げは見ない？
-    grj(ing,ilc) = gcj+gj1-1;
+    % j端曲げ応力度の検定（強軸）
+    grj(ing,ilc) = gcj+ration(inm,11,ilc)-1;
 
     % 中央曲げ応力度の検定（N/fc + M/fb）
     if girder_axial_mask.c(inm, ilc)
-      gcc = abs(ration(inm,14,ilc));
+      gcc = ration(inm,14,ilc);
     else
       gcc = 0;
     end
     grc(ing,ilc) = gcc + ration(inm,13,ilc) - 1;
 
-    % i端せん断応力度の検定
-    gsi1 = ration(inm,2,ilc);
-    gsi2 = ration(inm,3,ilc);
-    gsi(ing,ilc) = max([gsi1, gsi2])-1;
-
-    % j端せん断応力度の検定
-    gsj1 = ration(inm,8,ilc);
-    gsj2 = ration(inm,9,ilc);
-    gsj(ing,ilc) = max([gsj1, gsj2])-1;
+    % i端・j端せん断応力度の検定（鉛直方向の射影値）
+    gsi(ing,ilc) = ration(inm,PRM.RATION_TAUV_I,ilc)-1;
+    gsj(ing,ilc) = ration(inm,PRM.RATION_TAUV_J,ilc)-1;
   end
 
   % --- 柱 ---
@@ -121,10 +123,10 @@ for ilc = 1:nlc
     idme_ = idmeb(imb, :);
     nz_ = find(idme_ > 0);
     if isscalar(nz_)
-      bnij(idme_(nz_),ilc) = max(abs(ration(inm,[1 7],ilc)))-1;
+      bnij(idme_(nz_),ilc) = max(ration(inm,[1 7],ilc))-1;
     else
-      bnij(idme_(1),ilc) = abs(ration(inm,1,ilc))-1;
-      bnij(idme_(2),ilc) = abs(ration(inm,7,ilc))-1;
+      bnij(idme_(1),ilc) = ration(inm,1,ilc)-1;
+      bnij(idme_(2),ilc) = ration(inm,7,ilc)-1;
     end
   end
 
@@ -156,4 +158,5 @@ if isempty(bnij)
   bnij = -1.0;
 end
 
+return
 end

@@ -194,6 +194,16 @@ classdef PRM
     SECLIST_BRB_SUBTYPE = 3    % サブ番号（1,2,3等）
     SECLIST_BRB_WEIGHT = 4     % 単位重量 [N/mm]
     
+    %% 応力度・検定比配列の列インデックス
+    % stn・ration の1-12列は成分別（i端 n / j端 n+6）。ration の
+    % 13,14列は梁中央の曲げ・軸力比、15,16列はS柱組合せ応力度比。
+    STN_TAUV_I = 13       % stn: 梁i端の鉛直方向せん断応力度
+    STN_TAUV_J = 14       % stn: 梁j端の鉛直方向せん断応力度
+    STN_NCOL = 14         % stn の列数
+    RATION_TAUV_I = 17    % ration: 梁i端の鉛直方向せん断検定比
+    RATION_TAUV_J = 18    % ration: 梁j端の鉛直方向せん断検定比
+    RATION_NCOL = 18      % ration の列数
+
     %% 変数タイプセット（境界値計算用）
     VTYPE_SET_BOUNDS = [PRM.WFS_H PRM.WFS_B ...
       PRM.WFS_TW PRM.WFS_TF PRM.HSS_D PRM.HSS_T ...

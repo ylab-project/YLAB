@@ -20,15 +20,17 @@ function [ration, fcn, fbn] = calc_nominal_allowable_stress_ratio(...
 %     axial_tension     - 端部軸力の引張判定 [nnm×2×nlc]
 %
 %   出力引数:
-%     ration - 位置・成分別の応力度比 [nnm×16×nlc]
+%     ration - 位置・成分別の応力度比 [nnm×PRM.RATION_NCOL×nlc]
 %     fcn    - 引張置換後の許容圧縮応力度 [nnm×3×nlc]
 %     fbn    - 引張置換後の許容曲げ応力度 [nnm×3×nlc]
 
 % 定数
 [nnm, ~, nlc] = size(st);
 
-% 初期化（15,16列はS柱組合せ応力度比 柱脚・柱頭）
-ration = zeros(nnm,16,nlc);
+% 初期化（13,14列は梁中央の曲げ・軸力比で呼び出し側が設定、
+% 15,16列はS柱組合せ応力度比 柱脚・柱頭、17,18列は梁の鉛直方向
+% せん断検定比 i端・j端）
+ration = zeros(nnm,PRM.RATION_NCOL,nlc);
 
 for ilc = 1:nlc
   if (ilc==1)
@@ -70,7 +72,8 @@ for ilc = 1:nlc
       continue
     end
 
-    % せん断応力度
+    % せん断応力度（局所軸成分。柱の検定に用いる。梁のせん断
+    % 検定は鉛直方向の射影値による。case PRM.GIRDER を参照）
     ration(inm,2,ilc) = st(inm,2,ilc)/fsn(inm,ilc_);
     ration(inm,3,ilc) = st(inm,3,ilc)/fsn(inm,ilc_);
     ration(inm,8,ilc) = st(inm,8,ilc)/fsn(inm,ilc_);
@@ -98,6 +101,11 @@ for ilc = 1:nlc
         ration(inm,15,ilc) = sqrt(sgb^2 + 3*tc^2) / ftc;
         ration(inm,16,ilc) = sqrt(sgt^2 + 3*tc^2) / ftc;
       case PRM.GIRDER
+        % 鉛直方向せん断の検定比（梁のせん断検定はこの値を使う）
+        fs_ = fsn(inm,ilc_);
+        ration(inm,PRM.RATION_TAUV_I,ilc) = st(inm,PRM.STN_TAUV_I,ilc)/fs_;
+        ration(inm,PRM.RATION_TAUV_J,ilc) = st(inm,PRM.STN_TAUV_J,ilc)/fs_;
+
         % 梁中央は中央2区間選定後の確定値を呼び出し側で設定する。
         % 中央N/fc（引張正）
         stcn_N = Ncn(inm,ilc) / An(inm);

@@ -698,7 +698,8 @@ else
   Zyij(mstype==PRM.WFS) = Zyf(mstype==PRM.WFS);
 end
 [stn, stcn] = calc_nominal_stress(dfn, Mcn, A, Asc, Asy, ...
-  Asz, Aw, Zy, Zz, Zyij, Zyc, msdim, mstype, Fm, mtype, idnm2m);
+  Asz, Aw, Zy, Zz, Zyij, Zyc, msdim, mstype, Fm, mtype, ...
+  idnm2m, cxl, cyl);
 
 %% 部材長構造体の組立て（戻り値）
 % buckling はブレース座屈長用（暫定。後日 lnom.buckling に整理）

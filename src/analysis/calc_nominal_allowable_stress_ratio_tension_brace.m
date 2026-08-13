@@ -9,7 +9,7 @@ function ration = calc_nominal_allowable_stress_ratio_tension_brace(...
 %   TB名目ブレースに対し、N/Taに相当する値をセットする。
 %
 %   入力引数:
-%     ration  - 応力比配列 [nnm×16×nlc]
+%     ration  - 応力比配列 [nnm×PRM.RATION_NCOL×nlc]
 %     stn     - 名目応力配列 [nnm×ncomp×nlc]
 %     nominal - 名目部材データ構造体
 %     stype   - 断面タイプ配列 [nme×1]
