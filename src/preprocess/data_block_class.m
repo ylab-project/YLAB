@@ -4,24 +4,35 @@ classdef data_block_class < handle
   %   CSV を読み込み、name= 行と <data> 行でデータブロックに分割し、
   %   ラベル指定でのブロック取得と行位置付きエラー通知を提供する。
   %
+  %   ブロック番号は2系統あり、ラベル番号 (bcdata、labels の添字)
+  %   は同名ブロックを合算し、ブロック通し番号 (blockdata、name=
+  %   行の出現順) は同名ブロックを区別する。get_data_block は前者、
+  %   get_data_blocks は後者の単位で取得する。
+  %
   %   data_block_class プロパティ:
-  %     labels     - 有効なブロックラベル一覧
-  %     modelname  - 「モデル名」行の値
-  %     comment    - 「説明」行の値
-  %     cdata      - スキップ行除去後の全セルデータ
-  %     bcdata     - 各行のブロック番号 (0:非データ行)
-  %     casedata   - 各行のケースラベル
-  %     origrows   - 各行の元 CSV 行番号
-  %     checkLabel - 未登録ラベルをエラーにするか
-  %     modeSS7    - SS7 連携モードか
+  %     labels        - 有効なブロックラベル一覧
+  %     modelname     - 「モデル名」行の値 (なければ '')
+  %     comment       - 「説明」行の値 (なければ {''})
+  %     cdata         - スキップ行除去後の全セルデータ
+  %     bcdata        - 各行のラベル番号 (labels の添字、0:登録ブロック外)
+  %     casedata      - 各行のケースラベル
+  %     origrows      - 各行の元 CSV 行番号
+  %     blockdata     - 各行のブロック通し番号 (name= 行の出現順)
+  %     blocklabels   - ブロック通し番号順のラベル一覧
+  %     blockheaders  - ブロック通し番号順の name= 行 (ヘッダ行)
+  %     blockorigrows - ブロック通し番号順の name= 行の元 CSV 行番号
+  %     checkLabel    - 未登録ラベルをエラーにするか
+  %     modeSS7       - SS7 連携モード。true では name= 行の後、
+  %                     <data> 行が来るまでデータ行と見なさない
   %
   %   data_block_class メソッド:
   %     readCsvFile         - CSV を読み込みブロックに分類
   %     get_num_data_lines  - 指定ラベルのデータ行数
   %     get_data_block      - 指定ラベルのデータブロック取得
+  %     get_data_blocks     - 同名ブロックを属性・元 CSV 行番号付きで取得
   %     get_data_block_rows - ブロック内各行の cdata 行番号
   %     throw_dat_err       - ブロック内行位置付きエラー
-  %     bid                 - ラベルに対応するブロック番号
+  %     bid                 - 'name=<ラベル>' に対応するラベル番号
   properties
     labels(1,:) cell
     modelname(1,:) char
@@ -41,52 +52,64 @@ classdef data_block_class < handle
     function obj = data_block_class
       %data_block_class - 空のインスタンスを生成するコンストラクタ
       %
+      %   obj = data_block_class は、プロパティが既定値のままの空の
+      %   インスタンスを返す。
+      %
       %   出力引数:
       %     obj - data_block_class インスタンス
     end
     function readCsvFile(obj, input, labels)
       %readCsvFile - CSV を読み込みブロック単位に分類する
       %
-      %   input の CSV を空行・コメント行を除いて読み込み、name= 行と
-      %   <data> 行でブロックに分割する。ブロック番号・ケース・元行番号
-      %   を各プロパティに保持する。
+      %   obj.readCsvFile(input, labels) は、input の CSV を空行・
+      %   コメント行・全カンマ行を除いて読み込み、name= 行と <data>
+      %   行でブロックに分割し、各行のラベル番号 (bcdata)・ブロック
+      %   通し番号 (blockdata)・ケースラベル (casedata)・元 CSV 行番号
+      %   (origrows) を保持する。
       %
       %   入力引数:
       %     input  - CSV ファイルパス
       %     labels - 有効なブロックラベル一覧 (cell)
-      % readlines ベースでスキップ対象行（空行・コメント行・全カンマ
-      % 行）を判定。readcell は空行・コメント行を詰めて行番号が失われ
-      % るので、元 CSV 行番号を保持するためにこの段階で判定する
+
+      % readlines ベースでスキップ対象行を判定
+      % - スキップ対象は空行・コメント行・全カンマ行
+      % - readcell の出力はコメント行が詰められ、元 CSV 行番号も
+      %   持たないので、この段階で元 CSV 行番号を確定する
       stripped = strtrim(readlines(input));
-      % readcell は常にファイル末尾の改行 1 つを trim する一方、
-      % readlines は末尾改行で空行を 1 つ多く生成する。両者の行数を
-      % 整合させるため、末尾空行を常に 1 つ削る (末尾空行が 0 個の
-      % CSV は対象外)
+
+      % 末尾空行を 1 つ削って readcell と行数を整合させる
+      % - readcell は常にファイル末尾の改行 1 つを trim する
+      % - readlines は末尾改行で空行を 1 つ多く生成する
       if ~isempty(stripped) && strlength(stripped(end)) == 0
         stripped(end) = [];
       end
-      % readcell からドロップされる行は CommentStyle='%' の先頭%行のみ
-      % (下記 EmptyLineRule='read' で空行・全カンマ行は保持)。クォート
-      % 付き %行を誤判定しないよう、クォート除去前の stripped で判定
+
+      % readcell からドロップされる行の判定
+      % - ドロップは CommentStyle='%' の先頭%行のみ (空行・全カンマ
+      %   行は下記 EmptyLineRule='read' で保持)
+      % - クォート付き %行を誤判定しないよう、クォート除去前の
+      %   stripped で判定する
       is_dropped_by_readcell = startsWith(stripped, '%');
-      % has_quote/extractAfter で先頭クォート除去後に %始まりを is_skip
-      % 判定対象に含めるのは、SS7 連携入力 CSV の装飾セクション区切り
-      % ("% ====== ..." 等のクォート付%行) を装飾コメントとして統一的
-      % にスキップする意図的設計 (参照: コミット b015ebb)
+
+      % 先頭クォート除去後に %始まりの行も is_skip に含める意図的設計。
+      % SS7 連携入力 CSV が装飾セクション区切りに使うクォート付%行
+      % ("% ====== ..." 等) を装飾コメントとしてスキップするため
       has_quote = startsWith(stripped, '"');
       stripped(has_quote) = extractAfter(stripped(has_quote), 1);
       no_comma = strtrim(replace(stripped, ',', ''));
       is_skip = (strlength(no_comma) == 0) | startsWith(no_comma, '%');
       obj.origrows = find(~is_skip);
 
-      % 値配列とCell配列の作成
+      % readcell によるセル配列の作成
       opts = detectImportOptions(input);
       opts.Delimiter = {','};
       opts.DataLines = [1,inf];
       opts.CommentStyle = '%';
-      % 全 missing 行を保持し、is_skip で後段除去する。default の skip
-      % は CSV 規模・列数推定によって全カンマ行の trim 可否が変わり、
-      % readcell 行数と origrows の対応が不安定になるため明示
+
+      % EmptyLineRule='read' を明示し、全 missing 行を保持して
+      % is_skip で後段除去する。default の skip は CSV 規模・列数
+      % 推定によって全カンマ行の trim 可否が変わり、readcell 行数と
+      % origrows の対応が不安定になるため
       opts.EmptyLineRule = 'read';
       obj.cdata = readcell(input, opts);
 
@@ -103,7 +126,8 @@ classdef data_block_class < handle
         'origrows と cdata の行数が一致しません (%d vs %d)', ...
         length(obj.origrows), size(obj.cdata,1));
 
-      % モデルデータ
+      % モデル名・説明の取得。任意入力のため、該当行や値が取得でき
+      % ない場合は catch で既定値へ落とす
       try
         istarget = matches(obj.cdata(:,1), 'モデル名');
         obj.modelname = obj.cdata{find(istarget, 1, 'last'), 2};
@@ -117,7 +141,10 @@ classdef data_block_class < handle
         obj.comment = {''};
       end
 
-      % ブロック番号と同名ブロックのインスタンスを判別
+      % ブロック分類ループ
+      % - name= 行をブロックとして登録する
+      % - 各データ行へラベル番号・ケース・ブロック通し番号を割り当てる
+      % - checkLabel 時は未登録の name= をエラーにする
       nlines = size(obj.cdata, 1);
       obj.bcdata = zeros(nlines, 1);
       obj.casedata = cell(nlines, 1);
@@ -142,6 +169,8 @@ classdef data_block_class < handle
             obj.blockorigrows(block_id, 1) = obj.origrows(iline);
             caselabel = read_legacy_case_label(obj.cdata(iline, :));
             if obj.modeSS7
+              % SS7 連携 CSV は name= 行と <data> 行の間に項目行・
+              % 単位行が挟まるため、<data> 行までデータ行と見なさない
               isdata = false;
             end
           elseif contains(first_value, '<data>')
@@ -168,6 +197,9 @@ classdef data_block_class < handle
     function num = get_num_data_lines(obj, label)
       %get_num_data_lines - 指定ラベルのデータ行数を返す
       %
+      %   num = obj.get_num_data_lines(label) は、label のブロックに
+      %   属するデータ行数を返す。
+      %
       %   入力引数:
       %     label - ブロックラベル
       %
@@ -179,6 +211,8 @@ classdef data_block_class < handle
     function cdata = get_data_block(obj, label, caselabel)
       %get_data_block - 指定ラベルのデータブロックを取得
       %
+      %   cdata = obj.get_data_block(label) は、label のブロックの
+      %   データ行を抽出し、ブロック定義に従って正規化して返す。
       %   caselabel を指定すると、前方一致するケースに限定して返す。
       %
       %   入力引数:
@@ -186,7 +220,7 @@ classdef data_block_class < handle
       %     caselabel - ケースラベル前方一致フィルタ (任意)
       %
       %   出力引数:
-      %     cdata - 該当行を抽出した cell 配列
+      %     cdata - 該当行を抽出し正規化したセル配列
       bid = obj.bid(['name=' label]);
       switch nargin
         case 2
@@ -200,11 +234,18 @@ classdef data_block_class < handle
     function blocks = get_data_blocks(obj, label)
       %get_data_blocks - 同名ブロックを属性と元CSV行付きで取得する
       %
+      %   blocks = obj.get_data_blocks(label) は、label と同名の全
+      %   ブロックを name= 行の出現順に返す。データ行はブロック定義
+      %   に従って正規化する。
+      %
       %   入力引数:
       %     label - ブロックラベル
       %
       %   出力引数:
-      %     blocks - data、rows、origrows、attributes、headerを持つ構造体
+      %     blocks - 同名ブロックごとの構造体配列。フィールドは data
+      %              (正規化済みデータ行)、rows (cdata 行番号)、origrows
+      %              (元 CSV 行番号)、attributes (ヘッダ属性)、header
+      %              (name= 行)、header_origrow (name= 行の元 CSV 行番号)
       empty_block = struct('data', {}, 'rows', {}, 'origrows', {}, ...
         'attributes', {}, 'header', {}, 'header_origrow', {});
       blocks = empty_block;
@@ -231,7 +272,9 @@ classdef data_block_class < handle
     function rows = get_data_block_rows(obj, label)
       %get_data_block_rows - ブロック内各行の cdata 行番号を返す
       %
-      %   throw_dat_err での元 CSV 行番号解決に使用する。
+      %   rows = obj.get_data_block_rows(label) は、label のブロック
+      %   に属する行の cdata 行番号を返す。throw_dat_err での元 CSV
+      %   行番号解決に使用する。
       %
       %   入力引数:
       %     label - ブロックラベル
@@ -244,8 +287,9 @@ classdef data_block_class < handle
     function throw_dat_err(obj, label, block_row, cat, id, varargin)
       %throw_dat_err - ブロック内行位置付きのエラーを発生
       %
-      %   ブロック内行番号から元 CSV 行番号を解決し、両方を先頭引数と
-      %   して throw_err に委譲する。
+      %   obj.throw_dat_err(label, block_row, cat, id, ...) は、
+      %   ブロック内行番号から元 CSV 行番号を解決し、両者をメッセージ
+      %   引数の先頭に加えて throw_err へ委譲する。
       %
       %   入力引数:
       %     label     - ブロックラベル
@@ -258,16 +302,16 @@ classdef data_block_class < handle
       throw_err(cat, id, block_row, csv_row, varargin{:});
     end
     function ret = bid(obj, label)
-      %bid - ラベル文字列に対応するブロック番号を返す
+      %bid - ラベル文字列に対応するラベル番号を返す
       %
-      %   obj.labels の i 番目が label と 'name=' 付きで一致すれば i、
-      %   なければ 0 を返す。
+      %   ret = obj.bid(label) は、obj.labels の i 番目が label と
+      %   'name=' 付きで一致すれば i、なければ 0 を返す。
       %
       %   入力引数:
       %     label - 'name=<ラベル>' 形式の文字列
       %
       %   出力引数:
-      %     ret - 一致した添字、なければ 0
+      %     ret - ラベル番号 (一致した labels の添字)、なければ 0
       ret = 0;
       for i=1:length(obj.labels)
         if strcmp(label, ['name=' obj.labels{i}])
@@ -280,6 +324,18 @@ classdef data_block_class < handle
   methods(Access = private)
     function cdata = normalize_data_block(~, label, cdata)
       %normalize_data_block - ブロック定義に従ってセル値を正規化する
+      %
+      %   cdata = obj.normalize_data_block(label, cdata) は、ラベルの
+      %   ブロック形式定義に従い、不足列を missing で補完し、C 列を
+      %   char 化、D 列を数値3状態へ正規化する。要素荷重は継続指定の
+      %   整形も行う。形式未定義のラベルは無変換で返す。
+      %
+      %   入力引数:
+      %     label - ブロックラベル
+      %     cdata - 正規化前のデータ行セル配列
+      %
+      %   出力引数:
+      %     cdata - 正規化後のデータ行セル配列
       fmt = get_data_block_format(label);
       if isempty(fmt) || isempty(cdata)
         return
@@ -309,6 +365,15 @@ end
 
 function fmt = get_data_block_format(label)
 %get_data_block_format - ラベルに対応する入力ブロック形式を返す
+%
+%   fmt = get_data_block_format(label) は、PRM.DATA_DEFINITIONS から
+%   ラベルに対応する列型の形式文字列を返す。
+%
+%   入力引数:
+%     label - ブロックラベル
+%
+%   出力引数:
+%     fmt - 列型の形式文字列 (C:文字列、D:数値)。未定義ラベルは ''
 fmt = '';
 labels = PRM.DATA_DEFINITIONS(:, 1);
 idx = find(strcmp(label, labels), 1);
@@ -321,6 +386,17 @@ end
 
 function value = normalize_numeric_cell(value)
 %normalize_numeric_cell - セル値を数値入力の3状態へ正規化する
+%
+%   value = normalize_numeric_cell(value) は、D 列のセル値を、数値
+%   (入力あり)、NaN (未入力)、Inf (数値でない入力) の3状態へ正規化
+%   する。Inf や -Inf の数値入力も Inf (数値でない入力と同じ扱い)
+%   へ畳む。
+%
+%   入力引数:
+%     value - readcell が返したセル値
+%
+%   出力引数:
+%     value - double スカラー
 if isnumeric(value) && isscalar(value) && isreal(value)
   if isinf(value)
     value = Inf;
@@ -338,6 +414,15 @@ end
 
 function caselabel = read_legacy_case_label(header)
 %read_legacy_case_label - 旧API用に第2セルのcase属性を取得する
+%
+%   caselabel = read_legacy_case_label(header) は、name= 行の第2セル
+%   が 'case=' で始まる場合にその属性値を返す。
+%
+%   入力引数:
+%     header - name= 行のセル配列 (1行)
+%
+%   出力引数:
+%     caselabel - case 属性値の char。属性がなければ []
 caselabel = [];
 if size(header, 2) < 2 || ~ischar(header{2})
   return
@@ -351,6 +436,15 @@ end
 
 function attributes = parse_block_attributes(header)
 %parse_block_attributes - nameセル以外のキーと値を順序非依存で取得する
+%
+%   attributes = parse_block_attributes(header) は、name= 行の第2セル
+%   以降から 'キー=値' 形式のセルを抽出し、キーと値の組を返す。
+%
+%   入力引数:
+%     header - name= 行のセル配列 (1行)
+%
+%   出力引数:
+%     attributes - {キー, 値} の組のセル配列 [属性数×2]
 attributes = cell(0, 2);
 for icol = 2:size(header, 2)
   value = tochar(header{icol});
@@ -371,7 +465,17 @@ return
 end
 
 function cdata = normalize_element_load_continuation(cdata)
-%normalize_element_load_continuation - T以後を未入力として25列へ整える
+%normalize_element_load_continuation - 継続指定Tを25列目へ移す
+%
+%   cdata = normalize_element_load_continuation(cdata) は、要素荷重
+%   ブロックを25列へ補完し、21列目以降にある継続指定 'T' を25列目
+%   へ移して途中の列を未入力 (missing) にする。
+%
+%   入力引数:
+%     cdata - 要素荷重ブロックのデータ行セル配列
+%
+%   出力引数:
+%     cdata - 25列に整えたセル配列
 ncol = 25;
 if size(cdata, 2) < ncol
   cdata(:, end + 1:ncol) = {missing};
