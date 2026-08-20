@@ -1764,8 +1764,9 @@ function joint = set_member_column_joint_block(dbc, com)
 %set_member_column_joint_block - 柱の結合状態を読み込む
 %
 %   joint = set_member_column_joint_block(dbc, com) は、CSV入力の
-%   柱脚・柱頭結合状態を柱部材へ設定する。ブレース接続用の分割柱では
-%   元柱の物理外端だけへ入力を引き継ぎ、人工分割端を固定とする。
+%   柱脚・柱頭結合状態を柱部材へ設定する。ブレース接続用の
+%   分割柱では、下側オフセット区間を固定とし、名目柱本体へ
+%   入力を設定する。
 %
 %   入力引数:
 %     dbc - データブロッククラスオブジェクト
@@ -1798,13 +1799,12 @@ end
 [idx_search, idy_search, idz_search] = find_idxyz_column( ...
   floor_name, xcoord_name, ycoord_name, baseline, story);
 
-% BODYの柱脚とFOUNDATIONの柱頭は人工分割端として固定を保つ
+% 下側オフセット区間は柱脚・柱頭とも設定対象外とする
 joint = PRM.FIX*ones(nmec,4);
-artificial_end_types = [PRM.COLUMN_FOR_BRACE_BODY, ...
-  PRM.COLUMN_FOR_BRACE_FOUNDATION];
 for i = 1:n
   ids = find_idcolumn_from_idxyz(idx_search(i,:), idy_search(i,:), ...
     idz_search(i,:), member_column);
+  ids = ids(member_column.type(ids) ~= PRM.COLUMN_FOR_BRACE_FOUNDATION);
   if isempty(ids)
     continue
   end
@@ -1816,8 +1816,7 @@ for i = 1:n
     end_values(1) = normalize_member_joint_value(data{i,data_top + 1});
     end_values(2) = normalize_member_joint_value(data{i,data_top});
     joint(:,joint_columns) = set_physical_member_end_values( ...
-      joint(:,joint_columns), ids, member_column.type, end_values, ...
-      artificial_end_types);
+      joint(:,joint_columns), ids, member_column.type, end_values, []);
   end
 end
 

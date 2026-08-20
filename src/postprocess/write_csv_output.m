@@ -30,6 +30,9 @@ stype = com.section.property.type;
 %% 解析
 [cvec, result] = analysis_constraint_xvar(xvar, com, options);
 
+% resultへ保持した解析診断の警告を出力境界で一度だけ発行する
+warn_result_diagnostics(com, result);
+
 % 最適解
 secdim = result.secdim;
 [fval, fdetail, cost] = objective_lsr(secdim, secmgr, node, ...

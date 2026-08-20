@@ -40,7 +40,7 @@ cbstiff = result.cbs.stiff;
 nominal_column = com.nominal.column;
 
 % 準備計算
-idmc2nmc = column.idnominal;
+idmc2nmc = column.idnominal(:, 1);
 Em = msprop.E;
 Gm = msprop.G;
 
@@ -80,6 +80,7 @@ for i=1:nfl
         lfcx_ = lfcx(ic,:);
         lfcy_ = lfcy(ic,:);
         iscb_ = idm2scb(idm);
+        joint_ = column.joint(ic, :);
         % 分割部材対応
         if column.type(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
           idnmc = idmc2nmc(ic);
@@ -90,6 +91,7 @@ for i=1:nfl
           lfcx_(2) = lfcx(idcc(end),2);
           lfcy_(2) = lfcy(idcc(end),2);
           iscb_ = idm2scb(idmm(end));
+          joint_ = nominal_column.joint(idnmc, :);
         end
         % 剛性表
         write_cpbody
@@ -112,7 +114,7 @@ return
   %   入力引数:
   %     なし（外側スコープの ic, idm, lm_, lfcx_, lfcy_, iscb_,
   %     ifl, msprop, Iy, Iz, cphiI, lrcx, lrcy, cbstiff,
-  %     column, secc, floor, Em, Gm を参照）
+  %     joint_, column, secc, floor, Em, Gm を参照）
   %
   %   出力引数:
   %     なし（外側の cpbody と irow を更新）
@@ -146,19 +148,19 @@ return
     kappa_ = get_kappa(secc.type(idsc));
     cpbody(irow*2-1:irow*2,20) = {kappa_; kappa_};
     cpbody{irow*2-1,21} = sprintf('%.0f', lm_);
-    cpbody(irow*2-1:irow*2,22) = ...
-      {sprintf('%.0f', lrcx(ic,2)); sprintf('%.0f', lrcy(ic,2))};
-    cpbody(irow*2-1:irow*2,23) = ...
-      {sprintf('%.0f', lrcx(ic,1)); sprintf('%.0f', lrcy(ic,1))};
-    cpbody(irow*2-1:irow*2,24) = ...
-      {sprintf('%.0f', lfcx_(2)); sprintf('%.0f', lfcy_(2))};
-    cpbody(irow*2-1:irow*2,25) = ...
-      {sprintf('%.0f', lfcx_(1)); sprintf('%.0f', lfcy_(1))};
-    % column.joint(ic,:) 1:X柱脚, 2:X柱頭, 3:Y柱脚, 4:Y柱頭
+    cpbody(irow*2-1:irow*2,22) = {sprintf('%.0f', lrcx(ic,2)); ...
+      sprintf('%.0f', lrcy(ic,2))};
+    cpbody(irow*2-1:irow*2,23) = {sprintf('%.0f', lrcx(ic,1)); ...
+      sprintf('%.0f', lrcy(ic,1))};
+    cpbody(irow*2-1:irow*2,24) = {sprintf('%.0f', lfcx_(2)); ...
+      sprintf('%.0f', lfcy_(2))};
+    cpbody(irow*2-1:irow*2,25) = {sprintf('%.0f', lfcx_(1)); ...
+      sprintf('%.0f', lfcy_(1))};
+    % joint_ 1:X柱脚, 2:X柱頭, 3:Y柱脚, 4:Y柱頭
     for jxy=1:2
       for kbt=1:2
         jjj = jxy*2+kbt-2;
-        switch column.joint(ic,jjj)
+        switch joint_(jjj)
           case PRM.PIN
             cpbody{irow*2+jxy-2,28-kbt} = "ピン";
           case PRM.FIX
@@ -168,8 +170,8 @@ return
     end
     if iscb_>0
       kcb = cbstiff(iscb_);
-      cpbody(irow*2-1:irow*2,27) = ...
-        {sprintf('%.0f', kcb*1.d-6); sprintf('%.0f', kcb*1.d-6)};
+      cpbody(irow*2-1:irow*2,27) = {sprintf('%.0f', kcb*1.d-6); ...
+        sprintf('%.0f', kcb*1.d-6)};
     end
     return
   end

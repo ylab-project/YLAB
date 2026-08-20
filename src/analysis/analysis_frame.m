@@ -468,10 +468,9 @@ ksmat0 = stif_sys_matrix(An, Asy, Asz, Iy, Iz, JJ, cxl, ...
 [ksmat0, fvec, ignored_node_moment] = ...
   regularize_inactive_rotational_dofs(ksmat0, fvec, ...
   idf2n, idn2df, idsup2n, isfixedsup);
+% 無視モーメントの警告は出力境界のwarn_result_diagnosticsで発行する
 ignored_moment.member = ignored_member_moment;
 ignored_moment.node = ignored_node_moment;
-warn_ignored_rotational_moments(ignored_moment, node, ...
-  idm2n1, idm2n2, com.loadcase.name);
 
 %% 初期化
 isuplifted = false(nsup, nlc);
@@ -528,6 +527,9 @@ else
             iscompressed(:, 1));
         end
       end
+      % 反復解析中に生じた無荷重の孤立水平自由度を固定する
+      ksmat = regularize_inactive_horizontal_dofs(ksmat, ...
+        frvec_ilc_, idf2n);
       % 変位計算
       dvec(:,ilc) = eqsoln(ksmat, frvec_ilc_, nbw, ndf);
       % 収束判定

@@ -89,6 +89,8 @@ classdef PRM
     TOL_DIR = 0.01;       % 方向判定用許容差
     TOL_FORCE_N = 1000;   % 力・軸力判定用許容差 [N]
     TOL_IGNORED_MOMENT_NMM = 1e-6  % 無視モーメント警告 [N.mm]
+    % 柱脚剛域が下側区間より長いかを判定する許容差 [mm]
+    TOL_RIGID_ZONE_OVERFLOW_MM = 1e-6
     TOL_STIFF_UNSTABLE = 1e-6  % 不安定自由度判定用剛性許容差
 
     %% 節点種別
@@ -229,6 +231,8 @@ classdef PRM
     STIFF_IGNORE_FACTOR = 1e-6
     % 孤立回転自由度をθ=0とする数値上の対角剛性 [N.mm/rad]
     STIFF_ROTATIONAL_DOF_REGULARIZATION = 1e10
+    % 無荷重の孤立水平自由度を変位0とする対角剛性 [N/mm]
+    STIFF_HORIZONTAL_DOF_REGULARIZATION = 1e10
 
     %% 支点浮き上がり（SS7計算編 5.6）
     % 浮き上がり判定の数値許容差 [N]（支点鉛直ばね力、上向き正）

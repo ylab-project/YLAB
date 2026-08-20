@@ -472,6 +472,10 @@ result.lb = lb;
 result.lf = lf;
 result.lr = lr;
 result.lm = lm;
+% 柱脚剛域の超過は最終結果でだけ検出し、警告は出力境界で発行する
+result.rigid_zone_overflow = find_column_base_rigid_zone_overflow( ...
+  lr.columnx, lr.columny, lm(com.member.column.idme), ...
+  com.member.column);
 % ブレース部はSS7マニュアル3.8.1の内法長さ（座屈長算定用）
 result.lm_buckling = lmem.buckling;
 result.lkx = stress_result.lkx;

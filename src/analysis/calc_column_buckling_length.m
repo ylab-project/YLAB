@@ -1,12 +1,13 @@
 function [lkc, result] = calc_column_buckling_length(Iy, mtype, ...
   js, je, is_girder, wg, lg_end, lnm, lm, lm_bk, Em, ...
-  mejoint, nominal, idmc2nc, options, beta, ilc, col_idstory, ...
-  braced, kcUser)
+  mejoint, nominal_joint, nominal, idmc2nc, options, beta, ilc, ...
+  col_idstory, braced, kcUser)
 %calc_column_buckling_length - 柱部材の座屈長さを計算する（1方向分）
 %
 %   [lkc, result] = calc_column_buckling_length(Iy, mtype, js, je, ...
-%     is_girder, wg, lg_end, lnm, lm, lm_bk, Em, mejoint, nominal, ...
-%     idmc2nc, options, beta, ilc, col_idstory, braced, kcUser) は、
+%     is_girder, wg, lg_end, lnm, lm, lm_bk, Em, mejoint, ...
+%     nominal_joint, nominal, idmc2nc, options, beta, ilc, ...
+%     col_idstory, braced, kcUser) は、
 %   構造骨組みにおける柱部材の座屈長さを算出する。柱以外の部材の
 %   座屈長さは呼び出し側の責務とし、本関数は返さない。第2出力を
 %   要求した場合だけ、座屈長さ係数と帳票用中間値を返す。
@@ -26,8 +27,9 @@ function [lkc, result] = calc_column_buckling_length(Iy, mtype, ...
 %     lm_bk       - セグメント芯間距離（端部控除後）[nme×1]
 %                   柱座屈長さ表・Lk 算定用
 %     Em          - ヤング係数 [nme×1]
-%     mejoint     - 接合条件 [nme×2]（柱脚,柱頭）
-%     nominal     - 名目部材情報 (struct)
+%     mejoint      - 解析要素の接合条件 [nme×2]（始端、終端）
+%     nominal_joint - 名目柱の接合条件 [nnmc×2]（柱脚、柱頭）
+%     nominal      - 名目部材情報 (struct)
 %     idmc2nc     - 部材-名目部材対応表
 %     options     - 計算オプション (struct)
 %     beta        - ブレース水平力分担率
@@ -131,7 +133,7 @@ for inc = 1:nnc
     sumIgTop = sum(gga);
   end
   bk_sumIgTop(inc) = min(sumIgTop, BK_MAX_IG_LG);
-  if mejoint(ima,2)==PRM.PIN || sumIgTop<=0
+  if nominal_joint(inc, 2) == PRM.PIN || sumIgTop <= 0
     Ga = 10.0;
   else
     Ga = (gc+gca)/sumIgTop;
@@ -148,7 +150,7 @@ for inc = 1:nnc
     sumIgBot = sum(ggb);
   end
   bk_sumIgBot(inc) = min(sumIgBot, BK_MAX_IG_LG);
-  if mejoint(imb,1)==PRM.PIN || sumIgBot<=0
+  if nominal_joint(inc, 1) == PRM.PIN || sumIgBot <= 0
     Gb = 10.0;
   else
     Gb = (gc+gcb)/sumIgBot;
