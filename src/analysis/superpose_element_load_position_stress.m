@@ -6,19 +6,19 @@ function stress = superpose_element_load_position_stress(stress0, lcdir)
 %   ケースへ線形に重ね、直接入力がない位置はNaNのまま保持する。
 %
 %   入力引数:
-%     stress0 - 解析ケース別の位置応力と入力有無
+%     stress0 - 解析ケース別の位置応力
 %     lcdir   - 荷重ケース方向
 %
 %   出力引数:
-%     stress - 設計ケースへ重ねた位置応力と入力有無
+%     stress - 設計ケースへ重ねた位置応力
 
 values = stress0.M;
-values(isnan(values)) = 0;
+valid = ~isnan(values);
+values(~valid) = 0;
 values = superpose_design_force(values, lcdir);
-has_value = superpose_design_force(double(stress0.has_M), lcdir) > 0;
-values(~has_value) = NaN;
+valid = superpose_design_force(double(valid), lcdir) > 0;
+values(~valid) = NaN;
 stress.M = values;
-stress.has_M = has_value;
 
 return
 end

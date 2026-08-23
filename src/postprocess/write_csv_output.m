@@ -181,7 +181,8 @@ write_table(fout, '保有耐力横補剛', stgcell.head, stgcell.body, true);
 %% 節点重量表
 [nwhead, nwbody] = write_cell_nodal_weight(com, result);
 write_table(fout, '節点重量表(固定+積載)', nwhead, nwbody);
-if result.element_weight.has_seismic
+if any(com.force.element.wusage == PRM.WUSAGE_SEISMIC) ...
+    || any(com.force.nodal.wusage == PRM.WUSAGE_SEISMIC)
   [nshead, nsbody] = write_cell_nodal_weight_seismic(com, result);
   write_table(fout, '節点重量表(地震時)', nshead, nsbody, true);
   [swhead, swbody] = write_cell_seismic_weight(com, result);
@@ -400,6 +401,8 @@ function write_table(fout, name, head, body, auto_marker)
 %     auto_marker - 自動 marker 付与フラグ (省略時false。
 %                   true=Aパターン、false=① 明示管理 / B パターン)
 %
+%   出力引数:
+%     なし
 if nargin < 5, auto_marker = false; end
 if size(body, 1) == 0
   return

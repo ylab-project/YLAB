@@ -77,7 +77,13 @@ classdef PRM
       '節点荷重', ''; ...
       '地震力作用位置の直接入力', ''; ...
       '追加節点荷重', ''; ...
-      '要素荷重', 'CCCCCCCDDDDDDDDDDDDDDDDDC'; ...
+      '要素荷重(梁)', 'CCCCCCCDDDDDDDDDDDDDDDDDC'; ...
+      '要素荷重(柱)', 'CCCCCCDDDDDDDDDDDDC'; ...
+      '片持梁配置', 'CCCCCDDD'; ...
+      '要素荷重(片持梁)', 'CCCCCCCCDDDD'; ...
+      '応力計算用特殊荷重(梁)', 'CCCCCDDDDDDDDDDDDDDDDDC'; ...
+      '応力計算用特殊荷重(柱)', 'CCCCDDDDDDDDDDDDDDC'; ...
+      '応力計算用特殊荷重(節点)', 'CCCCDDDDDD'; ...
       '梁要素荷重', ''; ...
       }
 
@@ -312,20 +318,23 @@ classdef PRM
     COLUMN_FOR_BRACE_FOUNDATION = 98  % ブレース柱（下側）
     COLUMN_FOR_BRACE_BODY = 99        % ブレース柱（上側）
 
-    %% 要素荷重の重量分類（weight_ar の第3・4次元）
-    ELOAD_CASE_LL = 1     % 積載荷重（L.L）
-    ELOAD_CASE_DL = 2     % 固定荷重（D.L）
-    ELOAD_CASE_EXEY = 3   % 地震用重量（EX/EY）
-    ELOAD_TYPE_FLOOR = 1       % 床自重
-    ELOAD_TYPE_WALL = 2        % 壁自重
-    ELOAD_TYPE_SPECIAL = 3     % 特殊荷重
-    ELOAD_TYPE_CORRECTION = 4  % 補正
-    ELOAD_TYPE_FRAME_OUT = 5   % ﾌﾚｰﾑ外
-    ELOAD_TYPE_FOUNDATION = 6  % 基礎重量
-    % 入力属性文字列との対応（インデックス = 分類ID）
-    ELOAD_CASE_NAMES = {'LL', 'DL', 'EX/EY'}
-    ELOAD_TYPE_NAMES = {'床自重', '壁自重', '特殊荷重', '補正', ...
-      'ﾌﾚｰﾑ外', '基礎重量'}
+
+    %% 新形式要素荷重・節点荷重の重量区分（第3版、行頭3列）
+    WCLASS_LL = 1         % L.L（積載）
+    WCLASS_DL = 2         % D.L（固定）
+    WCLASS_DIRECT = 3     % 直接値（DL/LL空欄）
+    WUSAGE_COMMON = 1     % 共通（用途空欄。長期・地震用の両方）
+    WUSAGE_FRAME = 2      % ラーメン用
+    WUSAGE_SEISMIC = 3    % 地震用
+    WTYPE_FLOOR = 1       % 床自重
+    WTYPE_GIRDER = 2      % 梁自重
+    WTYPE_WALL = 3        % 壁自重
+    WTYPE_SPECIAL = 4     % 特殊荷重
+    WTYPE_CORRECTION = 5  % 補正
+    WTYPE_FRAME_OUT = 6   % ﾌﾚｰﾑ外
+    WTYPE_FOUNDATION = 7  % 基礎重量
+    WTYPE_NAMES = {'床自重', '梁自重', '壁自重', '特殊荷重', ...
+      '補正', 'ﾌﾚｰﾑ外', '基礎重量'}
 
     %% 部材群種別
     COLUMN_RANK_FA = 1        % 柱FAランク
@@ -411,6 +420,11 @@ classdef PRM
     %   付与しない。marker 空は既定終端として ROW_END_MARKER を付与。
     ROW_END_MARKER = '<RE>';
     CONT_MARKER    = '<CONT>';
+
+    %% 節点重量表の表示下限
+    % 絶対値がこの値未満の欄は空欄にする。床自重欄の有無による
+    % 1行/2行モードの切替も同じ下限で判定する（kN）。
+    NODAL_WEIGHT_BLANK_KN = 0.05;
   end
   methods(Static)
     %% nvar_of_section_type

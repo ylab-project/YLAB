@@ -19,7 +19,6 @@ classdef data_block_class < handle
   %     origrows      - 各行の元 CSV 行番号
   %     blockdata     - 各行のブロック通し番号 (name= 行の出現順)
   %     blocklabels   - ブロック通し番号順のラベル一覧
-  %     blockheaders  - ブロック通し番号順の name= 行 (ヘッダ行)
   %     blockorigrows - ブロック通し番号順の name= 行の元 CSV 行番号
   %     checkLabel    - 未登録ラベルをエラーにするか
   %     modeSS7       - SS7 連携モード。true では name= 行の後、
@@ -29,7 +28,7 @@ classdef data_block_class < handle
   %     readCsvFile         - CSV を読み込みブロックに分類
   %     get_num_data_lines  - 指定ラベルのデータ行数
   %     get_data_block      - 指定ラベルのデータブロック取得
-  %     get_data_blocks     - 同名ブロックを属性・元 CSV 行番号付きで取得
+  %     get_data_blocks     - 同名ブロックを元 CSV 行番号付きで取得
   %     get_data_block_rows - ブロック内各行の cdata 行番号
   %     throw_dat_err       - ブロック内行位置付きエラー
   %     bid                 - 'name=<ラベル>' に対応するラベル番号
@@ -43,7 +42,6 @@ classdef data_block_class < handle
     origrows(:,1) double
     blockdata(:,1) double
     blocklabels(:,1) cell
-    blockheaders(:,1) cell
     blockorigrows(:,1) double
     checkLabel(1,1) logical = true
     modeSS7(1,1) logical = false
@@ -120,7 +118,8 @@ classdef data_block_class < handle
         'readcell 出力行数と readlines の対応が取れません (%d vs %d)', ...
         length(map_cdata_to_lines), size(obj.cdata,1));
       obj.cdata(is_skip(map_cdata_to_lines),:) = [];
-      obj.labels = labels;
+      obj.labels = cellfun(@normalize_block_label, labels, ...
+        'UniformOutput', false);
 
       assert(length(obj.origrows) == size(obj.cdata,1), ...
         'origrows と cdata の行数が一致しません (%d vs %d)', ...
@@ -150,7 +149,6 @@ classdef data_block_class < handle
       obj.casedata = cell(nlines, 1);
       obj.blockdata = zeros(nlines, 1);
       obj.blocklabels = cell(0, 1);
-      obj.blockheaders = cell(0, 1);
       obj.blockorigrows = zeros(0, 1);
       bid = 0;
       block_id = 0;
@@ -162,10 +160,11 @@ classdef data_block_class < handle
         if ischar(first_value)
           if startsWith(first_value, 'name=')
             isheader = true;
+            first_value = normalize_block_label(first_value);
+            obj.cdata{iline, 1} = first_value;
             bid = 0;
             block_id = block_id + 1;
             obj.blocklabels{block_id, 1} = extractAfter(first_value, 5);
-            obj.blockheaders{block_id, 1} = obj.cdata(iline, :);
             obj.blockorigrows(block_id, 1) = obj.origrows(iline);
             caselabel = read_legacy_case_label(obj.cdata(iline, :));
             if obj.modeSS7
@@ -205,6 +204,7 @@ classdef data_block_class < handle
       %
       %   出力引数:
       %     num - データ行数
+      label = normalize_block_label(label);
       bid = obj.bid(['name=' label]);
       num = sum(+(obj.bcdata==bid));
     end
@@ -221,18 +221,20 @@ classdef data_block_class < handle
       %
       %   出力引数:
       %     cdata - 該当行を抽出し正規化したセル配列
+      label = normalize_block_label(label);
       bid = obj.bid(['name=' label]);
       switch nargin
         case 2
-          cdata = obj.cdata(obj.bcdata==bid,:);
+          target = obj.bcdata==bid;
         case 3
-          cdata = obj.cdata(obj.bcdata==bid & strncmp(caselabel, ...
-            obj.casedata, length(caselabel)),:);
+          target = obj.bcdata==bid & strncmp(caselabel, ...
+            obj.casedata, length(caselabel));
       end
-      cdata = obj.normalize_data_block(label, cdata);
+      cdata = obj.normalize_data_block(label, obj.cdata(target,:), ...
+        obj.origrows(target));
     end
     function blocks = get_data_blocks(obj, label)
-      %get_data_blocks - 同名ブロックを属性と元CSV行付きで取得する
+      %get_data_blocks - 同名ブロックを元CSV行付きで取得する
       %
       %   blocks = obj.get_data_blocks(label) は、label と同名の全
       %   ブロックを name= 行の出現順に返す。データ行はブロック定義
@@ -244,25 +246,25 @@ classdef data_block_class < handle
       %   出力引数:
       %     blocks - 同名ブロックごとの構造体配列。フィールドは data
       %              (正規化済みデータ行)、rows (cdata 行番号)、origrows
-      %              (元 CSV 行番号)、attributes (ヘッダ属性)、header
-      %              (name= 行)、header_origrow (name= 行の元 CSV 行番号)
+      %              (元 CSV 行番号)、header_origrow (name= 行の元 CSV
+      %              行番号)
       empty_block = struct('data', {}, 'rows', {}, 'origrows', {}, ...
-        'attributes', {}, 'header', {}, 'header_origrow', {});
+        'header_origrow', {});
       blocks = empty_block;
       if isempty(obj.blocklabels)
         return
       end
 
+      label = normalize_block_label(label);
       block_ids = find(strcmp(obj.blocklabels, label));
       bid = obj.bid(['name=' label]);
       for index = 1:length(block_ids)
         block_id = block_ids(index);
         rows = find(obj.blockdata == block_id & obj.bcdata == bid);
-        block.data = obj.normalize_data_block(label, obj.cdata(rows, :));
+        block.data = obj.normalize_data_block(label, ...
+          obj.cdata(rows, :), obj.origrows(rows));
         block.rows = rows;
         block.origrows = obj.origrows(rows);
-        block.header = obj.blockheaders{block_id};
-        block.attributes = parse_block_attributes(block.header);
         block.header_origrow = obj.blockorigrows(block_id);
         blocks(end + 1, 1) = block; %#ok<AGROW>
       end
@@ -281,6 +283,7 @@ classdef data_block_class < handle
       %
       %   出力引数:
       %     rows - cdata 上の行番号ベクトル
+      label = normalize_block_label(label);
       bid = obj.bid(['name=' label]);
       rows = find(obj.bcdata == bid);
     end
@@ -322,17 +325,21 @@ classdef data_block_class < handle
     end
   end
   methods(Access = private)
-    function cdata = normalize_data_block(~, label, cdata)
+    function cdata = normalize_data_block(~, label, cdata, origrows)
       %normalize_data_block - ブロック定義に従ってセル値を正規化する
       %
-      %   cdata = obj.normalize_data_block(label, cdata) は、ラベルの
-      %   ブロック形式定義に従い、不足列を missing で補完し、C 列を
-      %   char 化、D 列を数値3状態へ正規化する。要素荷重は継続指定の
-      %   整形も行う。形式未定義のラベルは無変換で返す。
+      %   cdata = obj.normalize_data_block(label, cdata, origrows) は、
+      %   ラベルのブロック形式定義に従い、不足列を missing で補完し、
+      %   C 列を char 化、D 列を数値 (入力あり) と NaN (空欄・未入力)
+      %   の2状態へ正規化する。数値として解釈できないセルはエラーと
+      %   して読込を停止する。継続列を持つ要素荷重と応力計算用特殊
+      %   荷重の各ブロックは継続指定の整形も行う。形式未定義のラベル
+      %   は無変換で返す。
       %
       %   入力引数:
-      %     label - ブロックラベル
-      %     cdata - 正規化前のデータ行セル配列
+      %     label    - ブロックラベル
+      %     cdata    - 正規化前のデータ行セル配列
+      %     origrows - 各データ行の元 CSV 行番号（エラー表示用）
       %
       %   出力引数:
       %     cdata - 正規化後のデータ行セル配列
@@ -340,8 +347,10 @@ classdef data_block_class < handle
       if isempty(fmt) || isempty(cdata)
         return
       end
-      if strcmp(label, '要素荷重')
-        cdata = normalize_element_load_continuation(cdata);
+      shaping = get_element_load_continuation_shaping(label);
+      if ~isempty(shaping)
+        cdata = normalize_element_load_continuation(cdata, ...
+          shaping(1), shaping(2));
       end
 
       nfmt = length(fmt);
@@ -354,8 +363,14 @@ classdef data_block_class < handle
           'UniformOutput', false);
       end
       for icol = find(fmt == 'D')
-        cdata(:, icol) = cellfun(@normalize_numeric_cell, ...
-          cdata(:, icol), 'UniformOutput', false);
+        for irow = 1:size(cdata, 1)
+          [value, is_valid] = normalize_numeric_cell(cdata{irow, icol});
+          if ~is_valid
+            throw_err('Input', 'InvalidNumericValue', irow, ...
+              origrows(irow), sprintf('%s の %d 列目', label, icol));
+          end
+          cdata{irow, icol} = value;
+        end
       end
 
       return
@@ -384,34 +399,6 @@ end
 return
 end
 
-function value = normalize_numeric_cell(value)
-%normalize_numeric_cell - セル値を数値入力の3状態へ正規化する
-%
-%   value = normalize_numeric_cell(value) は、D 列のセル値を、数値
-%   (入力あり)、NaN (未入力)、Inf (数値でない入力) の3状態へ正規化
-%   する。Inf や -Inf の数値入力も Inf (数値でない入力と同じ扱い)
-%   へ畳む。
-%
-%   入力引数:
-%     value - readcell が返したセル値
-%
-%   出力引数:
-%     value - double スカラー
-if isnumeric(value) && isscalar(value) && isreal(value)
-  if isinf(value)
-    value = Inf;
-  else
-    value = double(value);
-  end
-elseif isempty(value) || (isscalar(value) && ismissing(value))
-  value = NaN;
-else
-  value = Inf;
-end
-
-return
-end
-
 function caselabel = read_legacy_case_label(header)
 %read_legacy_case_label - 旧API用に第2セルのcase属性を取得する
 %
@@ -434,61 +421,61 @@ end
 return
 end
 
-function attributes = parse_block_attributes(header)
-%parse_block_attributes - nameセル以外のキーと値を順序非依存で取得する
+
+function shaping = get_element_load_continuation_shaping(label)
+%get_element_load_continuation_shaping - 継続整形の対象と列範囲を返す
 %
-%   attributes = parse_block_attributes(header) は、name= 行の第2セル
-%   以降から 'キー=値' 形式のセルを抽出し、キーと値の組を返す。
+%   shaping = get_element_load_continuation_shaping(label) は、継続指定の
+%   整形対象ブロックに [全列数, 省略可能列の先頭列] を返す。列位置は
+%   element_force_layout を正本とし、省略可能列を持つブロックだけを
+%   対象にする。先頭列は右端Mz・柱頭Mzの次列で、継続 'T' はこれ以降
+%   の列にだけ現れる。
 %
 %   入力引数:
-%     header - name= 行のセル配列 (1行)
+%     label - ブロックラベル
 %
 %   出力引数:
-%     attributes - {キー, 値} の組のセル配列 [属性数×2]
-attributes = cell(0, 2);
-for icol = 2:size(header, 2)
-  value = tochar(header{icol});
-  separator = strfind(value, '=');
-  if isempty(separator)
-    continue
-  end
-  position = separator(1);
-  key = strtrim(value(1:position - 1));
-  if isempty(key)
-    continue
-  end
-  attributes(end + 1, :) = {key, strtrim(value(position + 1:end))}; ...
-    %#ok<AGROW>
+%     shaping - [全列数, 省略可能列の先頭列]。対象外は []
+shaping = [];
+layout = element_force_layout(label);
+if isempty(layout) || layout.ncol == layout.option_col
+  return
 end
+shaping = [layout.ncol, layout.option_col];
 
 return
 end
 
-function cdata = normalize_element_load_continuation(cdata)
-%normalize_element_load_continuation - 継続指定Tを25列目へ移す
+
+function cdata = normalize_element_load_continuation(cdata, ncol, ...
+  first_col)
+%normalize_element_load_continuation - 継続指定を最終列へ移す
 %
-%   cdata = normalize_element_load_continuation(cdata) は、要素荷重
-%   ブロックを25列へ補完し、21列目以降にある継続指定 'T' を25列目
-%   へ移して途中の列を未入力 (missing) にする。
+%   cdata = normalize_element_load_continuation(cdata, ncol,
+%     first_col) は、データ行を ncol 列へ補完し、first_col 列以降に
+%   ある継続指定 'T' または 'F' を ncol 列目へ移して、その位置から
+%   ncol-1 列目までを未入力 (missing) にする。
 %
 %   入力引数:
-%     cdata - 要素荷重ブロックのデータ行セル配列
+%     cdata     - 対象ブロックのデータ行セル配列
+%     ncol      - ブロックの全列数
+%     first_col - 省略可能列の先頭列（右端Mz・柱頭Mzの次列）
 %
 %   出力引数:
-%     cdata - 25列に整えたセル配列
-ncol = 25;
+%     cdata - ncol 列に整えたセル配列
 if size(cdata, 2) < ncol
   cdata(:, end + 1:ncol) = {missing};
 end
 for irow = 1:size(cdata, 1)
-  tail = string(cdata(irow, 21:ncol));
-  offset = find(matches(tail, 'T'), 1);
+  tail = string(cdata(irow, first_col:ncol));
+  offset = find(matches(tail, 'T') | matches(tail, 'F'), 1);
   if isempty(offset)
     continue
   end
-  first = 20 + offset;
-  cdata(irow, first:24) = {missing};
-  cdata{irow, 25} = 'T';
+  first = first_col - 1 + offset;
+  continuation = tochar(cdata{irow, first});
+  cdata(irow, first:ncol - 1) = {missing};
+  cdata{irow, ncol} = continuation;
 end
 
 return

@@ -77,7 +77,6 @@ dfn = dfn_all(:, :, ilcset);
 Mcn = Mcn_all(:, ilcset);
 position = result.nomgc.position;
 Mquarter = position.M(:, :, ilcset);
-has_Mquarter = position.has_M(:, :, ilcset);
 
 % --- 表書き出し ---
 % rows は head=27 列 + marker 列で 28 列
@@ -135,10 +134,10 @@ return
       rows{irow, 12} = sprintf('%.1f', Mc_);
       Mj_ = dfn(inm, 11, ilc) * 1e-6;
       rows{irow, 16} = sprintf('%.1f', Mj_);
-      if has_Mquarter(inm, 1, ilc)
+      if ~isnan(Mquarter(inm, 1, ilc))
         rows{irow, 11} = sprintf('%.1f', Mquarter(inm, 1, ilc) * 1e-6);
       end
-      if has_Mquarter(inm, 2, ilc)
+      if ~isnan(Mquarter(inm, 2, ilc))
         rows{irow, 13} = sprintf('%.1f', Mquarter(inm, 2, ilc) * 1e-6);
       end
       % せん断: 左端(17), 右端(23)

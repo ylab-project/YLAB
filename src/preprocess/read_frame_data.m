@@ -510,7 +510,7 @@ com.exclusion.girder_smooth.idme = idexclusion;
 idexclusion = set_exclusion_column_diameter_gap_block(dbc, com);
 com.exclusion.column_diameter_gap.idme = idexclusion;
 
-%% 名目梁（set_girder_force_blockで使用）
+%% 名目梁（set_legacy_girder_force_blockで使用）
 [nominal_girder, idnominal_girder] = countup_nominal_girder(com);
 com.nominal.girder = nominal_girder;
 com.member.girder.idnominal = idnominal_girder;
@@ -521,7 +521,10 @@ com.loadcase = loadcase;
 com.nlc = size(loadcase,1);
 
 %% 節点荷重
-fnode = set_nodal_force_block(dbc, com);
+% 形式はブロック単位で判定し、従来形式だけをここで読む（内部設計4章）
+nodal_blocks = dbc.get_data_blocks('節点荷重');
+is_legacy_nodal = arrayfun(@is_legacy_nodal_force_block, nodal_blocks);
+fnode = set_legacy_nodal_force_block(nodal_blocks(is_legacy_nodal), com);
 fnode = add_earthquake_force_position_mz(dbc, com, fnode);
 
 %% 追加節点荷重
@@ -530,18 +533,29 @@ fnode = add_earthquake_force_position_mz(dbc, com, fnode);
 
 %% 要素荷重
 % 旧梁要素荷重は互換アダプター内で現行挙動を維持する
-[ar, M0] = set_girder_force_block(dbc, com);
-element_load = set_frame_element_load_block(dbc, com);
-ar = ar + element_load.analysis_ar;
-M0 = M0 + element_load.M0;
+com.force.legacy_element = set_legacy_girder_force_block(dbc, com);
+[ar, M0] = calc_element_force_ar(com.force.legacy_element, com.nme, ...
+  com.nlc);
+
+%% 新形式の要素荷重・節点荷重・応力計算用特殊荷重
+com.force.element = set_element_force_block(dbc, com);
+com.force.nodal = [ ...
+  set_nodal_force_block(nodal_blocks(~is_legacy_nodal), dbc, com); ...
+  set_cantilever_force_block(dbc, com)];
+
+% 共通内部データの解析対象行を既存の荷重配列へ線形加算する
+[ar_element, M0_element] = calc_element_force_ar(com.force.element, ...
+  com.nme, com.nlc);
+fnode_nodal = calc_nodal_force_fnode(com.force.nodal, com.nnode, com.nlc);
 
 %% 荷重ベクトルの保存
-com.fnode = fnode;
+% 解析は合算値を使い、重量分類は形式別の入力データから直接求める
+com.force.legacy_fnode = fnode;
+com.fnode = fnode + fnode_nodal;
 com.faddnode = faddnode;
 com.faddnode_report_excl = faddnode_report_excl;
-com.ar = ar;
-com.M0 = M0;
-com.element_load = element_load;
+com.ar = ar + ar_element;
+com.M0 = M0 + M0_element;
 
 return
 end
@@ -2437,49 +2451,12 @@ for i=1:n
       dir(i) = PRM.EYN;
   end
 end
+% DL・LLは節点荷重の新旧形式判定と衝突するため予約語とする
+check_loadcase_names(name);
 loadcase = table(name, type_name, dir);
 return
 end
 
-%--------------------------------------------------------------------------
-function fnode = set_nodal_force_block(dbc, com)
-data = dbc.get_data_block('節点荷重');
-n = size(data,1);
-
-% 荷重ケース名
-name = cell(n,1);
-for i=1:n
-  name{i} = tochar(data{i,1});
-end
-
-node = com.node; nnode = com.nnode;
-loadcase = com.loadcase; nlc = com.nlc; iddlc = 1:nlc;
-f = zeros(n,6);
-fnode = zeros(nnode, 6, nlc);
-lcase = zeros(n,1);
-idx = zeros(n,1); iddx = 1:com.nblx;
-idy = zeros(n,1); iddy = 1:com.nbly;
-idz = zeros(n,1); iddz = 1:com.nblz;
-idnode = zeros(n,1); iddn = 1:nnode;
-for i=1:n
-  lcase(i) = iddlc(matches(loadcase.name, name{i}));
-  idx(i) = iddx(matches(com.baseline.x.name, tochar(data{i,3})));
-  idy(i) = iddy(matches(com.baseline.y.name, tochar(data{i,4})));
-  idz(i) = iddz(matches(com.baseline.z.name, tochar(data{i,2})));
-  id_found = iddn((node.idx==idx(i))&(node.idy==idy(i)) ...
-    &(node.idz==idz(i)));
-  if isempty(id_found)
-    throw_err('Input', 'NodeNotFound', i);
-  end
-  idnode(i) = id_found;
-  f(i,:) = cell2mat(data(i,5:10));
-  in = idnode(i);
-  fnode(in, :, lcase(i)) = fnode(in, :, lcase(i)) + reshape(f(i,:), 1, 6);
-  % 節点荷重は重心に作用するとみなし、偏心モーメントは計算しない
-end
-
-return
-end
 
 %--------------------------------------------------------------------------
 function fnode = add_earthquake_force_position_mz(dbc, com, fnode)

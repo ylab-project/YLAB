@@ -1,63 +1,124 @@
 function [head, body] = write_cell_nodal_weight_seismic(com, result)
-%write_cell_nodal_weight_seismic - 地震時節点重量表を生成する
+%write_cell_nodal_weight_seismic - 計算済み地震時節点重量を配置する
 %
 %   [head, body] = write_cell_nodal_weight_seismic(com, result) は、
-%   case=EX/EY の完成済み重量を節点別に集計し、SS7の節点重量表
-%   （地震時）に対応するセル配列を返す。
+%   分析層で確定した地震用節点重量を、入力行、部材数および計算済み
+%   表示値に応じた列構成でセル配列へ配置する。
 %
 %   入力引数:
 %     com    - 節点、グリッドおよび層情報
-%     result - 分類済み要素重量を含む解析結果
+%     result - .nodal_weight.seismicに計算済み物理量を持つ解析結果
 %
 %   出力引数:
 %     head - 3行の帳票ヘッダー
-%     body - 節点別重量行（最終列はmarker列）
+%     body - 節点別重量行
+weight = result.nodal_weight.seismic;
+element = com.force.element;
+nodal = com.force.nodal;
+usage = [PRM.WUSAGE_COMMON, PRM.WUSAGE_SEISMIC];
+selected = ismember(element.wusage, usage) ...
+  & element.wclass > 0 & element.wtype > 0;
+wtype = element.wtype(selected);
+selected = ismember(nodal.wusage, usage) ...
+  & nodal.wclass > 0 & nodal.wtype > 0;
+wtype = [wtype; nodal.wtype(selected)];
 
-head = {'X軸', 'Y軸', '層', '各部材重量', '', '', '', ...
-  '特殊荷重', '合計', '概算軸力'; '', '', '', '柱', '大梁', ...
-  '床', '壁', '大梁', '', ''; '', '', '', 'kN', 'kN', 'kN', ...
-  'kN', 'kN', 'kN', 'kN'};
-body = cell(0, 10);
-if ~result.element_weight.has_seismic
-  return
+top = {'X軸', 'Y軸', '層'};
+sub = {'', '', ''};
+fields = {};
+member_top = '各部材重量';
+if com.nmec > 0
+  [top, sub, fields] = add_column(top, sub, fields, member_top, ...
+    '柱', 'column');
+  member_top = '';
 end
+if com.nmeg > 0
+  [top, sub, fields] = add_column(top, sub, fields, member_top, ...
+    '大梁', 'girder');
+  member_top = '';
+end
+if any(nodal.wtype(selected & nodal.is_cantilever) == PRM.WTYPE_GIRDER)
+  [top, sub, fields] = add_column(top, sub, fields, member_top, ...
+    '片持梁', 'cantilever_girder');
+  member_top = '';
+end
+if any(wtype == PRM.WTYPE_FLOOR) || any(weight.floor ~= 0)
+  [top, sub, fields] = add_column(top, sub, fields, member_top, ...
+    '床', 'floor');
+  member_top = '';
+end
+if any(wtype == PRM.WTYPE_WALL) || any(weight.wall ~= 0)
+  [top, sub, fields] = add_column(top, sub, fields, member_top, ...
+    '壁', 'wall');
+end
+if any(wtype == PRM.WTYPE_SPECIAL)
+  [top, sub, fields] = add_column(top, sub, fields, ...
+    '特殊荷重', '大梁', 'special');
+end
+if any(wtype == PRM.WTYPE_CORRECTION)
+  [top, sub, fields] = add_column(top, sub, fields, ...
+    '補正重量', '', 'correction');
+end
+if any(wtype == PRM.WTYPE_FRAME_OUT)
+  [top, sub, fields] = add_column(top, sub, fields, ...
+    'ﾌﾚｰﾑ外', '', 'frame_out');
+end
+if any(wtype == PRM.WTYPE_FOUNDATION) || any(weight.foundation ~= 0)
+  [top, sub, fields] = add_column(top, sub, fields, ...
+    '基礎重量', '', 'foundation');
+end
+[top, sub, fields] = add_column(top, sub, fields, '合計', '', 'total');
+[top, sub, fields] = add_column(top, sub, fields, '概算軸力', '', 'axial');
+unit = [{'', '', ''}, repmat({'kN'}, 1, length(fields))];
+head = [top; sub; unit];
 
-% KBRACE-MID節点の地震用重量をグリッド節点に再配分する
-nodal = result.element_weight.nodal;
-seismic = reshape(nodal(:, :, PRM.ELOAD_CASE_EXEY, :), com.nnode, 6, []);
-seismic = redistribute_kbrace_mid(com, seismic);
+body = cell(com.nnode, length(top));
 node = com.node;
-innn = 1:com.nnode;
-rows = cell(com.nnode, 10);
 irow = 0;
 for iy = 1:com.nbly
   for ix = 1:com.nblx
-    axial_sum = 0;
     for offset = 1:com.nstory
       istory = com.nstory - offset + 1;
-      inode = innn(node.idx == ix & node.idy == iy ...
-        & node.idstory == istory);
-      inode = inode(node.type(inode) ~= PRM.NODE_BRACE_FOR_COLUMN);
-      if isempty(inode) || node.idrep(inode) > 0
+      idnode = find_idnode_from_grid(com, ix, iy, istory);
+      if isempty(idnode)
         continue
       end
-      values = reshape(seismic(inode, 3, :), 1, []) * 1e-3;
-      total = sum(values);
-      axial_sum = axial_sum + total;
+      in = idnode(1);
       irow = irow + 1;
-      rows(irow, 1:3) = {node.xname{inode}, node.yname{inode}, ...
-        node.zname{inode}};
-      rows{irow, 4} = fmt_ceil_abs(0, 1);
-      rows{irow, 5} = fmt_ceil_abs(0, 1);
-      rows{irow, 6} = fmt_ceil_abs(values(PRM.ELOAD_TYPE_FLOOR), 1);
-      rows{irow, 7} = fmt_ceil_abs(values(PRM.ELOAD_TYPE_WALL), 1);
-      rows{irow, 8} = fmt_ceil_abs(values(PRM.ELOAD_TYPE_SPECIAL), 1);
-      rows{irow, 9} = fmt_ceil_abs(total, 1);
-      rows{irow, 10} = fmt_ceil_abs(axial_sum, 1);
+      body(irow, 1:3) = {node.xname{in}, node.yname{in}, node.zname{in}};
+      for icol = 1:length(fields)
+        body{irow, icol + 3} = fmt_weight_kn(weight.(fields{icol})(in), 0);
+      end
     end
   end
 end
-body = rows(1:irow, :);
+body = body(1:irow, :);
+
+return
+end
+
+
+function [top, sub, fields] = add_column(top, sub, fields, ...
+  top_name, sub_name, field_name)
+%add_column - 地震時節点重量表へ1分類列を追加する
+%
+%   [top, sub, fields] = add_column(top, sub, fields, top_name,
+%   sub_name, field_name) は、上下2段の見出しと対応する結果フィールド
+%   名へ1列を追加する。単位行は列数が確定した後にまとめて作る。
+%
+%   入力引数:
+%     top,sub    - 作成中の見出し2段
+%     fields     - 作成中の結果フィールド名
+%     top_name   - 1段目の見出し
+%     sub_name   - 2段目の見出し
+%     field_name - 数値を取得する結果フィールド名
+%
+%   出力引数:
+%     top,sub - 追加後の見出し2段
+%     fields  - 追加後の結果フィールド名
+top{end + 1} = top_name;
+sub{end + 1} = sub_name;
+fields{end + 1} = field_name;
 
 return
 end

@@ -1,27 +1,30 @@
-function [ar, M0] = set_girder_force_block(dbc, com)
-%set_girder_force_block - 梁要素荷重を読み込み要素座標系CMQを計算
+function element_force = set_legacy_girder_force_block(dbc, com)
+%set_legacy_girder_force_block - 梁要素荷重を線材荷重テーブルへ変換する
 %
-%   [ar, M0] = set_girder_force_block(dbc, com) は、
-%   CSVの梁要素荷重ブロックからCMQを読み取り、
-%   要素座標系の等価節点力(ar,M0)を計算する。
+%   element_force = set_legacy_girder_force_block(dbc, com) は、CSVの梁要素
+%   荷重ブロックからCMQを読み取り、対象梁を全体部材番号へ解決した
+%   線材荷重テーブルを返す旧入力アダプターである。部材端応力配列
+%   への加算は calc_element_force_ar が行い、共通加算側へ梁番号を
+%   渡さない。
 %
 %   入力引数:
 %     dbc - DataBlockContainerオブジェクト
 %     com - 共通オブジェクト
 %
 %   出力引数:
-%     ar       - 要素座標系の等価節点力 [nm×12×nlc]
-%     M0       - 単純梁中央モーメント [nm×nlc]
+%     element_force - idme・ilc・ar・M0・位置値・重量分類・入力位置を
+%                     列に持つ線材荷重テーブル。旧入力は1/4・3/4
+%                     位置値を持たないためquarterはNaN、重量分類は0
 %
 %   備考:
 %     分割梁の処理:
 %       継続列あり → SS7が計算した各分割梁のCMQを直接適用
 data = dbc.get_data_block('梁要素荷重');
 n = size(data,1);
+csv_rows = dbc.origrows(dbc.get_data_block_rows('梁要素荷重'));
 
 % 共通定数
 nlc = com.nlc;
-nm = com.nme;
 
 % 共通配列
 baseline = com.baseline;
@@ -75,8 +78,7 @@ idmgs = find_idgirder_from_idxyz(idx, idy, idz, member_girder, ...
 %   idsplit の有無で分割梁を判定する）
 % 分割梁なしのモデルではidsplitフィールドが存在しない
 is_split = false(n, 1);
-if isfield(member_girder, 'idsplit') || ...
-    (istable(member_girder) && ...
+if isfield(member_girder, 'idsplit') || (istable(member_girder) && ...
     ismember('idsplit', member_girder.Properties.VariableNames))
   idsplit = member_girder.idsplit;
   for i = 1:n
@@ -87,18 +89,30 @@ if isfield(member_girder, 'idsplit') || ...
   end
 end
 
-% 部材にかかる中間荷重の等価節点力の総和
-ar = zeros(nm,12,nlc);
-M0 = zeros(nm,nlc);
+% 行数上限を入力行数として列配列を確保し、最後にtableを構築する
+idme = zeros(n, 1);
+ilc = zeros(n, 1);
+ar = zeros(n, 12);
+M0 = zeros(n, 1);
+M0y = zeros(n, 1);
+M0z = zeros(n, 1);
+quarter = nan(n, 4);
+wclass = zeros(n, 1);
+wusage = zeros(n, 1);
+wtype = zeros(n, 1);
+block_name = repmat({'梁要素荷重'}, n, 1);
+iblock = ones(n, 1);
+irow = zeros(n, 1);
+csv_row = zeros(n, 1);
+nforce = 0;
 
-% 要素荷重のセット
 for i = 1:n
   % 前行の継続で処理済みの行はスキップ
   if i > 1 && is_continued(i-1)
     continue
   end
 
-  ilc = lcase(i);
+  ilc_value = lcase(i);
   arunit = cell2mat(data(i,6:17));
 
   if is_continued(i) && is_split(i)
@@ -106,28 +120,37 @@ for i = 1:n
     % 按分せず、SS7が計算した各分割梁のCMQをそのまま使用
     idmeg_all = build_split_group(idmgs(i,:), idsplit);
     assert(length(idmeg_all) == 2, '継続行ペア処理は2分割梁のみ対応');
-
-    % 1行目 → 1番目の分割梁（i端側）
-    [ar, M0] = apply_single_girder_force( ...
-      idmeg_all(1), arunit, data{i, 18}, ilc, ar, M0, idmg2m);
-
-    % 2行目 → 2番目の分割梁（j端側）
     arunit_2nd = cell2mat(data(i+1, 6:17));
-    [ar, M0] = apply_single_girder_force( ...
-      idmeg_all(2), arunit_2nd, data{i+1, 18}, ilc, ar, M0, idmg2m);
+    indices = nforce + (1:2);
+    idme(indices) = idmg2m(idmeg_all(1:2));
+    ilc(indices) = ilc_value;
+    ar(indices, :) = [arunit; arunit_2nd];
+    M0(indices) = [data{i, 18}; data{i+1, 18}];
+    irow(indices) = [i; i+1];
+    csv_row(indices) = csv_rows([i; i+1]);
+    nforce = nforce + 2;
 
   elseif is_split(i)
     % 分割梁だが継続列なし: 未対応
     error('分割梁に継続列がありません（行%d）', i);
 
   else
-    % 通常梁: 1部材に直接適用
+    % 通常梁: 1部材の列値を保存する
     idmg = idmgs(i,1);
     if idmg == 0, continue, end
-    [ar, M0] = apply_single_girder_force( ...
-      idmg, arunit, data{i, 18}, ilc, ar, M0, idmg2m);
+    nforce = nforce + 1;
+    idme(nforce) = idmg2m(idmg);
+    ilc(nforce) = ilc_value;
+    ar(nforce, :) = arunit;
+    M0(nforce) = data{i, 18};
+    irow(nforce) = i;
+    csv_row(nforce) = csv_rows(i);
   end
 end
+
+element_force = table(idme, ilc, ar, M0, M0y, M0z, quarter, ...
+  wclass, wusage, wtype, block_name, iblock, irow, csv_row);
+element_force = element_force(1:nforce, :);
 
 return
 end
@@ -199,35 +222,6 @@ ids = idmgs_row(idmgs_row > 0);
 start = ids(idsplit(ids) > 0);
 ig1 = start(1);
 idmeg_all = sort([ig1, idsplit(ig1)]);
-
-return
-end
-
-
-function [ar, M0] = apply_single_girder_force( ...
-  ig, arunit, M0_val, ilc, ar, M0, idmg2m)
-%apply_single_girder_force - 1部材に梁要素荷重を適用
-%
-%   [ar, M0] = apply_single_girder_force(ig, arunit, M0_val,
-%     ilc, ar, M0, idmg2m) は、梁igの要素座標系CMQ(arunit)を
-%   ar/M0に加算する。
-%
-%   入力引数:
-%     ig      - 梁部材番号（梁インデックス）
-%     arunit  - 要素座標系CMQ [1×12]
-%     M0_val  - 単純梁中央モーメント（スカラー）
-%     ilc     - 荷重ケース番号
-%     ar      - 要素座標系の等価節点力 [nm×12×nlc]
-%     M0      - 単純梁中央モーメント [nm×nlc]
-%     idmg2m  - 梁番号→全体部材番号の変換配列
-%
-%   出力引数:
-%     ar       - 更新後の要素座標系等価節点力
-%     M0       - 更新後の単純梁中央モーメント
-
-idm = idmg2m(ig);
-ar(idm,:,ilc) = ar(idm,:,ilc) + arunit;
-M0(idm, ilc) = M0(idm, ilc) + M0_val;
 
 return
 end

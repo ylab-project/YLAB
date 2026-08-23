@@ -647,7 +647,7 @@ state.tb.is_tension = is_tension(com.member.brace.idme);
 df0 = calc_design_force(rs0, lcdir, idmc2m, idmg2m, lm, lf);
 dfn0 = calc_nominal_design_force(df0, nominal_property);
 element_position0 = calc_element_load_position_stress( ...
-  rs0, M0, lm, com.element_load.position);
+  rs0, M0, lm, com.force.element);
 [dfn0, nominal_position0] = apply_element_load_position_stress( ...
   dfn0, element_position0, nominal_girder, idmg2m, lm, lf);
 % SS7: 設計用せん断力 Q_D = Q_L + n*Q_E の割増率 n は、
