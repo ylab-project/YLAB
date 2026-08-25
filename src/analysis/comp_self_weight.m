@@ -1,25 +1,29 @@
-function sw = comp_self_weight(A, lm_weight, lm_lower_extension, lm, ...
-  member_property, msdim, slab, cxl, cyl, nnode, mejoint, ...
-  weight_deduct, options, member_column, brace_unit_weight, ...
-  Df_foundation, girder_level, girder_isfg, idsup2n, ...
-  rho_rc_member)
+function sw = comp_self_weight(A, Asy, Iy, Em, Gm, lm_weight, ...
+  lm_lower_extension, lm, lrxm, member_property, msdim, slab, cxl, ...
+  cyl, nnode, mejoint, weight_deduct, options, member_column, ...
+  brace_unit_weight, Df_foundation, girder_level, girder_isfg, ...
+  idsup2n, rho_rc_member)
 %comp_self_weight - 自重による等価節点荷重を計算
 %
-%   sw = comp_self_weight(A, lm_weight, lm_lower_extension, lm, ...
-%   member_property, msdim, slab, cxl, cyl, nnode, mejoint, ...
-%   weight_deduct, options, ...
-%   member_column, brace_unit_weight, Df_foundation, girder_level, ...
-%   girder_isfg, idsup2n, rho_rc_member) は、
+%   sw = comp_self_weight(A, Asy, Iy, Em, Gm, lm_weight, ...
+%   lm_lower_extension, lm, lrxm, member_property, msdim, slab, cxl, ...
+%   cyl, nnode, mejoint, weight_deduct, options, member_column, ...
+%   brace_unit_weight, Df_foundation, girder_level, girder_isfg, ...
+%   idsup2n, rho_rc_member) は、
 %   柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを
 %   計算する。梁の等価節点荷重は、柱面間に荷重が分布することを
 %   考慮し、荷重重心位置に基づく偏心配分を行う（SS7方式）。
 %
 %   入力引数:
 %     A               - 断面積配列
-%     lm_weight         - 柱・ブレースの荷重計算用部材長配列
-%                         （等価節点荷重用。梁では未使用）
+%     Asy             - 強軸方向のせん断断面積配列
+%     Iy              - 強軸方向の断面2次モーメント配列
+%     Em,Gm           - ヤング係数・せん断弾性係数配列
+%     lm_weight       - 柱・ブレースの荷重計算用部材長配列
+%                       （等価節点荷重用。梁では未使用）
 %     lm_lower_extension - 柱脚節点より下に延びる物理長配列
-%     lm                - 実際の部材長配列（CMQ計算用）
+%     lm              - 実際の部材長配列（CMQ計算用）
+%     lrxm            - 強軸方向の両端剛域長配列
 %     member_property - 部材プロパティ構造体
 %     msdim           - 部材断面寸法配列
 %     slab            - スラブ情報構造体（RC梁の重複スラブ控除用、
@@ -244,17 +248,25 @@ for im = 1:nme
     GB_Lb = L*Lb^3/3 - Lb^4/4;
     GB_a  = L*a^3/3  - a^4/4;
     CB = w3/L2 * (GB_Lb - GB_a);
+    % 可撓長さとせん断変形係数は梁剛性行列の強軸と同じ定義とする。
+    Ly = L - sum(lrxm(im,:));
+    if options.consider_shear_deformation
+      ry = calc_shear_deformation_ratio(Em(im), Iy(im), Gm(im), ...
+        Asy(im), Ly);
+    else
+      ry = 0;
+    end
     if joint(1)==PRM.PIN && joint(2)==PRM.PIN
       % 両端ピン: 固定端モーメントなし
       cvi = [0; 0; 0];
       cvj = [0; 0; 0];
     elseif joint(1)==PRM.PIN
-      % i端ピン: i端解放分の半分をj端へキャリーオーバー
+      % i端ピン: 剛性比によりi端解放分をj端へ伝達
       cvi = [0; 0; 0];
-      cvj = [0; CB + CA/2; 0];
+      cvj = [0; CB + CA*(1-ry)/(2+ry); 0];
     elseif joint(2)==PRM.PIN
-      % j端ピン: j端解放分の半分をi端へキャリーオーバー
-      cvi = [0; CA + CB/2; 0];
+      % j端ピン: 剛性比によりj端解放分をi端へ伝達
+      cvi = [0; CA + CB*(1-ry)/(2+ry); 0];
       cvj = [0; 0; 0];
     else
       % 両端固定: SS7 計算編 4.2.10 (1) 一般分布荷重式

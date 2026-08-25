@@ -6,8 +6,8 @@ function ke = estfsfs(L, A, Asy, Asz, Iy, Iz, J, E, pr, flag)
 ke = zeros(12, 12);
 G = E/(2*(1+pr));
 if flag.consider_shear_deformation
-  ry = 6*E*Iy/(G*Asy*L^2);
-  rz = 6*E*Iz/(G*Asz*L^2);
+  ry = calc_shear_deformation_ratio(E, Iy, G, Asy, L);
+  rz = calc_shear_deformation_ratio(E, Iz, G, Asz, L);
 else
   ry = 0;
   rz = 0;

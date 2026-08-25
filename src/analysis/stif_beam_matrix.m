@@ -7,16 +7,8 @@ Ly = L0-lry(1)-lry(2);
 Lz = L0-lrz(1)-lrz(2);
 
 if flag.consider_shear_deformation
-  if Asy>0
-    ry = 6*E*Iy/(G*Asy*Ly^2);
-  else
-    ry = 0;
-  end
-  if Asz>0
-    rz = 6*E*Iz/(G*Asz*Lz^2);
-  else
-    rz = 0;
-  end
+  ry = calc_shear_deformation_ratio(E, Iy, G, Asy, Ly);
+  rz = calc_shear_deformation_ratio(E, Iz, G, Asz, Lz);
   if ~isempty(kcb)
     k1y = kcb*Ly/(4*E*Iy);
     k2y = 1.d6*kcb*Ly/(4*E*Iy);
