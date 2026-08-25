@@ -34,6 +34,7 @@ idnmg2story = girder.idstory(nmeg1_, 1);
 idnmg2mg = nominal_girder.idmeg;
 idnmg2nm = nominal_girder.idnominal;
 idmg2m = girder.idme;
+idnmg2stype = girder.section_type(nmeg1_);
 
 % 場合分け
 if icase == 1
@@ -134,11 +135,14 @@ return
       rows{irow, 12} = sprintf('%.1f', Mc_);
       Mj_ = dfn(inm, 11, ilc) * 1e-6;
       rows{irow, 16} = sprintf('%.1f', Mj_);
-      if ~isnan(Mquarter(inm, 1, ilc))
-        rows{irow, 11} = sprintf('%.1f', Mquarter(inm, 1, ilc) * 1e-6);
-      end
-      if ~isnan(Mquarter(inm, 2, ilc))
-        rows{irow, 13} = sprintf('%.1f', Mquarter(inm, 2, ilc) * 1e-6);
+      % RC造梁だけ1/4位置の曲げを表示する
+      if idnmg2stype(ing) == PRM.RCRS
+        if ~isnan(Mquarter(inm, 1, ilc))
+          rows{irow, 11} = sprintf('%.1f', Mquarter(inm, 1, ilc) * 1e-6);
+        end
+        if ~isnan(Mquarter(inm, 2, ilc))
+          rows{irow, 13} = sprintf('%.1f', Mquarter(inm, 2, ilc) * 1e-6);
+        end
       end
       % せん断: 左端(17), 右端(23)
       Qi_ = dfn(inm, 3, ilc) * 1e-3;

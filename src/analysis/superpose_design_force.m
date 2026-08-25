@@ -1,4 +1,5 @@
-function dfn = superpose_design_force(dfn0, lcdir, is_girder, n_beam)
+function dfn = superpose_design_force(dfn0, lcdir, is_girder, ...
+  n_beam, force_columns)
 %superpose_design_force - 解析（荷重）ケースの重ね合わせ
 %
 %   長期ケース(G+P)を複製し、地震時ケース(EX±/EY±)を
@@ -9,8 +10,9 @@ function dfn = superpose_design_force(dfn0, lcdir, is_girder, n_beam)
 %   Inputs:
 %     dfn0     - 組合せ前応力 [nnm x ncomp x nlc]
 %     lcdir    - 荷重ケース方向 [nlc]
-%     is_girder - 梁の行マスク [nnm x 1]（省略可）
-%     n_beam   - 梁Qに適用する割増率（省略時=1.0）
+%     is_girder    - 梁の行マスク [nnm x 1]（省略可）
+%     n_beam       - 梁Qに適用する割増率（省略時=1.0）
+%     force_columns - 割増率を適用する応力成分列（省略時=[3 9]）
 %
 %   Outputs:
 %     dfn - 短期重ね合わせ後の応力 [nnm x ncomp x nlc]
@@ -24,6 +26,9 @@ if nargin < 3
 end
 if nargin < 4 || isempty(n_beam)
   n_beam = 1.0;
+end
+if nargin < 5
+  force_columns = [3 9];
 end
 
 dfn = dfn0;
@@ -53,10 +58,10 @@ for ilc = 1:nlc
   % 通常の重ね合わせ
   dfn(:,:,id) = dfn0(:,:,ilc)+dfn(:,:,1);
 
-  % 梁Q(index 3, 9) のみ n_beam を地震時成分に適用
+  % 指定した梁応力成分だけn_beamを地震時成分に適用する
   if n_beam ~= 1.0 && ~isempty(is_girder) && any(is_girder)
-    dfn(is_girder, [3 9], id) = dfn(is_girder, [3 9], 1) ...
-      + n_beam * dfn0(is_girder, [3 9], ilc);
+    dfn(is_girder, force_columns, id) = dfn(is_girder, ...
+      force_columns, 1) + n_beam * dfn0(is_girder, force_columns, ilc);
   end
 end
 return
