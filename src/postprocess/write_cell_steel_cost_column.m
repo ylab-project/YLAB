@@ -109,9 +109,14 @@ for i = 1:nfl
 
           % 柱本体: chain 全メンバー長の合計 − 端部仕口部
           % 中間階の仕口部は本体長に含める（SS7 互換）
+          % X・Y両方向が柱頭ピンの場合も仕口長さを柱本体に含める
+          L_jt = jt(ic_top);
+          if all(column.joint(ic_top, [2, 4]) == PRM.PIN)
+            L_jt = 0;
+          end
           idm_chain = column.idme(chain_ics);
           L_chain_total = sum(lm_weight(idm_chain));
-          L_body = L_chain_total - jt(ic_top);
+          L_body = L_chain_total - L_jt;
           if output_jb
             L_body = L_body - jb(ic_bottom);
           end
@@ -128,10 +133,10 @@ for i = 1:nfl
           joint_part_label = '仕口部';
 
           % 仕口部(柱頭): chain 最上階柱頭に梁がとりつくとき
-          if jt(ic_top) > 0
-            W_jt = Am(idm_bottom) * jt(ic_top) * PRM.RHOS * 1e-9;
+          if L_jt > 0
+            W_jt = Am(idm_bottom) * L_jt * PRM.RHOS * 1e-9;
             irow = write_body_row(irow, joint_part_label, '柱頭', ...
-              jt(ic_top), W_jt);
+              L_jt, W_jt);
             joint_part_label = '';
           end
 
