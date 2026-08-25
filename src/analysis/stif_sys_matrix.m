@@ -1,11 +1,12 @@
 function ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
-  cxl, cyl, lm, Em, Gm, xr, yr, lrxm, lrym, cbstiff, ...
+  cxl, cyl, lm, Em, Gm, xr, yr, lrxm, lrym, lrnm, cbstiff, ...
   mtype, idn2df, idf2n, idm2n1, idm2n2, idm2scb, joint, ...
   ndf, nbw, flag, br_stif, hstiff_type, factor_J)
 %stif_sys_matrix - 全体剛性行列の組立（帯行列形式）
 %
 %   ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, cyl, lm, ...
-%     Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, idn2df, idf2n, ...
+%     Em, Gm, xr, yr, lrxm, lrym, lrnm, cbstiff, mtype, idn2df, ...
+%     idf2n, ...
 %     idm2n1, idm2n2, idm2scb, joint, ndf, nbw, flag, br_stif, ...
 %     hstiff_type, factor_J) は、各部材の要素剛性行列を組立て全体剛性
 %   行列を帯行列形式で返す。梁はstif_beam_matrix、ブレースは br_stif
@@ -18,7 +19,8 @@ function ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
 %     lm          - 部材長 [nm×1]
 %     Em, Gm      - ヤング係数・せん断弾性係数 [nm×1]
 %     xr, yr      - 剛床重心座標 [nnode×1]
-%     lrxm, lrym  - 剛域長X/Y [nm×2]
+%     lrxm, lrym  - 曲げ用剛域長X/Y [nm×2]
+%     lrnm        - 材軸方向剛域長 [nm×2]
 %     cbstiff     - 複合梁剛性配列
 %     mtype       - 部材種別 [nm×1]（PRM.GIRDER等）
 %     idn2df      - 節点→自由度番号 [nnode×6]
@@ -90,6 +92,7 @@ for im = 1:nm
     % 剛域長
     lrxi = lrxm(im,:);
     lryi = lrym(im,:);
+    lrni = lrnm(im,:);
 
     % 局所系剛性行列
     li = lm(im); Ai = A(im);
@@ -103,10 +106,10 @@ for im = 1:nm
     if idm2scb(im)>0
       kcbi = cbstiff(idm2scb(im));
       ke = stif_beam_matrix(li, Ai, Asyi, Aszi, Iyi, Izi, Ji, ...
-        Ei, Gi, lrxi, lryi, jointi, kcbi, flag);
+        Ei, Gi, lrxi, lryi, lrni, jointi, kcbi, flag);
     else
       ke = stif_beam_matrix(li, Ai, Asyi, Aszi, Iyi, Izi, Ji, ...
-        Ei, Gi, lrxi, lryi, jointi, [], flag);
+        Ei, Gi, lrxi, lryi, lrni, jointi, [], flag);
     end
 
     % 剛域を考慮した座標変換（柱は回転断面基底の面で適用）

@@ -14,7 +14,7 @@ function warn_column_base_rigid_zone_overflow(overflow)
 %   出力引数:
 %     なし
 
-direction_names = {'X', 'Y'};
+direction_names = {'X', 'Y', '材軸'};
 for irow = 1:height(overflow)
   throw_warn('Analysis', 'ColumnBaseRigidZoneOverflow', ...
     overflow.idme(irow), direction_names{overflow.idir(irow)}, ...

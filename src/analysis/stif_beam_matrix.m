@@ -1,8 +1,34 @@
 function ke = stif_beam_matrix(L0, A, Asy, Asz, Iy, Iz, J, E, G, ...
-  lry, lrz, joint, kcb, flag)
+  lry, lrz, lrn, joint, kcb, flag)
+%stif_beam_matrix - 材軸方向と曲げ方向の剛域を考慮した剛性を算定
+%
+%   ke = stif_beam_matrix(L0, A, Asy, Asz, Iy, Iz, J, E, G, ...
+%     lry, lrz, lrn, joint, kcb, flag) は、材軸方向と曲げ方向で
+%   異なる有効長を用いて梁柱要素の局所剛性行列を算定する。
+%
+%   入力引数:
+%     L0    - 構造心間の部材長 (mm)
+%     A     - 軸変形用断面積 (mm2)
+%     Asy   - 局所Y方向のせん断断面積 (mm2)
+%     Asz   - 局所Z方向のせん断断面積 (mm2)
+%     Iy    - 局所Y軸回りの断面二次モーメント (mm4)
+%     Iz    - 局所Z軸回りの断面二次モーメント (mm4)
+%     J     - ねじり定数 (mm4)
+%     E     - ヤング係数 (N/mm2)
+%     G     - せん断弾性係数 (N/mm2)
+%     lry   - 局所Y軸回り曲げ用の両端剛域長 [1 x 2] (mm)
+%     lrz   - 局所Z軸回り曲げ用の両端剛域長 [1 x 2] (mm)
+%     lrn   - 材軸方向の両端剛域長 [1 x 2] (mm)
+%     joint - 両端の結合状態 [1 x 4]
+%     kcb   - 柱脚回転剛性（空配列可）(N.mm/rad)
+%     flag  - 解析条件構造体
+%
+%   出力引数:
+%     ke - 局所剛性行列 [12 x 12]
 
 % 計算の準備
 ke = zeros(12, 12);
+Ln = L0-lrn(1)-lrn(2);
 Ly = L0-lry(1)-lry(2);
 Lz = L0-lrz(1)-lrz(2);
 
@@ -72,7 +98,7 @@ else
 end
 
 % --- kn ---
-kn = E*A/L0;
+kn = E*A/Ln;
 ke(1,1) = kn;
 ke(1,7) = -kn;
 ke(7,7) = kn;

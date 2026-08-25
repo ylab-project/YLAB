@@ -35,6 +35,7 @@ function [mglevel, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
 %               .girder  - 梁剛域長 [nmeg×2]
 %               .columnx - 柱X方向剛域長 [nmec×2]
 %               .columny - 柱Y方向剛域長 [nmec×2]
+%               .columnn - 柱材軸方向剛域長 [nmec×2]
 %     story   - 更新された階データ構造体
 %     floor   - 更新された床データ構造体
 
@@ -158,6 +159,7 @@ end
 lr.girder = zeros(nmeg,2);
 lr.columnx = zeros(nmec,2);
 lr.columny = zeros(nmec,2);
+lr.columnn = zeros(nmec,2);
 if options.consider_rigid_zone
   % 梁外形
   sdimgm = secdim(idmg2sg,1:4);
@@ -176,6 +178,9 @@ if options.consider_rigid_zone
     % Y方向
     mask_y = ~isnan(rzd.y);
     lr.columny(mask_y) = rzd.y(mask_y);
+    % 材軸方向（自動計算値は0）
+    mask_n = ~isnan(rzd.n);
+    lr.columnn(mask_n) = rzd.n(mask_n);
   end
   % 梁剛域
   lr.girder = calc_rigid_zone_girder(mgstype, idmg2sfl, ...

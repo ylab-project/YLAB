@@ -14,6 +14,7 @@ function rigid_zone = set_member_column_rigid_zone_block(dbc, com)
 %     rigid_zone - 方向別の柱剛域直接入力
 %       .x - X方向の柱脚・柱頭剛域 [nmec x 2] (mm)
 %       .y - Y方向の柱脚・柱頭剛域 [nmec x 2] (mm)
+%       .n - 材軸方向の柱脚・柱頭剛域 [nmec x 2] (mm)
 %
 %   備考:
 %     - NaNは自動計算を使用することを表す。
@@ -30,6 +31,7 @@ nmec = com.nmec;
 % 出力配列の初期化（NaNは自動計算を使用）
 rigid_zone.x = nan(nmec,2);
 rigid_zone.y = nan(nmec,2);
+rigid_zone.n = nan(nmec,2);
 if n == 0
   return
 end
@@ -84,6 +86,9 @@ for i = 1:n
       rigid_zone.y = set_physical_member_end_values( ...
         rigid_zone.y, ids, member_type, end_values, ...
         artificial_end_types);
+      rigid_zone.n = set_physical_member_end_values( ...
+        rigid_zone.n, ids, member_type, end_values, ...
+        artificial_end_types);
     case 'X方向'
       rigid_zone.x = set_physical_member_end_values( ...
         rigid_zone.x, ids, member_type, end_values, ...
@@ -91,6 +96,10 @@ for i = 1:n
     case 'Y方向'
       rigid_zone.y = set_physical_member_end_values( ...
         rigid_zone.y, ids, member_type, end_values, ...
+        artificial_end_types);
+    case '材軸方向'
+      rigid_zone.n = set_physical_member_end_values( ...
+        rigid_zone.n, ids, member_type, end_values, ...
         artificial_end_types);
   end
 end

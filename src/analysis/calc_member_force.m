@@ -1,13 +1,13 @@
 function [rs, Mc, rvec] = calc_member_force(ilcset, ...
   dvec, rs, ~, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, ...
-  Em, Gm, lm, lrxm, lrym, flag, cxl, cyl, member_property, node, ...
-  ~, cbstiff, ~, idm2scb, joint, br_stif, hstiff_type)
+  Em, Gm, lm, lrxm, lrym, lrnm, flag, cxl, cyl, member_property, ...
+  node, ~, cbstiff, ~, idm2scb, joint, br_stif, hstiff_type)
 %calc_member_force - 部材応力の計算
 %
 %   [rs, Mc, rvec] = calc_member_force( ...
 %     ilcset, dvec, rs, ~, sks, M0, ar, ...
 %     A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm, ...
-%     lrxm, lrym, flag, cxl, cyl, member_property, ...
+%     lrxm, lrym, lrnm, flag, cxl, cyl, member_property, ...
 %     node, ~, cbstiff, ~, idm2scb, ...
 %     joint, br_stif, hstiff_type) は、
 %   各部材の変位から部材端応力を計算する。
@@ -30,8 +30,9 @@ function [rs, Mc, rvec] = calc_member_force(ilcset, ...
 %     Em     - ヤング係数 [nme×1]
 %     Gm     - せん断弾性係数 [nme×1]
 %     lm     - 部材長 [nme×1]
-%     lrxm   - 剛域長X [nme×2]
-%     lrym   - 剛域長Y [nme×2]
+%     lrxm   - 曲げ用剛域長X [nme×2]
+%     lrym   - 曲げ用剛域長Y [nme×2]
+%     lrnm   - 材軸方向剛域長 [nme×2]
 %     flag   - 剛性行列計算フラグ
 %     cxl,cyl - 部材座標系の方向余弦
 %     member_property - 部材プロパティ構造体
@@ -117,6 +118,7 @@ J_fac = member_property.factor_J;
 for im = targetset(:)'
   lrxi = lrxm(im, :);
   lryi = lrym(im, :);
+  lrni = lrnm(im, :);
   li = lm(im);
   t_local = [cxl(im, :); cyl(im, :); czl(im, :)];
   Ai = A(im); Asyi = Asy(im) * Asy_fac(im); Aszi = Asz(im);
@@ -132,7 +134,7 @@ for im = targetset(:)'
   end
 
   ke = stif_beam_matrix(li, Ai, Asyi, Aszi, Iyi, Izi, Ji, Ei, Gi, ...
-    lrxi, lryi, jointi, kcbi, flag);
+    lrxi, lryi, lrni, jointi, kcbi, flag);
 
   % 剛域を考慮した座標変換（柱は回転断面基底の面で適用）
   if any([lrxi lryi] > 0)

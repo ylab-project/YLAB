@@ -11,8 +11,8 @@ function [cphead, cpbody] = write_cell_column_property(com, result)
 %     result - 解析結果構造体 (msprop, Iy/Iz, lm, lf, lr, cbs 等)
 %
 %   出力引数:
-%     cphead - ヘッダ部セル配列 [3×27]
-%     cpbody - データ部セル配列 [(2*nrow)×28]（最終列は CONT_MARKER）
+%     cphead - ヘッダ部セル配列（軸剛域列は入力された端だけ追加）
+%     cpbody - データ部セル配列（最終列は CONT_MARKER）
 
 % 定数
 nblx = com.nblx;
@@ -36,6 +36,7 @@ lfcx = result.lf.columnx;
 lfcy = result.lf.columny;
 lrcx = result.lr.columnx;
 lrcy = result.lr.columny;
+lrcn = result.lr.columnn;
 cbstiff = result.cbs.stiff;
 nominal_column = com.nominal.column;
 
@@ -45,17 +46,32 @@ Em = msprop.E;
 Gm = msprop.G;
 
 % --- 柱断面 ---
-cphead = cell(3,27);
-cphead(1,:) = {'階', 'X軸', 'Y軸', '符号', '方', 'E', 'G', 'Io', ...
-  'φI', 'I', 'Aso', 'Ano', 'φQ', 'φn', 'As', 'An', 'α', 'αn', ...
-  'β', 'κ', '部材長', '剛域', '', 'フェイス位置', '', ...
-  '結合状態', ''};
-cphead(2,:) = {'', '', '', '', '向', '', '', '', '', '', '', '', ...
-  '', '', '', '', '', '', '', '', '', '柱頭', '柱脚', '柱頭', ...
-  '柱脚', '柱頭', '柱脚'};
-cphead(3,:) = {'', '', '', '', '', 'kN/mm2', 'kN/mm2', 'cm4', '', ...
-  'cm4', 'cm2', 'cm2', '', '', 'cm2', 'cm2', '', '', '', '', ...
-  'mm', 'mm', 'mm', 'mm', 'mm', 'kNm/rad', 'kNm/rad'};
+% 軸剛域はSS7と同じく、正の入力がある端の列だけを出力する
+is_output_axis_end = [any(lrcn(:,2) > 0), any(lrcn(:,1) > 0)];
+naxis = sum(is_output_axis_end);
+axis_name = repmat({''}, 1, naxis);
+if naxis > 0
+  axis_name{1} = '軸剛域';
+end
+axis_end_name = {'柱頭', '柱脚'};
+axis_end_name = axis_end_name(is_output_axis_end);
+axis_unit = repmat({'mm'}, 1, naxis);
+% 追加列後の列番号をヘッダ構成と同じ順序で確定する
+icol_axis = 23 + (1:naxis);
+icol_face = 24 + naxis + (0:1);
+icol_joint = 28 + naxis - (1:2);
+cphead = cell(3,27+naxis);
+cphead(1,:) = [{'階', 'X軸', 'Y軸', '符号', '方', 'E', 'G', 'Io', ...
+  'φI', 'I', 'Aso', 'Ano', 'φQ', 'φn', 'As', 'An', 'α', ...
+  'αn', 'β', 'κ', '部材長', '剛域', ''}, axis_name, ...
+  {'フェイス位置', '', '結合状態', ''}];
+cphead(2,:) = [{'', '', '', '', '向', '', '', '', '', '', '', '', ...
+  '', '', '', '', '', '', '', '', '', '柱頭', '柱脚'}, ...
+  axis_end_name, {'柱頭', '柱脚', '柱頭', '柱脚'}];
+cphead(3,:) = [{'', '', '', '', '', 'kN/mm2', 'kN/mm2', 'cm4', '', ...
+  'cm4', 'cm2', 'cm2', '', '', 'cm2', 'cm2', '', '', ...
+  '', '', 'mm', 'mm', 'mm'}, axis_unit, {'mm', 'mm', ...
+  'kNm/rad', 'kNm/rad'}];
 
 cpbody = cell(nc*2, size(cphead,2)+1);  % 末尾は marker 列
 irow = 0;
@@ -81,6 +97,7 @@ for i=1:nfl
         lfcy_ = lfcy(ic,:);
         iscb_ = idm2scb(idm);
         joint_ = column.joint(ic, :);
+        lrcn_ = lrcn(ic, :);
         % 分割部材対応
         if column.type(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
           idnmc = idmc2nmc(ic);
@@ -90,6 +107,7 @@ for i=1:nfl
           lm_ = sum(lm(idmm));
           lfcx_(2) = lfcx(idcc(end),2);
           lfcy_(2) = lfcy(idcc(end),2);
+          lrcn_(2) = lrcn(idcc(end),2);
           iscb_ = idm2scb(idmm(end));
           joint_ = nominal_column.joint(idnmc, :);
         end
@@ -113,8 +131,10 @@ return
   %
   %   入力引数:
   %     なし（外側スコープの ic, idm, lm_, lfcx_, lfcy_, iscb_,
-  %     ifl, msprop, Iy, Iz, cphiI, lrcx, lrcy, cbstiff,
-  %     joint_, column, secc, floor, Em, Gm を参照）
+  %     ifl, msprop, Iy, Iz, cphiI, lrcx, lrcy, lrcn_, naxis,
+  %     is_output_axis_end, icol_axis, icol_face, icol_joint, cbstiff,
+  %     joint_, column, secc, floor, Em, Gm
+  %     を参照）
   %
   %   出力引数:
   %     なし（外側の cpbody と irow を更新）
@@ -152,26 +172,32 @@ return
       sprintf('%.0f', lrcy(ic,2))};
     cpbody(irow*2-1:irow*2,23) = {sprintf('%.0f', lrcx(ic,1)); ...
       sprintf('%.0f', lrcy(ic,1))};
-    cpbody(irow*2-1:irow*2,24) = {sprintf('%.0f', lfcx_(2)); ...
-      sprintf('%.0f', lfcy_(2))};
-    cpbody(irow*2-1:irow*2,25) = {sprintf('%.0f', lfcx_(1)); ...
-      sprintf('%.0f', lfcy_(1))};
+    axis_values = [lrcn_(2), lrcn_(1)];
+    axis_values = axis_values(is_output_axis_end);
+    for iaxis = 1:naxis
+      cpbody{irow*2-1,icol_axis(iaxis)} = sprintf('%.0f', ...
+        axis_values(iaxis));
+    end
+    cpbody(irow*2-1:irow*2,icol_face(1)) = {sprintf('%.0f', ...
+      lfcx_(2)); sprintf('%.0f', lfcy_(2))};
+    cpbody(irow*2-1:irow*2,icol_face(2)) = {sprintf('%.0f', ...
+      lfcx_(1)); sprintf('%.0f', lfcy_(1))};
     % joint_ 1:X柱脚, 2:X柱頭, 3:Y柱脚, 4:Y柱頭
     for jxy=1:2
       for kbt=1:2
         jjj = jxy*2+kbt-2;
         switch joint_(jjj)
           case PRM.PIN
-            cpbody{irow*2+jxy-2,28-kbt} = "ピン";
+            cpbody{irow*2+jxy-2,icol_joint(kbt)} = "ピン";
           case PRM.FIX
-            cpbody{irow*2+jxy-2,28-kbt} = "剛接";
+            cpbody{irow*2+jxy-2,icol_joint(kbt)} = "剛接";
         end
       end
     end
     if iscb_>0
       kcb = cbstiff(iscb_);
-      cpbody(irow*2-1:irow*2,27) = {sprintf('%.0f', kcb*1.d-6); ...
-        sprintf('%.0f', kcb*1.d-6)};
+      cpbody(irow*2-1:irow*2,icol_joint(1)) = {sprintf('%.0f', ...
+        kcb*1.d-6); sprintf('%.0f', kcb*1.d-6)};
     end
     return
   end

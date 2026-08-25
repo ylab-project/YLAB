@@ -41,7 +41,7 @@ function [msprop, dvec, dnode, felement, ignored_moment, ...
 %     state    - 収束状態（sup.islifted, tb.iscompressed 等の構造体）
 %     sw       - 自重情報（sw.ar, sw.f, sw.M0 等の構造体）
 %     lf       - 両端フェイス長（柱X/柱Y/梁） 構造体
-%     lr       - 両端剛域長（柱X/柱Y/梁） 構造体
+%     lr       - 両端剛域長（柱X/柱Y/柱材軸/梁） 構造体
 %     lmem     - 部材長構造体 struct('geom','stiff','weight') 各 [nme x 1]
 %     lnm      - 通し部材長（通し柱・通し梁ベース） [nme x 1]
 %     lbnm     - 名目部材の横補剛区間長 [nme x 4]
@@ -271,17 +271,20 @@ lrxm(mtype==PRM.COLUMN,:) = lr.columnx;
 lrxm(mtype==PRM.GIRDER,:) = lr.girder;
 lrym = zeros(nme,2);
 lrym(mtype==PRM.COLUMN,:) = lr.columny;
+lrnm = zeros(nme,2);
+lrnm(mtype==PRM.COLUMN,:) = lr.columnn;
 
 %% 分割部材の剛域・断面性能修正
 isrigid_xm = sum(lrxm,2)>=lm;
 isrigid_ym = sum(lrym,2)>=lm;
-lrxm(isrigid_xm,1) = 0;
-lrxm(isrigid_xm,2) = 0;
-lrym(isrigid_ym,1) = 0;
-lrym(isrigid_ym,2) = 0;
+isrigid_nm = sum(lrnm,2)>=lm;
+lrxm(isrigid_xm, :) = 0;
+lrym(isrigid_ym, :) = 0;
+lrnm(isrigid_nm, :) = 0;
 Iy0 = Iy; Iz0 = Iz;
 Iy(isrigid_xm) = Iy(isrigid_xm)*PRM.RIGID_SCALE;
 Iz(isrigid_ym) = Iz(isrigid_ym)*PRM.RIGID_SCALE;
+An(isrigid_nm) = An(isrigid_nm)*PRM.RIGID_SCALE;
 
 % 通し部材の部材長（構造階高ベース）
 lnm = lm;
@@ -462,7 +465,7 @@ end
 %% 剛性行列の作成
 hstiff_type = options.girder_horizontal_stiffness_type;
 ksmat0 = stif_sys_matrix(An, Asy, Asz, Iy, Iz, JJ, cxl, ...
-  cyl, lm_stiff, Em, Gm, xr, yr, lrxm, lrym, cbstiff, mtype, ...
+  cyl, lm_stiff, Em, Gm, xr, yr, lrxm, lrym, lrnm, cbstiff, mtype, ...
   idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
   nbw, flag, br_stif, hstiff_type, factor_J);
 [ksmat0, fvec, ignored_node_moment] = ...
@@ -592,7 +595,7 @@ end
 % 応力計算
 [rs, Mc] = calc_member_force(1:nlc, dvec, [], frvec, ...
   sks, M0, ar, An, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm_stiff, ...
-  lrxm, lrym, flag, cxl, cyl, member_property, node, material, ...
+  lrxm, lrym, lrnm, flag, cxl, cyl, member_property, node, material, ...
   cbstiff, idm2mat, idm2scb, mejoint, br_stif, hstiff_type);
 
 % 水平力分担・β用に解析基底のケース別応力を保持
