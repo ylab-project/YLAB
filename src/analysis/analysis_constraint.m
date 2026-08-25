@@ -504,7 +504,7 @@ result.cxl = cxl;
 result.cyl = cyl;
 result.felement = felement;
 % 節点重量は全荷重と自重が確定した分析境界で一元化する
-result.nodal_weight = calc_nodal_weight(com, sw, cxl, cyl, idm2n);
+result.nodal_weight = calc_nodal_weight(com, sw, cxl, cyl, lm, idm2n);
 result.state = state;
 result.id_center_sel = stress_result.id_center_sel;
 result.girderSectionCase = girderSectionCase;

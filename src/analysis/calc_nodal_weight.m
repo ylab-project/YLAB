@@ -1,7 +1,7 @@
-function weight = calc_nodal_weight(com, sw, cxl, cyl, idm2n)
+function weight = calc_nodal_weight(com, sw, cxl, cyl, lm, idm2n)
 %calc_nodal_weight - 用途別の節点重量と帳票用物理量を計算する
 %
-%   weight = calc_nodal_weight(com, sw, cxl, cyl, idm2n) は、新形式
+%   weight = calc_nodal_weight(com, sw, cxl, cyl, lm, idm2n) は、新形式
 %   荷重、旧入力、自動計算自重および節点外力を節点重量へ統合する。
 %   Kブレース中間節点の再配分、基礎重量判定および累計もここで確定し、
 %   writerへ計算済み物理量を渡す（内部設計8・9章）。旧入力の寄与は
@@ -12,13 +12,14 @@ function weight = calc_nodal_weight(com, sw, cxl, cyl, idm2n)
 %     com     - 節点、部材、荷重および支持情報を持つ共通オブジェクト
 %     sw      - 自動計算した柱・梁・壁の節点自重
 %     cxl,cyl - 部材座標系の方向余弦
+%     lm      - 部材長 [nme×1]
 %     idm2n   - 部材から節点への対応 [nme×2]
 %
 %   出力引数:
 %     weight - 分類済み重量と節点別・層別重量
 nnode = com.nnode;
-raw = calc_element_load_weight(com.force.element, com.force.nodal, ...
-  cxl, cyl, idm2n, nnode);
+[raw, girder_self] = calc_element_load_weight(com.force.element, ...
+  com.force.nodal, sw.ar, cxl, cyl, lm, idm2n, nnode);
 ilc_gp = find_ilc_long_term(com.loadcase);
 
 % 長期ケースがない入力では旧入力を解析非計上として扱う
@@ -43,7 +44,7 @@ legacy_floor(~is_support) = legacy_floor(~is_support) ...
 % すべての重量源を同じ節点再配分規則へ通す
 [legacy_floor, legacy_foundation, girder_self, wall_self, ...
   column_self, pool, cantilever_pool] = redistribute_kbrace_mid(com, ...
-  legacy_floor, legacy_foundation, sw.fg(:, 3), sw.fw(:, 3), ...
+  legacy_floor, legacy_foundation, girder_self, sw.fw(:, 3), ...
   sw.fc(:, 3), raw.pool, raw.cantilever_pool);
 
 nclass = size(pool, 3);

@@ -10,7 +10,7 @@ function [head, body] = write_cell_seismic_weight(com, result)
 %
 %   出力引数:
 %     head - 3行の帳票ヘッダー
-%     body - 層別上下2行（最終列は空のmarker列）
+%     body - 層別上下2行（最終列は継続行marker列）
 head = {'層(階)', '床面積', '床自重(D.L)', '梁自重', '壁自重', ...
   'ﾌﾚｰﾑ外雑壁', '特殊荷重', 'wi'; '', '', '床自重(L.L)', ...
   '柱自重', '基礎自重', '積雪荷重', '補正重量', '(wi/A)'; ...
@@ -22,13 +22,13 @@ for offset = 1:com.nstory
   istory = com.nstory - offset + 1;
   irow = irow + 1;
   rows{irow, 1} = make_story_label(com.story, istory);
-  rows{irow, 2} = fmt_weight_kn(0, 0);
   rows{irow, 3} = fmt_weight_kn(weight.floor_dl(istory), 0);
   rows{irow, 4} = fmt_weight_kn(weight.girder(istory), 0);
   rows{irow, 5} = fmt_weight_kn(weight.wall(istory), 0);
   rows{irow, 6} = fmt_weight_kn(weight.frame_out(istory), 0);
   rows{irow, 7} = fmt_weight_kn(weight.special(istory), 0);
   rows{irow, 8} = fmt_weight_kn(weight.total(istory), 0);
+  rows{irow, 9} = PRM.CONT_MARKER;
 
   irow = irow + 1;
   rows{irow, 3} = fmt_weight_kn(weight.floor_ll(istory), 0);
@@ -36,7 +36,6 @@ for offset = 1:com.nstory
   rows{irow, 5} = fmt_weight_kn(weight.foundation(istory), 0);
   rows{irow, 6} = fmt_weight_kn(0, 0);
   rows{irow, 7} = fmt_weight_kn(weight.correction(istory), 0);
-  rows{irow, 8} = fmt_weight_kn(0, 0);
 end
 body = rows(1:irow, :);
 
