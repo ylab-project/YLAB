@@ -85,15 +85,10 @@ if isempty(rs)
   rs = zeros(nme, 12, nlc);
 end
 
-% 剛床・剛域・固定端力の前処理
+% 剛床・剛域の前処理
 kcb = inf(nme, 1);
 valid_cbstiff = (idm2scb > 0) & isfinite(idm2scb);
 kcb(valid_cbstiff) = cbstiff(idm2scb(valid_cbstiff));
-
-ar_mask_all = ones(12, nme);
-cols_mask = (mtype == PRM.COLUMN) | (mtype == PRM.BRACE) | ...
-  (mtype == PRM.HORIZONTAL_BRACE);
-ar_mask_all([1 7], cols_mask) = 0;
 
 ke_cache = cell(nme, 1);
 tg_cache = cell(nme, 1);
@@ -175,7 +170,6 @@ for ilc = ilcset(:)'
 
     arm = ke * dt;
     ar_loc = ar(im, :, ilc)';
-    ar_loc = ar_loc .* ar_mask_all(:, im);
     arm = arm + ar_loc;
 
     rs(im, :, ilc) = arm;
