@@ -95,13 +95,13 @@ Fc21,21682,0.2,21.0
 name=断面リスト
 %断面リスト名,鉄骨形状,材料名,リストファイル名,コスト係数,コスト定数,フェーズ番号,type
 %,,,,(省略可),(省略可),(省略可),(省略可)
-LC,□,BCR295,union_Box.csv,195,0,1,BCR
-LC,□,BCP325,union_Box.csv,245,0,1,BCP
-LG,H,SN490B,union_H_SN.csv,150,0,1,細幅
-LG,H,SN490B,union_H_SN.csv,150,0,1,中幅
-LG,H,SN490B,union_H_SN.csv,150,0,1,広幅
-LG,H,SN490B,union_H_SN.csv,205,0,1,スーパーハイスレンドH
-LG,H,SN490B,union_H_SN.csv,205,0,1,その他
+LC,□,BCR295,Box_list.csv,195,0,1,BCR
+LC,□,BCP325,Box_list.csv,245,0,1,BCP
+LG,H,SN490B,H_SN_list.csv,150,0,1,細幅
+LG,H,SN490B,H_SN_list.csv,150,0,1,中幅
+LG,H,SN490B,H_SN_list.csv,150,0,1,広幅
+LG,H,SN490B,H_SN_list.csv,205,0,1,スーパーハイスレンドH
+LG,H,SN490B,H_SN_list.csv,205,0,1,その他
 
 name=S柱断面(仮定)
 %階,柱符号,添字,鉄骨断面,
