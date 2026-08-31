@@ -29,7 +29,6 @@ function [exitflag, result, com] = YLAB(varargin)
 %   オプションフラグ:
 %     -pdf         - PDFレポートを作成
 %     -nopdf       - PDFレポートの作成をスキップ（デフォルト）
-%     -legacy      - SS7互換の旧フォーマットで出力
 %     -nopreprocess - 断面リスト事前処理を無効化
 %     -sequential  - 並列計算を無効化（プロファイリング用）
 %     -alg:LSR      - 全PhaseでLSRを使用
@@ -62,11 +61,6 @@ function [exitflag, result, com] = YLAB(varargin)
 %     % 最適化を実行してPDFレポートを作成
 %     YLAB('inputfile', 'data/T1R.csv', ...
 %       'outputfile', 'out/T1R_opt.csv', '-pdf')
-%
-%     % SS7互換フォーマットで出力
-%     YLAB('exemode', 'CHECK', ...
-%       'inputfile', 'data/S4.csv', ...
-%       'outputfile', 'out/S4_check.csv', '-legacy')
 %
 %     % 断面リスト事前処理を無効化して確認
 %     YLAB('exemode', 'CHECK', ...

@@ -17,7 +17,6 @@ function options = parseargs(options, varargin)
 %       '-pdf'        - PDF出力を有効化
 %       '-nopdf'      - PDF出力を無効化
 %       '-dev'        - 開発者モード（GUI強制）
-%       '-legacy'     - レガシー出力形式を使用
 %       '-nopreprocess' - 断面リスト事前処理を無効化
 %       '-sequential' - 並列計算を無効化（プロファイリング用）
 %       '-alg:<名前>' - 最適化アルゴリズム指定。候補は
@@ -43,9 +42,6 @@ for i=1:n
     case '-dev'
       tf(i) = false;
       options.developer_mode = true;
-    case '-legacy'
-      tf(i) = false;
-      options.do_legacy_output = true;
     case '-nopreprocess'
       tf(i) = false;
       options.do_preprocess_section_list = false;

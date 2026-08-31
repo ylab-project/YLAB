@@ -223,9 +223,6 @@ classdef CommonOption
 
     % 断面算定表で全部材を出力するか（false=代表1部材）
     section_calc_all_members (1,1) logical = true
-
-    % SS7互換の旧フォーマット出力（S梁検定比一覧）
-    do_legacy_output (1,1) logical = false
   end
 
   properties (Dependent)

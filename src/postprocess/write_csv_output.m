@@ -343,15 +343,10 @@ scbbody = write_cell_section_calculation_brace(com, result);
 write_table(fout, '鉛直ブレース断面算定表', [], scbbody);
 
 %% 層間変形角
-if options.do_legacy_output
-  sep = sprintf('\t');
-else
-  sep = ',';
-end
 for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
   [sdrhead, sdrbody] = write_cell_interstory_drift(com, ...
     result, options, icase);
-  write_table(fout, sprintf('層間変形角%scase=%s', sep, ...
+  write_table(fout, sprintf('層間変形角,case=%s', ...
     loadcase.name{icase}), sdrhead, sdrbody, true);
 end
 
@@ -362,7 +357,7 @@ for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
     break
   end
   cgscell = write_cell_column_gider_strength(com, result, icase);
-  write_table(fout, sprintf('柱梁耐力比%scase=%s', sep, ...
+  write_table(fout, sprintf('柱梁耐力比,case=%s', ...
     loadcase.name{icase}), cgscell.head, cgscell.body, true);
 end
 
