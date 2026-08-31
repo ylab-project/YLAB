@@ -161,7 +161,7 @@ classdef CommonOption
     % 最適化計算オプション
     penalty_method = PRM.PENALTY_MAXIMUM;
     algorithm (1,:) char {mustBeMember(algorithm, {'LSR', ...
-      'LSFR', 'LSR_LSFR', 'GA'})} = 'LSR_LSFR'
+      'LSFR', 'LSR_LSFR', 'GA'})} = 'LSFR'
     max_fusion_depth (1,1) double {mustBeInteger, ...
       mustBeGreaterThanOrEqual(max_fusion_depth, 2)} = 6
     max_num_fusion_seed (1,1) double {mustBePositive, mustBeInteger} = 50

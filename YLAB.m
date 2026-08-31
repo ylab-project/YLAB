@@ -1,4 +1,4 @@
-function [exitflag, result, com] = YLAB(varargin)
+function [exitflag, result, com] = YLAB(varargin) %#ok<STOUT>
 %YLAB 鋼構造骨組の最適設計プログラム
 %
 %   局所探索法に基づき建物の断面設計を行う。
@@ -32,8 +32,8 @@ function [exitflag, result, com] = YLAB(varargin)
 %     -nopreprocess - 断面リスト事前処理を無効化
 %     -sequential  - 並列計算を無効化（プロファイリング用）
 %     -alg:LSR      - 全PhaseでLSRを使用
-%     -alg:LSFR     - 全PhaseでLSFRを使用
-%     -alg:LSR_LSFR - Phase 1はLSR、以降はLSFR（デフォルト）
+%     -alg:LSFR     - 全PhaseでLSFRを使用（デフォルト）
+%     -alg:LSR_LSFR - Phase 1はLSR、以降はLSFR
 %     -alg:GA       - GAを使用
 %     -dev         - 開発者モード（GUIで起動）
 %     -version     - バージョン情報を表示して終了
