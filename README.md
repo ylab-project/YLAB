@@ -1,119 +1,140 @@
 # YLAB (Yamakawa Laboratory Optimization Program)
 
-YLABは、東京理科大学 山川研究室で開発された、鋼構造骨組の最適設計プログラムです。局所探索法に基づき、建築基準法に準拠した経済的かつ合理的な断面設計を自動的に行います。
+YLABは、東京理科大学山川研究室で開発している建築骨組の断面設計プログラムです。MATLAB上で断面最適化を実行できます。
 
-## 特徴
+## 主な機能
 
-- **鋼構造骨組の断面最適化**: H形鋼、角形鋼管、BRB、矩形RCなど多様な断面に対応。
-- **制約条件の自動チェック**: 建築基準法および学会規準に基づく詳細な検証。
-- **効率的なアルゴリズム**: 局所探索法（Local Search）による高速な最適化。
-- **柔軟な実行環境**: MATLAB環境での実行に加え、スタンドアロンアプリとしての実行も可能。
+- 局所探索法による断面最適化
+- 指定断面に対する断面検定
+- 計算結果CSV、実行ログ、任意指定によるPDF計算書の出力
 
-## インストール
+## 配布形式と要件
 
-MATLABソースを公開します。
+実行の入口はPコードの `YLAB.p` です。`YLAB.m` は `help YLAB` 用のコメントを保持するスタブであり、直接実行されません。補助処理のMATLABソースと一部のPコードは `src/` に含まれます。
 
-### 2. MATLAB環境で使用する場合
+通常の実行にはMATLABが必要です。機能によって次の製品も必要になります。
 
-ソースコード（またはPコード）を直接MATLABで使用する場合の手順です。
+| 機能 | 追加要件 |
+|---|---|
+| PDF計算書の作成（`-pdf`） | MATLAB Report Generator |
+| GAによる最適化（`-alg:GA`） | Global Optimization Toolbox |
+| スタンドアロンアプリのビルド | MATLAB Compiler |
+
+既定の最適化は並列プールを使用します。並列プールを利用できない環境では `-sequential` を指定してください。
+
+## セットアップ
+
+リポジトリをcloneして、そのディレクトリをMATLABで開きます。
+
+```powershell
+git clone https://github.com/ylab-project/YLAB.git
+cd YLAB
+```
+
+MATLABで次を実行し、YLABと必要なサブディレクトリをパスへ追加します。
 
 ```matlab
-% 1. リポジトリのクローン（またはダウンロード）
-% git clone ...
-
-% 2. ディレクトリへ移動
-cd YLAB
-
-% 3. 環境セットアップ（必須）
 install
 ```
 
-## 実行方法（MATLAB環境）
+`install` は `restoredefaultpath` を実行してからYLABのパスを追加します。現在のMATLABセッションに独自のパス設定がある場合は、その影響を確認してから実行してください。
 
-`YLAB` 関数を使用して最適化やチェックを実行します。
+インストール後はバージョン情報を表示して起動を確認できます。
 
-### 構文
 ```matlab
-exitflag = YLAB('param1', value1, 'param2', value2, ...)
+YLAB('-version')
 ```
 
-### 主要な引数
+## 実行方法
 
-| 引数名 | 設定値 | 説明 |
-| :--- | :--- | :--- |
-| `inputfile` | 文字列 (必須) | 入力データのCSVファイルパス。 |
-| `outputfile` | 文字列 (必須) | 結果を出力するCSVファイルパス。 |
-| `exemode` | `'OPT'`, `'CHECK'` | 実行モード。`'OPT'` (最適化)、`'CHECK'` (断面検定のみ)。デフォルトは `'OPT'`。 |
-| `uimode` | `'CUI'`, `'GUI'` | UIモード。`'CUI'` (コマンドライン)、`'GUI'` (設定ダイアログ表示)。デフォルトは `'CUI'`。 |
-| `solutionfile`| 文字列 (任意) | 初期解として使用する断面リストのCSVまたはMATファイルパス。 |
-| `optionfile` | 文字列 (任意) | 最適化オプションを記述したCSVファイルパス。 |
+### GUI
 
-### オプションフラグ
-- `-pdf`: 実行完了後に詳細レポート（PDF形式）を作成します。
-- `-nopdf`: PDFレポートの作成をスキップします（デフォルト）。
-- `-version`: バージョン情報を表示して終了します。
+引数なしで実行すると設定ダイアログが開きます。
 
-### 具体的な実行例
-
-#### 1. 断面検定のみを実行（CHECKモード）
-既存のモデルに対して、現在の断面が制約を満たしているか確認します。
 ```matlab
-YLAB('exemode', 'CHECK', 'inputfile', 'data/S4.csv', 'outputfile', 'out/S4_check.csv');
+YLAB
 ```
 
-#### 2. 断面最適化を実行
-初期値から断面の最適化を行い、結果をPDFレポートと共に出力します。
+### CUI
+
+CUIではキーと値のペア、およびフラグを指定します。
+
 ```matlab
-YLAB('inputfile', 'data/T1R.csv', 'outputfile', 'out/T1R_opt.csv', '-pdf');
+[exitflag, result, com] = YLAB('param1', value1, ...)
 ```
 
-#### 3. 設定ダイアログを表示して実行（GUIモード）
-入力ファイルなどの条件を画面上で選択したい場合に使用します。
+主な引数は次のとおりです。CUIで計算または変換を実行する場合は `inputfile` と `outputfile` を指定します。
+
+| 引数 | 設定値 | 説明 |
+|---|---|---|
+| `inputfile` | ファイルパス | 入力CSV |
+| `outputfile` | ファイルパス | 結果CSVの出力先 |
+| `exemode` | `'OPT'`、`'CHECK'`、`'CONVERT'` | 最適化、断面検定、SS7荷重データ変換。既定値は `'OPT'` |
+| `uimode` | `'CUI'`、`'GUI'` | 実行UI。引数を指定した場合の既定値は `'CUI'` |
+| `solutionfile` | ファイルパス | 初期解として読み込むCSVまたはMATファイル |
+| `optionfile` | ファイルパス | 最適化オプションCSV |
+
+主なフラグは次のとおりです。
+
+| フラグ | 説明 |
+|---|---|
+| `-pdf` | PDF計算書を作成する |
+| `-nopdf` | PDF計算書を作成しない。既定の動作 |
+| `-nopreprocess` | 断面リストの事前処理を無効にする |
+| `-sequential` | 並列計算を無効にする |
+| `-alg:LSR`、`-alg:LSFR`、`-alg:LSR_LSFR`、`-alg:GA` | 最適化アルゴリズムを指定する |
+| `-version` | バージョンと実行環境を表示して終了する |
+
+再開用引数などを含む全項目は、MATLABで `help YLAB` を実行して確認してください。
+
+### 断面検定
+
 ```matlab
-YLAB('uimode', 'GUI');
+YLAB('exemode', 'CHECK', ...
+  'inputfile', 'data/S4.csv', ...
+  'outputfile', 'out/S4_check.csv');
 ```
 
-## ビルド（配布者・管理者向け）
+### 断面最適化
 
-スタンドアロンアプリケーションおよびインストーラーを作成するには、`build.m` を使用します。
-
-### 要件
-
-| ツールボックス | 用途 | 備考 |
-|----------------|------|------|
-| MATLAB Compiler | EXE作成 | 必須 |
-| Optimization Toolbox | 最適化計算 | 必須 |
-| Global Optimization Toolbox | GAモード | オプション |
-| MATLAB Report Generator | PDF出力 | オプション |
-
-**注意**: オプションのToolboxがない環境でもビルド可能です。該当機能（GAモード、PDF出力）は無効になります。
-
-### 手順
 ```matlab
-cd YLAB
-build    % ビルド実行（インストーラー生成）
+YLAB('inputfile', 'data/T1R.csv', ...
+  'outputfile', 'out/T1R_opt.csv');
 ```
 
-出力先: `build/`
-- `YLAB.exe` (または `YLabInstaller.exe` 内に含まれるアプリケーション)
-- `YLabInstaller.exe`: 配布用インストーラー
+PDF計算書も作成する場合は、末尾に `'-pdf'` を追加します。出力先ディレクトリが存在しない場合はYLABが作成します。
+
+## 入力データと出力
+
+`data/` にはS4、T1、T1Rなどのサンプル入力があります。入力CSVの構成は [YLAB入力データ仕様書](doc/入力データ仕様.md) を参照してください。
+
+計算を実行すると、指定した結果CSVと実行ログが出力先に作成されます。エラーが発生した場合はエラー情報ファイルも同じ出力先に作成されます。`-pdf` を指定した場合はPDF計算書が追加されます。
+
+## スタンドアロンアプリのビルド
+
+配布者または管理者がスタンドアロンアプリとインストーラーを作成する場合は、リポジトリのルートで次を実行します。
+
+```matlab
+build
+```
+
+`build.m` は `YLAB.p` を入口としてビルドし、成果物を `build/` に作成します。生成物を配布する場合は、ビルドに使用したMATLABライセンスの条件を事前に確認してください。
 
 ## ディレクトリ構成
 
-```
+```text
 YLAB/
-├── YLAB.p            メインプログラム（実行用Pコード）
-├── install.m         環境セットアップ・パス設定
-├── build.m           インストーラー作成スクリプト
-├── src/              コアロジック・ライブラリ
-├── data/             サンプル入力データ (S4, T1Rなど)
-├── doc/              ドキュメント・マニュアル
-└── build/            ビルド成果物出力先
+├── YLAB.p       実行用Pコード
+├── YLAB.m       help表示用スタブ
+├── install.m    MATLABパス設定
+├── build.m      スタンドアロンビルド
+├── src/         補助処理のMATLABソースとPコード
+├── data/        サンプル入力
+└── doc/         入力仕様とサンプルモデル資料
 ```
 
-## ライセンスと著作権
+## 著作権と利用条件
 
-**Copyright (c) Yamakawa Laboratory, Tokyo University of Science.**
+Copyright (c) Yamakawa Laboratory, Tokyo University of Science.
 
-本プログラムは研究・教育目的で開発されています。
-商用利用や無断転載についてはお問い合わせください。
+本リポジトリには、利用許諾条件を定めるライセンスファイルは含まれていません。利用または再配布については開発者へお問い合わせください。
