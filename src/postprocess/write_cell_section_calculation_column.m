@@ -156,8 +156,7 @@ for i = 1:nstory
       im2 = idmc2m(ic2);
       isc_ = idnm2sc(inc);
 
-      % 通し柱判定（nominal_column.isthrough = 入力通し柱由来で
-      % 束ねた名目柱。ブレース脚分割は countup で除外済み）
+      % 一本部材指定による帳票形式を選ぶ。内部分割の有無は問わない
       is_through = nominal_column.isthrough(inc);
       if is_through
         % 中央断面諸量取得元 = 最下サブメンバー
@@ -234,7 +233,7 @@ for i = 1:nstory
         write_check_row(irow, '柱脚', Zyeff(im1), Aeff(im1), ...
           Asyeff(im1), fbn(inm, 1, ilx), ration(inm, 1, ilx), ...
           ration(inm, 5, ilx), ration(inm, 6, ilx), ...
-          ration(inm, 9, ilx), ration(inm, 15, ilx));
+          ration(inm, 3, ilx), ration(inm, 15, ilx));
 
         % fcL + <Y>柱頭 検定
         irow = irow + 1;
@@ -250,7 +249,7 @@ for i = 1:nstory
         write_check_row(irow, '柱脚', Zzeff(im1), Aeff(im1), ...
           Asyeff(im1), fbn(inm, 1, ily), ration(inm, 1, ily), ...
           ration(inm, 5, ily), ration(inm, 6, ily), ...
-          ration(inm, 8, ily), ration(inm, 15, ily));
+          ration(inm, 2, ily), ration(inm, 15, ily));
         sccbody{irow, ncol} = '';
 
       else
@@ -337,7 +336,7 @@ for i = 1:nstory
         write_check_row(irow, '柱脚', Zyeff(im1), Aeff(im1), ...
           Asyeff(im1), fbn(inm, 1, ilx), ration(inm, 1, ilx), ...
           ration(inm, 5, ilx), ration(inm, 6, ilx), ...
-          ration(inm, 9, ilx), ration(inm, 15, ilx));
+          ration(inm, 3, ilx), ration(inm, 15, ilx));
 
         % <Y>柱頭 検定
         irow = irow + 1;
@@ -358,7 +357,7 @@ for i = 1:nstory
         write_check_row(irow, '柱脚', Zzeff(im1), Aeff(im1), ...
           Asyeff(im1), fbn(inm, 1, ily), ration(inm, 1, ily), ...
           ration(inm, 5, ily), ration(inm, 6, ily), ...
-          ration(inm, 8, ily), ration(inm, 15, ily));
+          ration(inm, 2, ily), ration(inm, 15, ily));
         sccbody{irow, ncol} = '';
       end
 
@@ -482,6 +481,12 @@ return
 
   function append_warning_row(message)
   %append_warning_row - 現在の柱エントリ末尾に警告・注意行を追加する
+  %
+  %   append_warning_row(message) は、直前の行に継続印を付け、
+  %   次の行へ警告文を出力する。外側の行番号とセル配列を更新する。
+  %
+  %   入力引数:
+  %     message - 出力する警告・注意の文字列
     sccbody{irow, ncol} = PRM.CONT_MARKER;
     irow = irow + 1;
     sccbody{irow, 1} = message;

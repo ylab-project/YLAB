@@ -100,10 +100,9 @@ com.ns6 = ns6;
 % nominal_story = countup_nominal_story(com);
 
 %% 通し柱
-[idnominal_column, isprimary_column, idsecc, nominal_column] = ...
+[idnominal_column, idsecc, nominal_column] = ...
   countup_nominal_column(member_column, member_girder, member_brace, com);
 member_column.idnominal = idnominal_column;
-member_column.isprimary = isprimary_column;
 member_column.idsecc = idsecc;
 idsec = com.section.column.idsec(idsecc);
 % isthrough/idconnected は countup でのみ使用。下流へ持ち越さない

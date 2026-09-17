@@ -36,7 +36,7 @@ function sw = comp_self_weight(A, Asy, Iy, Em, Gm, lm_weight, ...
 %                       （列1: i端, 列2: j端。正値は分布荷重から
 %                       控除し、負値は端部集中重量として加算）
 %     options         - オプション構造体
-%     member_column   - 柱部材構造体
+%     member_column   - 柱部材構造体（BODYのidsplitはFOUNDATION番号）
 %     brace_unit_weight - ブレース単位重量 [nmeb x 1] N/mm
 %                         （BRB: メーカー値, 他: 0）
 %     Df_foundation   - 基礎柱面寸法配列 [nsec×1]（統一断面ID→Df）
@@ -64,17 +64,13 @@ nme = length(mtype);
 column_type = zeros(nme, 1);
 column_type(member_column.idme) = member_column.type;
 
-% 分割節点→基礎ノードの置換（idnominalペア）
-is_brace1_ = member_column.type == PRM.COLUMN_FOR_BRACE_FOUNDATION;
+% BODYとブレースの自重をFOUNDATIONの柱脚節点へ配分する。
+% BODYのidsplitから下側要素を取得する。
 for ic = 1:length(member_column.idme)
   if member_column.type(ic) ~= PRM.COLUMN_FOR_BRACE_BODY
     continue
   end
-  ic_b1 = find(member_column.idnominal(:,1) ...
-    == member_column.idnominal(ic, 1) & is_brace1_, 1);
-  if isempty(ic_b1)
-    continue
-  end
+  ic_b1 = member_column.idsplit(ic);
   in_split = member_column.idnode1(ic);
   in_base = member_column.idnode1(ic_b1);
   idme2j1(member_column.idme(ic)) = in_base;

@@ -1,35 +1,32 @@
 function [lm_weight, lm_lower_extension] = calc_column_weight_length( ...
   member_column, member_girder, floor, node, stype_sec, ...
   idsecc2sec, idsecg2sec, secdim)
-%calc_column_weight_length - 柱荷重計算用の部材長を算出
+%calc_column_weight_length - 柱荷重計算用の部材長を算出する
 %
-% SS7マニュアル「4.1.2 柱」に基づき、柱の自重・仕上重量計算用の
-% 部材長を算出する。
+%   [lm_weight, lm_lower_extension] = calc_column_weight_length( ...
+%   member_column, member_girder, floor, node, stype_sec, ...
+%   idsecc2sec, idsecg2sec, secdim) は、柱の自重・仕上重量に
+%   用いる部材長と、柱脚節点より下に延びる長さを計算する。
 %
-% SS7の定義:
-%   梁天端〜梁天端 = 階高（基本）
-%   部材長 = 標準階高 + (-dz(柱脚) + dz(柱頭))
-%     + max(柱頭側glv) - max(柱脚側glv)
-%   glvは下げが負の値。max(glv)は最も高い梁天端を選択する。
-%   1階/下層柱抜け: 同種別（S-S, RC-RC）なら最大梁せい分を追加
+%   SS7計算編4.1.2の梁天端間の長さを、標準階高、節点移動、
+%   梁レベルから求める。最下層や下層に柱がない箇所では、
+%   柱と同じ構造種別の梁せいを加える。一本部材の指定がある
+%   梁の中間箇所に柱頭が接続する場合は梁下面までとする。
+%   ブレース分割柱の柱脚節点・梁面は基礎梁内の下側要素から採る。
 %
-% 通し梁（一本部材）の場合:
-%   柱頭側の梁に一本部材の指定があり、一本部材の両端ではない中間箇所では
-%   梁下面までとする（梁せい分を減算）
+%   入力引数:
+%     member_column - 柱部材構造体。BODYのidsplitはFOUNDATION番号
+%     member_girder - 梁部材構造体
+%     floor         - フロアテーブル（standard_height）
+%     node          - 節点構造体（座標、dz、idz）
+%     stype_sec     - 断面種別配列 [nsec×1]
+%     idsecc2sec    - 柱断面番号から統一断面番号への対応
+%     idsecg2sec    - 梁断面番号から統一断面番号への対応
+%     secdim        - 断面寸法配列 [nsec×ncol] (mm)
 %
-% Inputs:
-%   member_column - 柱部材構造体
-%   member_girder - 梁部材構造体
-%   floor         - フロア構造体（standard_height, nfl）
-%   node          - 節点構造体（dz, idz）
-%   stype_sec     - 断面種別配列 [nsec×1]
-%   idsecc2sec    - 柱断面ID→統一断面IDの変換配列
-%   idsecg2sec    - 梁断面ID→統一断面IDの変換配列
-%   secdim        - 断面寸法配列 [nsec×ncol]
-%
-% Outputs:
-%   lm_weight          - 柱荷重計算用の部材長配列 [nmec x 1]
-%   lm_lower_extension - 柱脚節点より下に延びる物理長 [nmec x 1]
+%   出力引数:
+%     lm_weight          - 荷重計算用部材長 [nmec×1] (mm)
+%     lm_lower_extension - 柱脚節点より下に延びる長さ [nmec×1] (mm)
 
 % 柱数
 nmec = length(member_column.idme);
@@ -75,26 +72,14 @@ idgy2 = member_column.idmeg_face2y;  % 柱頭Y
 min_story = min(member_column.idstory);
 is_first_story = member_column.idstory == min_story;
 
-% BRACE2→BRACE1対応マップ（idnominalベース）
-% BRACE2の柱脚側はBRACE1のnode1・face1を使用
-brace1_pair = zeros(nmec, 1);
+% BODYの柱脚節点・梁面は、idsplitで対応するFOUNDATIONから採る。
+% 分割のない柱では自身の柱脚を使う。
 is_brace2 = ctype == PRM.COLUMN_FOR_BRACE_BODY;
 is_brace1 = ctype == PRM.COLUMN_FOR_BRACE_FOUNDATION;
-for ic = 1:nmec
-  if ~is_brace2(ic)
-    continue
-  end
-  nominal_id = member_column.idnominal(ic, 1);
-  ic_b1 = find(member_column.idnominal(:,1) == nominal_id & is_brace1, 1);
-  if ~isempty(ic_b1)
-    brace1_pair(ic) = ic_b1;
-  end
-end
-
-% 物理的な柱脚を持つ柱への対応（BRACE2はBRACE1を参照）
 idmc2base = (1:nmec)';
-has_brace1_pair = brace1_pair > 0;
-idmc2base(has_brace1_pair) = brace1_pair(has_brace1_pair);
+if any(is_brace2)
+  idmc2base(is_brace2) = member_column.idsplit(is_brace2);
+end
 idmc2nbase = idmc2n1(idmc2base);
 
 % 下層柱抜け判定: 1階柱と人工分割されたBRACE1は対象外

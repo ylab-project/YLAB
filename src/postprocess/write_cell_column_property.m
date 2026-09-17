@@ -90,27 +90,29 @@ for i=1:nfl
         if column.type(ic) == PRM.COLUMN_FOR_BRACE_BODY
           continue
         end
-        % 共通
-        idm = column.idme(ic);
-        lm_ = lm(idm);
-        lfcx_ = lfcx(ic,:);
-        lfcy_ = lfcy(ic,:);
-        iscb_ = idm2scb(idm);
-        joint_ = column.joint(ic, :);
-        lrcn_ = lrcn(ic, :);
-        % 分割部材対応
+        % 分割柱は所属階内の要素だけを一つの帳票行へまとめる
+        idcc = ic;
+        ic1 = ic;
         if column.type(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
           idnmc = idmc2nmc(ic);
           idcc = nominal_column.idmec(idnmc,:);
           idcc = idcc(idcc > 0);
-          idmm = idmc2m(idcc);
-          lm_ = sum(lm(idmm));
-          lfcx_(2) = lfcx(idcc(end),2);
-          lfcy_(2) = lfcy(idcc(end),2);
-          lrcn_(2) = lrcn(idcc(end),2);
-          iscb_ = idm2scb(idmm(end));
-          joint_ = nominal_column.joint(idnmc, :);
+          idcc = idcc(column.idfloor(idcc) == ifl);
+          % 柱脚接合条件は分割前の条件を持つ本体側から取得する
+          ic1 = column.idsplit(ic);
         end
+        ic2 = idcc(end);
+        idm = idmc2m(ic);
+        idmm = idmc2m(idcc);
+        lm_ = sum(lm(idmm));
+        lfcx_ = [lfcx(ic,1), lfcx(ic2,2)];
+        lfcy_ = [lfcy(ic,1), lfcy(ic2,2)];
+        lrcx_ = [lrcx(ic,1), lrcx(ic2,2)];
+        lrcy_ = [lrcy(ic,1), lrcy(ic2,2)];
+        lrcn_ = [lrcn(ic,1), lrcn(ic2,2)];
+        iscb_ = idm2scb(idmc2m(ic1));
+        joint_ = column.joint(ic1,:);
+        joint_([2 4]) = column.joint(ic2,[2 4]);
         % 剛性表
         write_cpbody
         % 1 柱 = 2 物理行/論理ブロック。x 行（1 行目）に CONT_MARKER
@@ -131,7 +133,7 @@ return
   %
   %   入力引数:
   %     なし（外側スコープの ic, idm, lm_, lfcx_, lfcy_, iscb_,
-  %     ifl, msprop, Iy, Iz, cphiI, lrcx, lrcy, lrcn_, naxis,
+  %     ifl, msprop, Iy, Iz, cphiI, lrcx_, lrcy_, lrcn_, naxis,
   %     is_output_axis_end, icol_axis, icol_face, icol_joint, cbstiff,
   %     joint_, column, secc, floor, Em, Gm
   %     を参照）
@@ -168,10 +170,10 @@ return
     kappa_ = get_kappa(secc.type(idsc));
     cpbody(irow*2-1:irow*2,20) = {kappa_; kappa_};
     cpbody{irow*2-1,21} = sprintf('%.0f', lm_);
-    cpbody(irow*2-1:irow*2,22) = {sprintf('%.0f', lrcx(ic,2)); ...
-      sprintf('%.0f', lrcy(ic,2))};
-    cpbody(irow*2-1:irow*2,23) = {sprintf('%.0f', lrcx(ic,1)); ...
-      sprintf('%.0f', lrcy(ic,1))};
+    cpbody(irow*2-1:irow*2,22) = {sprintf('%.0f', lrcx_(2)); ...
+      sprintf('%.0f', lrcy_(2))};
+    cpbody(irow*2-1:irow*2,23) = {sprintf('%.0f', lrcx_(1)); ...
+      sprintf('%.0f', lrcy_(1))};
     axis_values = [lrcn_(2), lrcn_(1)];
     axis_values = axis_values(is_output_axis_end);
     for iaxis = 1:naxis

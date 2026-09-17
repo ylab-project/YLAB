@@ -62,11 +62,10 @@ for i = 1:nfl
         if isempty(ic)
           continue
         end
-        idsub = column.idnominal(ic, 2);
-        inc = column.idnominal(ic, 1);
-        if inc > 0 && com.nominal.column.isthrough(inc)
-          idsub = 1;
-        end
+        % 分割番号は名目柱全体で通算せず、所属階内で柱脚から数える
+        idsub = nnz(column.idnominal(:, 1) == column.idnominal(ic, 1) ...
+          & column.idfloor == ifl & column.idnominal(:, 2) <= ...
+          column.idnominal(ic, 2));
         irow = irow+1;
         body{irow,1} = column.floor_name{ic};
         body{irow,2} = column.coord_name{ic,1};

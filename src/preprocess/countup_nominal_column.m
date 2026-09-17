@@ -1,12 +1,13 @@
-function [idnominal, isprimary, idsecc, nominal_column] = ...
+function [idnominal, idsecc, nominal_column] = ...
   countup_nominal_column(member_column, member_girder, member_brace, com)
 %countup_nominal_column - 通し柱を名目柱として集約する
 %
-%   [idnominal, isprimary, idsecc, nominal_column] =
+%   [idnominal, idsecc, nominal_column] =
 %     countup_nominal_column(member_column, member_girder, ...
 %     member_brace, com) は、柱の接続関係をたどって通し柱を
 %   集約し、構成要素、接続部材および接合条件を持つ名目柱
-%   テーブルを生成する。
+%   テーブルを生成する。一本部材指定は入力の端部フラグから
+%   求め、内部分割を含む接続関係とは区別する。
 %
 %   入力引数:
 %     member_column - 柱部材テーブル
@@ -16,7 +17,6 @@ function [idnominal, isprimary, idsecc, nominal_column] = ...
 %
 %   出力引数:
 %     idnominal    - 柱から名目柱への逆引き [nmc×2]
-%     isprimary    - 各名目柱の柱脚側代表要素 [nmc×1]
 %     idsecc       - 名目柱内で統一した柱断面番号 [nmc×1]
 %     nominal_column - 名目柱テーブル
 
@@ -31,8 +31,9 @@ member_isthrough = member_column.isthrough;
 idnominal = zeros(nmc, 2);
 idsecc = member_column.idsecc;
 
-% 柱脚側の代表要素に名目柱番号を割り当てる
-isprimary = ~member_isthrough(:, 1);
+% 接続先に現れない柱を起点とし、内部分割の連結も保つ
+isprimary = true(nmc, 1);
+isprimary(idconnected(idconnected > 0)) = false;
 idnominal(isprimary, 1) = (1:nnz(isprimary)).';
 idnominal(isprimary, 2) = 1;
 
@@ -53,7 +54,7 @@ for ic = 1:nmc
     idnext = idconnected(idnext);
     idnominal(idcur, 1) = inc;
     idnominal(idcur, 2) = jnc;
-    if idnext == 0 || idnext == -1
+    if idnext == 0
       break
     end
     jnc = jnc + 1;
@@ -111,23 +112,17 @@ for inc = 1:nnmc
   is_allowable_stress(inc) = section_is_allowable(idsecc(ic));
 end
 
-% 通し柱指定による集約とブレース脚分割を区別する
+% 一本部材指定は入力の端部フラグだけから求める
 isthrough = false(nnmc, 1);
 for inc = 1:nnmc
-  nsub = idsub(inc, 2);
-  if nsub == 1
-    continue
-  end
-  ids = idmec(inc, 1:nsub);
-  is_brace_split = ...
-    member_column.type(ids) == PRM.COLUMN_FOR_BRACE_FOUNDATION ...
-    | member_column.type(ids) == PRM.COLUMN_FOR_BRACE_BODY;
-  isthrough(inc) = ~any(is_brace_split);
+  ids = idmec(inc, 1:idsub(inc, 2));
+  isthrough(inc) = any(member_isthrough(ids, :), 'all');
 end
 
 % 解析用分割要素から分割前の柱脚・柱頭接合条件を組み立てる
 joint = countup_nominal_column_joint(member_column, idmec, idsub);
 
+% 結果の保存
 nominal_column = table(idmec, idsub, isthrough, is_girder_connected, ...
   is_brace_connected, is_allowable_stress, joint);
 

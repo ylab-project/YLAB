@@ -5,7 +5,7 @@ function [joint_top, joint_bottom] = calc_column_joint_length( ...
 %
 %   [joint_top, joint_bottom] =
 %     calc_column_joint_length(member_column,
-%     member_girder, node, stype_sec,
+%     member_girder, [], stype_sec,
 %     idsecg2sec, secdim, cxl_girder) は、
 %   SS7マニュアル 4.4.1 に基づき柱頭・柱脚の
 %   仕口部長さを算出する。
@@ -15,12 +15,15 @@ function [joint_top, joint_bottom] = calc_column_joint_length( ...
 %   斜行梁は梁せいを鉛直方向へ投影してから計算する。
 %
 %   入力引数:
-%     member_column - 柱部材構造体
+%     member_column - 柱部材構造体。BODYのidsplitはFOUNDATION番号
 %     member_girder - 梁部材構造体
+%     ~             - 未使用（既存の呼出し引数位置を維持）
 %     stype_sec     - 断面種別配列 [nsec x 1]
 %     idsecg2sec    - 梁断面→統一断面ID変換配列
 %     secdim        - 断面寸法配列 [nsec x ncol]
 %     cxl_girder    - 標準系の梁軸方向余弦 [nmg x 3]
+%
+%   入力の梁レベルと梁せいはmm単位。
 %
 %   出力引数:
 %     joint_top    - 柱頭の仕口部長さ [nmec x 1] (mm)
@@ -49,21 +52,7 @@ idgy1 = member_column.idmeg_face1y;
 idgx2 = member_column.idmeg_face2x;
 idgy2 = member_column.idmeg_face2y;
 
-% BRACE2→BRACE1対応マップ
 ctype = member_column.type;
-is_brace2 = ctype == PRM.COLUMN_FOR_BRACE_BODY;
-is_brace1 = ctype == PRM.COLUMN_FOR_BRACE_FOUNDATION;
-brace1_pair = zeros(nmec, 1);
-for ic = 1:nmec
-  if ~is_brace2(ic)
-    continue
-  end
-  nom_id = member_column.idnominal(ic, 1);
-  ic_b1 = find(member_column.idnominal(:, 1) == nom_id & is_brace1, 1);
-  if ~isempty(ic_b1)
-    brace1_pair(ic) = ic_b1;
-  end
-end
 
 joint_top = zeros(nmec, 1);
 joint_bottom = zeros(nmec, 1);
@@ -82,9 +71,9 @@ for ic = 1:nmec
   end
 
   % --- 柱脚: face1 の梁 ---
-  % BRACE2はBRACE1のface1を使用
-  if is_brace2(ic) && brace1_pair(ic) > 0
-    ic_f1 = brace1_pair(ic);
+  % BODYの柱脚梁面は、idsplitで対応するFOUNDATIONから採る
+  if ctype(ic) == PRM.COLUMN_FOR_BRACE_BODY
+    ic_f1 = member_column.idsplit(ic);
   else
     ic_f1 = ic;
   end
@@ -98,9 +87,21 @@ end
 return
 
   function jlen = joint_length(idg_)
-  %joint_length - 梁群の最上部〜最下部の鉛直距離
+  %joint_length - 接続梁の最上部から最下部までの距離を求める
+  %
+  %   jlen = joint_length(idg_) は、親関数の梁レベルglvと
+  %   鉛直投影した梁せいHg_projから仕口部の鉛直長さを求める。
+  %
+  %   入力引数:
+  %     idg_ - 柱端に接続する梁番号
+  %
+  %   出力引数:
+  %     jlen - 接続梁の最上部から最下部までの鉛直長さ (mm)
+
     top_ = glv(idg_);
     bot_ = glv(idg_) - Hg_proj(idg_);
     jlen = max(top_) - min(bot_);
+
+    return
   end
 end

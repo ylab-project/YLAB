@@ -113,12 +113,6 @@ classdef PRM
     BRACE  = 3            % ブレース
     HORIZONTAL_BRACE = 4  % 水平ブレース
 
-    %% 名目部材種別
-    NOMINAL_MULTI_MEMBER = 100
-    NOMINAL_MULTI_COLUMN_BRACE = 101
-    NOMINAL_MULTI_GIRDER_BRACE = 102
-    NOMINAL_NORMAL_MEMBER = 0
-
     % 断面種別（梁/柱）
     WFS  = 10   % Ｈ形鋼
     HSS  = 20   % 角形鋼管

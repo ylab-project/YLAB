@@ -648,7 +648,7 @@ state.tb.is_tension = is_tension(com.member.brace.idme);
 
 %% 設計応力の計算
 df0 = calc_design_force(rs0, lcdir, idmc2m, idmg2m, lm, lf);
-dfn0 = calc_nominal_design_force(df0, nominal_property);
+dfn0 = calc_nominal_design_force(df0, nominal_property, member);
 stype_nm = stype(idm2s(nominal_property.idme(:,1)));
 is_rc_girder_nm = nominal_property.mtype == PRM.GIRDER ...
   & stype_nm == PRM.RCRS;

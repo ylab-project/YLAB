@@ -24,7 +24,7 @@ function [gri, grj, grc, cri, crj, gsi, gsj, csi, csj, bnij] = ...
 %     bnij          - ブレースの軸力制約値 [nb×nlc]
 
 % 共通定数
-nnm = size(nominal.property.ntype,1);
+nnm = size(nominal.property.mtype,1);
 nng = size(nominal.girder.idmeg,1);
 nnc = size(nominal.column.idmec,1);
 nmb = nnz(nominal.property.mtype==PRM.BRACE);

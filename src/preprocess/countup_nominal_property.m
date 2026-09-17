@@ -1,22 +1,32 @@
 function [nominal_property, idnominal_girder, idnominal_column, ...
   idnominal_brace, idnominal] = countup_nominal_property(com)
+%countup_nominal_property - 名目部材と解析要素の対応を組み立てる
+%
+%   [nominal_property, idnominal_girder, idnominal_column, ...
+%     idnominal_brace, idnominal] = countup_nominal_property(com) は、
+%   梁・柱・ブレースの構成順序を保って名目部材番号を割り当てる。
+%   名目部材から解析要素への対応と各部材からの逆引きを返す。
+%
+%   入力引数:
+%     com - 解析要素と種別ごとの名目部材を保持する共通情報
+%
+%   出力引数:
+%     nominal_property - 部材種別と構成要素の対応表
+%     idnominal_girder  - 名目梁から名目部材への対応 [nnmg×1]
+%     idnominal_column  - 名目柱から名目部材への対応 [nnmc×1]
+%     idnominal_brace   - 名目ブレースから名目部材への対応 [nbr×1]
+%     idnominal         - 全解析要素から名目部材への対応 [nm×1]
 
 % 計算の準備
 nominal_girder = com.nominal.girder;
 nominal_column = com.nominal.column;
 nominal_brace = com.nominal.brace;
-girder = com.member.girder;
-column = com.member.column;
-brace = com.member.brace;
 idmg2m = com.member.girder.idme;
 idmc2m = com.member.column.idme;
 idmb2m = com.member.brace.idme;
 
 % 定数
 nm = com.nme;
-nmg = com.nmeg;
-nmc = com.nmec;
-nmb = com.nmeb;
 nnmg = size(nominal_girder,1);
 nnmc = size(nominal_column,1);
 nbr = size(nominal_brace,1);
@@ -29,69 +39,40 @@ end
 
 % 一本部材のカウント
 mtype = zeros(nnm,1);
-ntype = zeros(nnm,1);
-idsub = zeros(nnm,3);
-idmdf = zeros(nnm,13);
 idme = zeros(nnm,maxcol);
 id = 0;
 
 % 梁部材
-idng = zeros(nnm,1);
 idnominal_girder = zeros(nnmg,1);
 for ig=1:nnmg
   id = id+1;
   mtype(id) = PRM.GIRDER;
-  idng(id) = ig;
-  idsub(id,1:3) = nominal_girder.idsub(ig,1:3);
   ncol = nnz(nominal_girder.idmeg(ig,:));
   idmeg = nominal_girder.idmeg(ig,1:ncol);
   idme(id,1:ncol) = idmg2m(idmeg);
   idnominal_girder(ig) = id;
-
-  % 名目部材種別
-  if(ncol>1)
-    ntype(id) = PRM.NOMINAL_MULTI_MEMBER;
-  end
 end
 
 % 柱部材
-idnc = zeros(nnm,1);
 idnominal_column = zeros(nnmc,1);
 for ic=1:nnmc
   id = id+1;
   mtype(id) = PRM.COLUMN;
-  idnc(id) = ic;
-  idsub(id,1:2) = nominal_column.idsub(ic,1:2);
   ncol = nnz(nominal_column.idmec(ic,:));
   idmec = nominal_column.idmec(ic,1:ncol);
   idme(id,1:ncol) = idmc2m(idmec);
   idnominal_column(ic) = id;
-
-  % 名目部材種別
-  if any(column.type(idmec)==PRM.COLUMN_FOR_BRACE_FOUNDATION)
-    ntype(id) = PRM.NOMINAL_MULTI_COLUMN_BRACE;
-  elseif(ncol>1)
-    ntype(id) = PRM.NOMINAL_MULTI_MEMBER;
-  end
-
 end
 
 % ブレース部材
-idb = zeros(nnm,1);
 idnominal_brace = zeros(nbr,1);
 for ib=1:nbr
   id = id+1;
   mtype(id) = PRM.BRACE;
-  idb(id) = ib;
-  idsub(id,1:2) = nominal_brace.idsub(ib,1:2);
   rows = nominal_brace.idmeb(ib,:);
   rows = rows(rows>0);
   idme(id,1:numel(rows)) = idmb2m(rows);
   idnominal_brace(ib) = id;
-
-  if numel(rows)>1
-    ntype(id) = PRM.NOMINAL_MULTI_MEMBER;
-  end
 end
 
 % 逆引き
@@ -102,7 +83,8 @@ for inm = 1:nnm
   end
 end
 
-% Table作成
-nominal_property = table(mtype, ntype, idme, idsub, idng, idnc, idb);
+% 結果の保存め
+nominal_property = table(mtype, idme);
+
 return
 end
