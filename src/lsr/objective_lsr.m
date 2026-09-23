@@ -112,8 +112,6 @@ if nargout >= 2
   fdetail.cost_sublist = zeros(nsublist, 1);
   % リスト別集計
   idm2sslist = secmgr.getIdMemberToSubList(ids2slist);
-  fdetail.weight_sublist = zeros(secmgr.nlist, 1);
-  fdetail.cost_sublist = zeros(secmgr.nlist, 1);
   for id = 1:nsublist
     istarget = (idm2sslist == id);
     fdetail.weight_sublist(id) = sum(wm(istarget));

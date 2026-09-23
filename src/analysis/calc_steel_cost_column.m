@@ -1,6 +1,5 @@
-function [weight, cost, idsec, idmat] = ...
-  calc_steel_cost_column(column, stype, ...
-    idsecc2sec, secdim, lm, Am, secmgr)
+function [weight, cost, idsec, idmat] = calc_steel_cost_column( ...
+  column, stype, idsecc2sec, secdim, lm, Am, secmgr)
 %calc_steel_cost_column - 柱の鉄骨積算データを算出
 %
 %   [weight, cost, idsec, idmat] =
@@ -42,13 +41,13 @@ for ic = 1:nc
   end
 
   idm = column.idme(ic);
-  idslist = secdim(is, 6);
-  idsection = secdim(is, 7);
-  cfm = secmgr.secList.cost_factor{idslist}(idsection);
+  idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+  idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
+  idsub = secmgr.secList.idsublist{idslist}(idsection);
+  cfm = secmgr.secList.cost_factor(idsub);
 
   idsec(ic) = is;
-  idmat(ic) = ...
-    secmgr.secList.idmaterial{idslist}(idsection);
+  idmat(ic) = secmgr.secList.idmaterial(idsub);
   weight(ic) = Am(idm) * lm(idm) * PRM.RHOS * 1e-9;
   cost(ic) = cfm * weight(ic);
 end

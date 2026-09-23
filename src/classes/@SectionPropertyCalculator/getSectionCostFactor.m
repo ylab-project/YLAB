@@ -3,7 +3,7 @@ function sectionCostFactor = getSectionCostFactor(obj, idsec2slist)
 %
 %   sectionCostFactor = getSectionCostFactor(obj, idsec2slist)
 %   は、断面リストIDと断面IDのペアから、各断面のコスト係数を
-%   取得します。
+%   取得します。コスト係数は候補断面が属するサブリストの値です。
 %
 %   入力引数:
 %     idsec2slist - 断面リストID/断面IDペア配列 [n × 2]
@@ -22,8 +22,8 @@ function sectionCostFactor = getSectionCostFactor(obj, idsec2slist)
 sectionCostFactor = obj.sectionCostFactor_;
 for ilist = 1:obj.nlist
   isTarget = idsec2slist(:,1) == ilist;
-  idsec = idsec2slist(isTarget, 2);
-  sectionCostFactor(isTarget) = obj.secList_.cost_factor{ilist}(idsec);
+  idsub = obj.secList_.idsublist{ilist}(idsec2slist(isTarget, 2));
+  sectionCostFactor(isTarget) = obj.secList_.cost_factor(idsub);
 end
 
 return

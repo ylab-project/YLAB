@@ -1,12 +1,12 @@
 function record = getListRecord(obj, secdim)
 %getListRecord 断面テーブルレコードを取得
 %   record = getListRecord(obj, secdim) は、
-%   secdim の末尾2列（断面リストID, 断面ID）から
+%   secdim の断面リストID列と断面ID列（第6・7列）から
 %   対応するテーブルレコードを取得します。
 %
 %   入力引数:
-%     secdim - 断面寸法配列 [n×ncol]
-%              末尾2列: 断面リストID, 断面ID
+%     secdim - 断面寸法配列 [n×7]
+%              第6列: 断面リストID、第7列: 断面ID
 %
 %   出力引数:
 %     record - テーブルレコード (table型) [n×列数]
@@ -31,15 +31,16 @@ if isempty(secdim)
   return
 end
 
-% 末尾2列を断面IDペアとして取得
-sectionIds = secdim(:, end-1:end);
+% 断面リストID列と断面ID列を取得
+sectionIds = secdim(:, ...
+  [PRM.MAPPED_SECDIM_SLIST PRM.MAPPED_SECDIM_SECTION]);
 
 % 計算の準備
 uniqueListIds = unique(sectionIds(:, 1));
 nRows = size(sectionIds, 1);
 
 % パフォーマンス最適化: 単一断面リストの場合の高速化
-if length(uniqueListIds) == 1
+if isscalar(uniqueListIds)
   % 単一断面リスト（95%のケース）: 直接アクセスで大幅高速化
   listId = uniqueListIds(1);
   record = obj.secList_.list{listId}(sectionIds(:, 2), :);
@@ -55,7 +56,8 @@ else
     isTargetList = sectionIds(:, 1) == listId;
     targetSectionIds = sectionIds(isTargetList, 2);
     
-    record(isTargetList, :) = obj.secList_.list{listId}(targetSectionIds, :);
+    record(isTargetList, :) = ...
+      obj.secList_.list{listId}(targetSectionIds, :);
   end
 end
 

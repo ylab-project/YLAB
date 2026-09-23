@@ -1,19 +1,20 @@
 function [head, body] = ...
   write_cell_brace_steel_section_list( ...
-  secb, stype, secdim, secmgr)
+  secb, stype, secdim, secmgr, material)
 %write_cell_brace_steel_section_list - 鋼材ブレース仮定断面リスト
 %
 %   [head, body] = ...
 %     write_cell_brace_steel_section_list( ...
-%     secb, stype, secdim, secmgr) は、
+%     secb, stype, secdim, secmgr, material) は、
 %   鋼材ブレース（BWFS/BHSS/BHSR）の仮定断面リストを
 %   入力CSV形式（8列）で生成する。
 %
 %   入力引数:
-%     secb   - ブレース断面情報構造体
-%     stype  - 断面タイプ配列 [nsec×1]
-%     secdim - 断面寸法配列 [nsec×7]
-%     secmgr - SectionManagerオブジェクト
+%     secb     - ブレース断面情報構造体
+%     stype    - 断面タイプ配列 [nsec×1]
+%     secdim   - 断面寸法配列 [nsec×7]
+%     secmgr   - SectionManagerオブジェクト
+%     material - 材料テーブル（com.material）
 %
 %   出力引数:
 %     head - ヘッダーセル配列 [2×8]
@@ -38,7 +39,7 @@ secdim_sl = secdim(is_steel, :);
 %% 断面リストレコード取得（リストIDごとに分割）
 % 異なる列構造の断面リストを一括取得すると
 % table代入エラーとなるため個別に取得する
-listIds = secdim_sl(:, end-1);
+listIds = secdim_sl(:, PRM.MAPPED_SECDIM_SLIST);
 uids = unique(listIds);
 secblist_type = cell(nsl, 1);
 for k = 1:length(uids)
@@ -61,7 +62,8 @@ body = cell(nsl, 8);
 for i = 1:nsl
   isb = idx_sl(i);
   dim = secdim_sl(i, :);
-  idsl = secb.id_section_list(isb);
+  idsl = dim(PRM.MAPPED_SECDIM_SLIST);
+  idsub = secmgr.secList.idsublist{idsl}(dim(PRM.MAPPED_SECDIM_SECTION));
   body{i, 1} = secb.name{isb};
   body{i, 2} = type_str(secb.type(isb));
   body{i, 3} = ...
@@ -70,8 +72,7 @@ for i = 1:nsl
   body{i, 5} = '0';
   body{i, 6} = '0';
   body{i, 7} = '0';
-  body{i, 8} = ...
-    secmgr.secList.material_name{idsl, 1};
+  body{i, 8} = material.name{secmgr.secList.idmaterial(idsub)};
 end
 
 return

@@ -65,6 +65,7 @@ A = result.msprop.A;
 Asc = result.msprop.Asc;
 Aw = result.msprop.Aw;
 F = result.msprop.F;
+material_name = result.msprop.material_name;
 slratio = result.slratio;
 has_slr = isstruct(slratio);
 dangle = result.deflection_angle;
@@ -189,10 +190,9 @@ for i = 1:nstory
       % SS7 と同じ単一論理行ブロックとして cmp7 で照合できるようにする）
       irow_block_start = irow + 1;
 
-      % --- 鉄骨ヘッダ行 ---
+      % --- 鉄骨ヘッダ行（材料名とF値は代表部材の材料） ---
       is_ = idsecg2sec(isg);
-      idsl_ = secdim(is_, 6);
-      mat_ = secmgr.secList.material_name{idsl_,1};
+      mat_ = material_name{im1};
       F_ = F(im1);
       hkey_ = sprintf('%s_%.0f', mat_, F_);
       if ~strcmp(hkey_, prev_mat_key)
@@ -240,7 +240,8 @@ for i = 1:nstory
       end
 
       % --- 断面行 ---
-      idsection_ = secdim(is_, 7);
+      idsl_ = secdim(is_, PRM.MAPPED_SECDIM_SLIST);
+      idsection_ = secdim(is_, PRM.MAPPED_SECDIM_SECTION);
       sl_ = secmgr.secList.list{idsl_};
       sym_ = sl_.symbol{idsection_};
       stype_ = stype(is_);

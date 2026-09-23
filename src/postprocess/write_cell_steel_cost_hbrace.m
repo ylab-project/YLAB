@@ -88,8 +88,8 @@ return
     end
     stype_ = stype(is);
     isb = hbrace.idsechb(ib_);
-    idslist = secdim(is, 6);
-    idsection = secdim(is, 7);
+    idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+    idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
 
     idm = hbrace.idme(ib_);
     L_mm = lm_hbr(ib_);

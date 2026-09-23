@@ -16,7 +16,8 @@ function [secbrace, id] = findNearestSectionBraceSteel( ...
 %     secbrace - 選択した断面寸法 [ntarget×5]
 %     id       - ID構造体（.slist、.section）
 
-secdimlist = obj.standardAccessor_.getSectionDimension(idslist);
+[secdimlist, idsection] = ...
+  obj.standardAccessor_.getSectionDimension(idslist);
 nsecdim = size(secdimlist, 2);
 idsec_list = find(is_target);
 ntarget = length(idsec_list);
@@ -39,7 +40,7 @@ for itarget = 1:ntarget
   ndim = min(nsecdim, 5);
   secbrace(itarget, 1:ndim) = secdimlist(index, 1:ndim);
   id.slist(itarget) = idslist;
-  id.section(itarget) = index;
+  id.section(itarget) = idsection(index);
 end
 
 return

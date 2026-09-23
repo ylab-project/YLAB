@@ -1,32 +1,59 @@
 classdef SectionListHandler < handle
+  %SectionListHandler 断面リストの候補断面表を保持するクラス
+  %   断面リスト名ごとに、入力ブロック「断面リスト」の各行（サブリスト）
+  %   が指定するリストファイルの候補行を読み込み、同じ断面リスト名の行を
+  %   入力順に縦へ連結した候補断面表を保持します。材料、コスト係数、
+  %   コスト定数、フェーズ番号、タイプの絞込み条件はサブリスト単位で持ち、
+  %   候補断面表の各行は idsublist で自分のサブリストを指します。
+  %
+  %   SectionListHandler プロパティ:
+  %     listdir               - リストファイルの格納ディレクトリ
+  %     name                  - 断面リスト名 {nlist×1}
+  %     section_type          - 断面種別 [nlist×1]
+  %     section_type_name     - 鉄骨形状名 {nlist×1}
+  %     list                  - 候補断面表（table）{nlist×1}
+  %     dimension_array       - 候補断面の寸法配列 {nlist×1}
+  %     dimension_value_array - フェーズ別の寸法値の集合 {nlist×1}
+  %     idsublist             - 候補断面→サブリスト {nlist×1}
+  %     idmaterial            - サブリストの材料ID [nsublist×1]
+  %     isSN                  - サブリストの材料がSN材か [nsublist×1]
+  %     cost_factor           - サブリストのコスト係数 [nsublist×1]
+  %     cost_constant         - サブリストのコスト定数 [nsublist×1]
+  %     design_stress_factor  - サブリストの設計応力係数 [nsublist×1]
+  %     idphase               - サブリストのフェーズ番号 [nsublist×1]
+  %     type_name             - サブリストのタイプ絞込み条件 {nsublist×1}
+  %
+  %   SectionListHandler メソッド:
+  %     registerList       - 断面リストブロックの各行を読み込む
+  %     getDimension       - フェーズ内の候補断面の寸法配列を取得
+  %     getDimensionValues - フェーズ内の寸法値の集合を取得
+  %     getMaxIdPhase      - フェーズ番号の最大値を取得
+  %
+  %   参考:
+  %     SectionManager, SectionStandardAccessor
+
   properties
-    listdir
-    name
-    section_type_name
-    material_name
-    % file_name
-    section_type
-    idmaterial
-    list
-    dimension_array
-    dimension_value_array
-    % isValid
-    cost_factor
-    cost_constant
-    design_stress_factor
-    isSN
-    idphase
-    type_name
-    idsublist
-    nsublist
+    listdir               % リストファイルの格納ディレクトリ
+    name                  % 断面リスト名 {nlist×1}
+    section_type_name     % 鉄骨形状名 {nlist×1}
+    section_type          % 断面種別 [nlist×1]
+    list                  % 候補断面表（table）{nlist×1}
+    dimension_array       % 候補断面の寸法配列 {nlist×1}
+    dimension_value_array % フェーズ別の寸法値の集合 {nlist×1}
+    idsublist             % 候補断面→サブリスト {nlist×1}、各[ncand×1]
+    idmaterial            % サブリストの材料ID [nsublist×1]
+    isSN                  % サブリストの材料がSN材か [nsublist×1]
+    cost_factor           % サブリストのコスト係数 [nsublist×1]
+    cost_constant         % サブリストのコスト定数 [nsublist×1]
+    design_stress_factor  % サブリストの設計応力係数 [nsublist×1]
+    idphase               % サブリストのフェーズ番号 [nsublist×1]
+    type_name             % サブリストのタイプ絞込み条件 {nsublist×1}
   end
 
   properties(Dependent)
-    nlist
-    nwfsList
-    nhssList
-    nsecOfList
-    dimension
+    nlist       % 断面リスト数
+    nsublist    % サブリスト数（断面リストブロックのデータ行数）
+    nsecOfList  % 断面リストごとの候補断面数 [nlist×1]
   end
 
   methods
@@ -35,20 +62,10 @@ classdef SectionListHandler < handle
       nlist = length(obj.list);
     end
     %----------------------------------------------------------------------
-    function nwfsList = get.nwfsList(obj)
-      nwfsList = sum(obj.section_type==PRM.WFS);
+    function nsublist = get.nsublist(obj)
+      nsublist = length(obj.idphase);
     end
     %----------------------------------------------------------------------
-    function nhssList = get.nhssList(obj)
-      nhssList = sum(obj.section_type==PRM.HSS);
-    end
-    %----------------------------------------------------------------------
-    function dimension = get.dimension(obj)
-      dimension = cell(obj.nlist,1);
-      for id=1:obj.nlist
-        dimension{id} = obj.getDimension(id);
-      end
-    end
     function nsecOfList = get.nsecOfList(obj)
       nsecOfList = zeros(obj.nlist,1);
       for i=1:obj.nlist
@@ -60,49 +77,58 @@ classdef SectionListHandler < handle
       obj.listdir = listdir;
     end
     %----------------------------------------------------------------------
-    function obj = registerList(obj, ...
-        section_type, section_type_name, nlist, ...
-        section_list_name, material_name, ...
-        file_name, idmaterial, cost_factor, ...
-        cost_constant, design_stress_factor, ...
-        isSN, idphase, type_name)
+    function obj = registerList(obj, section_list_name, section_type, ...
+        section_type_name, idlist, file_name, idmaterial, cost_factor, ...
+        cost_constant, design_stress_factor, isSN, idphase, type_name)
+      %registerList 断面リストブロックの各行からリストファイルを読み込む
+      %   入力引数:
+      %     section_list_name - 断面リスト名 {nlist×1}（一意）
+      %     section_type      - 断面種別 [nlist×1]
+      %     section_type_name - 鉄骨形状名 {nlist×1}
+      %     idlist            - サブリストが属する断面リスト [nsublist×1]
+      %     file_name         - サブリストのリストファイル名 {nsublist×1}
+      %     idmaterial, cost_factor, cost_constant, design_stress_factor,
+      %     isSN, idphase, type_name
+      %                       - サブリストごとの入力値 [nsublist×1]
 
-      % プロパティの保存
+      % 断面リスト単位とサブリスト単位の入力値
       obj.name = section_list_name;
       obj.section_type_name = section_type_name;
-      obj.material_name = material_name;
       obj.section_type = section_type;
+      obj.idmaterial = idmaterial;
+      obj.cost_factor = cost_factor;
+      obj.cost_constant = cost_constant;
+      obj.design_stress_factor = design_stress_factor;
+      obj.isSN = isSN;
+      obj.idphase = idphase;
+      obj.type_name = type_name;
 
-      % リストの保存
-      nlistset = size(file_name,1);
-      obj.list = cell(nlistset,1);
-      obj.dimension_array = cell(nlistset,1);
-      obj.dimension_value_array = cell(nlistset,1);
-      % obj.isValid = cell(nlistset,1);
-      obj.idmaterial = cell(nlistset,1);
-      obj.cost_factor = cell(nlistset,1);
-      obj.cost_constant = cell(nlistset,1);
-      obj.design_stress_factor = cell(nlistset,1);
-      obj.isSN = cell(nlistset,1);
-      obj.idsublist = cell(nlistset,1);
-      idsub = 0;
-      for i=1:nlistset
-        for il=1:nlist(i)
-          idsub = idsub+1;
-          file_ = fullfile(obj.listdir, file_name{i,il});
+      % 候補断面表の作成
+      nlist_ = length(section_list_name);
+      obj.list = cell(nlist_,1);
+      obj.dimension_array = cell(nlist_,1);
+      obj.dimension_value_array = cell(nlist_,1);
+      obj.idsublist = cell(nlist_,1);
+      for i=1:nlist_
+        % 同じ断面リスト名のサブリストを入力順に連結する
+        idsubs = find(idlist(:)==i);
+        list_subs = cell(numel(idsubs),1);
+        nsubs = zeros(numel(idsubs),1);
+        for k = 1:numel(idsubs)
+          idsub = idsubs(k);
+          file_ = fullfile(obj.listdir, file_name{idsub});
           opts = detectImportOptions(file_);
           opts.Delimiter = {','};
-          % opts.DataLines = [1,inf];
           opts.CommentStyle = '%';
           opts.VariableNamingRule ='preserve';
-          list_ = readtable(file_, opts);
-          nlist_ = size(list_,1);
-          isok = true(nlist_,1);
-          label_ = list_.label;
-          type_ = list_.type;
-          type_name_ = type_name{i,il};
+          list_sub = readtable(file_, opts);
+          nsub = size(list_sub,1);
+          isok = true(nsub,1);
+          label_ = list_sub.label;
+          type_ = list_sub.type;
+          type_name_ = type_name{idsub};
           if iscell(label_)
-            for j=1:nlist_
+            for j=1:nsub
               if ~isempty(label_{j})
                 if label_{j}(1) == '%'
                   isok(j) = false;
@@ -115,113 +141,62 @@ classdef SectionListHandler < handle
               end
             end
           else
-            list_.label = cellstr(num2str(label_));
+            list_sub.label = cellstr(num2str(label_));
           end
-          list_ = list_(isok,:);
-          if isempty(list_)
+          list_sub = list_sub(isok,:);
+          if isempty(list_sub)
             throw_warn('List', 'EmptyAfterFilter', ...
-              section_list_name{i}, type_name_, file_name{i,il});
-            % 空のリストでも最低限の構造を保持（il==1の場合）
-            if il == 1
-              obj.list{i} = list_;
-              obj.idmaterial{i} = [];
-              obj.cost_factor{i} = [];
-              obj.cost_constant{i} = [];
-              obj.design_stress_factor{i} = [];
-              obj.isSN{i} = [];
-              obj.idphase{i} = [];
-              obj.idsublist{i} = [];
-            end
-            continue;
+              section_list_name{i}, type_name_, file_name{idsub});
           end
-          % 個別処理
+          % 個別処理（候補が0行でも列構成を揃える）
           switch obj.section_type(i)
             case PRM.WFS
               % H形鋼の場合
-              is_small_H = list_.H<200;
-              Hnominal = list_.H;
-              Hnominal(is_small_H) = round(list_.H(is_small_H)/25)*25;
-              Hnominal(~is_small_H) = round(list_.H(~is_small_H)/50)*50;
-              list_.Hnominal = Hnominal;
-              list_.Bnominal = round(list_.B/25)*25;
+              is_small_H = list_sub.H<200;
+              Hnominal = list_sub.H;
+              Hnominal(is_small_H) = round(list_sub.H(is_small_H)/25)*25;
+              Hnominal(~is_small_H) = round(list_sub.H(~is_small_H)/50)*50;
+              list_sub.Hnominal = Hnominal;
+              list_sub.Bnominal = round(list_sub.B/25)*25;
             case PRM.BRB
               % BRBの場合
-              n = size(list_,1);
+              n = size(list_sub,1);
               dimension_ = zeros(n,4);
               for j=1:n
-                sss = textscan(list_.symbol{j}, ...
-                  '%s %f %f %f','Delimiter',{'-','(',')'});
+                sss = textscan(list_sub.symbol{j}, '%s %f %f %f', ...
+                  'Delimiter',{'-','(',')'});
                 type = PRM.get_id_ubb_type(sss{1});
                 dimension_(j,1:4) = [type sss{2} sss{3} sss{4}];
               end
-              list_.dimension = dimension_;
+              list_sub.dimension = dimension_;
             case PRM.HSR
               % HSR（円形鋼管）の場合
               % CSVの列構成: label, type, symbol, D, t
               % dimensionとして[D, t]を格納
-              n = size(list_,1);
+              n = size(list_sub,1);
               dimension_ = zeros(n,2);
-              dimension_(:,1) = list_.D;     % 外径
-              dimension_(:,2) = list_.t;     % 板厚
-              list_.dimension = dimension_;
+              dimension_(:,1) = list_sub.D;     % 外径
+              dimension_(:,2) = list_sub.t;     % 板厚
+              list_sub.dimension = dimension_;
             case PRM.TB
               % 引張ブレースの場合
               % dimension: [shape_code, A(mm2), Ae(mm2)]
-              n = size(list_, 1);
+              n = size(list_sub, 1);
               dimension_ = zeros(n, 3);
               for j = 1:n
                 dimension_(j, 1) = ...
-                  PRM.get_tb_shape_code(list_.label{j});
+                  PRM.get_tb_shape_code(list_sub.label{j});
               end
-              dimension_(:, 2) = list_.A * 100; % cm2→mm2
-              dimension_(:, 3) = list_.Ae * 100; % cm2→mm2
-              list_.dimension = dimension_;
+              dimension_(:, 2) = list_sub.A * 100; % cm2→mm2
+              dimension_(:, 3) = list_sub.Ae * 100; % cm2→mm2
+              list_sub.dimension = dimension_;
           end
-          nlist_ = size(list_,1);
-          idsublist_ = idsub*(ones(nlist_,1));
-          if il==1
-            % 新規作成
-            obj.list{i} = list_;
-            % obj.isValid{i} = true(1,nlist_);
-            obj.idmaterial{i} = idmaterial(i,il)*ones(1,nlist_);
-            obj.cost_factor{i} = cost_factor(i,il)*ones(1,nlist_);
-            obj.cost_constant{i} = ...
-              cost_constant(i,il)*ones(1,nlist_);
-            obj.design_stress_factor{i} = ...
-              design_stress_factor(i,il) ...
-              *ones(1,nlist_);
-            if isSN(i,il)
-              obj.isSN{i} = true(1,nlist_);
-            else
-              obj.isSN{i} = false(1,nlist_);
-            end
-            obj.idphase{i} = idphase(i,il)*ones(1,nlist_);
-            obj.idsublist{i} = idsublist_;
-          else
-            % 追加
-            obj.list{i} = [obj.list{i}; list_];
-            % obj.isValid{i} = [obj.isValid{i} true(1,nlist_)];
-            obj.idmaterial{i} = [obj.idmaterial{i} ...
-              idmaterial(i,il)*ones(1,nlist_)];
-            obj.cost_factor{i} = [obj.cost_factor{i} ...
-              cost_factor(i,il)*ones(1,nlist_)];
-            obj.cost_constant{i} = ...
-              [obj.cost_constant{i} ...
-              cost_constant(i,il)*ones(1,nlist_)];
-            obj.design_stress_factor{i} = ...
-              [obj.design_stress_factor{i} ...
-              design_stress_factor(i,il) ...
-              *ones(1,nlist_)];
-            if isSN(i,il)
-              obj.isSN{i} = [obj.isSN{i} true(1,nlist_)];
-            else
-              obj.isSN{i} = [obj.isSN{i} false(1,nlist_)];
-            end
-            obj.idphase{i} = [obj.idphase{i} idphase(i,il)*ones(1,nlist_)];
-            obj.idsublist{i} = [obj.idsublist{i}; idsublist_];
-          end
+          list_subs{k} = list_sub;
+          nsubs(k) = size(list_sub,1);
         end
-        obj.nsublist = idsub;
+        obj.list{i} = vertcat(list_subs{:});
+        % repelemはスカラー入力で行を返すため列ベクトルにそろえる
+        obj.idsublist{i} = reshape(repelem(idsubs, nsubs), [], 1);
         if isempty(obj.list{i})
           obj.dimension_array{i} = [];
         else
@@ -242,12 +217,15 @@ classdef SectionListHandler < handle
     end
     %----------------------------------------------------------------------
     function values = createDimensionValueArray(obj, idList)
+      %createDimensionValueArray フェーズ別に寸法値の集合を作る
+      %   フェーズ番号は候補断面が属するサブリストの値を使う。
       secdim = obj.dimension_array{idList};
-      phase = unique(obj.idphase{idList});
+      idphase_ = obj.idphase(obj.idsublist{idList});
+      phase = unique(idphase_);
       values.phase = phase;
       values.column = cell(numel(phase), size(secdim, 2));
       for i = 1:numel(phase)
-        is_phase = obj.idphase{idList} <= phase(i);
+        is_phase = idphase_ <= phase(i);
         for j = 1:size(secdim, 2)
           values.column{i, j} = unique(secdim(is_phase, j))';
         end
@@ -270,47 +248,24 @@ classdef SectionListHandler < handle
     end
     %----------------------------------------------------------------------
     function n = getMaxIdPhase(obj)
-    %getMaxIdPhase - 全断面リストの idphase 最大値を返す
-      n = 0;
-      for i = 1:obj.nlist
-        if ~isempty(obj.idphase{i})
-          n = max(n, max(obj.idphase{i}));
-        end
-      end
+      %getMaxIdPhase - 全サブリストのフェーズ番号の最大値を返す
+      n = max([0; obj.idphase(:)]);
       return
     end
     %----------------------------------------------------------------------
-    function dimension = getDimension(obj, idList, idPhase)
+    function [dimension, idsection] = getDimension(obj, idList, idPhase)
+      %getDimension フェーズ内の候補断面の寸法配列を返す
+      %   フェーズ番号が idPhase 以下のサブリストに属する候補断面の
+      %   寸法配列と、各行に対応する候補断面表の行番号を返す。
       dimension = [];
-      id = idList;
-      % 空のリストの場合は空を返す
-      if isempty(obj.list{id})
+      idsection = zeros(0,1);
+      if isempty(obj.dimension_array{idList})
         return
       end
-      stype = obj.section_type(id);
-      if nargin==2
-        idPhase = inf;
-      end
-      switch stype
-        case {PRM.WFS, PRM.BWFS, PRM.HSS, PRM.BHSS, PRM.BRB, ...
-            PRM.HSR, PRM.BHSR, PRM.TB}
-          is_phase = obj.idphase{id} <= idPhase;
-          dimension = obj.dimension_array{id}(is_phase, :);
-      end
+      is_phase = obj.idphase(obj.idsublist{idList}) <= idPhase;
+      dimension = obj.dimension_array{idList}(is_phase, :);
+      idsection = find(is_phase);
       return
-    end
-    %----------------------------------------------------------------------
-    function costFactor = getCostFactor(obj, idList)
-      id = idList;
-      costFactor = obj.cost_factor{id}(obj.isValid{id});
-    end
-
-    %----------------------------------------------------------------------
-    function idMaterial = getIdMaterial(obj, idList)
-      id = idList;
-      idMaterial = obj.idmaterial{id};
     end
   end
 end
-
-

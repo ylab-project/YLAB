@@ -1,6 +1,5 @@
-function [weight, cost, idsec, idmat] = ...
-  calc_steel_cost_girder(girder, stype, ...
-    idsecg2sec, secdim, lm, Am, secmgr)
+function [weight, cost, idsec, idmat] = calc_steel_cost_girder( ...
+  girder, stype, idsecg2sec, secdim, lm, Am, secmgr)
 %calc_steel_cost_girder - 大梁の鉄骨積算データを算出
 %
 %   [weight, cost, idsec, idmat] =
@@ -38,13 +37,13 @@ for ig = 1:ng
   end
 
   idm = girder.idme(ig);
-  idslist = secdim(is, 6);
-  idsection = secdim(is, 7);
-  cfm = secmgr.secList.cost_factor{idslist}(idsection);
+  idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+  idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
+  idsub = secmgr.secList.idsublist{idslist}(idsection);
+  cfm = secmgr.secList.cost_factor(idsub);
 
   idsec(ig) = is;
-  idmat(ig) = ...
-    secmgr.secList.idmaterial{idslist}(idsection);
+  idmat(ig) = secmgr.secList.idmaterial(idsub);
   weight(ig) = Am(idm) * lm(idm) * PRM.RHOS * 1e-9;
   cost(ig) = cfm * weight(ig);
 end

@@ -1,21 +1,22 @@
 function [head, body] = ...
   write_cell_brace_section_list_ss7(...
-  secb, ~, secdim, secmgr)
+  secb, ~, secdim, secmgr, material)
 %write_cell_brace_section_list_ss7 - 鉛直ブレース断面リスト（SS7形式）
 %
 %   [head, body] = ...
 %     write_cell_brace_section_list_ss7(...
-%     secb, stype, secdim, secmgr) は、
+%     secb, stype, secdim, secmgr, material) は、
 %   BRBを除く鉛直ブレース断面リストを生成する。
 %   TB（引張ブレース）と鋼材ブレース（BWFS/BHSS/BHSR）を
 %   1つのテーブルにまとめ、存在するタイプに応じて
 %   列構成を動的に決定する（SS7仕様 2.6.19準拠）。
 %
 %   入力引数:
-%     secb   - ブレース断面情報構造体
-%     stype  - 断面タイプ配列 [nsec×1]
-%     secdim - 断面寸法配列 [nsec×7]
-%     secmgr - SectionManagerオブジェクト
+%     secb     - ブレース断面情報構造体
+%     stype    - 断面タイプ配列 [nsec×1]
+%     secdim   - 断面寸法配列 [nsec×7]
+%     secmgr   - SectionManagerオブジェクト
+%     material - 材料テーブル（com.material）
 %
 %   出力引数:
 %     head - ヘッダーセル配列 [2×ncol]
@@ -66,12 +67,14 @@ if has_steel
     isb = idx_sl(i);
     idsec = secb.idsec(isb);
     dim = secdim(idsec, :);
-    idsl = secb.id_section_list(isb);
+    idsl = dim(PRM.MAPPED_SECDIM_SLIST);
+    idsub = secmgr.secList.idsublist{idsl}( ...
+      dim(PRM.MAPPED_SECDIM_SECTION));
     body{irow, cmap(CNAME)} = secb.name{isb};
     body{irow, cmap(CSHAPE)} = ...
       format_shape_name(secb.type(isb), dim);
     body{irow, cmap(CMAT)} = ...
-      secmgr.secList.material_name{idsl, 1};
+      material.name{secmgr.secList.idmaterial(idsub)};
     body{irow, cmap(CAREA)} = '自動計算';
     body{irow, cmap(CIR)} = '自動計算';
   end

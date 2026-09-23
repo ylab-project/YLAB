@@ -7,7 +7,7 @@ function grade = extractSectionListGrade(obj, idslist)
 %     idslist - 断面リストID (スカラー整数、1～nlist)
 %
 %   出力引数:
-%     grade - 鋼種配列 [1×nsecOfList]
+%     grade - 鋼種配列 [nsecOfList×1]
 %             PRM.GRADE_SS/SN/SM の整数値
 %
 %   参考:

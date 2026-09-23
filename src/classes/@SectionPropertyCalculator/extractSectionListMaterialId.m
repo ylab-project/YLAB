@@ -7,7 +7,7 @@ function idmat = extractSectionListMaterialId(obj, idslist)
 %     idslist - 断面リストID (スカラー整数、1～nlist)
 %
 %   出力引数:
-%     idmat - 材料ID配列 [1×nsecOfList]
+%     idmat - 材料ID配列 [nsecOfList×1]
 %             nsecOfList: 断面リスト内の断面数
 %
 %   例:
@@ -23,8 +23,8 @@ if isempty(obj.secList_)
     'secListが初期化されていません');
 end
 
-% 断面リスト全体の材料ID配列を取得
-idmat = obj.secList_.idmaterial{idslist};
+% 候補断面ごとに、属するサブリストの材料IDを引く
+idmat = obj.secList_.idmaterial(obj.secList_.idsublist{idslist});
 
 return
 end

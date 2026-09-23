@@ -696,8 +696,8 @@ return
     is2_ = idsecc2sec(isc_);
     stype_ = stype(is2_);
     dim_ = secdim(is2_, :);
-    idsl_ = secdim(is2_, 6);
-    idsec_ = secdim(is2_, 7);
+    idsl_ = secdim(is2_, PRM.MAPPED_SECDIM_SLIST);
+    idsec_ = secdim(is2_, PRM.MAPPED_SECDIM_SECTION);
     sl_ = secmgr.secList.list{idsl_};
     sym_ = sl_.symbol{idsec_};
     secname_ = format_steel_cost_dim(stype_, dim_, sym_);

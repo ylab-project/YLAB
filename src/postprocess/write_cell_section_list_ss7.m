@@ -92,9 +92,9 @@ for i = 1:nstory
       gsbody{irow,10} = sectype;
       gsbody{irow,11} = sdim;
       gsbody{irow,12} = sectype;
-      % 材料名
-      idsl = secdim(is, 6);
-      mat = secmgr.secList.material_name{idsl, 1};
+      % 鉄骨材料（選択した候補断面が属するサブリストの材料）
+      idsub = secmgr.secList.idsublist{idslist}(idsection);
+      mat = material.name{secmgr.secList.idmaterial(idsub)};
       gsbody{irow,13} = mat;
       gsbody{irow,14} = mat;
       gsbody{irow,15} = mat;
@@ -143,12 +143,9 @@ for i = 1:nstory
       sdim = sprintf('%s-%gx%gx%gx%g', symbol, secdim(is,[1 1 2 3]));
       csbody{irow,5} = sdim;
       csbody{irow,6} = sectype;
-      % 鉄骨材料
-      idslist = secdim(is,6);
-      idsection = secdim(is,7);
-      idmaterial = secmgr.secList.idmaterial{idslist}(idsection);
-      material_name = material.name{idmaterial};
-      csbody{irow,7} = material_name;
+      % 鉄骨材料（選択した候補断面が属するサブリストの材料）
+      idsub = secmgr.secList.idsublist{idslist}(idsection);
+      csbody{irow,7} = material.name{secmgr.secList.idmaterial(idsub)};
     end
   end
 end

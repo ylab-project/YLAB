@@ -1,5 +1,5 @@
-function [brbsec, repbrbs, id] = ...
-  findNearestSectionBrb(obj, xvar, idslist, options)
+function [brbsec, repbrbs, id] = findNearestSectionBrb(obj, xvar, ...
+  idslist, ~)
 %findNearestSectionBrb BRB断面の最近傍選択
 %   [brbsec, repbrbs, id] = findNearestSectionBrb(obj, xvar, idslist,
 %     options) は、変数値から最近傍のBRB断面を選択します。
@@ -44,10 +44,10 @@ idrepbrbs2slist = idSectionList(idrepbrbs2sec);
 % 代表断面の変数IDを取得
 idrepbrbs2var = obj.idMapper_.idrepbrbs2var;
 
-% 断面リストの寸法データと有効フラグを取得
-secdimlist_all = obj.standardAccessor_.getSectionDimension(idslist);
-% BRB断面の処理（注：BRBはisvalidチェックを行わない）
-secdimlist = secdimlist_all;  % 全断面をそのまま使用
+% 断面リストの寸法データと候補断面表の行番号を取得
+% （BRBは有効フラグで絞り込まず全断面を候補にする）
+[secdimlist, idsection] = ...
+  obj.standardAccessor_.getSectionDimension(idslist);
 
 % 寸法値の事前計算（ループ外で一度だけ）
 V1_values = secdimlist(:, PRM.SECLIST_BRB_NY);       % 降伏軸力
@@ -66,28 +66,26 @@ for id_ = 1:nrepbrbs
   if idrepbrbs2slist(id_) ~= idslist
     continue
   end
-  
+
   % 設計変数から目標値を取得
   V1_target = xvar(idrepbrbs2var(id_, 1));
   V2_target = xvar(idrepbrbs2var(id_, 2));
-  
+
   % 完全一致をチェック
-  exact_match = (V1_target == V1_values) & ...
-                (V2_target == V2_values);
-  
+  exact_match = (V1_target == V1_values) & (V2_target == V2_values);
+
   if any(exact_match)
     idx_found = find(exact_match, 1);
   else
     % 最も近い断面を検索（距離の2乗和）
-    distances = (V1_values - V1_target).^2 + ...
-                (V2_values - V2_target).^2;
+    distances = (V1_values - V1_target).^2 + (V2_values - V2_target).^2;
     [~, idx_found] = min(distances);
   end
-  
-  % 結果を保存（4列全てをコピー）
+
+  % 結果を保存（4列全てをコピー、第7列は候補断面表の行番号）
   repbrbs(id_, 1:4) = secdimlist(idx_found, 1:4);
   id.slist(id_) = idslist;
-  id.section(id_) = idx_found;
+  id.section(id_) = idsection(idx_found);
 end
 
 % BRB断面の抽出

@@ -37,13 +37,9 @@ nrepwfs = obj.idMapper_.nrepwfs;
 idwfs2repwfs = obj.idMapper_.idwfs2repwfs;
 idrepwfs2wfs = obj.idMapper_.idrepwfs2wfs;
 
-% 代表断面の断面リストIDを取得
-idsec2stype = obj.idMapper_.idsec2stype;
-idSectionList = obj.idMapper_.idSectionList;
-isWfs = (idsec2stype == PRM.WFS);
-idwfs2sec = find(isWfs);
-idrepwfs2sec = idwfs2sec(idrepwfs2wfs);
-idrepwfs2slist = idSectionList(idrepwfs2sec);
+% 代表断面の断面番号と断面リストIDを取得
+idrepwfs2sec = obj.idMapper_.idrepwfs2sec;
+idrepwfs2slist = obj.idMapper_.idSectionList(idrepwfs2sec);
 
 % 代表断面と設計変数の対応を取得
 idrepwfs2var = obj.idMapper_.idrepwfs2var;
@@ -93,8 +89,9 @@ if isempty(changed_idx)
 end
 
 % 変更した代表断面に必要なカタログと有効フラグを取得
-secdimlist_all = obj.standardAccessor_.getSectionDimension(idslist);
-isvalid = obj.constraintValidator_.extractValidSectionFlags(idslist);
+[secdimlist_all, idsection_all] = ...
+  obj.standardAccessor_.getSectionDimension(idslist);
+isvalid_all = obj.constraintValidator_.extractValidSectionFlags(idslist);
 
 % 小さいH断面の丸め処理
 is_small_H = repHBnominal(:, 1) < 200;
@@ -104,13 +101,12 @@ repHBnominal(~is_small_H, 2) = round(repHBnominal(~is_small_H, ...
 
 % 変更した代表断面だけを検索
 for id_ = changed_idx(:)'
-  % 有効な断面のみ抽出
+  % 有効な断面の寸法と行番号を抽出（フラグの行は断面番号）
   idwfs = idrepwfs2wfs(id_);
-  isvalid_ = isvalid(idwfs, :);
-  isvalid_ = isvalid_(:);
+  isvalid_ = isvalid_all(idrepwfs2sec(id_), :);
   secdimlist = secdimlist_all(isvalid_, :);
-  valid_indices = find(isvalid_);
-  if isempty(valid_indices)
+  idsection = idsection_all(isvalid_);
+  if isempty(idsection)
     throw_err('List', 'NoWfsCandidate', idwfs);
     return
   end
@@ -203,7 +199,7 @@ for id_ = changed_idx(:)'
     end
   end
   id.slist(id_) = idslist;
-  id.section(id_) = valid_indices(idx_found);
+  id.section(id_) = idsection(idx_found);
 end
 
 if collect_mapping

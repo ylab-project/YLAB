@@ -12,6 +12,7 @@ function isvalid = extractValidSectionFlags(obj, idsList, idPhase)
 %
 %   出力引数:
 %     isvalid - 有効断面のフラグ配列 (論理値配列)
+%               行は全断面（断面番号順）、列はフェーズ内の候補断面
 %
 %   参考:
 %     initValidSectionFlagCell, updateValidSectionFlagCell
@@ -21,14 +22,9 @@ if nargin < 3
   return
 end
 
-slistType = obj.secList_.section_type(idsList);
-switch slistType
-  case {PRM.WFS, PRM.HSS, PRM.HSR}
-    isTarget = obj.secList_.idphase{idsList} <= idPhase;
-    isvalid = obj.validSectionFlagCell_{idsList}(:, isTarget);
-  otherwise
-    isvalid = obj.validSectionFlagCell_{idsList};
-end
+% 指定フェーズまでのサブリストに属する候補断面の列だけを残す
+idphase_ = obj.secList_.idphase(obj.secList_.idsublist{idsList});
+isvalid = obj.validSectionFlagCell_{idsList}(:, idphase_ <= idPhase);
 
 return
 end

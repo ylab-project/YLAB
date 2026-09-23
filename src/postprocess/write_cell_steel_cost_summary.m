@@ -75,8 +75,8 @@ if isempty(all_is)
   blk3 = cell(0, NCOL);
 else
   % (idslist, idsection, idmat)でグループ化
-  all_sl = secdim(all_is, 6);
-  all_sn = secdim(all_is, 7);
+  all_sl = secdim(all_is, PRM.MAPPED_SECDIM_SLIST);
+  all_sn = secdim(all_is, PRM.MAPPED_SECDIM_SECTION);
   [grp, ia, ~] = unique([all_sl, all_sn, all_im], 'rows');
   nrows = size(grp, 1);
   rep_is = all_is(ia);
@@ -170,8 +170,8 @@ function wt = accum_grp(wt, grp, secdim, part, mask, ip)
   if isempty(is)
     return
   end
-  sl = secdim(is, 6);
-  sn = secdim(is, 7);
+  sl = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+  sn = secdim(is, PRM.MAPPED_SECDIM_SECTION);
   [~, loc] = ismember([sl, sn, im], grp, 'rows');
   for k = 1:numel(loc)
     if loc(k) > 0
@@ -442,8 +442,8 @@ function blk = build_brb_length_block(cost, secdim, ...
   for k = 1:nbrb
     ib = idx_brb(k);
     is = cost.brace.idsec(ib);
-    idslist = secdim(is, 6);
-    idsection = secdim(is, 7);
+    idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+    idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
     sl = secmgr.secList.list{idslist};
 
     % 種類名: メーカー名 + ラベル

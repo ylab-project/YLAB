@@ -99,21 +99,21 @@ section_list = set_section_list_block(dbc, input, com);
 com.sectionList = section_list;
 com.nsectionList = section_list.nlist;
 
-% TB断面リストのデフォルト材料補完
+% TB断面リストのデフォルト材料補完（材料未指定のサブリストへ設定）
 TB_DEFAULT_MATERIAL = 'SN400B';
-for i = 1:section_list.nlist
-  if section_list.section_type(i) == PRM.TB ...
-      && all(section_list.idmaterial{i} == 0)
-    idm = find(matches(com.material.name, TB_DEFAULT_MATERIAL), 1);
-    if isempty(idm)
-      idm = com.nma + 1;
-      com.material = [com.material; table(idm, {TB_DEFAULT_MATERIAL}, ...
-        205000, 0.3, 79400, 235.0, true, PRM.GRADE_SN, ...
-        'VariableNames', com.material.Properties.VariableNames)];
-      com.nma = idm;
-    end
-    section_list.idmaterial{i}(:) = idm;
+is_tb = section_list.section_type == PRM.TB;
+idsub = unique(vertcat(section_list.idsublist{is_tb}));
+idsub = idsub(section_list.idmaterial(idsub) == 0);
+if ~isempty(idsub)
+  idm = find(matches(com.material.name, TB_DEFAULT_MATERIAL), 1);
+  if isempty(idm)
+    idm = com.nma + 1;
+    com.material = [com.material; table(idm, {TB_DEFAULT_MATERIAL}, ...
+      205000, 0.3, 79400, 235.0, true, PRM.GRADE_SN, ...
+      'VariableNames', com.material.Properties.VariableNames)];
+    com.nma = idm;
   end
+  section_list.idmaterial(idsub) = idm;
 end
 
 %% 柱脚リスト
@@ -820,13 +820,10 @@ section_list = SectionListHandler(listdir);
 % リストの合成
 [section_list_name, iu1, iu2] = unique(section_list_name_, 'stable');
 nulist = length(section_list_name);
-nlist = zeros(nulist,1);
 
 % 鉄骨形状のチェック：同一リストでは同一の鉄骨形状のみ指定可
 for i=1:nulist
-  target = (iu2==i);
-  nlist(i) = sum(target);
-  st_ = unique(section_type_(target));
+  st_ = unique(section_type_(iu2==i));
   if length(st_)~=1
     ME = MException('YLAB:InvalidSectionList', ...
       '同一断面リストに対する鉄骨形状は同一としてください');
@@ -836,37 +833,11 @@ end
 section_type_name = section_type_name_(iu1);
 section_type = section_type_(iu1);
 
-% その他
-material_name = cell(nulist,PRM.MAX_SECTION_LIST);
-file_name = cell(nulist,PRM.MAX_SECTION_LIST);
-idmaterial = zeros(nulist,PRM.MAX_SECTION_LIST);
-cost_factor = zeros(nulist,PRM.MAX_SECTION_LIST);
-cost_constant = zeros(nulist,PRM.MAX_SECTION_LIST);
-design_stress_factor = zeros(nulist,PRM.MAX_SECTION_LIST);
-isSN = false(nulist,PRM.MAX_SECTION_LIST);
-idphase = zeros(nulist,PRM.MAX_SECTION_LIST);
-type_name = cell(nulist,PRM.MAX_SECTION_LIST);
-iddd = 1:n;
-for i=1:nulist
-  target = iddd(iu2==i);
-  for j=1:length(target)
-    material_name(i,j) = material_name_(target(j));
-    file_name(i,j) = file_name_(target(j));
-    idmaterial(i,j) = idmaterial_(target(j));
-    cost_factor(i,j) = cost_factor_(target(j));
-    cost_constant(i,j) = cost_constant_(target(j));
-    design_stress_factor(i,j) = design_stress_factor_(target(j));
-    isSN(i,j) = isSN_(target(j));
-    idphase(i,j) = idphase_(target(j));
-    type_name(i,j) = type_name_(target(j));
-  end
-end
-
-% 結果の保存
-section_list = section_list.registerList(section_type, ...
-  section_type_name, nlist, section_list_name, material_name, ...
-  file_name, idmaterial, cost_factor, cost_constant, ...
-  design_stress_factor, isSN, idphase, type_name);
+% 結果の保存（材料・コスト・フェーズは断面リストブロックの行単位）
+section_list = section_list.registerList(section_list_name, ...
+  section_type, section_type_name, iu2, file_name_, idmaterial_, ...
+  cost_factor_, cost_constant_, design_stress_factor_, isSN_, ...
+  idphase_, type_name_);
 return
 end
 
@@ -1409,7 +1380,6 @@ idstory(mtype==PRM.GIRDER) = section_girder.idstory;
 idstory(mtype==PRM.COLUMN) = section_column.idstory;
 
 % 断面リスト番号
-% id_section_list = zeros(nsec,PRM.MAX_SECTION_LIST);
 id_section_list = zeros(nsec,1);
 id_section_list(mtype==PRM.GIRDER) = section_girder.id_section_list;
 id_section_list(mtype==PRM.COLUMN) = section_column.id_section_list;

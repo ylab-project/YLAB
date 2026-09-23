@@ -17,50 +17,48 @@ function limitWtRatioSection(obj, section, options, secmgr)
 
 % 定数
 idphase = 999;
-nwfs_ = obj.nwfs;
-nhss_ = obj.nhss;
 
-% 計算の準備
-girder_rank = section.girder.rank(section.girder.type == PRM.WFS);
-girder_idslist = ...
-  section.girder.id_section_list(section.girder.type == PRM.WFS);
-column_rank = section.column.rank(section.column.type == PRM.HSS);
-column_idslist = ...
-  section.column.id_section_list(section.column.type == PRM.HSS);
+% 計算の準備（判定対象はH形鋼の梁断面と角形鋼管の柱断面）
+is_girder = section.girder.type == PRM.WFS;
+girder_isec = section.girder.idsec(is_girder);
+girder_rank = section.girder.rank(is_girder);
+girder_idslist = section.girder.id_section_list(is_girder);
+is_column = section.column.type == PRM.HSS;
+column_isec = section.column.idsec(is_column);
+column_rank = section.column.rank(is_column);
+column_idslist = section.column.id_section_list(is_column);
 
 % 断面リストごとに幅厚比を満たす断面だけに限定
 for idsList = 1:obj.nlist
   % リストの抽出
   sdimlist = secmgr.getDimension(idsList, idphase);
-  n = size(sdimlist, 1);
-  
+
   % 制限適用中は全フェーズの有効性フラグ正本を参照
   isvalid = obj.validSectionFlagCell_{idsList};
-  
+
   % 断面種別ごと
   switch obj.secList_.section_type(idsList)
     case PRM.WFS
       % --- WFS ---
       isSN = secmgr.getIdSecList2isSN(idsList);
       isSNH = isSN & options.consider_SNH_WTRATIO;
-      
+
       F = secmgr.getIdSecList2F(idsList);
       H = sdimlist(:, 1);
       B = sdimlist(:, 2);
       tw = sdimlist(:, 3);
       tf = sdimlist(:, 4);
-      
-      conwt = ones(n, nwfs_);
+
+      % 部材種別ごとに、その種別の梁断面の行だけを更新する
       for irank = 1:4
         match = (girder_rank == irank) & (girder_idslist == idsList);
         if ~any(match)
           continue
         end
         [~, ~, conwt_] = wtratioH(H, B, tw, tf, F, irank, isSNH);
-        conwt(:, match) = repmat(conwt_, 1, nnz(match));
+        isec_ = girder_isec(match);
+        isvalid(isec_, :) = isvalid(isec_, :) & (conwt_(:)' <= 0);
       end
-      isvalid_ = conwt' <= 0;
-      obj.validSectionFlagCell_{idsList} = isvalid & isvalid_;
 
     case PRM.HSS
       % --- HSS ---
@@ -68,19 +66,18 @@ for idsList = 1:obj.nlist
       D = sdimlist(:, 1);
       t = sdimlist(:, 2);
 
-      % 断面ごとのランクで幅厚比を判定
-      conwt = ones(n, nhss_);
+      % 部材種別ごとに、その種別の柱断面の行だけを更新する
       for irank = 1:4
         match = (column_rank == irank) & (column_idslist == idsList);
         if ~any(match)
           continue
         end
         [~, conwt_] = wtratioBox(D, t, F, irank);
-        conwt(:, match) = repmat(conwt_, 1, nnz(match));
+        isec_ = column_isec(match);
+        isvalid(isec_, :) = isvalid(isec_, :) & (conwt_(:)' <= 0);
       end
-      isvalid_ = conwt' <= 0;
-      obj.validSectionFlagCell_{idsList} = isvalid & isvalid_;
   end
+  obj.validSectionFlagCell_{idsList} = isvalid;
 end
 
 return

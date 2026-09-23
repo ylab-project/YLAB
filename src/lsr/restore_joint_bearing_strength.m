@@ -122,11 +122,11 @@ for i = 1:nstarget
   isg = isec_targets(i);
   sdim_ = secdim(isg, 1:4);
 
-  % リストの断面性能計算
-  idslist_ = secdim(isg, 6);
-  sdimlist = secmgr.getDimension(idslist_);
+  % リストの断面性能計算（第7列は候補断面表の行番号）
+  idslist_ = secdim(isg, PRM.MAPPED_SECDIM_SLIST);
+  [sdimlist, idsection_] = secmgr.getDimension(idslist_);
   n = size(sdimlist, 1);
-  sdimlist = [sdimlist(:,1:5) idslist_*ones(n,1) (1:n)'];
+  sdimlist = [sdimlist(:,1:5) idslist_*ones(n,1) idsection_];
   sproplist = calc_secprop(sdimlist, PRM.WFS, scallop);
   Zpylist = sproplist.Zpy;
 
@@ -233,7 +233,7 @@ for it = 1:n_target
   ime = idm_ng(ing);
   isec_beam = idm2s(ime);
   sdim_beam_cur = secdim(isec_beam, 1:4);
-  idslist_beam = secdim(isec_beam, 6);
+  idslist_beam = secdim(isec_beam, PRM.MAPPED_SECDIM_SLIST);
   Fg_i = Fg_ng(ing);
 
   % 各端の支配HSS柱を特定（名目梁の端部節点）
@@ -252,9 +252,10 @@ for it = 1:n_target
       continue
     end
     ic_end(iend) = ic;
-    isec_col_end(iend) = idm2s(col.idme(ic));
-    sdim_col_cur_end(iend, :) = secdim(isec_col_end(iend), 1:2);
-    idslist_col_end(iend) = secdim(isec_col_end(iend), 6);
+    isec_col = idm2s(col.idme(ic));
+    isec_col_end(iend) = isec_col;
+    sdim_col_cur_end(iend, :) = secdim(isec_col, 1:2);
+    idslist_col_end(iend) = secdim(isec_col, PRM.MAPPED_SECDIM_SLIST);
     Fcol_end(iend) = Fcol_(ic);
   end
 

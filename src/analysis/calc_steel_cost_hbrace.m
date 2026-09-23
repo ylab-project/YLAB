@@ -1,6 +1,5 @@
-function [weight, cost, idsec, idmat] = ...
-  calc_steel_cost_hbrace(hbrace, ...
-    idsechb2sec, secdim, lm, Am, secmgr)
+function [weight, cost, idsec, idmat] = calc_steel_cost_hbrace( ...
+  hbrace, idsechb2sec, secdim, lm, Am, secmgr)
 %calc_steel_cost_hbrace - 水平ブレースの鉄骨積算データを算出
 %
 %   [weight, cost, idsec, idmat] =
@@ -38,16 +37,16 @@ for ib = 1:nhb
   idm = hbrace.idme(ib);
   L_mm = lm(ib);
 
-  idslist = secdim(is, 6);
-  idsection = secdim(is, 7);
+  idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+  idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
   if idslist == 0 || idsection == 0
     continue
   end
-  cfm = secmgr.secList.cost_factor{idslist}(idsection);
+  idsub = secmgr.secList.idsublist{idslist}(idsection);
+  cfm = secmgr.secList.cost_factor(idsub);
 
   idsec(ib) = is;
-  idmat(ib) = ...
-    secmgr.secList.idmaterial{idslist}(idsection);
+  idmat(ib) = secmgr.secList.idmaterial(idsub);
   weight(ib) = Am(idm) * L_mm * PRM.RHOS * 1e-9;
   cost(ib) = cfm * weight(ib);
 end

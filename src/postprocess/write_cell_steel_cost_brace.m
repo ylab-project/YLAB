@@ -111,8 +111,8 @@ return
     end
 
     idsb = brace.idsecb(ib1);
-    idslist = secdim(is, 6);
-    idsection = secdim(is, 7);
+    idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+    idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
 
     idm1 = brace.idme(ib1);
     A_ = Am(idm1) * 1e-2;

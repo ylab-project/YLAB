@@ -20,7 +20,8 @@ if size(secdim, 2) < 7
 end
 
 % secdimからidsec2slistを抽出（第6,7列）
-idsec2slist = secdim(:, 6:7);
+idsec2slist = secdim(:, ...
+  [PRM.MAPPED_SECDIM_SLIST PRM.MAPPED_SECDIM_SECTION]);
 
 % 材料IDの取得
 idme2mat = obj.extractMemberMaterialId(idsec2slist);

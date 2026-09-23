@@ -38,6 +38,7 @@ nblx = com.nblx;
 nbly = com.nbly;
 nnb = com.num.nominal_brace;
 msprop_F = result.msprop.F;
+msprop_material_name = result.msprop.material_name;
 msprop_A = result.msprop.A;
 lambday = result.lambday;
 lambdaz = result.lambdaz;
@@ -117,7 +118,7 @@ for ist = nstory:-1:1
           continue
         end
         [irow, prev_material_] = write_header_if_needed( ...
-          irow, prev_material_, is_steel_, is_brb_, isb_, ib1);
+          irow, prev_material_, is_steel_, is_brb_, ib1);
         if is_tb_
           output_member_tb(inb, isb_);
         elseif is_brb_
@@ -148,7 +149,7 @@ for ist = nstory:-1:1
           continue
         end
         [irow, prev_material_] = write_header_if_needed( ...
-          irow, prev_material_, is_steel_, is_brb_, isb_, ib1);
+          irow, prev_material_, is_steel_, is_brb_, ib1);
         if is_tb_
           output_member_tb(inb, isb_);
         elseif is_brb_
@@ -164,29 +165,28 @@ scbbody = scbbody(1:irow, :);
 
 return
 
-  function [ir, pm] = write_header_if_needed(ir, pm, ...
-      isSteel, isBrb, isb, ib1)
+  function [ir, pm] = write_header_if_needed(ir, pm, isSteel, isBrb, ib1)
   %write_header_if_needed - 材料ヘッダ行を出力
   %
   %   [ir, pm] = write_header_if_needed(ir, pm, isSteel, ...
-  %     isBrb, isb, ib1) は、必要に応じて材料情報の
-  %   ヘッダ行を1行追加し、更新後の行カウンタと識別キーを返す。
+  %     isBrb, ib1) は、必要に応じて材料情報のヘッダ行を
+  %   1行追加し、更新後の行カウンタと識別キーを返す。
+  %   材料名とF値は代表部材の材料から取る。
   %
   %   入力引数:
-  %     ir           - 現在の行カウンタ
-  %     pm           - 直前に出力した材料識別キー
+  %     ir      - 現在の行カウンタ
+  %     pm      - 直前に出力した材料識別キー
   %     isSteel - 鋼材ブレース判定フラグ
   %     isBrb   - BRB判定フラグ
-  %     isb     - 断面リストインデックス
   %     ib1     - 代表部材インデックス
   %
   %   出力引数:
   %     ir - 更新後の行カウンタ
   %     pm - 更新後の材料識別キー
     if isSteel || isBrb
-      idsl_ = secb.id_section_list(isb);
-      mat_ = secmgr.secList.material_name{idsl_, 1};
-      F_hdr_ = msprop_F(brace.idme(ib1));
+      im_ = brace.idme(ib1);
+      mat_ = msprop_material_name{im_};
+      F_hdr_ = msprop_F(im_);
       hkey_ = sprintf('%s_%.0f', mat_, F_hdr_);
     else
       hkey_ = 'TB';

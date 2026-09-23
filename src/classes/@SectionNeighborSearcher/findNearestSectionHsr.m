@@ -1,5 +1,5 @@
-function [hsrsec, rephsrs, id] = ...
-  findNearestSectionHsr(obj, xvar, idslist, ~)
+function [hsrsec, rephsrs, id] = findNearestSectionHsr(obj, xvar, ...
+  idslist, ~)
 %findNearestSectionHsr HSR断面の最近傍選択
 %   [hsrsec, rephsrs, id] = findNearestSectionHsr(obj, xvar, idslist,
 %     options) は、変数値から最近傍のHSR断面を選択します。
@@ -28,12 +28,13 @@ function [hsrsec, rephsrs, id] = ...
 % 代表HSR断面の変数IDを取得（HSRでは全断面が代表）
 idrephsr2hsr = obj.idMapper_.idrephsr2hsr;
 idrephsr2var = obj.idMapper_.idrephsr2var;
+idrephsr2sec = obj.idMapper_.idrephsr2sec;
 nhsrs = length(idrephsr2hsr);
 
-% 断面リストの寸法データを取得
-secdimlist_all = obj.standardAccessor_.getSectionDimension(idslist);
-isvalid = obj.constraintValidator_.extractValidSectionFlags(idslist);
-secdimlist = secdimlist_all(isvalid,:);
+% 断面リストの寸法データと有効フラグ（行は断面番号）を取得
+[secdimlist_all, idsection_all] = ...
+  obj.standardAccessor_.getSectionDimension(idslist);
+isvalid_all = obj.constraintValidator_.extractValidSectionFlags(idslist);
 
 % 代表HSR断面に対応する変数値を抽出（D,t）
 nrephsr = size(idrephsr2var, 1);
@@ -58,6 +59,11 @@ id.slist = zeros(nhsrs, 1);
 id.section = zeros(nhsrs, 1);
 
 for i = 1:nhsrs
+  % 有効な断面の寸法と行番号を抽出（フラグの行は断面番号）
+  isvalid_ = isvalid_all(idrephsr2sec(i), :);
+  secdimlist = secdimlist_all(isvalid_, :);
+  idsection = idsection_all(isvalid_);
+
   % 目標値
   target = [xvar_D_hsr(i), xvar_t_hsr(i)];
 
@@ -67,10 +73,10 @@ for i = 1:nhsrs
   % 最近傍断面を選択
   [~, idx] = min(dist);
 
-  % 選択された断面を保存
+  % 選択された断面を保存（第7列は候補断面表の行番号）
   hsrsec(i,:) = secdimlist(idx,:);
   id.slist(i) = idslist;
-  id.section(i) = idx;
+  id.section(i) = idsection(idx);
 end
 
 % HSRでは全断面が代表断面（BRBのような製品固有の代表断面はない）

@@ -7,7 +7,7 @@ function isSN = extractSectionListIsSN(obj, idslist)
 %     idslist - 断面リストID (スカラー整数、1～nlist)
 %
 %   出力引数:
-%     isSN - SN材フラグ配列 [1×nsecOfList] 論理値配列
+%     isSN - SN材フラグ配列 [nsecOfList×1] 論理値配列
 %            nsecOfList: 断面リスト内の断面数
 %            true: SN材、false: 非SN材
 %
@@ -24,8 +24,8 @@ if isempty(obj.secList_)
     'secListが初期化されていません');
 end
 
-% SN材フラグ配列を取得
-isSN = obj.secList_.isSN{idslist};
+% 候補断面ごとに、属するサブリストのSN材フラグを引く
+isSN = obj.secList_.isSN(obj.secList_.idsublist{idslist});
 
 return
 end

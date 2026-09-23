@@ -1,5 +1,4 @@
-function [tbsec, id] = ...
-  findNearestSectionTb(obj, idslist)
+function [tbsec, id] = findNearestSectionTb(obj, idslist)
 %findNearestSectionTb TB断面の最近傍選択
 %   [tbsec, id] = findNearestSectionTb(obj, idslist) は、
 %   初期寸法から最近傍のTB断面を選択します。
@@ -27,7 +26,7 @@ idtbs2slist = idSectionList(isTb);
 
 % 断面リストの寸法データを取得
 % [shape_code, A(mm2), Ae(mm2)]
-secdimlist = ...
+[secdimlist, idsection] = ...
   obj.standardAccessor_.getSectionDimension(idslist);
 
 % 初期寸法（shape_code, A）を取得
@@ -55,18 +54,16 @@ for i = 1:ntbs
   if any(same_code)
     % shape_code 一致の中から A が最も近いものを選択
     candidates = find(same_code);
-    [~, idx_min] = ...
-      min(abs(secdimlist(candidates, 2) - target_A));
+    [~, idx_min] = min(abs(secdimlist(candidates, 2) - target_A));
     idx_found = candidates(idx_min);
   else
     % shape_code 不一致の場合は A のみで最近傍
-    [~, idx_found] = ...
-      min(abs(secdimlist(:, 2) - target_A));
+    [~, idx_found] = min(abs(secdimlist(:, 2) - target_A));
   end
 
   tbsec(i, :) = secdimlist(idx_found, :);
   id.slist(i) = idslist;
-  id.section(i) = idx_found;
+  id.section(i) = idsection(idx_found);
 end
 
 return

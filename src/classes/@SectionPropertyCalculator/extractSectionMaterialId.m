@@ -19,8 +19,6 @@ function idmat = extractSectionMaterialId(obj, idsec2slist)
 %   参考:
 %     extractMemberMaterialId, extractSectionMaterialF
 
-nsec = size(idsec2slist, 1);
-
 % デフォルト材料IDで初期化（必須）
 if isempty(obj.idsec2mat_)
   error('SectionPropertyCalculator:NoDefaultMaterialID', ...
@@ -43,9 +41,9 @@ for ilist = 1:nlist_
       target_rows = find(isTarget);
       valid_rows = target_rows(valid_idx);
       valid_list_idx = idx_in_list(valid_idx);
-      % 材料IDを設定
-      idmat(valid_rows) = ...
-        obj.secList_.idmaterial{ilist}(valid_list_idx);
+      % 材料IDは候補断面が属するサブリストの材料
+      idsub = obj.secList_.idsublist{ilist}(valid_list_idx);
+      idmat(valid_rows) = obj.secList_.idmaterial(idsub);
     end
   end
 end

@@ -1,6 +1,5 @@
-function [weight, cost, idsec, idmat] = ...
-  calc_steel_cost_brace(brace, ...
-    idsecb2sec, secdim, lm, Am, secmgr)
+function [weight, cost, idsec, idmat] = calc_steel_cost_brace( ...
+  brace, idsecb2sec, secdim, lm, Am, secmgr)
 %calc_steel_cost_brace - 鉛直ブレースの鉄骨積算データを算出
 %
 %   [weight, cost, idsec, idmat] =
@@ -35,12 +34,13 @@ for ib = 1:nb
   idsb = brace.idsecb(ib);
   is = idsecb2sec(idsb);
   idm = brace.idme(ib);
-  idslist = secdim(is, 6);
-  idsection = secdim(is, 7);
-  cfm = secmgr.secList.cost_factor{idslist}(idsection);
+  idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
+  idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
+  idsub = secmgr.secList.idsublist{idslist}(idsection);
+  cfm = secmgr.secList.cost_factor(idsub);
 
   idsec(ib) = is;
-  idmat(ib) = secmgr.secList.idmaterial{idslist}(idsection);
+  idmat(ib) = secmgr.secList.idmaterial(idsub);
   weight(ib) = Am(idm) * lm(idm) * PRM.RHOS * 1e-9;
   cost(ib) = cfm * weight(ib);
 end

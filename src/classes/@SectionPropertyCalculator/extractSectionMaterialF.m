@@ -38,7 +38,8 @@ if nsec == 0
 end
 
 % secdimからidsec2slistを抽出（第6,7列）
-idsec2slist = secdim(:, 6:7);
+idsec2slist = secdim(:, ...
+  [PRM.MAPPED_SECDIM_SLIST PRM.MAPPED_SECDIM_SECTION]);
 
 % 材料IDの取得
 % 注: extractSectionMaterialIdは全断面を前提とするが、

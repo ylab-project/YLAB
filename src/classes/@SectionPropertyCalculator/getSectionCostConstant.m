@@ -1,10 +1,10 @@
-function sectionCostConstant = getSectionCostConstant( ...
-  obj, idsec2slist)
+function sectionCostConstant = getSectionCostConstant(obj, idsec2slist)
 %getSectionCostConstant 断面コスト定数を取得
 %   sectionCostConstant = getSectionCostConstant( ...
 %     obj, idsec2slist)
 %   は、断面リストIDと断面IDのペアから、各断面の
-%   コスト定数を取得します。
+%   コスト定数を取得します。コスト定数は候補断面が属する
+%   サブリストの値です。
 %
 %   入力引数:
 %     idsec2slist - 断面リストID/断面IDペア配列 [n × 2]
@@ -24,9 +24,8 @@ function sectionCostConstant = getSectionCostConstant( ...
 sectionCostConstant = obj.sectionCostConstant_;
 for ilist=1:obj.nlist
   isTarget = idsec2slist(:,1)==ilist;
-  sectionCostConstant(isTarget) = ...
-    obj.secList_.cost_constant{ilist}( ...
-      idsec2slist(isTarget,2));
+  idsub = obj.secList_.idsublist{ilist}(idsec2slist(isTarget,2));
+  sectionCostConstant(isTarget) = obj.secList_.cost_constant(idsub);
 end
 
 return

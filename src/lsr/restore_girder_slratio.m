@@ -157,11 +157,11 @@ for i=1:nstarget
   isg = istarget(i);
   sdim_ = secdim(isg,1:4);
 
-  % リストの断面性能計算
-  idslist_ = secdim(isg, 6);
-  sdimlist = secmgr.getDimension(idslist_);
+  % リストの断面性能計算（第7列は候補断面表の行番号）
+  idslist_ = secdim(isg, PRM.MAPPED_SECDIM_SLIST);
+  [sdimlist, idsection_] = secmgr.getDimension(idslist_);
   n = size(sdimlist,1);
-  sdimlist = [sdimlist(:,1:5) idslist_*ones(n,1) (1:n)'];
+  sdimlist = [sdimlist(:,1:5) idslist_*ones(n,1) idsection_];
   sproplist = calc_secprop(sdimlist, PRM.WFS, scallop);
   Alist = sproplist.A;
   Izlist = sproplist.Iz;

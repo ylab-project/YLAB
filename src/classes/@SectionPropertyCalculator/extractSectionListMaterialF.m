@@ -7,7 +7,7 @@ function F = extractSectionListMaterialF(obj, idslist)
 %     idslist - 断面リストID (スカラー整数、1～nlist)
 %
 %   出力引数:
-%     F - F値配列 [1×nsecOfList] [MPa]
+%     F - F値配列 [nsecOfList×1] [MPa]
 %         nsecOfList: 断面リスト内の断面数
 %
 %   例:

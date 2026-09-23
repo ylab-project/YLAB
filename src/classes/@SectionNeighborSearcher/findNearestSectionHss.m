@@ -27,15 +27,10 @@ function [hssec, rephss, id, selection_info] = findNearestSectionHss( ...
 % 共通定数と配列の取得
 nrephss = obj.idMapper_.nrephss;
 idhss2rephss = obj.idMapper_.idhss2rephss;
-idrephss2hss = obj.idMapper_.idrephss2hss;
 
-% 代表断面の断面リストIDを取得
-idsec2stype = obj.idMapper_.idsec2stype;
-idSectionList = obj.idMapper_.idSectionList;
-isHss = (idsec2stype == PRM.HSS);
-idhss2sec = find(isHss);
-idrephss2sec = idhss2sec(idrephss2hss);
-idrephss2slist = idSectionList(idrephss2sec);
+% 代表断面の断面番号と断面リストIDを取得
+idrephss2sec = obj.idMapper_.idrephss2sec;
+idrephss2slist = obj.idMapper_.idSectionList(idrephss2sec);
 
 % 代表断面と設計変数の対応を取得
 idrephss2var = obj.idMapper_.idrephss2var;
@@ -83,7 +78,8 @@ if isempty(changed_idx)
 end
 
 % 変更した代表断面に必要なカタログと有効フラグを取得
-secdimlist_all = obj.standardAccessor_.getSectionDimension(idslist);
+[secdimlist_all, idsection_all] = ...
+  obj.standardAccessor_.getSectionDimension(idslist);
 isvalid_all = obj.constraintValidator_.extractValidSectionFlags(idslist);
 
 % 変更した代表断面だけを検索
@@ -91,13 +87,11 @@ for id_ = changed_idx(:)'
   D_target = xvar(idrephss2var(id_, 1));
   t_target = xvar(idrephss2var(id_, 2));
 
-  % 断面ごとの有効フラグを抽出
-  idhss = idrephss2hss(id_);
-  isvalid_ = isvalid_all(idhss, :);
-  isvalid_ = isvalid_(:);
+  % 有効な断面の寸法と行番号を抽出（フラグの行は断面番号）
+  isvalid_ = isvalid_all(idrephss2sec(id_), :);
   secdimlist = secdimlist_all(isvalid_, :);
-  valid_indices = find(isvalid_);
-  if isempty(valid_indices)
+  idsection = idsection_all(isvalid_);
+  if isempty(idsection)
     throw_err('List', 'NoHssCandidate', idslist);
     return
   end
@@ -148,7 +142,7 @@ for id_ = changed_idx(:)'
     end
   end
   id.slist(id_) = idslist;
-  id.section(id_) = valid_indices(idx_found);
+  id.section(id_) = idsection(idx_found);
 end
 
 if collect_mapping

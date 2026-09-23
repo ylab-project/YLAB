@@ -13,7 +13,6 @@ function limitSlrSection(obj, member, nominal, lm, secmgr, options)
 % 定数
 idphase = 999;
 nsec = length(obj.idsec2stype);
-nwfs_ = obj.nwfs;
 nme = secmgr.nme;
 nmwfs = secmgr.nmewfs;
 nlist_ = obj.nlist;
@@ -23,7 +22,6 @@ scallop = options.girder_scallop_size;
 idsec2slist_ = obj.idsec2slist;
 idsec2stype_ = obj.idsec2stype;
 idme2sec = secmgr.idme2sec;
-idsec2wfs_ = obj.idsec2wfs;
 
 % 部材関連のデータ準備
 idmg2m = member.girder.idme;
@@ -42,7 +40,7 @@ lmwfs = lm_nominal(idmwfs2m);
 slist_type = obj.secList_.section_type;
 
 % 断面リストごとに保有耐力横補剛を満たすH断面だけに限定
-isvalid_wfs = false(1, nwfs_);
+isvalid_sec = true(1, nsec);
 
 for idsList = 1:nlist_
   % H形鋼のみ
@@ -69,7 +67,6 @@ for idsList = 1:nlist_
   isec_targets = 1:nsec;
   isec_targets = isec_targets( ...
     idsec2slist_' == idsList & idsec2stype_' == PRM.WFS);
-  iwfs_targets = idsec2wfs_(isec_targets);
   
   for isec = isec_targets
     imtargets = 1:nme;
@@ -91,23 +88,20 @@ for idsList = 1:nlist_
       isvalid_ = isvalid_ & (conjbs_ <= 0)';
     end
     
-    isvalid(idsec2wfs_(isec), :) = isvalid(idsec2wfs_(isec), :) & isvalid_;
+    isvalid(isec, :) = isvalid(isec, :) & isvalid_;
   end
   
   % 条件を満たさないH形断面の除外
   obj.validSectionFlagCell_{idsList} = isvalid;
   
   % チェック結果の保存（対象リストのWFS断面だけを評価）
-  tmp = any(isvalid(iwfs_targets, :), 2);
-  isvalid_wfs(iwfs_targets) = tmp(:)';
+  isvalid_sec(isec_targets) = any(isvalid(isec_targets, :), 2)';
 end
 
 % 条件を満たす断面が存在しない
-if ~all(isvalid_wfs)
-  % エラー処理
-  id = 1:nwfs_;
-  id = id(~isvalid_wfs);
-  ids_text = format_id_list(id);
+if ~all(isvalid_sec)
+  % エラー処理（IDは断面番号）
+  ids_text = format_id_list(find(~isvalid_sec));
   throw_err('List', 'limit_slr_section', ids_text);
 end
 

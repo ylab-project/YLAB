@@ -623,8 +623,7 @@ classdef SectionManager < handle
     end
     
     % コスト係数・応力係数取得
-    function sectionCostFactor = getSectionCostFactor( ...
-        secmgr, idsec2slist)
+    function sectionCostFactor = getSectionCostFactor(secmgr, idsec2slist)
     %getSectionCostFactor - 断面コスト係数を取得
     %   sectionCostFactor = getSectionCostFactor( ...
     %     secmgr, idsec2slist)
@@ -638,8 +637,7 @@ classdef SectionManager < handle
         idsec2slist);
     end
 
-    function memberCostFactor = getMemberCostFactor( ...
-        secmgr, idsec2slist)
+    function memberCostFactor = getMemberCostFactor(secmgr, idsec2slist)
     %getMemberCostFactor - 部材コスト係数を取得
     %   memberCostFactor = getMemberCostFactor( ...
     %     secmgr, idsec2slist)
@@ -846,8 +844,8 @@ classdef SectionManager < handle
           xvar, idslist, options);
     end
     
-    function [xlist, sdlist] = findNearestXList( ...
-        secmgr, xlist, options, initial_guess, com)
+    function [xlist, sdlist] = findNearestXList(secmgr, xlist, ...
+        options, initial_guess, com)
     %findNearestXList 変数リストから最近傍断面を選択
     %   [xlist, sdlist] = findNearestXList(secmgr, xlist, options) は、
     %   変数値リストの各要素について最近傍の規格断面を選択します。
@@ -1041,13 +1039,13 @@ classdef SectionManager < handle
     end
     
     %% データアクセス系メソッド（委譲のみ）
-    function dimension = getDimension(secmgr, idList, idphase)
+    function [dimension, idsection] = getDimension(secmgr, idList, idphase)
     %getDimension 断面寸法を取得
-    %   dimension = getDimension(secmgr, idList, idphase) は、
-    %   指定された断面IDリストの寸法を取得します。
+    %   [dimension, idsection] = getDimension(secmgr, idList, idphase)
+    %   は、断面リストの寸法と候補断面表の行番号を取得します。
     %
     %   入力引数:
-    %     idList  - 断面IDリスト
+    %     idList  - 断面リストID
     %     idphase - フェーズID（省略可能、既定値: secmgr.idphase）
     %
     %   参考:
@@ -1055,9 +1053,10 @@ classdef SectionManager < handle
       
       % StandardAccessorに委譲
       if nargin == 2
-        dimension = secmgr.standardAccessor.getSectionDimension(idList);
+        [dimension, idsection] = ...
+          secmgr.standardAccessor.getSectionDimension(idList);
       else
-        dimension = secmgr.standardAccessor ...
+        [dimension, idsection] = secmgr.standardAccessor ...
           .getSectionDimension(idList, idphase);
       end
     end
@@ -1137,9 +1136,8 @@ classdef SectionManager < handle
       end
     end
     
-    function limit_jbs_section(secmgr, isjbs, ...
-        nominal_girder, section_girder, ...
-        section_column, options, apply_filter)
+    function limit_jbs_section(secmgr, isjbs, nominal_girder, ...
+        section_girder, section_column, options, apply_filter)
     %limit_jbs_section - 保有耐力接合(JBS)制限チェック
     %
     %   limit_jbs_section(secmgr, isjbs,
@@ -1163,9 +1161,9 @@ classdef SectionManager < handle
       end
 
       % constraintValidatorへ委譲
-      secmgr.constraintValidator.limitJbsSection(...
-        isjbs, nominal_girder, section_girder, ...
-        section_column, secmgr, options, apply_filter);
+      secmgr.constraintValidator.limitJbsSection(isjbs, ...
+        nominal_girder, section_girder, section_column, secmgr, ...
+        options, apply_filter);
     end
 
     function limit_slr_section(secmgr, member, nominal, lm, options)

@@ -38,6 +38,7 @@ end
 
 % 断面リストID/断面IDマッピングの抽出
 % 第6列: 断面リストID、第7列: 断面ID
-idsec2slist = secdim(:, 6:7);
+idsec2slist = secdim(:, ...
+  [PRM.MAPPED_SECDIM_SLIST PRM.MAPPED_SECDIM_SECTION]);
 
 end
