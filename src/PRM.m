@@ -118,6 +118,9 @@ classdef PRM
     HSS  = 20   % 角形鋼管
     HSR  = 30   % 円形鋼管
     RCRS = 50   % ＲＣ矩形断面
+    % 断面種別（柱用Ｈ形鋼。強軸の向きで区別する）
+    CWFS  = 12  % 柱Ｈ形鋼・Ｘ方向強軸
+    CWFSI = 13  % 柱Ｈ形鋼・Ｙ方向強軸
     % 断面種別（ブレース鋼材）
     BWFS = 11   % ブレースＨ形鋼
     BHSS = 21   % ブレース角形鋼管
@@ -431,24 +434,51 @@ classdef PRM
     %     section_type - 断面種別 (PRM.WFS, PRM.HSS, PRM.BRB 等)
     %
     %   出力引数:
-    %     n - 変数種別数（WFS: 4, HSS/HSR/BRB: 2, TB: 0）
+    %     n - 変数種別数（H形鋼: 4, 角形鋼管/円形鋼管/BRB: 2, TB: 0）
     %
     %   例:
     %     n = PRM.nvar_of_section_type(PRM.WFS)  % returns 4
-      switch section_type
-        case {PRM.WFS, PRM.BWFS}
+      % 梁用・柱用・ブレース用の区別は変数の個数に関係しないため、
+      % 利用する断面リストの鉄骨形状の種別で判定する
+      switch PRM.list_type_of_section_type(section_type)
+        case PRM.WFS
           n = 4;
-        case {PRM.HSS, PRM.BHSS}
-          n = 2;
-        case {PRM.HSR, PRM.BHSR}
-          n = 2;
-        case PRM.BRB
+        case {PRM.HSS, PRM.HSR, PRM.BRB}
           n = 2;
         case PRM.TB
           n = 0;
         otherwise
           error('未対応の断面種別です: %d', section_type)
       end
+      return
+    end
+
+    %% list_type_of_section_type
+    function list_type = list_type_of_section_type(section_type)
+    %list_type_of_section_type - 断面種別が利用するリストの鉄骨形状種別
+    %
+    %   list_type = PRM.list_type_of_section_type(section_type) は、
+    %   梁用・柱用・ブレース用に分かれた断面種別を、その断面が候補を取る
+    %   断面リストの鉄骨形状の種別（PRM.WFS, PRM.HSS, PRM.HSR 等）に
+    %   対応させる。柱用H形鋼（CWFS, CWFSI）とブレースH形鋼（BWFS）は
+    %   H形鋼リスト、ブレース角形鋼管（BHSS）は角形鋼管リスト、ブレース
+    %   円形鋼管（BHSR）は円形鋼管リストを使う。他の種別はそのまま返す。
+    %
+    %   入力引数:
+    %     section_type - 断面種別の配列 (PRM.CWFS, PRM.BHSS 等)
+    %
+    %   出力引数:
+    %     list_type - 断面リストの鉄骨形状の種別の配列（入力と同形）
+    %
+    %   例:
+    %     PRM.list_type_of_section_type([PRM.CWFSI; PRM.HSS])
+    %     % returns [10; 20]
+      list_type = section_type;
+      is_wfs_list = ismember(section_type, [PRM.WFS, PRM.BWFS, ...
+        PRM.CWFS, PRM.CWFSI]);
+      list_type(is_wfs_list) = PRM.WFS;
+      list_type(section_type == PRM.BHSS) = PRM.HSS;
+      list_type(section_type == PRM.BHSR) = PRM.HSR;
       return
     end
     
@@ -549,6 +579,36 @@ classdef PRM
       return
     end
     
+    %% get_id_column_section_type
+    function section_type = get_id_column_section_type(char_shape)
+    %get_id_column_section_type - 柱断面の鉄骨形状から断面種別IDを取得
+    %
+    %   section_type = PRM.get_id_column_section_type(char_shape) は、
+    %   S柱断面ブロック第10列の鉄骨形状（省略時は断面リストの鉄骨形状）
+    %   を柱の断面種別IDに変換する。表記は断面リストと同じ
+    %   get_id_section_type で判定し、HはX方向強軸の柱用H形鋼、I・Ｉは
+    %   Y方向強軸の柱用H形鋼に読み替える。柱に使えない形状（ブレース用、
+    %   空欄、未知の表記）はNaNにする。
+    %
+    %   入力引数:
+    %     char_shape - 鉄骨形状文字列のセル配列 {'H', 'Ｉ', '□', ...}
+    %
+    %   出力引数:
+    %     section_type - 断面種別ID配列
+    %                    PRM.CWFS, PRM.CWFSI, PRM.HSS, PRM.HSR, NaN
+    %
+    %   例:
+    %     PRM.get_id_column_section_type({'H'; 'I'})  % returns [12; 13]
+      section_type = PRM.get_id_section_type(char_shape);
+      section_type(section_type == PRM.WFS) = PRM.CWFS;
+      is_i = strcmp(char_shape, 'I') | strcmp(char_shape, 'Ｉ');
+      section_type(is_i(:)) = PRM.CWFSI;
+      is_column = ismember(section_type, [PRM.CWFS, PRM.CWFSI, ...
+        PRM.HSS, PRM.HSR]);
+      section_type(~is_column) = NaN;
+      return
+    end
+
     %% get_id_ubb_type
     function ubb_type = get_id_ubb_type(char_ubb_type)
     %get_id_ubb_type - UBB種別文字列からUBB種別IDを取得

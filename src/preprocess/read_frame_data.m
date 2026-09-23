@@ -450,6 +450,7 @@ com.member = member;
 section.column_base = section_column_base;
 com.section = section;
 com.nseccb = size(section_column_base,1);
+validate_column_shape(section_column, member_column, section_column_base);
 
 %% 梁の横補剛
 girder_stiffening = set_member_girder_stiffening_block(dbc, com);

@@ -200,11 +200,15 @@ classdef SectionListHandler < handle
         if isempty(obj.list{i})
           obj.dimension_array{i} = [];
         else
+          % 寸法列はリストファイルの見出し名で読む（H形鋼はH・B・tw・
+          % tf・r、角形鋼管はD・t・r、円形鋼管はD・t）
           switch obj.section_type(i)
             case {PRM.WFS, PRM.BWFS}
-              obj.dimension_array{i} = table2array(obj.list{i}(:,4:10));
+              obj.dimension_array{i} = table2array(obj.list{i}(:, ...
+                {'H', 'B', 'tw', 'tf', 'r', 'Hnominal', 'Bnominal'}));
             case {PRM.HSS, PRM.BHSS}
-              obj.dimension_array{i} = table2array(obj.list{i}(:,4:6));
+              obj.dimension_array{i} = table2array( ...
+                obj.list{i}(:, {'D', 't', 'r'}));
             case {PRM.BRB, PRM.HSR, PRM.BHSR, PRM.TB}
               obj.dimension_array{i} = obj.list{i}.dimension;
             otherwise

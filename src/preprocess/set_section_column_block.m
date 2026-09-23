@@ -21,22 +21,21 @@ function [section_column, design_variable] = ...
 %
 %   備考:
 %     - subindexは添字省略を空のcharとして保持する。
-%     - 部材種別（ランク）は列9を正とし、空の場合のみ列7を互換
-%       フォールバックとして参照する（次期バージョンで廃止予定）。
+%     - 第10列の鉄骨形状は、H・Ｈを柱用H形鋼のX方向強軸、I・Ｉを
+%       同じくY方向強軸として断面種別（type）に保存する。省略時は
+%       断面リストの鉄骨形状を継承する。type_nameは断面リストの
+%       鉄骨形状名のまま保持する。
+%     - 部材種別（ランク）は列9だけを読む。
 
 data = dbc.get_data_block('S柱断面');
 n = size(data,1);
+ncol = size(data,2);
 design_variable = com.design.variable;
 
 % 階名
 floor_name = cell(n,1);
 for i=1:n
-  if ~ischar(data{i,1})
-    val = tochar(data{i,1});
-  else
-    val = data{i,1};
-  end
-  floor_name{i} = tochar(val);
+  floor_name{i} = tochar(data{i,1});
 end
 
 % 層番号
@@ -61,29 +60,44 @@ end
 % 断面リスト
 section_list_name = cell(n,1);
 full_name = cell(n,1);
-id_section_list = zeros(n,1); iddd = 1:com.nsectionList;
+id_section_list = zeros(n,1);
 idmaterial = zeros(n,1);
-type = zeros(n,1);
-type_name = cell(n,1);
 for i=1:n
   full_name{i} = [subindex{i} name{i}];
   section_list_name{i} = tochar(data{i,4});
-  idx = strcmp(com.sectionList.name, section_list_name{i});
-  if any(idx)
-    idsl = iddd(idx);
-    id_section_list(i) = idsl(1);
-  else
+  idsl = find(strcmp(com.sectionList.name, section_list_name{i}), 1);
+  if isempty(idsl)
     throw_err('IO', 'SectionListNotFound', section_list_name{i}, ...
       'S柱断面', ['符号: ' full_name{i}]);
   end
+  id_section_list(i) = idsl;
+end
+type_name = com.sectionList.section_type_name(id_section_list);
+list_type = com.sectionList.section_type(id_section_list);
 
-  % 同一の鉄骨形状のみ複数リスト指定可
-  type_ = unique(com.sectionList.section_type(idsl));
-  if length(type_)~=1
-    error('同一断面リストに対する鉄骨形状は同一としてください')
+% 鉄骨形状（第10列）。省略時は断面リストの鉄骨形状を継承する
+shape_name = type_name;
+if ncol >= 10
+  for i=1:n
+    shape = tochar(data{i,10});
+    if ~isempty(shape)
+      shape_name{i} = shape;
+    end
   end
-  type(i) = com.sectionList.section_type(idsl(1));
-  type_name(i) = com.sectionList.section_type_name(idsl(1));
+end
+type = PRM.get_id_column_section_type(shape_name);
+irow = find(isnan(type), 1);
+if ~isempty(irow)
+  throw_err('Input', 'ColumnShapeUnsupported', shape_name{irow}, ...
+    floor_name{irow}, full_name{irow});
+end
+
+% 明示した形状は断面リストの鉄骨形状と整合させる。H／Iはともに
+% H形鋼リストを利用する
+irow = find(PRM.list_type_of_section_type(type) ~= list_type, 1);
+if ~isempty(irow)
+  throw_err('Input', 'ColumnShapeListMismatch', shape_name{irow}, ...
+    section_list_name{irow}, floor_name{irow}, full_name{irow});
 end
 
 % 設計変数番号
@@ -116,32 +130,14 @@ end
 % 寸法指定（断面リストから取得するためゼロで初期化）
 dimension = zeros(n,mvar);
 
-% 部材種別（列9を正とし、空なら列7を互換フォールバック）
-% 旧仕様は列7指定。当面許容するが次期バージョンで廃止予定
-icol_rank_new = 9;
-icol_rank_old = 7;
+% 部材種別（列9。空欄は既定値）
 rank = options.coptions.rank_column * ones(n, 1);
-warned_old = false;
-ncol = size(data, 2);
-for i = 1:n
-  raw = '';
-  if ncol >= icol_rank_new && ~all(ismissing(data{i, icol_rank_new}))
-    raw = tochar(data{i, icol_rank_new});
-  elseif ncol >= icol_rank_old && ~all(ismissing(data{i, icol_rank_old}))
-    cand = tochar(data{i, icol_rank_old});
-    % ランク名として解釈できる場合のみ旧仕様として採用
-    % WFSの列7=twは数値のため完全一致で誤検出しない
-    if any(strcmp(PRM.MEMBER_RANK_NAME, cand))
-      raw = cand;
-      if ~warned_old
-        throw_warn('Input', 'DeprecatedColumnRankColumn');
-        warned_old = true;
-      end
+if ncol >= 9
+  for i = 1:n
+    idx = find(strcmp(PRM.MEMBER_RANK_NAME, tochar(data{i,9})), 1);
+    if ~isempty(idx)
+      rank(i) = idx;
     end
-  end
-  if ~isempty(raw)
-    idx = find(strcmp(PRM.MEMBER_RANK_NAME, raw), 1);
-    if ~isempty(idx), rank(i) = idx; end
   end
 end
 
