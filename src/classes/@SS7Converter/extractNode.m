@@ -14,13 +14,13 @@ for i=1:n
 end
 
 % 通り・層番号
-idx = zeros(n,1); iddx = 1:obj.nblx;
-idy = zeros(n,1); iddy = 1:obj.nbly;
-idstory = zeros(n,1); idds = 1:obj.nstory;
+idx = zeros(n,1);
+idy = zeros(n,1);
+idstory = zeros(n,1);
 for i=1:n
-  idx(i) = iddx(matches(obj.baseline.x.name, xname{i}));
-  idy(i) = iddy(matches(obj.baseline.y.name, yname{i}));
-  idstory(i) = idds(matches(obj.story.name, story_name{i}));
+  idx(i) = find(matches(obj.baseline.x.name, xname{i}));
+  idy(i) = find(matches(obj.baseline.y.name, yname{i}));
+  idstory(i) = find(matches(obj.story.name, story_name{i}));
 end
 
 % 座標値

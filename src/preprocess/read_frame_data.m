@@ -803,12 +803,12 @@ end
 section_type_ = PRM.get_id_section_type(section_type_name_);
 
 % 材料
-idmaterial_ = zeros(n,1); iddd = 1:com.nma;
+idmaterial_ = zeros(n,1);
 for i=1:n
   material_name__ = material_name_{i};
   if ~ismissing(material_name__)
     if ~strcmp(material_name__, '-')
-      idmaterial_(i) = iddd(matches(com.material.name, material_name_{i}));
+      idmaterial_(i) = find(matches(com.material.name, material_name_{i}));
       isSN_(i) = com.material.isSN(idmaterial_(i));
     end
   end
@@ -972,20 +972,19 @@ end
 isfixed(:,[4 5]) = isfixed(:,[5 4]);
 
 % 通り・層番号
-idx = zeros(n,1); iddx = 1:com.nblx;
-idy = zeros(n,1); iddy = 1:com.nbly;
-idstory = zeros(n,1); iddz = 1:com.nblz;
+idx = zeros(n,1);
+idy = zeros(n,1);
+idstory = zeros(n,1);
 for i=1:n
-  idx(i) = iddx(matches(com.baseline.x.name, xname{i}));
-  idy(i) = iddy(matches(com.baseline.y.name, yname{i}));
-  idstory(i) = iddz(matches(com.story.name, story_name{i}));
+  idx(i) = find(matches(com.baseline.x.name, xname{i}));
+  idy(i) = find(matches(com.baseline.y.name, yname{i}));
+  idstory(i) = find(matches(com.story.name, story_name{i}));
 end
 
 % 節点番号
 idnode = zeros(n,1);
-iddn = 1:com.nnode;
 for i=1:n
-  idnode(i) = iddn(com.node.idx==idx(i) ...
+  idnode(i) = find(com.node.idx==idx(i) ...
     & com.node.idy==idy(i) & com.node.idstory==idstory(i));
 end
 
@@ -1014,20 +1013,19 @@ for i=1:n
 end
 
 % 通り・層番号
-idx = zeros(n,1); iddx = 1:com.nblx;
-idy = zeros(n,1); iddy = 1:com.nbly;
-idstory = zeros(n,1); iddz = 1:com.nblz;
+idx = zeros(n,1);
+idy = zeros(n,1);
+idstory = zeros(n,1);
 for i=1:n
-  idx(i) = iddx(matches(com.baseline.x.name, xname{i}));
-  idy(i) = iddy(matches(com.baseline.y.name, yname{i}));
-  idstory(i) = iddz(matches(com.story.name, story_name{i}));
+  idx(i) = find(matches(com.baseline.x.name, xname{i}));
+  idy(i) = find(matches(com.baseline.y.name, yname{i}));
+  idstory(i) = find(matches(com.story.name, story_name{i}));
 end
 
 % 節点番号
 idnode = zeros(n,1);
-iddn = 1:com.nnode;
 for i=1:n
-  idn_ = iddn(com.node.idx==idx(i) ...
+  idn_ = find(com.node.idx==idx(i) ...
     & com.node.idy==idy(i) & com.node.idstory==idstory(i));
   if ~isempty(idn_)
     idnode(i) = idn_;
@@ -1098,7 +1096,7 @@ end
 % 柱脚属性
 type = zeros(n,1);
 property = zeros(n,1);
-idlist = zeros(n,1); iddl = 1:com.ncblist;
+idlist = zeros(n,1);
 for i=1:n
   name = tochar(data{i,3});
   switch name
@@ -1108,15 +1106,15 @@ for i=1:n
     otherwise
       type(i) = PRM.CB_LIST;
       if ~isempty(com.column_base_list.list_name)
-        idlist(i) = iddl(matches(com.column_base_list.list_name, name));
+        idlist(i) = find(matches(com.column_base_list.list_name, name));
       end
   end
 end
 
 % 番号
-idstory = zeros(n,1); idds = 1:com.nstory;
+idstory = zeros(n,1);
 for i=1:n
-  idstory(i) = idds(matches(com.story.floor_name, floor_name{i}));
+  idstory(i) = find(matches(com.story.floor_name, floor_name{i}));
 end
 
 % 断面番号
@@ -1577,9 +1575,9 @@ for i = 1:n
 end
 
 % 層番号
-idstory = zeros(n,1); idds = 1:com.nstory;
+idstory = zeros(n,1);
 for i=1:n
-  idstory(i) = idds(matches(com.story.name, story_name{i}));
+  idstory(i) = find(matches(com.story.name, story_name{i}));
 end
 
 % 通り番号・方向
@@ -1587,10 +1585,10 @@ end
   xcoord_name, ycoord_name, com.baseline, com.story);
 
 % 断面番号
-idsechb = zeros(n,1); iddd = 1:com.nsechb;
+idsechb = zeros(n,1);
 for i=1:n
-  id = iddd(matches(section_horizontal_brace.name, section_name{i}));
-  idsechb(i) = id;
+  idsechb(i) = find(matches(section_horizontal_brace.name, ...
+    section_name{i}));
 end
 
 % 断面種別
@@ -2515,22 +2513,22 @@ for i=1:n
 end
 
 node = com.node; nnode = com.nnode;
-loadcase = com.loadcase; nlc = com.nlc; iddlc = 1:nlc;
+loadcase = com.loadcase; nlc = com.nlc;
 f = zeros(n,6);
 fnode = zeros(nnode, 6, nlc);
 fnode_excl = zeros(nnode, 6, nlc);
 seen = false(nnode, nlc);
 lcase = zeros(n,1);
-idx = zeros(n,1); iddx = 1:com.nblx;
-idy = zeros(n,1); iddy = 1:com.nbly;
-idz = zeros(n,1); iddz = 1:com.nblz;
-idnode = zeros(n,1); iddn = 1:nnode;
+idx = zeros(n,1);
+idy = zeros(n,1);
+idz = zeros(n,1);
+idnode = zeros(n,1);
 for i=1:n
-  lcase(i) = iddlc(matches(loadcase.name, name{i}));
-  idx(i) = iddx(matches(com.baseline.x.name, tochar(data{i,3})));
-  idy(i) = iddy(matches(com.baseline.y.name, tochar(data{i,4})));
-  idz(i) = iddz(matches(com.baseline.z.name, tochar(data{i,2})));
-  idnode(i) = iddn((node.idx==idx(i))&(node.idy==idy(i)) ...
+  lcase(i) = find(matches(loadcase.name, name{i}));
+  idx(i) = find(matches(com.baseline.x.name, tochar(data{i,3})));
+  idy(i) = find(matches(com.baseline.y.name, tochar(data{i,4})));
+  idz(i) = find(matches(com.baseline.z.name, tochar(data{i,2})));
+  idnode(i) = find((node.idx==idx(i))&(node.idy==idy(i)) ...
     &(node.idz==idz(i)));
   f(i,:) = cell2mat(data(i,5:10));
   in = idnode(i); lc = lcase(i);

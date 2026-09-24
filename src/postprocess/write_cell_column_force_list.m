@@ -47,7 +47,6 @@ if isempty(rs0) || size(rs0,3)<icase
 end
 rs = rs0(:,:,icase);
 body = cell(nc,ncol);
-iccc = 1:nc;
 irow = 0;
 for i = 1:nfl
   ifl = nfl-i+1;
@@ -58,7 +57,7 @@ for i = 1:nfl
         sel = sel & column.idx(:, 1) == ix;
         sel = sel & column.idy(:, 1) == iy;
         sel = sel & column.idz(:, 1) == iz;
-        ic = iccc(sel);
+        ic = find(sel);
         if isempty(ic)
           continue
         end

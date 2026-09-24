@@ -34,12 +34,11 @@ for i=1:n
 end
 
 % 層・Z通り番号
-idstory = zeros(n,1); idds = 1:com.nstory;
-idz = zeros(n,1); iddz = com.story.idz;
+idstory = zeros(n,1);
 for i=1:n
-  idstory(i) = idds(matches(com.story.name, story_name{i}));
-  idz(i) = iddz(matches(com.story.name, story_name{i}));
+  idstory(i) = find(matches(com.story.name, story_name{i}));
 end
+idz = com.story.idz(idstory);
 idznominal = com.story.idnominal(idstory);
 
 % 符号
@@ -57,29 +56,21 @@ end
 % 断面リスト
 section_list_name = cell(n,1);
 full_name = cell(n,1);
-id_section_list = zeros(n,1); iddd = 1:com.nsectionList;
+id_section_list = zeros(n,1);
 idmaterial = zeros(n,1);
 type = zeros(n,1);
 type_name = cell(n,1);
 for i=1:n
   section_list_name{i} = tochar(data{i,4});
   full_name{i} = [subindex{i} name{i}];
-  issl = strcmp(com.sectionList.name, section_list_name{i});
-  if any(issl)
-    idsl = iddd(issl);
-    id_section_list(i) = idsl(1);
-  else
+  idsl = find(strcmp(com.sectionList.name, section_list_name{i}), 1);
+  if isempty(idsl)
     throw_err('IO', 'SectionListNotFound', section_list_name{i}, ...
       'S梁断面', ['層: ' story_name{i} ', 符号: ' name{i}]);
   end
-
-  % 同一の鉄骨形状のみ複数リスト指定可
-  type_ = unique(com.sectionList.section_type(idsl));
-  if length(type_)~=1
-    error('同一断面リストに対する鉄骨形状は同一としてください')
-  end
-  type(i) = com.sectionList.section_type(idsl(1));
-  type_name(i) = com.sectionList.section_type_name(idsl(1));
+  id_section_list(i) = idsl;
+  type(i) = com.sectionList.section_type(idsl);
+  type_name(i) = com.sectionList.section_type_name(idsl);
 end
 
 % 設計変数番号

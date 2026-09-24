@@ -76,25 +76,25 @@ end
 
 % 層番号・階番号の設定
 % 階名から対応するIDを検索
-idfloor = zeros(n,1); iddf = 1:com.nfl;
-idstory = zeros(n,1); idds = 1:com.nstory;
+idfloor = zeros(n,1);
+idstory = zeros(n,1);
 for i=1:n
-  idfloor(i) = iddf(matches(com.floor.name, floor_name{i}));
-  idstory(i) = idds(matches(com.story.floor_name, floor_name{i}));
+  idfloor(i) = find(matches(com.floor.name, floor_name{i}));
+  idstory(i) = find(matches(com.story.floor_name, floor_name{i}));
 end
 
 % 通り番号の設定
 % 通り名から対応するIDを検索し、Z座標は柱頭側階名から設定
-idx = zeros(n,2); iddx = 1:size(com.baseline.x,1);
-idy = zeros(n,2); iddy = 1:size(com.baseline.y,1);
-idz = zeros(n,2); iddz = com.story.idz;
+idx = zeros(n,2);
+idy = zeros(n,2);
+idz = zeros(n,2);
 xlist = com.baseline.x.name;
 ylist = com.baseline.y.name;
 zlist = com.story.floor_name;
 for i=1:n
-  idx(i,:) = iddx(matches(xlist, coord_name{i,1}));
-  idy(i,:) = iddy(matches(ylist, coord_name{i,2}));
-  idz(i,1) = iddz(matches(zlist, floor_name{i}))-1;  % 柱脚Z座標
+  idx(i,:) = find(matches(xlist, coord_name{i,1}));
+  idy(i,:) = find(matches(ylist, coord_name{i,2}));
+  idz(i,1) = com.story.idz(idstory(i))-1;  % 柱脚Z座標
   % デフォルトでは柱頭Z座標を1層上に設定
   idz(i,2) = idz(i,1)+1;
 end
@@ -105,7 +105,7 @@ top_floor_name = cell(n,1);
 for i=1:n
   if ~ismissing(data{i,7})
     top_floor_name{i} = tochar(data{i,7});
-    idz(i,2) = iddz(matches(zlist, top_floor_name{i}));
+    idz(i,2) = com.story.idz(matches(zlist, top_floor_name{i}));
   end
 end
 

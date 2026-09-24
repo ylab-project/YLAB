@@ -44,7 +44,7 @@ idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder, ...
 % 上面（既定）と下面（二重スラブ）を分離
 slab_width = zeros(nmg,2);
 slab_thickness = zeros(nmg,2);
-slab_E = zeros(nmg,1); iddd = 1:com.nma;
+slab_E = zeros(nmg,1);
 deck_height = zeros(nmg,2);
 slab_width_l = zeros(nmg,2);
 slab_thickness_l = zeros(nmg,2);
@@ -73,7 +73,7 @@ for i=1:n
   if ~ismissing(data{i,11}); dhl_ = data{i,11}; end
   if ~ismissing(data{i,12}); dhr_ = data{i,12}; end
   material_name = tochar(data{i,9});
-  idm_ = iddd(matches(material.name, material_name));
+  idm_ = find(matches(material.name, material_name));
   E_ = material.E(idm_);
 
   % 上面/下面に直接代入

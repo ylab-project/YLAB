@@ -17,34 +17,18 @@ end
 % 断面リスト
 section_list_name = cell(n,1);
 id_section_list = zeros(n,1);
-iddd = 1:com.nsectionList;
 type = zeros(n,1);
 type_name = cell(n,1);
 for i=1:n
   section_list_name{i} = tochar(data{i,2});
-  idx = strcmp(com.sectionList.name, ...
-    section_list_name{i});
-  if any(idx)
-    idsl = iddd(idx);
-    id_section_list(i) = idsl(1);
-  else
-    throw_err('IO', ...
-      'SectionListNotFound', ...
-      section_list_name{i}, ...
-      '鉛直ブレース断面（メーカー製品）', ...
-      ['符号: ' section_name{i}]);
+  idsl = find(strcmp(com.sectionList.name, section_list_name{i}), 1);
+  if isempty(idsl)
+    throw_err('IO', 'SectionListNotFound', section_list_name{i}, ...
+      '鉛直ブレース断面（メーカー製品）', ['符号: ' section_name{i}]);
   end
-  % 同一の鉄骨形状のみ複数リスト指定可
-  type_ = ...
-    unique(com.sectionList.section_type(idsl));
-  if length(type_)~=1
-    error( ...
-      '同一断面リストに対する鉄骨形状は同一としてください')
-  end
-  type(i) = ...
-    com.sectionList.section_type(idsl(1));
-  type_name(i) = ...
-    com.sectionList.section_type_name(idsl(1));
+  id_section_list(i) = idsl;
+  type(i) = com.sectionList.section_type(idsl);
+  type_name(i) = com.sectionList.section_type_name(idsl);
 end
 
 % 設計変数番号

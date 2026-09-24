@@ -1,5 +1,5 @@
-function [xlist, xup, xdw, idvlist] = ...
-  enumerateNeighborD(obj, xvar, idvar, options)
+function [xlist, xup, xdw, idvlist] = enumerateNeighborD(obj, xvar, ...
+  idvar, ~)
 %enumerateNeighborD 径Dの近傍断面を列挙
 %   [xlist, xup, xdw, idvlist] = enumerateNeighborD(obj, xvar, idvar,
 %     options) は、指定変数の径Dについて近傍断面を列挙します。
@@ -57,8 +57,7 @@ end
 
 % 現在値
 Dcur = xvar(idvar);
-iddd = 1:length(Dst);
-idst_cur = iddd(Dst == Dcur);
+idst_cur = find(Dst == Dcur);
 
 % 1サイズアップ
 idst_up = idst_cur + 1;

@@ -75,14 +75,13 @@ cphead(3,:) = [{'', '', '', '', '', 'kN/mm2', 'kN/mm2', 'cm4', '', ...
 
 cpbody = cell(nc*2, size(cphead,2)+1);  % 末尾は marker 列
 irow = 0;
-iccc = 1:nc;
 for i=1:nfl
   ifl = nfl-i+1;
   for iy = 1:nbly
     for ix = 1:nblx
       for iz = 1:nblz
         % 柱脚側で判定する（SS7ルール）
-        ic = iccc(column.idfloor==ifl & column.idx(:,1)==ix ...
+        ic = find(column.idfloor==ifl & column.idx(:,1)==ix ...
           & column.idy(:,1)==iy & column.idz(:,1)==iz);
         if isempty(ic)
           continue

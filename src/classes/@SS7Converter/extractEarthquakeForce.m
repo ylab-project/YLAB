@@ -12,7 +12,6 @@ p = zeros(ndata,1);
 ids = zeros(ndata,1);
 
 % 地震力の読み出し
-isss = 1:obj.nstory;
 for i=1:ndata
   names = regexp(data{i,1}, '^([^(]+)(?:\(([^)]+)\))?', ...
     'tokens', 'once');
@@ -33,7 +32,7 @@ for i=1:ndata
   p(i) = data{i,4};
 
   % 層の検索
-  ids(i) = isss(matches(obj.story.name, story_name{i}));
+  ids(i) = find(matches(obj.story.name, story_name{i}));
 end
 
 % 結果の整理

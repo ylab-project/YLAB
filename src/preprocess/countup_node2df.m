@@ -21,11 +21,11 @@ story_isrigid = story.isrigid;
 % 剛床の代表節点
 idnode2ind = (1:nnode)';
 idstory2noderep = nan(nstory,1);
-id = 0; iddd = 1:nnode;
+id = 0;
 for is=1:nstory
   if story_isrigid(is)
     id = id+1;
-    ttt = iddd(node.idz==story.idz(is)&node.type==PRM.NODE_STANDARD);
+    ttt = find(node.idz==story.idz(is)&node.type==PRM.NODE_STANDARD);
     if isempty(ttt)
       % 剛床に属する節点がない
       story_isrigid(is) = false;
@@ -70,13 +70,12 @@ xr = zeros(nnode,1);
 yr = zeros(nnode,1);
 % xr = node.x;
 % yr = node.y;
-iddd = 1:nstory;
 for i = 1:nnode
   if node.type(i) ~= PRM.NODE_STANDARD
     continue
   end
   % 代表節点の層番号
-  ist = iddd(story.idz == node.idstory(idnode2ind(i)));
+  ist = find(story.idz == node.idstory(idnode2ind(i)));
   % 重心が指定されているか判定
   if isempty(ist)
     continue

@@ -6,7 +6,6 @@ nblx = com.nblx;
 nbly = com.nbly;
 nblz = com.nblz;
 nstory = com.nstory;
-nnode = com.nnode;
 
 % 共通配列
 idcg2n = com.cgsr.idnode;
@@ -42,20 +41,18 @@ if ncgsr==0 || isempty(cgsr)
   return
 end
 body = cell(ncgsr,13);
-innn = 1:nnode;
-icgg = 1:ncgsr;
 irow = 0;
 for i = 1:nstory
   ist = nstory-i+1;
   for iy = 1:nbly
     for ix = 1:nblx
       for iz = 1:nblz
-        in = innn(node.idx==ix & node.idy==iy & node.idz==iz ...
+        in = find(node.idx==ix & node.idy==iy & node.idz==iz ...
           & node.idstory==ist);
         if isempty(in)
           continue
         end
-        icg = icgg(idcg2n==in);
+        icg = find(idcg2n==in);
         if isempty(icg)
           continue
         end

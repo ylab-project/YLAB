@@ -1,5 +1,4 @@
-function [fhhead, fhbody] = write_cell_floor_height(...
-  xvar, com, result, options)
+function [fhhead, fhbody] = write_cell_floor_height(com, result)
 
 % 共通配列
 story = result.story;
@@ -7,7 +6,6 @@ floor = result.floor;
 
 % 共通定数
 nstory = com.nstory;
-nfloor = size(floor,1);
 
 % ヘッダ
 fhhead = cell(3, 12);
@@ -20,11 +18,10 @@ fhhead(3,4:10) = {'mm','mm','mm','','mm','','m2'};
 % ボディ
 fhbody = cell(nstory, 12);
 irow = 0;
-ifff = 1:nfloor;
 for ist = nstory:-1:1
   irow = irow+1;
   fhbody{irow,1} = story.name{ist};
-  ifl = ifff(floor.idstory==ist);
+  ifl = find(floor.idstory==ist);
   if ~isempty(ifl)
     fhbody{irow,2} = floor.name{ifl};
     fhbody{irow,4} = sprintf('%.0f',floor.standard_height(ifl));

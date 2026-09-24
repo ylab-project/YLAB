@@ -96,7 +96,7 @@ for id=1:secmgr.getNumSectionSubList
 end
 
 %% 構造階高
-[fhhead, fhbody] = write_cell_floor_height(xvar, com, result, options);
+[fhhead, fhbody] = write_cell_floor_height(com, result);
 write_table(fout, '構造階高', fhhead, fhbody, true);
 
 %% 節点座標

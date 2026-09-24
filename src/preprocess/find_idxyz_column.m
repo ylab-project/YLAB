@@ -30,9 +30,9 @@ nbly = size(baseline.y,1);
 nblz = size(baseline.z,1);
 
 % 出力バッファ
-idx = zeros(n,2); iddx = 1:nblx;
-idy = zeros(n,2); iddy = 1:nbly;
-idz = zeros(n,2); iddz = 1:nblz;
+idx = zeros(n,2);
+idy = zeros(n,2);
+idz = zeros(n,2);
 xlist = baseline.x.name;
 ylist = baseline.y.name;
 zlist = story.floor_name;
@@ -42,20 +42,20 @@ if m==1
     if is_all_token(xcoord_name{i,1})
       idx(i,:) = [1, nblx];
     else
-      idx(i,1) = iddx(matches(xlist, xcoord_name{i,1}));
+      idx(i,1) = find(matches(xlist, xcoord_name{i,1}));
       idx(i,2) = idx(i,1);
     end
     if is_all_token(ycoord_name{i,1})
       idy(i,:) = [1, nbly];
     else
-      idy(i,1) = iddy(matches(ylist, ycoord_name{i,1}));
+      idy(i,1) = find(matches(ylist, ycoord_name{i,1}));
       idy(i,2) = idy(i,1);
     end
     % 階：階ID-1（下端節点Z）～ 階ID（上端節点Z）
     if is_all_token(floor_name{i,1})
       idz(i,:) = [1, nblz];
     else
-      idz(i,1) = iddz(matches(zlist, floor_name{i,1}))-1;
+      idz(i,1) = find(matches(zlist, floor_name{i,1}))-1;
       idz(i,2) = idz(i,1)+1;
     end
   end
@@ -64,20 +64,20 @@ else
     if is_all_token(xcoord_name{i,1})
       idx(i,:) = [1, nblx];
     else
-      idx(i,1) = iddx(matches(xlist, xcoord_name{i,1}));
-      idx(i,2) = iddx(matches(xlist, xcoord_name{i,2}));
+      idx(i,1) = find(matches(xlist, xcoord_name{i,1}));
+      idx(i,2) = find(matches(xlist, xcoord_name{i,2}));
     end
     if is_all_token(ycoord_name{i,1})
       idy(i,:) = [1, nbly];
     else
-      idy(i,1) = iddy(matches(ylist, ycoord_name{i,1}));
-      idy(i,2) = iddy(matches(ylist, ycoord_name{i,2}));
+      idy(i,1) = find(matches(ylist, ycoord_name{i,1}));
+      idy(i,2) = find(matches(ylist, ycoord_name{i,2}));
     end
     if is_all_token(floor_name{i,1})
       idz(i,:) = [1, nblz];
     else
-      idz(i,1) = iddz(matches(zlist, floor_name{i,1}))-1;
-      idz(i,2) = iddz(matches(zlist, floor_name{i,2}));
+      idz(i,1) = find(matches(zlist, floor_name{i,1}))-1;
+      idz(i,2) = find(matches(zlist, floor_name{i,2}));
     end
   end
 end

@@ -4,11 +4,6 @@ function baseline_setback = set_baseline_setback_block(dbc, com)
 data = dbc.get_data_block('セットバック');
 n = size(data,1);
 
-% 共通定数
-nblx = com.nblx;
-nbly = com.nbly;
-nstory = com.nstory;
-
 % データ読み取り
 story_name = cell(n,1);
 xname = cell(n,1);
@@ -27,24 +22,23 @@ end
 idx = zeros(n,1);
 idy = zeros(n,1);
 idstory = zeros(n,1);
-iddd = 1:max([nblx nbly nstory]);
 for i=1:n
   % 層
   id = matches(com.story.name, story_name{i});
   if any(id)
-    idstory(i) = iddd(id);
+    idstory(i) = find(id);
   end
 
   % X通り
   id = matches(com.baseline.x.name, xname{i});
   if any(id)
-    idx(i) = iddd(id);
+    idx(i) = find(id);
   end
 
   % Y通り
   id = matches(com.baseline.y.name, yname{i});
   if any(id)
-    idy(i) = iddd(id);
+    idy(i) = find(id);
   end
 end
 

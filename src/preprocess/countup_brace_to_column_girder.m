@@ -29,8 +29,6 @@ function [idmec1, idmec2, has_girder1, has_girder2, ...
 %       するか節点Zのままにするかの判定に使う。
 
 nmeb = com.nmeb;
-nmec = com.nmec;
-nmeg = com.nmeg;
 
 % ブレース節点
 idmeb2n = [com.member.brace.idnode1 com.member.brace.idnode2];
@@ -42,7 +40,6 @@ idmec2n = [com.member.column.idnode1 com.member.column.idnode2];
 idmeg2n = [com.member.girder.idnode1 com.member.girder.idnode2];
 
 % 分割節点では名目柱から基礎梁端点を解決する
-iccc = 1:nmec;
 idmeb2n_g = idmeb2n;
 if any(com.node.type == PRM.NODE_BRACE_FOR_COLUMN)
   node_type = com.node.type;
@@ -55,17 +52,17 @@ if any(com.node.type == PRM.NODE_BRACE_FOR_COLUMN)
       end
 
       % BRACE2柱から同じ名目部材のBRACE1柱を辿る
-      ic_ = iccc(idmec2n(:,1) == inode);
+      ic_ = find(idmec2n(:,1) == inode, 1);
       if isempty(ic_)
         continue
       end
-      nominal_id = idnominal(ic_(1), 1);
-      ic_primary = iccc(idnominal(:,1) == nominal_id & ...
-        idnominal(:,2) == 1);
+      nominal_id = idnominal(ic_, 1);
+      ic_primary = find(idnominal(:,1) == nominal_id & ...
+        idnominal(:,2) == 1, 1);
       if isempty(ic_primary)
         continue
       end
-      idmeb2n_g(ib, iend) = idmec2n(ic_primary(1), 1);
+      idmeb2n_g(ib, iend) = idmec2n(ic_primary, 1);
     end
   end
 end
@@ -92,7 +89,6 @@ idmeg_selected1 = zeros(nmeb, 1);
 idmeg_selected2 = zeros(nmeb, 1);
 
 % 梁選択に使う幾何配列（エラー表示以外でtableを参照しない）
-iggg = 1:nmeg;
 girder_idir = com.member.girder.idir;
 brace_idir = com.member.brace.idir;
 node_x = com.node.x;
@@ -104,16 +100,14 @@ for ib = 1:nmeb
     idxc = 0;
     iddd_c = zeros(1, ncol_c);
     for idu = 1:2
-      idmec_ = iccc(idmec2n(:,idu) == idmeb2n(ib,iend));
-      for k = 1:length(idmec_)
-        idxc = idxc + 1;
-        iddd_c(idxc) = idmec_(k);
-      end
+      idmec_ = find(idmec2n(:,idu) == idmeb2n(ib,iend));
+      iddd_c(idxc+(1:numel(idmec_))) = idmec_;
+      idxc = idxc + numel(idmec_);
     end
 
     % 接続梁候補から同一構面で他端側へ伸びる梁を絞り込む
     in_connect = idmeb2n_g(ib, iend);
-    idg = iggg(any(idmeg2n == in_connect, 2));
+    idg = find(any(idmeg2n == in_connect, 2))';
     matched = select_brace_end_girder_(idg, in_connect, ...
       brace_idir(ib), idmeb2n(ib,iend), idmeb2n(ib,3-iend), ...
       girder_idir, idmeg2n, node_x, node_y);

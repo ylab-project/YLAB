@@ -8,7 +8,6 @@ nbly = com.nbly;
 nstory = com.nstory;
 
 % 共通配列
-node = com.node;
 support = com.support;
 % columm = com.member.column;
 % secc = com.section.column;
@@ -30,19 +29,16 @@ rflhead = { ...
 '', '', '', '', '曲げ', '水平', '曲げ', '水平'; ...
 '', '', '', 'kN', 'kNm', 'kN', 'kNm', 'kN'};
 rflbody = cell(nsup,8);
-ids2df = node.dof(support.idnode,:);
-isss = 1:nsup;
 irow = 0;
 for i = 1:nstory
   ist = nstory-i+1;
   for iy = 1:nbly
     for ix = 1:nblx
-      is = isss(support.idstory==ist & support.idx(:,1)==ix & ...
+      is = find(support.idstory==ist & support.idx(:,1)==ix & ...
         support.idy(:,1)==iy);
       if isempty(is)
         continue
       end
-      % rrr = rvec(ids2df(is,:));
       rrr = rvec(is,:);
       if all(abs(rrr)<1.d-3)
         continue

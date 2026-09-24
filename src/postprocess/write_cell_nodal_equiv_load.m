@@ -33,13 +33,12 @@ end
 nlhead = {'層','X軸','Y軸','PX','PY','PZ','MX','MY','MZ'; ...
   '', '', '', 'kN', 'kN', 'kN', 'kNm', 'kNm', 'kNm'};
 nlbody = cell(nn,9);
-innn = 1:nn;
 irow = 0;
 for i = 1:nstory
   ist = nstory-i+1;
   for iy = 1:nbly
     for ix = 1:nblx
-      in = innn(node.idx==ix & node.idy==iy & node.idstory== ist ...
+      in = find(node.idx==ix & node.idy==iy & node.idstory== ist ...
         & (node.type==PRM.NODE_STANDARD ...
         | node.type==PRM.NODE_FLEX_DIAPHRAGM));
       if isempty(in)

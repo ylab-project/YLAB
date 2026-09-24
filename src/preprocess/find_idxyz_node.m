@@ -4,20 +4,18 @@ n = size(story_name,1);
 
 % 共通定数
 nblx = size(baseline.x,1);
-nbly = size(baseline.y,1);
-% nblz = size(baseline.z,1);
 
 % 通り番号
-idx = zeros(n,1); iddx = 1:size(baseline.x,1);
-idy = zeros(n,1); iddy = 1:size(baseline.y,1);
-idz = zeros(n,1); iddz = 1:size(baseline.z,1);
+idx = zeros(n,1);
+idy = zeros(n,1);
+idz = zeros(n,1);
 xlist = baseline.x.name;
 ylist = baseline.y.name;
 zlist = baseline.z.name;
 for i=1:n
-  idx(i) = iddx(matches(xlist, coord_name{i,1}));
-  idy(i) = iddy(matches(ylist, coord_name{i,2}));
-  idz(i) = iddz(matches(zlist, story_name{i}));
+  idx(i) = find(matches(xlist, coord_name{i,1}));
+  idy(i) = find(matches(ylist, coord_name{i,2}));
+  idz(i) = find(matches(zlist, story_name{i}));
 end
 
 if nargin==3
@@ -35,9 +33,8 @@ end
 xlist = baseline.x.name;
 ylist = baseline.y.name;
 xylist = [xlist(:)' ylist(:)'];
-iddd = 1:(nblx+nbly);
 for i=1:n
-  idxy = iddd(matches(xylist, frame_name{i}));
+  idxy = find(matches(xylist, frame_name{i}), 1);
   if idxy<=nblx
     idir(i) = PRM.Y;
   else

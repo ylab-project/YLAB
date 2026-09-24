@@ -37,9 +37,9 @@ nblz = size(baseline.z,1);
 
 % 出力バッファ（フレーム「全」で 1→2 行展開のため最大 2n 行）
 idir = zeros(n*2,1);
-idx = zeros(n*2,2); iddx = 1:nblx;
-idy = zeros(n*2,2); iddy = 1:nbly;
-idz = zeros(n*2,2); iddz = 1:nblz;
+idx = zeros(n*2,2);
+idy = zeros(n*2,2);
+idz = zeros(n*2,2);
 iorigin = zeros(n*2,1);
 % xylist: X/Y フレーム名の連結。前半 nblx 個が X、後半 nbly 個が Y。
 % 「idxy<=nblx なら X フレーム」と単純判定するための仕掛け。
@@ -54,8 +54,7 @@ if m==1
     if is_all_token(frame_name{i,1})
       [io, idir, idx, idy, idz, iorigin] = expand_all_frame( ...
         io, idir, idx, idy, idz, iorigin, i, story_name(i,:), ...
-        coord_name(i,:), m, iddx, iddy, iddz, xlist, ylist, zlist, ...
-        nblx, nbly, nblz);
+        coord_name(i,:), m, xlist, ylist, zlist, nblx, nbly, nblz);
       continue
     end
     io = io+1;
@@ -67,23 +66,22 @@ if m==1
     if idxy<=nblx
       idir(io) = PRM.Y;
       idx(io,:) = idxy;
-      idy(io,1) = iddy(matches(ylist, coord_name{i,1}));
-      idy(io,2) = iddy(matches(ylist, coord_name{i,2}));
+      idy(io,1) = find(matches(ylist, coord_name{i,1}));
+      idy(io,2) = find(matches(ylist, coord_name{i,2}));
     else
       idir(io) = PRM.X;
       idy(io,:) = idxy-nblx;
-      idx(io,1) = iddx(matches(xlist, coord_name{i,1}));
-      idx(io,2) = iddx(matches(xlist, coord_name{i,2}));
+      idx(io,1) = find(matches(xlist, coord_name{i,1}));
+      idx(io,2) = find(matches(xlist, coord_name{i,2}));
     end
-    idz(io,:) = resolve_story(story_name(i,:), m, iddz, zlist, nblz);
+    idz(io,:) = resolve_story(story_name(i,:), m, zlist, nblz);
   end
 else
   for i=1:n
     if is_all_token(frame_name{i,1})
       [io, idir, idx, idy, idz, iorigin] = expand_all_frame( ...
         io, idir, idx, idy, idz, iorigin, i, story_name(i,:), ...
-        coord_name(i,:), m, iddx, iddy, iddz, xlist, ylist, zlist, ...
-        nblx, nbly, nblz);
+        coord_name(i,:), m, xlist, ylist, zlist, nblx, nbly, nblz);
       continue
     end
     io = io+1;
@@ -94,18 +92,18 @@ else
     end
     if idxy<=nblx
       idir(io) = PRM.Y;
-      idx(io,1) = iddx(matches(xlist, frame_name{i,1}));
-      idx(io,2) = iddx(matches(xlist, frame_name{i,2}));
-      idy(io,1) = iddy(matches(ylist, coord_name{i,1}));
-      idy(io,2) = iddy(matches(ylist, coord_name{i,2}));
+      idx(io,1) = find(matches(xlist, frame_name{i,1}));
+      idx(io,2) = find(matches(xlist, frame_name{i,2}));
+      idy(io,1) = find(matches(ylist, coord_name{i,1}));
+      idy(io,2) = find(matches(ylist, coord_name{i,2}));
     else
       idir(io) = PRM.X;
-      idy(io,1) = iddy(matches(ylist, frame_name{i,1}));
-      idy(io,2) = iddy(matches(ylist, frame_name{i,2}));
-      idx(io,1) = iddx(matches(xlist, coord_name{i,1}));
-      idx(io,2) = iddx(matches(xlist, coord_name{i,2}));
+      idy(io,1) = find(matches(ylist, frame_name{i,1}));
+      idy(io,2) = find(matches(ylist, frame_name{i,2}));
+      idx(io,1) = find(matches(xlist, coord_name{i,1}));
+      idx(io,2) = find(matches(xlist, coord_name{i,2}));
     end
-    idz(io,:) = resolve_story(story_name(i,:), m, iddz, zlist, nblz);
+    idz(io,:) = resolve_story(story_name(i,:), m, zlist, nblz);
   end
 end
 
@@ -120,17 +118,16 @@ return
 end
 
 
-function iz = resolve_story(srow, m, iddz, zlist, nblz)
+function iz = resolve_story(srow, m, zlist, nblz)
 %resolve_story - 層レンジ解決（「全/ALL」は [1,nblz]）
 %
-%   iz = resolve_story(srow, m, iddz, zlist, nblz) は、層名 1 行
+%   iz = resolve_story(srow, m, zlist, nblz) は、層名 1 行
 %   ぶんを baseline.z 上のIDレンジ [1×2] に解決する。'全'/'ALL'
 %   は [1,nblz]、それ以外は zlist との一致から ID を引く。
 %
 %   入力引数:
 %     srow  - 層名 1 行 [1×m] cell（m=1:単一, m=2:始端終端）
 %     m     - srow の列数（1 または 2）
-%     iddz  - 1:nblz の連番ベクトル
 %     zlist - 層名リスト [nblz×1] cell
 %     nblz  - 層数
 %
@@ -139,25 +136,24 @@ function iz = resolve_story(srow, m, iddz, zlist, nblz)
 if is_all_token(srow{1})
   iz = [1, nblz];
 elseif m==1
-  iz = iddz(matches(zlist, srow{1}));
+  iz = find(matches(zlist, srow{1}));
 else
-  iz = [iddz(matches(zlist, srow{1})), iddz(matches(zlist, srow{2}))];
+  iz = [find(matches(zlist, srow{1})), find(matches(zlist, srow{2}))];
 end
 return
 end
 
 
-function ic = resolve_coord(crow, iddc, clist, nblc)
+function ic = resolve_coord(crow, clist, nblc)
 %resolve_coord - 軸レンジ解決（「全/ALL」は [1,nblc]）
 %
-%   ic = resolve_coord(crow, iddc, clist, nblc) は、軸名 1 行
+%   ic = resolve_coord(crow, clist, nblc) は、軸名 1 行
 %   ぶん（始端・終端）を baseline 上のIDレンジ [1×2] に解決する。
 %   始端が '全'/'ALL' なら [1,nblc]、それ以外は clist との一致
 %   から ID を引く。
 %
 %   入力引数:
 %     crow  - 軸名 1 行 [1×2] cell（始端・終端）
-%     iddc  - 1:nblc の連番ベクトル
 %     clist - 軸名リスト [nblc×1] cell
 %     nblc  - 軸数
 %
@@ -166,7 +162,7 @@ function ic = resolve_coord(crow, iddc, clist, nblc)
 if is_all_token(crow{1})
   ic = [1, nblc];
 else
-  ic = [iddc(matches(clist, crow{1})), iddc(matches(clist, crow{2}))];
+  ic = [find(matches(clist, crow{1})), find(matches(clist, crow{2}))];
 end
 return
 end
@@ -174,7 +170,7 @@ end
 
 function [io, idir, idx, idy, idz, iorigin] = expand_all_frame( ...
   io, idir, idx, idy, idz, iorigin, i, story_row, coord_row, m, ...
-  iddx, iddy, iddz, xlist, ylist, zlist, nblx, nbly, nblz)
+  xlist, ylist, zlist, nblx, nbly, nblz)
 %expand_all_frame - フレーム「全/ALL」指定をX/Y方向2行に展開
 %
 %   [io, idir, idx, idy, idz, iorigin] = expand_all_frame(...) は、
@@ -188,23 +184,23 @@ function [io, idir, idx, idy, idz, iorigin] = expand_all_frame( ...
 %     i         - 元入力行の添字
 %     story_row - 層名 1 行 [1×m] cell
 %     coord_row - 軸名 1 行 [1×2] cell
-%     m, iddx/iddy/iddz, xlist/ylist/zlist, nblx/nbly/nblz
+%     m, xlist/ylist/zlist, nblx/nbly/nblz
 %               - find_idxyz_girder の内部変数（解決用）
 %
 %   出力引数:
 %     io/idir/idx/idy/idz/iorigin - 2 行追加後のバッファ
-iz = resolve_story(story_row, m, iddz, zlist, nblz);
+iz = resolve_story(story_row, m, zlist, nblz);
 io = io + 1;
 idir(io) = PRM.Y;
 idx(io,:) = [1, nblx];
 idz(io,:) = iz;
-idy(io,:) = resolve_coord(coord_row, iddy, ylist, nbly);
+idy(io,:) = resolve_coord(coord_row, ylist, nbly);
 iorigin(io) = i;
 io = io + 1;
 idir(io) = PRM.X;
 idy(io,:) = [1, nbly];
 idz(io,:) = iz;
-idx(io,:) = resolve_coord(coord_row, iddx, xlist, nblx);
+idx(io,:) = resolve_coord(coord_row, xlist, nblx);
 iorigin(io) = i;
 
 return

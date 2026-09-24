@@ -23,9 +23,6 @@ data = dbc.get_data_block('梁要素荷重');
 n = size(data,1);
 csv_rows = dbc.origrows(dbc.get_data_block_rows('梁要素荷重'));
 
-% 共通定数
-nlc = com.nlc;
-
 % 共通配列
 baseline = com.baseline;
 member_girder = com.member.girder;
@@ -58,10 +55,9 @@ for i=1:n
 end
 
 % 荷重ケース番号
-iddlc = 1:nlc;
 lcase = zeros(n,1);
 for i=1:n
-  lcase(i) = iddlc(matches(loadcase.name, name{i}));
+  lcase(i) = find(matches(loadcase.name, name{i}));
 end
 
 % 通り番号・方向

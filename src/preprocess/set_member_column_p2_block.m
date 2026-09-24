@@ -54,22 +54,18 @@ idnode2 = find_idnode_from_idxyz(idx(:,2), idy(:,2), idz(:,2), node);
 
 % ダミー節点の処理
 % 節点が見つからない(=0)柱は、接続する他の柱から節点を継承するか削除する
-iddd = 1:n;                   % 部材インデックス
 isremoved = false(n,1);       % 削除フラグ
 for i=1:n
   if idnode1(i)==0
     % 柱脚節点が無効の場合、同じ位置を柱頭に持つ下階の柱を探す
-    id = iddd(idx(i,1) == idx(:,2) & idy(i,1) == idy(:,2) ...
-      & idz(i,1) == idz(:,2));
+    id = find(idx(i,1) == idx(:,2) & idy(i,1) == idy(:,2) ...
+      & idz(i,1) == idz(:,2), 1);
 
     if isempty(id)
       % 下階の柱が見つからない場合は削除対象
       isremoved(i) = true;
     else
       % 下階の柱から節点情報を継承
-      if length(id) > 1
-        id = id(1);
-      end
       idnode1(i) = idnode1(id);
       member_column.idx(i,1) = idx(id,1);
       member_column.idy(i,1) = idy(id,1);

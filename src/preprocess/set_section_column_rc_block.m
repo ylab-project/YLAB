@@ -34,11 +34,10 @@ end
 
 % 層番号（S柱断面と同じ方法）
 idstory = zeros(n,1);
-iddd = 1:com.nstory;
 for i=1:n
   idx = strcmp(com.story.floor_name, floor_name{i});
   if any(idx)
-    idstory(i) = iddd(idx);
+    idstory(i) = find(idx);
   else
     error('階 %s が見つかりません (RC柱断面)', floor_name{i});
   end
@@ -63,10 +62,9 @@ idmaterial = zeros(n,1);
 id_section_list = zeros(n,1);  % 最適化対象外
 type = zeros(n,1);
 type_name = cell(n,1);
-iddd = 1:com.nma;
 for i=1:n
   full_name{i} = [subindex{i} name{i}];
-  idmaterial(i) = iddd(matches(com.material.name, data{i,7}));
+  idmaterial(i) = find(matches(com.material.name, data{i,7}));
   type(i) = PRM.RCRS;  % RC矩形断面
   type_name{i} = 'RCRS';
 end

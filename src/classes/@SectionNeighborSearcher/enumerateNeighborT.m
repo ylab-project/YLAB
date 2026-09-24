@@ -105,9 +105,8 @@ ndw = size(xdw, 1);
 nnn = [ones(1, nup) -ones(1, ndw)];
 [xlist, ia] = unique([xup; xdw], 'rows', 'stable');
 nnn = nnn(ia);
-iddd = 1:size(xlist, 1);
-idvlist.up = iddd(nnn > 0);
-idvlist.dw = iddd(nnn < 0);
+idvlist.up = find(nnn > 0);
+idvlist.dw = find(nnn < 0);
 
 return
 end

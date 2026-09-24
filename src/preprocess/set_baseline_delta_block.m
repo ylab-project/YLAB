@@ -4,10 +4,6 @@ function baseline_delta = set_baseline_delta_block(dbc, com)
 data = dbc.get_data_block('軸振れ');
 n = size(data,1);
 
-% 共通定数
-nblx = com.nblx;
-nbly = com.nbly;
-
 % データ読み取り
 xname = cell(n,1);
 yname = cell(n,1);
@@ -23,18 +19,17 @@ end
 % 通り番号の検索
 idx = zeros(n,1);
 idy = zeros(n,1);
-iddd = 1:max([nblx nbly]);
 for i=1:n
   % X通り
   id = matches(com.baseline.x.name, xname{i});
   if any(id)
-    idx(i) = iddd(id);
+    idx(i) = find(id);
   end
 
   % Y通り
   id = matches(com.baseline.y.name, yname{i});
   if any(id)
-    idy(i) = iddd(id);
+    idy(i) = find(id);
   end
 end
 

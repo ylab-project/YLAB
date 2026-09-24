@@ -69,14 +69,13 @@ end
 dfn = dfn_all(:,:,ilcset);
 % rows は head=17 列 + marker 列で 18 列
 rows = cell(nc*nlc,ncol+1);
-iccc = 1:nnc;
 irow = 0;
 for i = 1:nstory
   ist = nstory-i+1;
   for iy = 1:nbly
     for ix = 1:nblx
       for iz = 1:nblz
-        inc = iccc(idnm2story==ist & idnm2x(:,1)==ix ...
+        inc = find(idnm2story==ist & idnm2x(:,1)==ix ...
           & idnm2y(:,1)==iy & idnm2z(:,1)==iz);
         if isempty(inc)
           continue

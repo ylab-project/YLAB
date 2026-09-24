@@ -13,9 +13,9 @@ for i=1:n
 end
 
 % 通り番号
-idy = zeros(n,1); iddy = 1:com.nbly;
+idy = zeros(n,1);
 for i=1:n
-  idy(i) = iddy(matches(com.baseline.y.name, name{i}));
+  idy(i) = find(matches(com.baseline.y.name, name{i}));
 end
 yspan = table(name, standard_span, span, idy);
 

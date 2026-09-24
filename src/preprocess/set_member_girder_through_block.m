@@ -53,15 +53,12 @@ end
 % 各通し梁位置について、左端(j=1)と右端(j=2)が一致する梁を探す
 isthrough = false(nmeg,3);    % 通し接合フラグ [左端, 右端, 中央]
 idconnected = zeros(nmeg,1);  % 接続関係
-iddd = 1:nmeg;                % 梁インデックス
 for i=1:n
   idg = zeros(1,2);           % 一致した梁ID [左端側, 右端側]
   for j=1:2
     % 梁端部(j)が通し梁位置(i)と一致し、かつ方向も一致する梁を検索
-    id = iddd(girder_idx(:,j) == idx(i) ...
-      & girder_idy(:,j) == idy(i) ...
-      & girder_idz(:,j) == idz(i) ...
-      & girder_idir == idir(i));
+    id = find(girder_idx(:,j) == idx(i) & girder_idy(:,j) == idy(i) ...
+      & girder_idz(:,j) == idz(i) & girder_idir == idir(i));
     if ~isempty(id)
       idg(j) = id;
       isthrough(id,j) = true;  % 該当端を通しとしてマーク

@@ -149,9 +149,7 @@ for im = 1:nm
 end
 
 % ダミー自由度の処理
-iddd = 1:ndf;
-iddd = iddd(idf2n(:,1)==0);
-ksmat(iddd,1) = 1.d6;
+ksmat(idf2n(:,1)==0, 1) = 1.d6;
 
 return
 end

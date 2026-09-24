@@ -16,7 +16,6 @@ function felement = update_felement(ar, cxl, cyl, idmem2node, nnode, nlc)
 %     felement   - 再計算後の節点単位等価節点力
 
 % 計算の準備
-nm = size(ar, 1);
 felement = zeros(nnode, 6, nlc);
 
 % 部材座標第3軸
@@ -26,11 +25,9 @@ czl = cross(cxl, cyl, 2);
 %   ar: 要素座標系
 %   felement: 全体座標系 [nnode×6×nlc]
 %   座標変換行列は{F}=[T]^T{f}
-iddd = 1:nm;
 for ilc = 1:nlc
   istarget = any(ar(:,:,ilc) ~= 0, 2);
-  immm = iddd(istarget);
-  for im = immm
+  for im = find(istarget)'
     arunit = ar(im,:,ilc)';
     tt = [cxl(im,:)' cyl(im,:)' czl(im,:)'];
     in1 = idmem2node(im, 1);

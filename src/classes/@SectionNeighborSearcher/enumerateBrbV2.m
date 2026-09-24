@@ -54,8 +54,7 @@ end
 
 % 現在値
 V2cur = xvar(idvar);
-iddd = 1:length(V2st);
-idst_cur = iddd(V2st == V2cur);
+idst_cur = find(V2st == V2cur);
 
 % 1サイズアップ
 idst_up = idst_cur + 1;

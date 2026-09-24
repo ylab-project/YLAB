@@ -20,13 +20,13 @@ end
 
 % 通り番号の検索
 idir = zeros(n,1);
-idxy = zeros(n,1); iddd = 1:max([nblx nbly]);
+idxy = zeros(n,1);
 for i=1:n
   % X通り
   idx = matches(com.baseline.x.name, xy_frame_name{i});
   if any(idx)
     idir(i) = PRM.X;
-    idxy(i) = iddd(idx);
+    idxy(i) = find(idx);
     continue
   end
 
@@ -34,7 +34,7 @@ for i=1:n
   idy = matches(com.baseline.y.name, xy_frame_name{i});
   if any(idy)
     idir(i) = PRM.Y;
-    idxy(i) = iddd(idy);
+    idxy(i) = find(idy);
   end
 end
 

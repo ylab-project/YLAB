@@ -1,5 +1,5 @@
-function [xlist, xup, xdw, idvlist] = ...
-  enumerateNeighborB(obj, xvar, idvar, options)
+function [xlist, xup, xdw, idvlist] = enumerateNeighborB(obj, xvar, ...
+  idvar, ~)
 %enumerateNeighborB フランジ幅Bの近傍断面を列挙
 %   [xlist, xup, xdw, idvlist] = enumerateNeighborB(obj, xvar, idvar,
 %     options) は、指定変数のフランジ幅Bについて近傍断面を列挙します。
@@ -58,8 +58,7 @@ end
 
 % 現在値
 B0 = xvar(idvar);
-iddd = 1:length(Bnset);
-idst0 = iddd(Bnset == B0);
+idst0 = find(Bnset == B0);
 
 % 1サイズアップ
 idstup = idst0 + 1;

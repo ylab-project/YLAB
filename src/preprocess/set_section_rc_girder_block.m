@@ -27,12 +27,11 @@ for i=1:n
 end
 
 % 層・Z通り番号
-idstory = zeros(n,1); idds = 1:com.nstory;
-idz = zeros(n,1); iddz = com.story.idz;
+idstory = zeros(n,1);
 for i=1:n
-  idstory(i) = idds(matches(com.story.name, story_name{i}));
-  idz(i) = iddz(matches(com.story.name, story_name{i}));
+  idstory(i) = find(matches(com.story.name, story_name{i}));
 end
+idz = com.story.idz(idstory);
 idznominal = com.story.idnominal(idstory);
 
 % 符号
@@ -53,10 +52,9 @@ idmaterial = zeros(n,1);
 id_section_list = zeros(n,1);
 type = zeros(n,1);
 type_name = cell(n,1);
-iddd = 1:com.nma;
 for i=1:n
   full_name{i} = [subindex{i} name{i}];
-  idmaterial(i) = iddd(matches(com.material.name, data{i,6}));
+  idmaterial(i) = find(matches(com.material.name, data{i,6}));
   type(i) = PRM.RCRS;
 end
 

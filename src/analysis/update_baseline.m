@@ -45,10 +45,9 @@ mcidz = member_column.idz(:,2);
 % 柱の寄り
 mcdxy = zeros(nc,2);
 ac = baseline.alignment_column;
-iddd = 1:nc;
 for i=1:size(ac,1)
-  im = iddd(mcidx==ac.idx(i) & mcidy==ac.idy(i) & mcidz==ac.idz(i));
-  if (im>0)
+  im = find(mcidx==ac.idx(i) & mcidy==ac.idy(i) & mcidz==ac.idz(i));
+  if ~isempty(im)
     mcdxy(im,:) = [ac.dx(i) ac.dy(i)];
   end
 end

@@ -103,9 +103,9 @@ if size(data, 2) >= 10
 end
 
 %% 階番号の取得
-idstory = zeros(n,1); idds = 1:com.nstory;
+idstory = zeros(n,1);
 for i=1:n
-  idstory(i) = idds(matches(com.story.floor_name, floor_name{i}));
+  idstory(i) = find(matches(com.story.floor_name, floor_name{i}));
 end
 
 % 通り番号・方向の取得
@@ -116,10 +116,9 @@ end
 idzn = reshape(com.story.idnominal(idz), size(idz));
 
 % 断面番号の取得
-idsecb = zeros(n,1); iddd = 1:com.nsecb;
+idsecb = zeros(n,1);
 for i=1:n
-  id = iddd(matches(section_brace.name, section_name{i}));
-  idsecb(i) = id;
+  idsecb(i) = find(matches(section_brace.name, section_name{i}));
 end
 
 % 断面タイプの取得

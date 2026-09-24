@@ -13,9 +13,9 @@ for i=1:n
 end
 
 % 通り番号
-idx = zeros(n,1); iddx = 1:com.nblx;
+idx = zeros(n,1);
 for i=1:n
-  idx(i) = iddx(matches(com.baseline.x.name, name{i}));
+  idx(i) = find(matches(com.baseline.x.name, name{i}));
 end
 xspan = table(name, standard_span, span, idx);
 

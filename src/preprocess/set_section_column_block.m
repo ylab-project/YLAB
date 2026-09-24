@@ -39,9 +39,9 @@ for i=1:n
 end
 
 % 層番号
-idstory = zeros(n,1); iddd = 1:com.nstory;
+idstory = zeros(n,1);
 for i=1:n
-  idstory(i) = iddd(matches(com.story.floor_name, floor_name{i}));
+  idstory(i) = find(matches(com.story.floor_name, floor_name{i}));
 end
 idznominal = com.story.idnominal(idstory);
 

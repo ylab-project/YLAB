@@ -18,13 +18,12 @@ function initial_section = read_initial_section_block(dbc, ...
 data = dbc.get_data_block(block_name);
 n = size(data,1);
 
-idlist = 1:length(story_names);
 full_name = cell(n,1);
 idstory = zeros(n,1);
 dimension = cell(n,1);
 for i=1:n
   % 階名または層名から対応する内部IDを解決する
-  idstory(i) = idlist(matches(story_names, tochar(data{i,1})));
+  idstory(i) = find(matches(story_names, tochar(data{i,1})));
 
   % 符号を組み立てる
   subindex = make_subindex(data{i,3});

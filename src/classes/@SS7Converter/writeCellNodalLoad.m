@@ -49,7 +49,6 @@ end
 
 % 地震荷重
 lclabel = {'EX+', 'EX-', 'EY+', 'EY-'};
-innn = 1:obj.nnode;
 for ilc=1:4
   for is=1:obj.nstory
     if all(eq.idstory~=is)
@@ -70,8 +69,7 @@ for ilc=1:4
     end
     nodalLoad{irow,1} = lclabel{ilc};
     nodalLoad{irow,2} = storyName{is};
-    idn = innn(node.idstory==is);
-    idn = idn(1);
+    idn = find(node.idstory==is, 1);
     nodalLoad{irow,3} = node.xname{idn};
     nodalLoad{irow,4} = node.yname{idn};
     nodalLoad(irow,5:10) = load;

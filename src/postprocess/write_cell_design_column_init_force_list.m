@@ -61,7 +61,6 @@ end
 dfn0 = dfn0_all;
 % dciflbody は head=20 列 + marker 列で 21 列
 dciflbody = cell(nc*nlc,ncol+1);
-iccc = 1:nnc;
 irow = 0;
 for i = 1:nstory
   ist = nstory-i+1;
@@ -69,7 +68,7 @@ for i = 1:nstory
     for ix = 1:nblx
       for iz = 1:nblz
         % --- 該当ID検索 ---
-        inc = iccc(idnmc2story==ist & idnmc2x(:,1)==ix ...
+        inc = find(idnmc2story==ist & idnmc2x(:,1)==ix ...
           & idnmc2y(:,1)==iy & idnmc2z(:,1)==iz);
         if isempty(inc)
           continue

@@ -27,12 +27,12 @@ end
 diff_height = zeros(n,1);
 
 % 層番号
-idstory = zeros(n,1); iddd = 1:com.nstory;
+idstory = zeros(n,1);
 idz = zeros(n,1);
 isdummy = false(n,1);
 idnominal = zeros(n,1);
 for i=1:n
-  idstory(i) = iddd(matches(com.story.name, story_name{i}));
+  idstory(i) = find(matches(com.story.name, story_name{i}));
   idz(i) = story.idz(idstory(i));
   isdummy(i) = story.isdummy(idstory(i));
   idnominal(i) = story.idnominal(idstory(i));

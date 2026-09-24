@@ -76,9 +76,9 @@ for i=1:n
 end
 
 % 層番号
-idstory = zeros(n,1); idds = 1:com.nstory;
+idstory = zeros(n,1);
 for i=1:n
-  idstory(i) = idds(matches(com.story.name, story_name{i}));
+  idstory(i) = find(matches(com.story.name, story_name{i}));
 end
 
 % 通り番号・方向

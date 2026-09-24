@@ -11,9 +11,6 @@ function xini = extract_initial_design_value(com, options)
 %   出力引数:
 %     xini - 設計変数の初期値ベクトル
 
-% 共通定数
-nsb = com.nsecb;          % ブレース断面グループ数
-
 % 共通配列
 inisecg = com.section.initial.girder;   % 入力梁断面テーブル
 inisecc = com.section.initial.column;   % 入力柱断面テーブル
@@ -76,9 +73,8 @@ end
 nb = size(inisecb,1);
 ininames = inisecb.name;
 name = secb.name;
-iddb = 1:nsb;
 for i=1:nb
-  idsb = iddb(matches(name, ininames{i}));
+  idsb = find(matches(name, ininames{i}));
   ids = idsb2s(idsb);
   switch secb.type(idsb)
     case PRM.BRB

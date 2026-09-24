@@ -20,15 +20,14 @@ head = {
   '層', 'X軸', 'Y軸', 'X', 'Y', 'Z', 'θX', 'θY', 'θZ'; ...
   '', '', '', 'mm', 'mm', 'mm', 'rad', 'rad', 'rad'};
 body = cell(nn,9);
-innn = 1:nn;
 irow = 0;
 for i = 1:nstory
   ist = nstory-i+1;
   for iy = 1:nbly
     for ix = 1:nblx
-      in = innn(node.idx==ix & node.idy==iy & node.idstory== ist);
-      % ブレース用柱分割節点をスキップ（床節点と同一の(idx,idy,idstory)を持つため）
-      in = in(node.type(in) ~= PRM.NODE_BRACE_FOR_COLUMN);
+      % ブレース用柱分割節点は床節点と同じ(idx,idy,idstory)を持つため除く
+      in = find(node.idx==ix & node.idy==iy & node.idstory== ist ...
+        & node.type ~= PRM.NODE_BRACE_FOR_COLUMN);
       if isempty(in)
         continue
       end

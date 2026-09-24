@@ -24,7 +24,6 @@ para.Style = [para.Style ...
   {OuterMargin("0pt","0pt","0pt","0pt") KeepWithNext(true)}];
 append(section, para);
 
-ibbb = 1:nbl;
 popts = optionPlotFrame;
 for id = 1:nbl
   popts.mode = mode;

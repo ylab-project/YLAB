@@ -196,12 +196,10 @@ return
   %     idsecg - 各符号の secname における先頭行番号
     n_ = length(options.output_girder_list_label);
     idsecg = zeros(n_,1);
-    iddd_ = 1:length(secname);
     for i_ = 1:n_
       iis = matches(secname, options.output_girder_list_label{i_});
       if any(iis)
-        ii = iddd_(iis);
-        idsecg(i_) = ii(1);
+        idsecg(i_) = find(iis, 1);
       end
     end
     grname = options.output_girder_list_label';
@@ -219,12 +217,10 @@ return
   %     idsecc - 各符号の secname における先頭行番号
     n_ = length(options.output_column_list_label);
     idsecc = zeros(n_,1);
-    iddd_ = 1:length(secname);
     for i_ = 1:n_
       iis = matches(secname, options.output_column_list_label{i_});
       if any(iis)
-        ii = iddd_(iis);
-        idsecc(i_) = ii(1);
+        idsecc(i_) = find(iis, 1);
       end
     end
     crname = options.output_column_list_label';

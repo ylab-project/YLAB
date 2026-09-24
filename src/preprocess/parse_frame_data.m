@@ -700,12 +700,10 @@ ids2list = com.section.property.id_section_list;
 
 % 変数番号 -> 代表断面番号の変換
 idvar2srep = cell(length(nvar),1);
-iddd = 1:length(idsrep);
 idsrep_ = idsrep(:,1:4);
 for iv=1:nvar
   istarget = any(idsrep_==iv,2);
-  % idvar2srep{iv,1} = idsrep2sec(istarget)';
-  idvar2srep{iv,1} = iddd(istarget);
+  idvar2srep{iv,1} = find(istarget)';
 end
 
 return

@@ -119,32 +119,28 @@ classdef SS7Converter < handle
         obj, frame_name, a1name, a2name, story_name)
 
       % 層・通りの検索
-      innn = 1:obj.nnode;
-      ixxx = 1:obj.nblx;
-      iyyy = 1:obj.nbly;
-      isss = 1:obj.nstory;
-      idfx = ixxx(matches(obj.baseline.x.name, frame_name));
-      idfy = iyyy(matches(obj.baseline.y.name, frame_name));
-      ids = isss(matches(obj.story.name, story_name));
+      idfx = find(matches(obj.baseline.x.name, frame_name));
+      idfy = find(matches(obj.baseline.y.name, frame_name));
+      ids = find(matches(obj.story.name, story_name));
 
       % 節点の検索
       if ~isempty(idfx)
         % Xフレーム
         idir = PRM.Y;
-        idy1 = iyyy(matches(obj.baseline.y.name, a1name));
-        idy2 = iyyy(matches(obj.baseline.y.name, a2name));
-        in1 = innn(obj.node.idx==idfx & ...
+        idy1 = find(matches(obj.baseline.y.name, a1name));
+        idy2 = find(matches(obj.baseline.y.name, a2name));
+        in1 = find(obj.node.idx==idfx & ...
           obj.node.idy==idy1 & obj.node.idstory==ids);
-        in2 = innn(obj.node.idx==idfx & ...
+        in2 = find(obj.node.idx==idfx & ...
           obj.node.idy==idy2 & obj.node.idstory==ids);
       elseif ~isempty(idfy)
         % Yフレーム
         idir = PRM.X;
-        idx1 = ixxx(matches(obj.baseline.x.name, a1name));
-        idx2 = ixxx(matches(obj.baseline.x.name, a2name));
-        in1 = innn(obj.node.idx==idx1 & ...
+        idx1 = find(matches(obj.baseline.x.name, a1name));
+        idx2 = find(matches(obj.baseline.x.name, a2name));
+        in1 = find(obj.node.idx==idx1 & ...
           obj.node.idy==idfy & obj.node.idstory==ids);
-        in2 = innn(obj.node.idx==idx2 & ...
+        in2 = find(obj.node.idx==idx2 & ...
           obj.node.idy==idfy & obj.node.idstory==ids);
       else
         error('%sは存在しないフレームです', frame_name);
@@ -154,16 +150,12 @@ classdef SS7Converter < handle
     %----------------------------------------------------------------------
     function idnode = findIdNode(obj, xname, yname, story_name)
       % 層・通りの検索
-      innn = 1:obj.nnode;
-      ixxx = 1:obj.nblx;
-      iyyy = 1:obj.nbly;
-      isss = 1:obj.nstory;
-      idx = ixxx(matches(obj.baseline.x.name, xname));
-      idy = iyyy(matches(obj.baseline.y.name, yname));
-      ids = isss(matches(obj.story.name, story_name));
+      idx = find(matches(obj.baseline.x.name, xname));
+      idy = find(matches(obj.baseline.y.name, yname));
+      ids = find(matches(obj.story.name, story_name));
 
       % 節点の検索
-      idnode = innn(obj.node.idx==idx & ...
+      idnode = find(obj.node.idx==idx & ...
         obj.node.idy==idy & obj.node.idstory==ids);
     end
     %----------------------------------------------------------------------

@@ -65,7 +65,6 @@ hdr3 = {'', '', '', '', 'mm', 'mm', 'mm', 'mm', '', '', 'mm', ...
 cblhead = [hdr1; hdr2; hdr3];
 
 cblbody = cell(nnc,14);
-iccc = 1:nnc;
 irow = 0;
 
 for i = 1:nstory
@@ -74,7 +73,7 @@ for i = 1:nstory
     for ix = 1:nblx
       for iz = 1:nblz
         % SS7互換: 断面算定対象外の柱（RC柱等）は選択から除外
-        inc = iccc(idnm2story==ist & idnm2x(:,1)==ix ...
+        inc = find(idnm2story==ist & idnm2x(:,1)==ix ...
           & idnm2y(:,1)==iy & idnm2z(:,1)==iz ...
           & nominal_column.is_allowable_stress(:));
         if isempty(inc)
