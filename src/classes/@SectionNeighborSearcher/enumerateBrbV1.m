@@ -22,8 +22,8 @@ xdw = zeros(0, nx);
 
 % BRB断面の変数IDを取得
 idsec2var = obj.idMapper_.idsec2var;
-idsec2stype = obj.idMapper_.idsec2stype;
-idbrb2x = idsec2var(idsec2stype == PRM.BRB, 1:2);
+idsec2shape = obj.idMapper_.idsec2shape;
+idbrb2x = idsec2var(idsec2shape == PRM.BRB, 1:2);
 
 if isempty(idvar)
   return

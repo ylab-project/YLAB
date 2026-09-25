@@ -18,7 +18,8 @@ if obj.nwfs == 0
 end
 
 % WFS断面のみを抽出してuniqueで代表断面への変換
-[~, ~, idwfs2repwfs] = unique(obj.idsec2srep_(obj.idsec2stype_ == PRM.WFS));
+[~, ~, idwfs2repwfs] = ...
+  unique(obj.idsec2srep_(obj.idsec2shape_ == PRM.WFS));
 
 return
 end

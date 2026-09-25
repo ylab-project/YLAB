@@ -15,6 +15,7 @@ classdef IdMapper < handle
   %     nxvar - 変数数
   %     idSectionList - 断面→断面リストIDマッピング [nsec×1]
   %     idsec2stype - 断面→断面タイプマッピング [nsec×1]
+  %     idsec2shape - 断面→断面リストの鉄骨形状 [nsec×1]
   %     idsec2srep - 断面→代表断面マッピング [nsec×1]
   %     idme2sec - 部材→断面マッピング [nme×1]
   %     idvar2vtype - 変数→変数タイプマッピング [nxvar×1]
@@ -57,6 +58,8 @@ classdef IdMapper < handle
     idsec2var_     % 断面→変数 [nsec×ndim]
     idsrep2var_    % 代表断面→変数 [nsrep×ndim]
     idsrep2stype_  % 代表断面→断面タイプ [nsrep×1]
+    idsec2shape_   % 断面→断面リストの鉄骨形状 [nsec×1]（リストなしは0）
+    idsrep2shape_  % 代表断面→断面リストの鉄骨形状 [nsrep×1]
     idrepwfs2var_  % 代表WFS断面→変数 [nrepwfs×ndim]
     idrephss2var_  % 代表HSS断面→変数 [nrephss×ndim]
     idrepbrbs2var_ % 代表BRB断面→変数 [nrepbrbs×ndim]
@@ -98,6 +101,7 @@ classdef IdMapper < handle
     % 基本データへの読み取り専用アクセス
     idSectionList % 断面→断面リストID [nsec×1]（静的）
     idsec2stype   % 断面→断面タイプ [nsec×1]
+    idsec2shape   % 断面→断面リストの鉄骨形状 [nsec×1]（リストなしは0）
     idsec2srep    % 断面→代表断面 [nsec×1]
     idme2sec      % 部材→断面 [nme×1]
     idvar2vtype   % 変数→変数タイプ [nxvar×1]
@@ -147,6 +151,7 @@ classdef IdMapper < handle
 
     % 代表断面関連
     idsrep2stype  % 代表断面→断面タイプ [nsrep×1]
+    idsrep2shape  % 代表断面→断面リストの鉄骨形状 [nsrep×1]
     
     % 断面タイプ変換マッピング
     idsec2wfs     % 断面→WFS断面 [nsec×1] (0:非WFS)
@@ -188,7 +193,7 @@ classdef IdMapper < handle
         idHsrD2var, idHsrt2var, ...
         idBrb1_var, idBrb2_var, ...
         idme2mtype, idvar2srep, ...
-        idsublistCell)
+        idsublistCell, idlist2stype)
       %IdMapper コンストラクタ
       %   mapper = IdMapper(idSectionList, idsec2stype, ...
       %     idsec2srep, idme2sec, idvar2vtype, ...) は、
@@ -215,6 +220,7 @@ classdef IdMapper < handle
       %     idme2mtype - 部材→部材タイプ [nme×1] 整数配列
       %     idvar2srep - 変数→代表断面 cell配列
       %     idsublistCell - サブリストIDのcell配列 {nlist×1}
+      %     idlist2stype - 断面リスト→鉄骨形状の種別 [nlist×1]
       %
       %   例:
       %     mapper = IdMapper(idSectionList, idsec2stype, ...
@@ -222,11 +228,11 @@ classdef IdMapper < handle
       %       idH2var, idB2var, idtw2var, idtf2var, idD2var, idt2var, ...
       %       idHsrD2var, idHsrt2var, idBrb1_var, idBrb2_var, ...
       %       idme2mtype, idvar2srep, ...
-      %       idsublistCell);
+      %       idsublistCell, idlist2stype);
 
-      if nargin ~= 20
+      if nargin ~= 21
         error('IdMapper:InvalidArguments', ...
-          ['IdMapperは20個の引数が必要です' ...
+          ['IdMapperは21個の引数が必要です' ...
            '（受け取った引数: %d個）'], nargin);
       end
       
@@ -256,12 +262,26 @@ classdef IdMapper < handle
       obj.idvar2srep_ = idvar2srep;
       obj.idsublistCell = idsublistCell;
 
+      % 候補写像の断面グループは、断面が参照する断面リストの種別で分ける。
+      % 梁のWFSと柱のCWFS・CWFSIは同じH形鋼リストを使い、ブレース鋼材の
+      % リストは読込み時にBWFS等へ書き戻されているため別グループになる。
+      % 検定規則に使う利用種別 idsec2stype とは区別する
+      idlist2stype = idlist2stype(:);
+      if numel(idlist2stype) ~= numel(idsublistCell)
+        error('IdMapper:InconsistentData', ...
+          'idlist2stypeのサイズ(%d)がnlist(%d)と一致しません', ...
+          numel(idlist2stype), numel(idsublistCell));
+      end
+      has_list = idSectionList > 0;
+      obj.idsec2shape_ = zeros(size(idSectionList));
+      obj.idsec2shape_(has_list) = idlist2stype(idSectionList(has_list));
+
       % 代表断面から変数・断面種への派生マッピングを事前生成
       obj.initializeDerivedMappings();
 
       % 事前計算マッピングの生成
       % WFS断面マッピング
-      isWfs = (obj.idsec2stype_ == PRM.WFS);
+      isWfs = (obj.idsec2shape_ == PRM.WFS);
       if any(isWfs)
         [~, ia, ic] = unique(obj.idsec2srep_(isWfs));
         obj.idrepwfs2wfs_ = ia;  % 代表→最初のWFS断面
@@ -272,7 +292,7 @@ classdef IdMapper < handle
       end
       
       % HSS断面マッピング
-      isHss = (obj.idsec2stype_ == PRM.HSS);
+      isHss = (obj.idsec2shape_ == PRM.HSS);
       if any(isHss)
         [~, ia, ic] = unique(obj.idsec2srep_(isHss));
         obj.idrephss2hss_ = ia;  % 代表→最初のHSS断面
@@ -283,7 +303,7 @@ classdef IdMapper < handle
       end
       
       % BRB断面マッピング
-      isBrbs = (obj.idsec2stype_ == PRM.BRB);
+      isBrbs = (obj.idsec2shape_ == PRM.BRB);
       if any(isBrbs)
         [~, ia, ic] = unique(obj.idsec2srep_(isBrbs));
         obj.idrepbrbs2brbs_ = ia;
@@ -294,7 +314,7 @@ classdef IdMapper < handle
       end
 
       % HSR断面は全断面が代表断面
-      nhsr_ = sum(obj.idsec2stype_ == PRM.HSR);
+      nhsr_ = sum(obj.idsec2shape_ == PRM.HSR);
       obj.idhsr2rephsr_ = (1:nhsr_)';
       obj.idrephsr2hsr_ = (1:nhsr_)';
 
@@ -308,11 +328,11 @@ classdef IdMapper < handle
     end
     
     function n = get.nwfs(obj)
-      n = sum(obj.idsec2stype_ == PRM.WFS);
+      n = sum(obj.idsec2shape_ == PRM.WFS);
     end
 
     function n = get.nhss(obj)
-      n = sum(obj.idsec2stype_ == PRM.HSS);
+      n = sum(obj.idsec2shape_ == PRM.HSS);
     end
     
     function n = get.nrcrs(obj)
@@ -320,11 +340,11 @@ classdef IdMapper < handle
     end
     
     function n = get.nbrbs(obj)
-      n = sum(obj.idsec2stype_ == PRM.BRB);
+      n = sum(obj.idsec2shape_ == PRM.BRB);
     end
 
     function n = get.nhsr(obj)
-      n = sum(obj.idsec2stype_ == PRM.HSR);
+      n = sum(obj.idsec2shape_ == PRM.HSR);
     end
 
     function n = get.nme(obj)
@@ -371,6 +391,10 @@ classdef IdMapper < handle
     
     function val = get.idsec2stype(obj)
       val = obj.idsec2stype_;
+    end
+
+    function val = get.idsec2shape(obj)
+      val = obj.idsec2shape_;
     end
     
     function val = get.idsec2srep(obj)
@@ -476,31 +500,31 @@ classdef IdMapper < handle
     %% 断面リストマッピングのゲッター
     function val = get.idwfs2slist(obj)
       % WFS断面の断面リストIDを取得
-      val = obj.idSectionList_(obj.idsec2stype_ == PRM.WFS);
+      val = obj.idSectionList_(obj.idsec2shape_ == PRM.WFS);
       val = val(:);  % 列ベクトル化
     end
     
     function val = get.idhss2slist(obj)
       % HSS断面の断面リストIDを取得
-      val = obj.idSectionList_(obj.idsec2stype_ == PRM.HSS);
+      val = obj.idSectionList_(obj.idsec2shape_ == PRM.HSS);
       val = val(:);  % 列ベクトル化
     end
     
     function val = get.idbrbs2slist(obj)
       % BRB断面の断面リストIDを取得
-      val = obj.idSectionList_(obj.idsec2stype_ == PRM.BRB);
+      val = obj.idSectionList_(obj.idsec2shape_ == PRM.BRB);
       val = val(:);  % 列ベクトル化
     end
 
     function val = get.idhsr2slist(obj)
       % HSR断面の断面リストIDを取得
-      val = obj.idSectionList_(obj.idsec2stype_ == PRM.HSR);
+      val = obj.idSectionList_(obj.idsec2shape_ == PRM.HSR);
       val = val(:);  % 列ベクトル化
     end
 
     function val = get.idtbs2slist(obj)
       % TB断面の断面リストIDを取得
-      val = obj.idSectionList_(obj.idsec2stype_ == PRM.TB);
+      val = obj.idSectionList_(obj.idsec2shape_ == PRM.TB);
       val = val(:);  % 列ベクトル化
     end
 
@@ -543,6 +567,11 @@ classdef IdMapper < handle
     function val = get.idsrep2stype(obj)
       % 代表断面→断面タイプマッピングを取得
       val = obj.idsrep2stype_;
+    end
+
+    function val = get.idsrep2shape(obj)
+      % 代表断面→断面リストの鉄骨形状を取得
+      val = obj.idsrep2shape_;
     end
     
     %% 断面タイプ変換マッピングのゲッター
@@ -631,8 +660,7 @@ classdef IdMapper < handle
 
     function val = get.idrephsr2sec(obj)
       % 代表HSR断面→断面マッピングを取得
-      isHsr = (obj.idsec2stype_ == PRM.HSR);
-      val = find(isHsr);
+      val = find(obj.idsec2shape_ == PRM.HSR);
     end
     
     %% その他のマッピングのゲッター

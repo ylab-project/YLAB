@@ -9,20 +9,14 @@ function idbrbs2repbrbs = mapBrbsToRepresentative(obj)
 %   参考:
 %     mapRepresentativeToBrbs, mapWfsToRepresentative, mapHssToRepresentative
 
-% BRB断面のインデックスを取得
-isbrbs = (obj.idsec2stype_ == PRM.BRB);
-idsec_brbs = find(isbrbs);
-
-if isempty(idsec_brbs)
+if obj.nbrbs == 0
   idbrbs2repbrbs = [];
   return;
 end
 
-% BRB断面の代表断面値を取得
-srep_brbs = obj.idsec2srep_(isbrbs);
-
-% unique関数で代表断面への変換
-[~, ~, idbrbs2repbrbs] = unique(srep_brbs);
+% BRB断面のみを抽出してuniqueで代表断面への変換
+[~, ~, idbrbs2repbrbs] = ...
+  unique(obj.idsec2srep_(obj.idsec2shape_ == PRM.BRB));
 
 return
 end

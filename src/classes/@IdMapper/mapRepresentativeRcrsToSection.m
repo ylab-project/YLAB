@@ -10,8 +10,7 @@ function idreprcrs2sec = mapRepresentativeRcrsToSection(obj)
 %     mapRepresentativeToRcrs
 
 idsrep2sec = obj.mapRepresentativeToSection();
-idsrep2stype = obj.mapRepresentativeToSectionType();
-idreprcrs2sec = idsrep2sec(idsrep2stype == PRM.RCRS);
+idreprcrs2sec = idsrep2sec(obj.idsrep2stype_ == PRM.RCRS);
 
 return
 end

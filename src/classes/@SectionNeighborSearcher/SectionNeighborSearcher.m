@@ -143,10 +143,10 @@ methods (Access = private)
   
   % 断面情報取得
   idsec2var = obj.idMapper_.idsec2var;
-  idsec2stype = obj.idMapper_.idsec2stype;
+  idsec2shape = obj.idMapper_.idsec2shape;
   
   % WFS断面の変数マッピング
-  isWfs = (idsec2stype == PRM.WFS);
+  isWfs = (idsec2shape == PRM.WFS);
   if any(isWfs)
     % WFS断面の寸法インデックス範囲
     WFS_DIM_RANGE = PRM.SECDIM_WFS_H:PRM.SECDIM_WFS_TF;
@@ -170,7 +170,7 @@ methods (Access = private)
   end
   
   % HSS断面の変数マッピング
-  isHss = (idsec2stype == PRM.HSS);
+  isHss = (idsec2shape == PRM.HSS);
   if any(isHss)
     % HSS断面の寸法インデックス範囲
     HSS_DIM_RANGE = PRM.SECDIM_HSS_D:PRM.SECDIM_HSS_T;

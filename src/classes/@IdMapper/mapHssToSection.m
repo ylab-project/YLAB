@@ -13,7 +13,7 @@ function idhss2sec = mapHssToSection(obj)
 %     mapSectionToHss, mapWfsToSection
 
 % 全断面からHSS断面のインデックスを取得
-idhss2sec = find(obj.idsec2stype_ == PRM.HSS);
+idhss2sec = find(obj.idsec2shape_ == PRM.HSS);
 
 return
 end

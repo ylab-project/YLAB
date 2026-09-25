@@ -5,11 +5,12 @@ function initializeDerivedMappings(obj)
 
 obj.idsrep2var_ = obj.idsec2var_(obj.idsrep2sec_, :);
 obj.idsrep2stype_ = obj.idsec2stype_(obj.idsrep2sec_);
+obj.idsrep2shape_ = obj.idsec2shape_(obj.idsrep2sec_);
 
-isWfs = obj.idsrep2stype_ == PRM.WFS;
-isHss = obj.idsrep2stype_ == PRM.HSS;
-isBrb = obj.idsrep2stype_ == PRM.BRB;
-isHsr = obj.idsrep2stype_ == PRM.HSR;
+isWfs = obj.idsrep2shape_ == PRM.WFS;
+isHss = obj.idsrep2shape_ == PRM.HSS;
+isBrb = obj.idsrep2shape_ == PRM.BRB;
+isHsr = obj.idsrep2shape_ == PRM.HSR;
 
 obj.idrepwfs2var_ = obj.idsrep2var_(isWfs, :);
 obj.idrephss2var_ = obj.idsrep2var_(isHss, :);

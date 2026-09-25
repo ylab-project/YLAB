@@ -14,7 +14,7 @@ function idsec2brbs = mapSectionToBrbs(obj)
 %     mapBrbsToSection, mapSectionToWfs
 
 idsec2brbs = zeros(obj.nsec, 1);
-idsec2brbs(obj.idsec2stype_ == PRM.BRB) = 1:obj.nbrbs;
+idsec2brbs(obj.idsec2shape_ == PRM.BRB) = 1:obj.nbrbs;
 
 return
 end

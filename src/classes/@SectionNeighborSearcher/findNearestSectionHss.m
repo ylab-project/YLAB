@@ -66,7 +66,7 @@ if collect_mapping
   end
   aggregate_variable = false(1, obj.idMapper_.nxvar);
   idvar2srep = obj.idMapper_.idvar2srep;
-  idsrep2stype = obj.idMapper_.idsrep2stype;
+  idsrep2shape = obj.idMapper_.idsrep2shape;
   selection_info.xvar = mapped_xvar;
   selection_info.aggregate_variable = aggregate_variable;
 end
@@ -133,7 +133,7 @@ for id_ = changed_idx(:)'
       variable_id = idrephss2var(id_, component_id);
       representative_ids = idvar2srep{variable_id};
       num_representative = sum( ...
-        idsrep2stype(representative_ids) == PRM.HSS);
+        idsrep2shape(representative_ids) == PRM.HSS);
       if num_representative == 1
         mapped_xvar(variable_id) = selected_components(component_id);
       else

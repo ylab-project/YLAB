@@ -10,8 +10,7 @@ function idrepwfs2sec = mapRepresentativeWfsToSection(obj)
 %     mapRepresentativeWfsToVariable, mapRepresentativeToWfs
 
 idsrep2sec = obj.mapRepresentativeToSection();
-idsrep2stype = obj.mapRepresentativeToSectionType();
-idrepwfs2sec = idsrep2sec(idsrep2stype == PRM.WFS);
+idrepwfs2sec = idsrep2sec(obj.idsrep2shape_ == PRM.WFS);
 
 return
 end

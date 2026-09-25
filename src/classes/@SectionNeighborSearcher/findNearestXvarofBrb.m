@@ -27,7 +27,7 @@ end
 idv1_var = idv1_var(recalculate_variable(idv1_var));
 idv2_var = idv2_var(recalculate_variable(idv2_var));
 idvar2srep = idMapper.idvar2srep;
-idsrep2stype = idMapper.idsrep2stype;
+idsrep2shape = idMapper.idsrep2shape;
 
 % 共通定数
 nsrep = idMapper.nsrep;
@@ -44,7 +44,7 @@ if isempty([idv1_var idv2_var])
   return
 end
 idsrep2repbrbs = zeros(nsrep, 1);
-idsrep2repbrbs(idsrep2stype == PRM.BRB) = 1:nrepbrbs;
+idsrep2repbrbs(idsrep2shape == PRM.BRB) = 1:nrepbrbs;
 isVarofSlist = idMapper.isVarofSlist;
 
 % 各断面リストについて処理

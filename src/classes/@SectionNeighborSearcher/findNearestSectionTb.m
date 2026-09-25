@@ -18,9 +18,9 @@ function [tbsec, id] = findNearestSectionTb(obj, idslist)
 %     id    - ID構造体（.slist, .section）
 
 % TB断面の情報を取得
-idsec2stype = obj.idMapper_.idsec2stype;
+idsec2shape = obj.idMapper_.idsec2shape;
 idSectionList = obj.idMapper_.idSectionList;
-isTb = (idsec2stype == PRM.TB);
+isTb = (idsec2shape == PRM.TB);
 ntbs = sum(isTb);
 idtbs2slist = idSectionList(isTb);
 

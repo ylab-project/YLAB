@@ -11,7 +11,7 @@ function idrepbrbs2brbs = mapRepresentativeToBrbs(obj)
 %     mapBrbsToRepresentative, mapRepresentativeToWfs, mapRepresentativeToHss
 
 % BRB断面の代表断面を取得
-[~, idrepbrbs2brbs] = unique(obj.idsec2srep_(obj.idsec2stype_ == PRM.BRB));
+[~, idrepbrbs2brbs] = unique(obj.idsec2srep_(obj.idsec2shape_ == PRM.BRB));
 
 return
 end

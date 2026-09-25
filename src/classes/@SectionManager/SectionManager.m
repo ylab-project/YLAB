@@ -366,16 +366,33 @@ classdef SectionManager < handle
       nsec = length(secmgr.idsec2stype);
     end
     function nwfs = get.nwfs(secmgr)
-      nwfs = sum(secmgr.idsec2stype==PRM.WFS);
+      % 断面数の定義はIdMapperに従う（鋼材はリストの種別、RCは利用種別）
+      if ~isempty(secmgr.idMapper_)
+        nwfs = secmgr.idMapper_.nwfs;
+      else
+        nwfs = 0;
+      end
     end
     function nhss = get.nhss(secmgr)
-      nhss = sum(secmgr.idsec2stype==PRM.HSS);
+      if ~isempty(secmgr.idMapper_)
+        nhss = secmgr.idMapper_.nhss;
+      else
+        nhss = 0;
+      end
     end
     function nrcrs = get.nrcrs(secmgr)
-      nrcrs = sum(secmgr.idsec2stype==PRM.RCRS);
+      if ~isempty(secmgr.idMapper_)
+        nrcrs = secmgr.idMapper_.nrcrs;
+      else
+        nrcrs = 0;
+      end
     end
     function nbrbs = get.nbrbs(secmgr)
-      nbrbs = sum(secmgr.idsec2stype==PRM.BRB);
+      if ~isempty(secmgr.idMapper_)
+        nbrbs = secmgr.idMapper_.nbrbs;
+      else
+        nbrbs = 0;
+      end
     end
     %---
     function nme = get.nme(secmgr)

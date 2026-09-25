@@ -11,7 +11,7 @@ function idrephss2hss = mapRepresentativeToHss(obj)
 %     mapHssToRepresentative, mapRepresentativeToWfs, mapRepresentativeToBrbs
 
 % HSS断面の代表断面を取得
-[~, idrephss2hss] = unique(obj.idsec2srep_(obj.idsec2stype_ == PRM.HSS));
+[~, idrephss2hss] = unique(obj.idsec2srep_(obj.idsec2shape_ == PRM.HSS));
 
 return
 end

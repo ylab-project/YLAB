@@ -13,7 +13,7 @@ function idwfs2sec = mapWfsToSection(obj)
 %     mapSectionToWfs, mapHssToSection
 
 % 全断面からWFS断面のインデックスを取得
-idwfs2sec = find(obj.idsec2stype_ == PRM.WFS);
+idwfs2sec = find(obj.idsec2shape_ == PRM.WFS);
 
 return
 end

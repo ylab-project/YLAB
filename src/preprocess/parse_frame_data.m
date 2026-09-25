@@ -359,10 +359,19 @@ nvar = com.nvar;
 member_property = com.member.property;
 section_property = com.section.property;
 
+% 設計変数の種別は断面が参照する断面リストの鉄骨形状で決める。梁のWFSと
+% 柱のCWFS・CWFSIは同じH形鋼の寸法変数を持つ。リストなし（RC）は0
+list_type = com.sectionList.section_type;
+section_shape = zeros(nsec,1);
+has_list = section_property.id_section_list > 0;
+section_shape(has_list) = ...
+  list_type(section_property.id_section_list(has_list));
+member_shape = section_shape(member_property.idsec);
+
 % 角形鋼管の各次元の独立変数番号
 ndvar = PRM.nvar_of_section_type(PRM.HSS);
 idvar_ = cell(ndvar,1);
-istarget = (member_property.section_type == PRM.HSS);
+istarget = (member_shape == PRM.HSS);
 for i=1:ndvar
   idvar_{i} = member_property.idvar(istarget,i);
 end
@@ -372,7 +381,7 @@ idvar.hss.t = idvar_{2};
 % H形鋼の各次元の独立変数番号
 ndvar = PRM.nvar_of_section_type(PRM.WFS);
 idvar_ = cell(ndvar,1);
-istarget = (member_property.section_type == PRM.WFS);
+istarget = (member_shape == PRM.WFS);
 for i=1:ndvar
   idvar_{i} = member_property.idvar(istarget,i);
 end
@@ -384,7 +393,7 @@ idvar.wfs.tf = idvar_{4};
 % 座屈拘束ブレースの各次元の独立変数番号
 ndvar = PRM.nvar_of_section_type(PRM.BRB);
 idvar_ = cell(ndvar,1);
-istarget = (member_property.section_type == PRM.BRB);
+istarget = (member_shape == PRM.BRB);
 for i=1:ndvar
   idvar_{i} = member_property.idvar(istarget,i);
 end
@@ -394,7 +403,7 @@ idvar.brb.V2 = idvar_{2};
 % 円形鋼管（HSR）の各次元の独立変数番号
 ndvar = PRM.nvar_of_section_type(PRM.HSR);
 idvar_ = cell(ndvar,1);
-istarget = (member_property.section_type == PRM.HSR);
+istarget = (member_shape == PRM.HSR);
 for i=1:ndvar
   idvar_{i} = member_property.idvar(istarget,i);
 end
@@ -435,13 +444,13 @@ idpvar = zeros(nvar,1);
 
 % 断面番号
 isss = 1:nsec;
-isWFS = (section_property.type==PRM.WFS);
+isWFS = (section_shape==PRM.WFS);
 idsec.wfs = isss(isWFS);
-isHSS = (section_property.type==PRM.HSS);
+isHSS = (section_shape==PRM.HSS);
 idsec.hss = isss(isHSS);
-isBRB = (section_property.type==PRM.BRB);
+isBRB = (section_shape==PRM.BRB);
 idsec.brb = isss(isBRB);
-isHSR = (section_property.type==PRM.HSR);
+isHSR = (section_shape==PRM.HSR);
 idsec.hsr = isss(isHSR);
 return
 end

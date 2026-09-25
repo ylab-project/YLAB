@@ -18,7 +18,8 @@ if obj.nhss == 0
 end
 
 % HSS断面のみを抽出してuniqueで代表断面への変換
-[~, ~, idhss2rephss] = unique(obj.idsec2srep_(obj.idsec2stype_ == PRM.HSS));
+[~, ~, idhss2rephss] = ...
+  unique(obj.idsec2srep_(obj.idsec2shape_ == PRM.HSS));
 
 return
 end

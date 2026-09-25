@@ -25,8 +25,8 @@ xdw = zeros(0, nx);
 
 % WFS断面の変数IDを取得
 idsec2var = obj.idMapper_.idsec2var;
-idsec2stype = obj.idMapper_.idsec2stype;
-idwfs2x = idsec2var(idsec2stype == PRM.WFS, 1:4);
+idsec2shape = obj.idMapper_.idsec2shape;
+idwfs2x = idsec2var(idsec2shape == PRM.WFS, 1:4);
 
 if isempty(idvar)
   return

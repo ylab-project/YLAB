@@ -10,8 +10,7 @@ function idhsr2sec = mapHsrToSection(obj)
 %     idhsr2sec = mapper.mapHsrToSection();
 
 % HSR断面のインデックスを取得
-isHsr = (obj.idsec2stype_ == PRM.HSR);
-idhsr2sec = find(isHsr);
+idhsr2sec = find(obj.idsec2shape_ == PRM.HSR);
 
 return
 end

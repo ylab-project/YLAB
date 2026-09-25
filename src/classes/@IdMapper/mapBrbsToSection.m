@@ -13,7 +13,7 @@ function idbrbs2sec = mapBrbsToSection(obj)
 %     mapSectionToBrbs, mapWfsToSection
 
 % 全断面からBRB断面のインデックスを取得
-idbrbs2sec = find(obj.idsec2stype_ == PRM.BRB);
+idbrbs2sec = find(obj.idsec2shape_ == PRM.BRB);
 
 return
 end

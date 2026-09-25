@@ -10,8 +10,7 @@ function idrephss2sec = mapRepresentativeHssToSection(obj)
 %     mapRepresentativeHssToVariable, mapRepresentativeToHss
 
 idsrep2sec = obj.mapRepresentativeToSection();
-idsrep2stype = obj.mapRepresentativeToSectionType();
-idrephss2sec = idsrep2sec(idsrep2stype == PRM.HSS);
+idrephss2sec = idsrep2sec(obj.idsrep2shape_ == PRM.HSS);
 
 return
 end

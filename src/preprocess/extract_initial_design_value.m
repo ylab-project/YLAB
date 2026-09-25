@@ -40,6 +40,10 @@ for i=1:nc
       % 角形鋼管: □-H×B×t1×t2 → [H, t1] を設計変数として抽出
       sss = sscanf(inisecc.dimension{i},'□-%fx%fx%fx%f');
       secdim(ids,1:2) = sss([1 3]);
+    case {PRM.CWFS, PRM.CWFSI}
+      % H形鋼柱: 梁と同じ登録形状から [H, B, tw, tf] を抽出する。
+      % Y方向強軸（I）でも寸法の順序は入れ替えない
+      secdim(ids,1:4) = parse_h_dimension(inisecc.dimension{i});
   end
 end
 
@@ -52,18 +56,8 @@ for i=1:ng
   ids = idsg2s(idsg);
   switch secg.type(idsg)
     case PRM.WFS
-      % H形鋼: SYMBOL-H×B×tw×tf(×tf2) → [H, B, tw, tf] を抽出
-      % 任意のプレフィックス（H-, SH-, HY-, BH- 等）に対応
-      ch = inisecg.dimension{i};
-      tokens = regexp(ch, '^[A-Za-z]+-(.+)$', 'tokens');
-      if isempty(tokens)
-        throw_err('Input', 'InvalidSectionFormat', ch);
-      end
-      sss = sscanf(tokens{1}{1}, '%fx%fx%fx%fx%f');
-      if numel(sss) < 4
-        throw_err('Input', 'InvalidSectionDimension', ch);
-      end
-      secdim(ids,1:4) = sss(1:4);
+      % H形鋼: 登録形状から [H, B, tw, tf] を抽出
+      secdim(ids,1:4) = parse_h_dimension(inisecg.dimension{i});
   end
 end
 
@@ -96,11 +90,8 @@ for i=1:nb
       sss = sscanf(numstr, '%fx%fx%fx%f');
       secdim(ids,1:2) = sss([1 3]);
     case {PRM.WFS, PRM.BWFS}
-      % H形鋼: 記号-HxBxtwxtfxr → [H, B, tw, tf] を抽出
-      ch = inisecb.dimension{i};
-      numstr = ch(find(ch == '-', 1)+1:end);
-      sss = sscanf(numstr, '%fx%fx%fx%fx%f');
-      secdim(ids,1:4) = sss(1:4);
+      % H形鋼: 登録形状から [H, B, tw, tf] を抽出
+      secdim(ids,1:4) = parse_h_dimension(inisecb.dimension{i});
     case PRM.TB
       % 引張ブレース: 読み込み時に dimension 確定済み
   end
@@ -139,6 +130,32 @@ if isempty(idsection)
     '%s%sが層番号%gに見つかりません', section_kind, ...
     full_name, idstory);
 end
+
+return
+end
+
+function hdim = parse_h_dimension(ch)
+%parse_h_dimension - H形鋼の登録形状からH・B・tw・tfを取り出す
+%
+%   hdim = parse_h_dimension(ch) は、'H-400x200x8x13' のように記号と
+%   寸法を'-'で区切った登録形状から先頭の4寸法を返す。記号はH・SH・
+%   HY・BHなどの英字を受け付け、5番目のフィレット半径は読み飛ばす。
+%
+%   入力引数:
+%     ch - 登録形状の文字列
+%
+%   出力引数:
+%     hdim - [H, B, tw, tf]
+
+tokens = regexp(ch, '^[A-Za-z]+-(.+)$', 'tokens');
+if isempty(tokens)
+  throw_err('Input', 'InvalidSectionFormat', ch);
+end
+sss = sscanf(tokens{1}{1}, '%fx%fx%fx%fx%f');
+if numel(sss) < 4
+  throw_err('Input', 'InvalidSectionDimension', ch);
+end
+hdim = sss(1:4)';
 
 return
 end

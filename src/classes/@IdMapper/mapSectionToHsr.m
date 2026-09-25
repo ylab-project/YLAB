@@ -10,17 +10,8 @@ function idsec2hsr = mapSectionToHsr(obj)
 %   例:
 %     idsec2hsr = mapper.mapSectionToHsr();
 
-% HSR断面のインデックスを取得
-isHsr = (obj.idsec2stype_ == PRM.HSR);
-
-% マッピング配列を初期化
 idsec2hsr = zeros(obj.nsec, 1);
-
-% HSR断面に連番を割り当て
-idhsr = find(isHsr);
-for i = 1:length(idhsr)
-  idsec2hsr(idhsr(i)) = i;
-end
+idsec2hsr(obj.idsec2shape_ == PRM.HSR) = 1:obj.nhsr;
 
 return
 end

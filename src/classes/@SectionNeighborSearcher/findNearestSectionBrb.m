@@ -34,9 +34,9 @@ idbrbs2repbrbs = obj.idMapper_.idbrbs2repbrbs;
 idrepbrbs2brbs = obj.idMapper_.idrepbrbs2brbs;
 
 % 代表断面の断面リストIDを取得
-idsec2stype = obj.idMapper_.idsec2stype;
+idsec2shape = obj.idMapper_.idsec2shape;
 idSectionList = obj.idMapper_.idSectionList;
-isBrb = (idsec2stype == PRM.BRB);
+isBrb = (idsec2shape == PRM.BRB);
 idbrbs2sec = find(isBrb);
 idrepbrbs2sec = idbrbs2sec(idrepbrbs2brbs);
 idrepbrbs2slist = idSectionList(idrepbrbs2sec);

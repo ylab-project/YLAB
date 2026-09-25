@@ -14,7 +14,7 @@ function idsec2wfs = mapSectionToWfs(obj)
 %     mapWfsToSection, mapSectionToHss
 
 idsec2wfs = zeros(obj.nsec, 1);
-idsec2wfs(obj.idsec2stype_ == PRM.WFS) = 1:obj.nwfs;
+idsec2wfs(obj.idsec2shape_ == PRM.WFS) = 1:obj.nwfs;
 
 return
 end

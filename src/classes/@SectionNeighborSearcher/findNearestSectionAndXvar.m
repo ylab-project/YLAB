@@ -49,7 +49,7 @@ recalculate_variable(changed_variable_ids) = true;
 xvar = section_info.xvar;
 processed_variable = false(1, nxvar);
 aggregated_variable = section_info.aggregate_variable;
-idsec2stype = id_mapper.idsec2stype;
+idsec2shape = id_mapper.idsec2shape;
 
 % WFSの非一致共有変数だけを既存規則で集約する
 wfs_variable_ids = unique([id_mapper.idH2var(:); ...
@@ -60,7 +60,7 @@ wfs_target(wfs_variable_ids) = recalculate_variable(wfs_variable_ids);
 wfs_aggregate = aggregated_variable & wfs_target;
 if any(wfs_aggregate)
   idrepwfs2wfs = id_mapper.idrepwfs2wfs;
-  secwfs = secdim(idsec2stype == PRM.WFS, :);
+  secwfs = secdim(idsec2shape == PRM.WFS, :);
   repwfs = secwfs(idrepwfs2wfs, :);
   xvar = obj.findNearestXvarofWfs(repwfs, xvar, options, wfs_aggregate);
 end
@@ -74,7 +74,7 @@ hss_target(hss_variable_ids) = recalculate_variable(hss_variable_ids);
 hss_aggregate = aggregated_variable & hss_target;
 if any(hss_aggregate)
   idrephss2hss = id_mapper.idrephss2hss;
-  sechss = secdim(idsec2stype == PRM.HSS, :);
+  sechss = secdim(idsec2shape == PRM.HSS, :);
   rephss = sechss(idrephss2hss, :);
   xvar = obj.findNearestXvarofHss(rephss, xvar, options, hss_aggregate);
 end
@@ -88,7 +88,7 @@ brb_target = false(1, nxvar);
 brb_target(brb_variable_ids) = recalculate_variable(brb_variable_ids);
 if any(brb_target)
   idrepbrbs2brbs = id_mapper.idrepbrbs2brbs;
-  secbrbs = secdim(idsec2stype == PRM.BRB, :);
+  secbrbs = secdim(idsec2shape == PRM.BRB, :);
   repbrbs = secbrbs(idrepbrbs2brbs, :);
   xvar = obj.findNearestXvarofBrb(repbrbs, xvar, options, brb_target);
   processed_variable(brb_target) = true;
@@ -101,15 +101,15 @@ hsr_target = false(1, nxvar);
 hsr_target(hsr_variable_ids) = recalculate_variable(hsr_variable_ids);
 if any(hsr_target)
   idrephsr2hsr = id_mapper.idrephsr2hsr;
-  sechsr = secdim(idsec2stype == PRM.HSR, :);
+  sechsr = secdim(idsec2shape == PRM.HSR, :);
   rephsr = sechsr(idrephsr2hsr, :);
   xvar = obj.findNearestXvarofHsr(rephsr, xvar, options, hsr_target);
   processed_variable(hsr_target) = true;
   aggregated_variable(hsr_target) = true;
 end
 
-is_bsteel = idsec2stype == PRM.BWFS | ...
-  idsec2stype == PRM.BHSS | idsec2stype == PRM.BHSR;
+is_bsteel = idsec2shape == PRM.BWFS | ...
+  idsec2shape == PRM.BHSS | idsec2shape == PRM.BHSR;
 bsteel_variable_ids = unique(id_mapper.idsec2var(is_bsteel, :));
 bsteel_variable_ids = bsteel_variable_ids(bsteel_variable_ids > 0);
 bsteel_target = false(1, nxvar);

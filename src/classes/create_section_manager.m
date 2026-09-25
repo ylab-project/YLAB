@@ -47,7 +47,8 @@ idMapper = secmgr.createIdMapper(...
   brb2p, ...                                 % BRB V2変数ID配列
   com.member.property.type, ...             % 部材→部材タイプ
   com.design.variable.idsrep, ...           % 変数→代表断面
-  secList.idsublist);                          % サブリストIDのcell配列
+  secList.idsublist, ...                    % サブリストIDのcell配列
+  secList.section_type);                    % 断面リスト→鉄骨形状
 
 % SectionStandardAccessor初期化
 secmgr.createSectionStandardAccessor(...

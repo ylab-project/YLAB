@@ -16,7 +16,7 @@ function str = format_steel_cost_dim(stype, dim, sym)
 switch stype
   case PRM.HSS
     str = sprintf('%s-%g*%g*%g*%g', sym, dim(1), dim(1), dim(2), dim(3));
-  case {PRM.WFS, PRM.BWFS}
+  case {PRM.WFS, PRM.BWFS, PRM.CWFS, PRM.CWFSI}
     if dim(5) > 0
       str = sprintf( ...
         '%s-%g*%g*%g*%g*%g', sym, ...

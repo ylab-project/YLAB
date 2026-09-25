@@ -46,38 +46,38 @@ else
   xvar = [];
 end
 
-% H形鋼
-idsec2stype = id_mapper.idsec2stype;
+% H形鋼（断面グループは断面リストの鉄骨形状で分ける）
+idsec2shape = id_mapper.idsec2shape;
 idrepwfs2wfs = id_mapper.idrepwfs2wfs;
-secwfs = secdim(idsec2stype == PRM.WFS, :);
+secwfs = secdim(idsec2shape == PRM.WFS, :);
 repwfs = secwfs(idrepwfs2wfs, :);
 xvar = obj.findNearestXvarofWfs(repwfs, xvar, options, ...
   recalculate_variable);
 
 % 角形鋼管
 idrephss2hss = id_mapper.idrephss2hss;
-sechss = secdim(idsec2stype == PRM.HSS, :);
+sechss = secdim(idsec2shape == PRM.HSS, :);
 rephss = sechss(idrephss2hss, :);
 xvar = obj.findNearestXvarofHss(rephss, xvar, options, ...
   recalculate_variable);
 
 % BRB
 idrepbrbs2brbs = id_mapper.idrepbrbs2brbs;
-secbrbs = secdim(idsec2stype == PRM.BRB, :);
+secbrbs = secdim(idsec2shape == PRM.BRB, :);
 repbrbs = secbrbs(idrepbrbs2brbs, :);
 xvar = obj.findNearestXvarofBrb(repbrbs, xvar, options, ...
   recalculate_variable);
 
 % HSR（円形鋼管）
 idrephsr2hsr = id_mapper.idrephsr2hsr;
-sechsr = secdim(idsec2stype == PRM.HSR, :);
+sechsr = secdim(idsec2shape == PRM.HSR, :);
 rephsr = sechsr(idrephsr2hsr, :);
 xvar = obj.findNearestXvarofHsr(rephsr, xvar, options, ...
   recalculate_variable);
 
 % ブレース鋼材（BWFS/BHSS/BHSR）
-is_bsteel = idsec2stype == PRM.BWFS | ...
-  idsec2stype == PRM.BHSS | idsec2stype == PRM.BHSR;
+is_bsteel = idsec2shape == PRM.BWFS | ...
+  idsec2shape == PRM.BHSS | idsec2shape == PRM.BHSR;
 xvar = obj.findNearestXvarofBraceSteel(secdim, is_bsteel, xvar, ...
   recalculate_variable);
 

@@ -11,7 +11,7 @@ function idrepwfs2wfs = mapRepresentativeToWfs(obj)
 %     mapWfsToRepresentative, mapRepresentativeToHss, mapRepresentativeToBrbs
 
 % WFS断面の代表断面を取得
-[~, idrepwfs2wfs] = unique(obj.idsec2srep_(obj.idsec2stype_ == PRM.WFS));
+[~, idrepwfs2wfs] = unique(obj.idsec2srep_(obj.idsec2shape_ == PRM.WFS));
 
 return
 end

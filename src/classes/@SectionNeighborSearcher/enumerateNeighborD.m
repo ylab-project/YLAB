@@ -25,8 +25,8 @@ xdw = zeros(0, nx);
 
 % HSS断面の変数IDを取得
 idsec2var = obj.idMapper_.idsec2var;
-idsec2stype = obj.idMapper_.idsec2stype;
-idhss2x = idsec2var(idsec2stype == PRM.HSS, 1:2);
+idsec2shape = obj.idMapper_.idsec2shape;
+idhss2x = idsec2var(idsec2shape == PRM.HSS, 1:2);
 
 if isempty(idvar)
   return

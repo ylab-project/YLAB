@@ -24,9 +24,8 @@ use_initial_guess = ~isempty(initial_guess);
 
 % 初期化
 id_mapper = obj.idMapper_;
-idsec2stype = id_mapper.idsec2stype;
 idSectionList = id_mapper.idSectionList;
-nsec = length(idsec2stype);
+nsec = id_mapper.nsec;
 nlist = obj.standardAccessor_.nlist;
 if use_initial_guess
   changed_variable = xvar(:)' ~= initial_guess.x(:)';

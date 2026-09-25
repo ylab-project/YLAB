@@ -10,8 +10,7 @@ function idrepbrbs2sec = mapRepresentativeBrbsToSection(obj)
 %     mapRepresentativeBrbsToVariable, mapRepresentativeToBrbs
 
 idsrep2sec = obj.mapRepresentativeToSection();
-idsrep2stype = obj.mapRepresentativeToSectionType();
-idrepbrbs2sec = idsrep2sec(idsrep2stype == PRM.BRB);
+idrepbrbs2sec = idsrep2sec(obj.idsrep2shape_ == PRM.BRB);
 
 return
 end

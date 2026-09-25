@@ -14,7 +14,7 @@ function idsec2hss = mapSectionToHss(obj)
 %     mapHssToSection, mapSectionToWfs
 
 idsec2hss = zeros(obj.nsec, 1);
-idsec2hss(obj.idsec2stype_ == PRM.HSS) = 1:obj.nhss;
+idsec2hss(obj.idsec2shape_ == PRM.HSS) = 1:obj.nhss;
 
 return
 end
