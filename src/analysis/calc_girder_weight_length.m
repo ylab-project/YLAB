@@ -50,17 +50,17 @@ function [lm_girder_weight, weight_deduct] = calc_girder_weight_length( ...
 % 梁数
 nmeg = length(member_girder.idme);
 
-% S造判定用: HSS/WFSはS造、RCRSはRC造
-is_steel_sec = stype_sec == PRM.HSS | stype_sec == PRM.WFS;
+% S造判定用: 角形鋼管・円形鋼管・H形鋼の柱と梁はS造、RCRSはRC造
+is_steel_sec = stype_sec == PRM.HSS | stype_sec == PRM.HSR ...
+  | stype_sec == PRM.WFS | stype_sec == PRM.CWFS ...
+  | stype_sec == PRM.CWFSI;
 
 % 梁の構造種別（idsecg→統一断面IDへ変換）
 idmg2s = idsecg2sec(member_girder.idsecg);
 is_steel_g = is_steel_sec(idmg2s);
 
-% 柱せいの取得（断面種別ごと）
-Dc = zeros(size(secdim,1),1);
-Dc(stype_sec==PRM.HSS) = secdim(stype_sec==PRM.HSS,1);   % 角形鋼管: 1列目
-Dc(stype_sec==PRM.RCRS) = secdim(stype_sec==PRM.RCRS,3); % RC柱: 3列目
+% 柱面寸法（X方向、Y方向）。RC柱は荷重剛性用寸法（3列目）
+Dc = calc_column_outer_size(secdim, stype_sec, 3);
 
 % 梁の両端の対面柱断面ID（統一断面ID、柱なしは0）
 idsec_facel = member_girder.idsec_facel;
@@ -76,8 +76,9 @@ dy = node.y(idnode2) - node.y(idnode1);
 horizontal = sqrt(dx.^2 + dy.^2);
 lm_girder_weight = sqrt(dz.^2 + horizontal.^2);
 
-% 柱面寸法と通り心まで端判定の初期化
-face_dimension = zeros(nmeg, 2);
+% 柱面寸法（X方向、Y方向）と通り心まで端判定の初期化
+face_dimension_x = zeros(nmeg, 2);
+face_dimension_y = zeros(nmeg, 2);
 is_to_grid = false(nmeg, 2);
 
 idsec_face = {idsec_facel, idsec_facer};
@@ -87,12 +88,15 @@ for ig = 1:nmeg
       is_to_grid(ig, iend) = true;
       continue
     end
-    [face_dimension(ig, iend), is_to_grid(ig, iend)] = ...
+    [face_dim, is_to_grid(ig, iend)] = ...
       calc_face_dimension(idsec_face{iend}(ig,:), is_steel_g(ig), ...
       is_steel_sec, Dc, Df_foundation);
+    face_dimension_x(ig, iend) = face_dim(1);
+    face_dimension_y(ig, iend) = face_dim(2);
   end
 end
-[face_deduct, ~, ~] = calc_girder_face_deduct(face_dimension, cxl);
+[face_deduct, ~, ~] = calc_girder_face_deduct(face_dimension_x, ...
+  face_dimension_y, cxl);
 
 % 通り心まで端の基準点補正
 % 柱面控除に、構造心節点から通り心へ戻すズレを梁軸方向に投影して
@@ -135,15 +139,15 @@ function [face_dimension, is_to_grid] = calc_face_dimension( ...
 %     ids_row       - 対面柱断面IDの行 [1×ncol]
 %     is_steel_g_   - 梁がS造か (logical)
 %     is_steel_sec_ - 断面ごとのS造判定 [nsec×1]
-%     Dc            - 柱せい配列 [nsec×1]
+%     Dc            - 柱面寸法 [nsec×2]（X方向、Y方向）
 %     Df_foundation - 基礎柱面寸法 [nsec×1]
 %
 %   出力引数:
-%     face_dimension - 柱面寸法 (scalar)
+%     face_dimension - 柱面寸法 [1×2]（X方向、Y方向）
 %     is_to_grid     - 通り心まで端か (logical)。対面柱があり
 %                      柱面控除を行わない組合せで true
 
-face_dimension = 0;
+face_dimension = [0 0];
 is_to_grid = false;
 ids = ids_row(ids_row > 0);
 if isempty(ids)
@@ -156,14 +160,14 @@ for k = 1:length(ids)
   is_steel_c = is_steel_sec_(ids(k));
   if is_steel_g_ == is_steel_c
     % 同種別（S-S または RC-RC）: 柱面まで減算
-    face_dimension = Dc(ids(k));
+    face_dimension = Dc(ids(k), :);
     is_to_grid = false;
     return;
   elseif ~is_steel_g_ && is_steel_c
     % RC梁-S柱: 基礎柱があれば基礎柱面まで、なければ通り心まで
     Df = Df_foundation(ids(k));
     if Df > 0
-      face_dimension = Df;
+      face_dimension = [Df Df];
       is_to_grid = false;
     end
     return;

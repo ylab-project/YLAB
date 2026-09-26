@@ -132,6 +132,8 @@ for i=1:size(data,1)
       options.consider_web_at_girder_center = (data{i,2}=='Y');
     case '曲げの設計におけるウェブの考慮（梁端部）'
       options.consider_web_at_girder_end = (data{i,2}=='Y');
+    case '曲げの設計におけるウェブの考慮（柱）'
+      options.consider_web_at_column = (data{i,2}=='Y');
     case 'SN材H形鋼の幅厚比制限値の考慮'
       options.consider_SNH_WTRATIO = (data{i,2}=='Y');
     case 'S梁の軸力を考慮した検定'

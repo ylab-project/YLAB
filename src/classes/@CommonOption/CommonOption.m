@@ -154,6 +154,11 @@ classdef CommonOption
     % 曲げの設計におけるウェブの考慮（梁端部）
     consider_web_at_girder_end (1,1) logical = false
 
+    % 曲げの設計におけるウェブの考慮（柱）。SS7入力編2.5.4の柱の項
+    % と同じく既定は「しない」で、H形鋼柱の柱頭・柱脚の断面係数を
+    % フランジのみとする
+    consider_web_at_column (1,1) logical = false
+
     % S梁の軸力を考慮した検定（SS7マニュアル 2.5.4 準拠）
     % 1=しない, 2=する(すべて), 3=する(軸力が生じた梁のみ)(初期値)
     s_girder_axial_design (1,1) double = PRM.S_GIRDER_AXIAL_AUTO

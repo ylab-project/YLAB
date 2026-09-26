@@ -1,18 +1,21 @@
-function [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, vix, viy, ...
+function [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, Zpz, vix, viy, ...
   idnode_cgsr, idm2n, idmc2m, mtype, Fm, cxl, isxdir_member, ...
   isydir_member, istarget)
 %calc_cgstrength_ratio - 柱梁耐力比を計算
 %
-%   [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, vix, viy, ...
+%   [concgsr, cgsr] = calc_cgstrength_ratio(Zpy, Zpz, vix, viy, ...
 %     idnode_cgsr, idm2n, idmc2m, mtype, Fm, cxl, isxdir_member,
 %     isydir_member, istarget) は、各接合部における柱梁耐力比を
 %     計算する。
 %
 %   斜め梁の場合、梁の全塑性モーメントに cosθ 補正を適用する。
 %   SS7仕様: M'pbi = Mpbi × cosθ
+%   柱はX方向に局所y軸まわり、Y方向に局所z軸まわりの塑性断面係数
+%   を用いる（角形鋼管・円形鋼管は両者が等しい）。
 %
 %   入力引数:
-%     Zpy        - 塑性断面係数 [nmember×1]
+%     Zpy        - 局所y軸まわりの塑性断面係数 [nmember×1]
+%     Zpz        - 局所z軸まわりの塑性断面係数 [nmember×1]
 %     vix, viy   - 柱の方向成分 [nmec×2]
 %     idnode_cgsr- 柱梁耐力比算定対象節点 [ncgsr×1]
 %     idm2n      - 部材の節点番号 [nmember×2]
@@ -68,8 +71,7 @@ for icg = 1:ncgsr
   sgyl = sum(Zpy(isydir1).*Fm(isydir1).*cos_y(isydir1)*1.1);
   sgyr = sum(Zpy(isydir2).*Fm(isydir2).*cos_y(isydir2)*1.1);
 
-  % 上下の柱
-  % TODO 柱の耐力の方向成分を考える必要があるが保留
+  % 上下の柱（X方向はZpy、Y方向はZpz）
   isc1  = isconnected2&mtype==PRM.COLUMN;
   isc2  = isconnected1&mtype==PRM.COLUMN;
   imc_upper = find(isc2, 1);
@@ -84,10 +86,10 @@ for icg = 1:ncgsr
   scx1n = sum(vix(isc1(idmc2m),2).*Zpy(isc1).*Fm(isc1)*1.1);
   scx2p = sum(vix(isc2(idmc2m),1).*Zpy(isc2).*Fm(isc2)*1.1);
   scx2n = sum(vix(isc2(idmc2m),2).*Zpy(isc2).*Fm(isc2)*1.1);
-  scy1p = sum(viy(isc1(idmc2m),1).*Zpy(isc1).*Fm(isc1)*1.1);
-  scy1n = sum(viy(isc1(idmc2m),2).*Zpy(isc1).*Fm(isc1)*1.1);
-  scy2p = sum(viy(isc2(idmc2m),1).*Zpy(isc2).*Fm(isc2)*1.1);
-  scy2n = sum(viy(isc2(idmc2m),2).*Zpy(isc2).*Fm(isc2)*1.1);
+  scy1p = sum(viy(isc1(idmc2m),1).*Zpz(isc1).*Fm(isc1)*1.1);
+  scy1n = sum(viy(isc1(idmc2m),2).*Zpz(isc1).*Fm(isc1)*1.1);
+  scy2p = sum(viy(isc2(idmc2m),1).*Zpz(isc2).*Fm(isc2)*1.1);
+  scy2n = sum(viy(isc2(idmc2m),2).*Zpz(isc2).*Fm(isc2)*1.1);
 
   % 梁の合算
   sgx = sgxl+sgxr;

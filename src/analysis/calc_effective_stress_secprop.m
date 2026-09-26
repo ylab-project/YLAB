@@ -1,18 +1,30 @@
-function [Aeff, Asceff, Asyeff, Aszeff, Aweff, Zyeff, Zzeff] = ...
-  calc_effective_stress_secprop(A, Asc, Asy, Asz, Aw, Zy, Zz, ...
+function [Aeff, Asceff, Aqyeff, Aqzeff, Zyeff, Zzeff] = ...
+  calc_effective_stress_secprop(A, Asc, Aqy, Aqz, Zy, Zz, ...
   secdim, stype, F)
 %calc_effective_stress_secprop - 応力度用有効断面性能を計算する
 %
-%   [Aeff, Asceff, Asyeff, Aszeff, Aweff, Zyeff, Zzeff] =
-%     calc_effective_stress_secprop(A, Asc, Asy, Asz, Aw, Zy, Zz,
+%   [Aeff, Asceff, Aqyeff, Aqzeff, Zyeff, Zzeff] =
+%     calc_effective_stress_secprop(A, Asc, Aqy, Aqz, Zy, Zz,
 %     secdim, stype, F) は、元断面性能から許容応力度計算および
-%     S柱断面算定表表示に用いる有効断面性能を返す。
+%     S柱断面算定表表示に用いる有効断面性能を返す。角形鋼管は
+%     幅厚比が制限を超える部分を無効として控除する（付録1.7）。
+%
+%   入力引数:
+%     A, Asc   - 断面積、軸応力度用断面積 [n×1]
+%     Aqy, Aqz - 局所y・z方向せん断力に対する断面積 [n×1]
+%     Zy, Zz   - 検定位置の局所y・z軸まわり断面係数 [n×1]
+%     secdim   - 断面寸法 [n×ndim]
+%     stype    - 断面種別 [n×1]
+%     F        - 基準強度 [n×1]
+%
+%   出力引数:
+%     Aeff, Asceff, Aqyeff, Aqzeff, Zyeff, Zzeff
+%              - 有効断面性能 [n×1]（入力と同じ順）
 
 Aeff = A;
 Asceff = Asc;
-Asyeff = Asy;
-Aszeff = Asz;
-Aweff = Aw;
+Aqyeff = Aqy;
+Aqzeff = Aqz;
 Zyeff = Zy;
 Zzeff = Zz;
 
@@ -23,9 +35,8 @@ if any(ihss)
     secdim(ihss, :), F(ihss));
   Aeff(ihss) = Aeff_hss;
   Asceff(ihss) = Aeff_hss;
-  Asyeff(ihss) = Aw_eff_hss;
-  Aszeff(ihss) = Aw_eff_hss;
-  Aweff(ihss) = Aw_eff_hss;
+  Aqyeff(ihss) = Aw_eff_hss;
+  Aqzeff(ihss) = Aw_eff_hss;
   Zyeff(ihss) = Z_eff_hss;
   Zzeff(ihss) = Z_eff_hss;
 end

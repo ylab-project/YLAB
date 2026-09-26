@@ -52,14 +52,15 @@ vtype = secmgr.idvar2vtype;
 % 断面性能の計算
 sprop = calc_secprop(secdim, stype, [], secmgr);
 Zpym = sprop.Zpy(idm2s);
+Zpzm = sprop.Zpz(idm2s);
 
 % 材料定数
 Fm = secmgr.extractMemberMaterialF(secdim, matF);
 
 % 柱梁耐力比の算定
-concgsr = calc_cgstrength_ratio(Zpym, vix, viy, idn_cgsr, idm2n, ...
-  idmc2m, mtype, Fm, cxl, cgsr.isxdir_member, cgsr.isydir_member, ...
-  cgsr.istarget);
+concgsr = calc_cgstrength_ratio(Zpym, Zpzm, vix, viy, idn_cgsr, ...
+  idm2n, idmc2m, mtype, Fm, cxl, cgsr.isxdir_member, ...
+  cgsr.isydir_member, cgsr.istarget);
 concgsr = reshape(concgsr,[],4);
 concgsr = [max(concgsr(:,1:2),[],2) max(concgsr(:,3:4),[],2)];
 is_target = concgsr>tol;

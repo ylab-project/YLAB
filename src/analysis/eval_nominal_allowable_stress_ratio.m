@@ -94,13 +94,18 @@ column_joint_x = nominal.column.joint(:, [1, 2]);
 column_joint_y = nominal.column.joint(:, [3, 4]);
 
 % 方向別の座屈長さを算定（完全結果時のみ第2出力の詳細を受け取る）
+% 柱の断面二次モーメントはX方向に局所y軸まわり、Y方向に局所z軸
+% まわりを用いる。梁は該当方向のフレーム内曲げ（Iy）のまま
+is_column = mtype==PRM.COLUMN;
+I_bk_y = Iy;
+I_bk_y(is_column) = Iz(is_column);
 bkx_out = cell(1, 1+need_result);
 [bkx_out{:}] = calc_column_buckling_length(Iy, mtype, idm2n1, ...
   idm2n2, isxdir, wgx, lg_bk_end, lnm, lm, lm_bk_x, Em, ...
   mejoint(:, [1, 2]), column_joint_x, nominal, idmc2nc, options, ...
   beta, ilc_x, col_idstory, column_bracing.x, column_buckling_K.Kx);
 bky_out = cell(1, 1+need_result);
-[bky_out{:}] = calc_column_buckling_length(Iy, mtype, idm2n1, ...
+[bky_out{:}] = calc_column_buckling_length(I_bk_y, mtype, idm2n1, ...
   idm2n2, isydir, wgy, lg_bk_end, lnm, lm, lm_bk_y, Em, ...
   mejoint(:, [3, 4]), column_joint_y, nominal, idmc2nc, options, ...
   beta, ilc_y, col_idstory, column_bracing.y, column_buckling_K.Ky);
@@ -112,7 +117,6 @@ if need_result
 end
 
 % 座屈長さの組み立て（柱は算定結果、柱以外は座屈用部材長）
-is_column = mtype==PRM.COLUMN;
 lkx = lm_bk_x(:);
 lkx(is_column) = lkc_x;
 lky = zeros(nme, 3);

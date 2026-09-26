@@ -175,8 +175,8 @@ A = msprop.A;
 Asc = msprop.Asc;
 Asy = msprop.Asy;
 Asz = msprop.Asz;
-Aw = msprop.Aw;
-% Af = msprop.Af;
+Aqy = msprop.Aqy;
+Aqz = msprop.Aqz;
 Iy = msprop.Iy;
 Iz = msprop.Iz;
 
@@ -251,7 +251,9 @@ Iz(mtype==PRM.COLUMN) = Iz(mtype==PRM.COLUMN).*cphiI(:,2);
 Zy = msprop.Zy;
 Zz = msprop.Zz;
 Zyf = msprop.Zyf;
+Zzf = msprop.Zzf;
 Zysc = msprop.Zysc;
+Zzsc = msprop.Zzsc;
 JJ = msprop.JJ;
 
 %% 柱脚剛性の計算
@@ -697,17 +699,26 @@ else
   Zyc = Zyf;
 end
 
-%% 材端部の断面係数（WFSのみにZysc/Zyfを適用）
+%% 材端部の断面係数
+% H形鋼の梁端と柱頭・柱脚は、曲げの設計におけるウェブの考慮が
+% 「する」ならスカラップ欠損を控除したウェブ込みの断面係数、
+% 「しない」ならフランジのみの断面係数を用いる（計算編6.4.1・
+% 6.5.1）。梁は梁端部、柱は柱の指定に従う。局所y・z軸の対で持ち、
+% Y方向強軸の柱は calc_secprop で入替え済み
 mstype = stype(idm2s);
-Zyij = Zy;  % デフォルトはZy（非ゼロ）
-if options.consider_web_at_girder_end
-  Zyij(mstype==PRM.WFS) = Zysc(mstype==PRM.WFS);
-else
-  Zyij(mstype==PRM.WFS) = Zyf(mstype==PRM.WFS);
-end
-[stn, stcn] = calc_nominal_stress(dfn, Mcn, A, Asc, Asy, ...
-  Asz, Aw, Zy, Zz, Zyij, Zyc, msdim, mstype, Fm, mtype, ...
-  idnm2m, cxl, cyl);
+is_h_girder = mstype==PRM.WFS;
+is_h_column = mstype==PRM.CWFS | mstype==PRM.CWFSI;
+use_web = (is_h_girder & options.consider_web_at_girder_end) ...
+  | (is_h_column & options.consider_web_at_column);
+use_flange = (is_h_girder | is_h_column) & ~use_web;
+Zyij = Zy;
+Zzij = Zz;
+Zyij(use_web) = Zysc(use_web);
+Zzij(use_web) = Zzsc(use_web);
+Zyij(use_flange) = Zyf(use_flange);
+Zzij(use_flange) = Zzf(use_flange);
+[stn, stcn] = calc_nominal_stress(dfn, Mcn, A, Asc, Aqy, Aqz, ...
+  Zyij, Zzij, Zyc, msdim, mstype, Fm, mtype, idnm2m, cxl, cyl);
 
 %% 部材長構造体の組立て（戻り値）
 % buckling はブレース座屈長用（暫定。後日 lnom.buckling に整理）
