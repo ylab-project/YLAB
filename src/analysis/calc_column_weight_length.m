@@ -40,27 +40,17 @@ idmc2n2 = member_column.idnode2;
 % BRACE2（上側）が実際のS柱であり、既存の計算式で自身のlm_weightを算出。
 ctype = member_column.type;
 
-% S造判定用: HSS/WFSはS造、RCRSはRC造
-is_steel_sec = stype_sec == PRM.HSS | stype_sec == PRM.WFS;
-
-% 梁せいの取得（断面種別ごと）
-Hs = zeros(size(secdim,1),1);
-% H形鋼は1列目、RC梁は2列目がせい
-Hs(stype_sec==PRM.WFS) = secdim(stype_sec==PRM.WFS,1);
-Hs(stype_sec==PRM.RCRS) = secdim(stype_sec==PRM.RCRS,2);
-
 % 梁の情報
 glv = member_girder.level;       % 梁レベル調整（下げが負）
 % idsecg→統一断面IDへ変換
 idmg2s = idsecg2sec(member_girder.idsecg);
-Hg = Hs(idmg2s);                 % 梁せい
+Hg = calc_girder_section_depth(secdim, stype_sec(idmg2s), idmg2s);
 
-% 柱の断面種別（idsecc→統一断面IDへ変換）
+% 柱と梁のS造判定（idsecc→統一断面IDへ変換）。RC矩形断面以外の
+% 柱・梁（角形鋼管・円形鋼管・H形鋼）はS造
 idmc2s = idsecc2sec(member_column.idsecc);
-is_steel_c = is_steel_sec(idmc2s);   % 柱がS造かどうか
-
-% 梁の構造種別
-is_steel_g = is_steel_sec(idmg2s);   % 梁がS造かどうか
+is_steel_c = stype_sec(idmc2s) ~= PRM.RCRS;   % 柱がS造かどうか
+is_steel_g = stype_sec(idmg2s) ~= PRM.RCRS;   % 梁がS造かどうか
 
 % 柱に接続する梁ID
 idgx1 = member_column.idmeg_face1x;  % 柱脚X

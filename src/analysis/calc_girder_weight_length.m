@@ -50,10 +50,8 @@ function [lm_girder_weight, weight_deduct] = calc_girder_weight_length( ...
 % 梁数
 nmeg = length(member_girder.idme);
 
-% S造判定用: 角形鋼管・円形鋼管・H形鋼の柱と梁はS造、RCRSはRC造
-is_steel_sec = stype_sec == PRM.HSS | stype_sec == PRM.HSR ...
-  | stype_sec == PRM.WFS | stype_sec == PRM.CWFS ...
-  | stype_sec == PRM.CWFSI;
+% S造判定用: RC矩形断面以外の柱・梁（角形鋼管・円形鋼管・H形鋼）はS造
+is_steel_sec = stype_sec ~= PRM.RCRS;
 
 % 梁の構造種別（idsecg→統一断面IDへ変換）
 idmg2s = idsecg2sec(member_girder.idsecg);

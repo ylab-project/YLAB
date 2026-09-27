@@ -82,6 +82,14 @@ end
 idme2ig = zeros(nme, 1);
 idme2ig(mtype==PRM.GIRDER) = 1:sum(mtype==PRM.GIRDER);
 
+% 断面種別による部材のマスク。柱と梁はRC矩形断面以外がS造
+% （角形鋼管・円形鋼管・H形鋼の柱とH形鋼の梁）
+is_rc_member = stype==PRM.RCRS;
+is_s_column = mtype==PRM.COLUMN & ~is_rc_member;
+is_s_girder = mtype==PRM.GIRDER & ~is_rc_member;
+is_rc_column = mtype==PRM.COLUMN & is_rc_member;
+is_rc_girder = mtype==PRM.GIRDER & is_rc_member;
+
 % RC梁のスラブ重複体積の差し引き（SS7 計算編 式4.1, 4.3）
 % 梁幅 B を左右 B/2 に分け、各半分を対応する側の床（上面＋下面）と
 % 独立に差し引く。各半分の差し引き後は 0 でクリップ（スラブ厚が
@@ -90,8 +98,7 @@ idme2ig(mtype==PRM.GIRDER) = 1:sum(mtype==PRM.GIRDER);
 % デッキ床は SS7 式4.3 の対象外（「床（デッキ床除く）」）のため、
 % デッキ高さが入力された側は控除しない。t_left/t_right は仕上の
 % 周長控除（式4.9 の -Ls・t）でも再利用される。
-gstype = stype(mtype==PRM.GIRDER);
-is_rc = (gstype == PRM.RCRS);
+is_rc = is_rc_girder(mtype==PRM.GIRDER);
 has_slab_u = slab.width > 0 & slab.deck_height == 0;
 t_u1 = slab.thickness(:,1) .* has_slab_u(:,1);
 t_u2 = slab.thickness(:,2) .* has_slab_u(:,2);
@@ -113,13 +120,12 @@ fc = zeros(nnode, 6);
 fg = zeros(nnode, 6);
 fw = zeros(nnode, 6);
 M0 = zeros(nme,1);
+% S部材の自重は断面積×鋼材の単位容積重量×割増率（計算編 式4.15）。
+% ブレースは全てS造。水平ブレースの自重は考慮しない
 rho = zeros(nme,1);
 if options.consider_self_weight
-  rho(stype==PRM.HSS) = PRM.RHOS;
-  rho(stype==PRM.WFS) = PRM.RHOS;
-  rho(stype==PRM.RCRS) = rho_rc_member(stype==PRM.RCRS);
-  % ブレース（全てS造）
-  rho(mtype==PRM.BRACE) = PRM.RHOS;
+  rho(is_s_column | is_s_girder | mtype==PRM.BRACE) = PRM.RHOS;
+  rho(is_rc_member) = rho_rc_member(is_rc_member);
 end
 w = A.*rho*PRM.GRAVITY*1.d-6;
 % ブレース: BRBはメーカー指定の単位重量で上書き
@@ -127,41 +133,40 @@ wb_ = w(mtype == PRM.BRACE);
 mask_brb_ = brace_unit_weight > 0;
 wb_(mask_brb_) = brace_unit_weight(mask_brb_);
 w(mtype == PRM.BRACE) = wb_;
-efc = options.self_weight_extra_factor_column;
-efg = options.self_weight_extra_factor_girder;
-% S柱のみに割増率適用
-w(mtype==PRM.COLUMN & stype==PRM.HSS) = ...
-  w(mtype==PRM.COLUMN & stype==PRM.HSS) * efc;
-% S梁のみに割増率適用
-w(mtype==PRM.GIRDER & stype==PRM.WFS) = ...
-  w(mtype==PRM.GIRDER & stype==PRM.WFS) * efg;
+% S柱・S梁に割増率を適用
+w(is_s_column) = w(is_s_column) * options.self_weight_extra_factor_column;
+w(is_s_girder) = w(is_s_girder) * options.self_weight_extra_factor_girder;
 
 % 仕上荷重の計算
 wf = zeros(nme,1);
 if options.consider_finishing_material
   % S梁(両側仕上)
-  sg = msdim(mtype==PRM.GIRDER&stype==PRM.WFS,1:2);
-  wfsg = (sg(:,1)*2+sg(:,2))*options.finishing_material_s_girder;
-  wf(mtype==PRM.GIRDER&stype==PRM.WFS) = wfsg;
-  % S柱(四面仕上)
-  % 角形鋼管のコーナー半径 r を考慮した実周長で仕上重量を算出
-  % HSS secdim: 列1=D, 列2=t, 列3=r
-  sc = msdim(mtype==PRM.COLUMN&stype==PRM.HSS,1:3);
-  peri_sc = 4*(sc(:,1) - 2*sc(:,3)) + 2*pi*sc(:,3);
-  wfsc = peri_sc * options.finishing_material_s_column;
-  wf(mtype==PRM.COLUMN&stype==PRM.HSS) = wfsc;
-  % RC柱(四面仕上)
-  rcc = msdim(mtype==PRM.COLUMN&stype==PRM.RCRS,3:4);  % 3,4列目が実寸法
-  wfrcc = rcc(:,1)*4*options.finishing_material_rc_column;
-  wf(mtype==PRM.COLUMN&stype==PRM.RCRS) = wfrcc;
+  sg = msdim(is_s_girder,1:2);
+  wf(is_s_girder) = (sg(:,1)*2+sg(:,2)) ...
+    *options.finishing_material_s_girder;
+  % S柱(四面仕上): 仕上の周長は、角形鋼管がコーナー半径rを考慮した
+  % 実周長（secdim 列1=D, 列2=t, 列3=r）、円形鋼管が円周、H形鋼が
+  % 外接矩形の2(H+B)で向きによらない（計算編 図4.15）
+  peri_sc = zeros(nme,1);
+  is_col_hss = is_s_column & stype==PRM.HSS;
+  sc = msdim(is_col_hss,1:3);
+  peri_sc(is_col_hss) = 4*(sc(:,1) - 2*sc(:,3)) + 2*pi*sc(:,3);
+  is_col_hsr = is_s_column & stype==PRM.HSR;
+  peri_sc(is_col_hsr) = pi*msdim(is_col_hsr,1);
+  is_col_h = is_s_column & (stype==PRM.CWFS | stype==PRM.CWFSI);
+  peri_sc(is_col_h) = 2*(msdim(is_col_h,1) + msdim(is_col_h,2));
+  wf(is_s_column) = peri_sc(is_s_column) ...
+    *options.finishing_material_s_column;
+  % RC柱(四面仕上): 3列目が荷重剛性用寸法
+  wf(is_rc_column) = msdim(is_rc_column,3)*4 ...
+    *options.finishing_material_rc_column;
   % RC梁(両側仕上)
   % スラブが取り付く側面は仕上が不要なため、自重側で算出済みの
   % 左右スラブ厚を周長から控除する（式4.9 の -Ls・t 相当、左右別）
-  rcg = msdim(mtype==PRM.GIRDER&stype==PRM.RCRS,1:2);
+  rcg = msdim(is_rc_girder,1:2);
   ded_f = t_left(is_rc) + t_right(is_rc);
-  wfrcg = (rcg(:,1) + rcg(:,2)*2 - ded_f) ...
+  wf(is_rc_girder) = (rcg(:,1) + rcg(:,2)*2 - ded_f) ...
     * options.finishing_material_rc_girder;
-  wf(mtype==PRM.GIRDER&stype==PRM.RCRS) = wfrcg;
 end
 w = w+wf;
 
