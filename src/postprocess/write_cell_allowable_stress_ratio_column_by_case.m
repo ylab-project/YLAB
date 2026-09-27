@@ -94,8 +94,11 @@ return
     body{irow, 9} = format_ratio(abs(ration(inm, 8, ilc)));
     body{irow, 10} = format_ratio(abs(ration(inm, 3, ilc)));
     body{irow, 11} = format_ratio(abs(ration(inm, 2, ilc)));
-    body{irow, 12} = format_ratio(abs(ration(inm, 16, ilc)));
-    body{irow, 13} = format_ratio(abs(ration(inm, 15, ilc)));
+    % 組合せ応力度は算定した柱だけ表示する（算定しない柱は NaN）
+    if ~isnan(ration(inm, 15, ilc))
+      body{irow, 12} = format_ratio(abs(ration(inm, 16, ilc)));
+      body{irow, 13} = format_ratio(abs(ration(inm, 15, ilc)));
+    end
   end
 
   function s = format_ratio(v)

@@ -10,7 +10,7 @@ function scgbody = write_cell_section_calculation_girder( ...
 %
 %   入力引数:
 %     com     - 共通オブジェクト
-%     result  - 解析結果構造体 (secdim, ration, fbn, fcn, nomgc 等)
+%     result  - 解析結果構造体 (secdim, ration, fbny, fcn, nomgc 等)
 %     options - 出力オプション構造体
 %               section_calc_all_members, consider_web_at_girder_center,
 %               consider_web_at_girder_end, output_girder_list_label,
@@ -44,7 +44,7 @@ lb = com.nominal.girder.stiffening_lb;
 lbn_nom = result.nomgc.lb;
 id_center_sel = result.id_center_sel;
 dfn = result.dfn;
-fbn = result.fbn;
+fbny = result.fbny;
 fbn_by_fb1 = result.fbnByFb1;
 fcn = result.fcn;
 stn = result.stn;
@@ -415,9 +415,9 @@ for i = 1:nstory
         scgbody{irow,4} = fmt1(nc_);
         scgbody{irow,6} = fmt1(-dfn(inm,7,jlc)*1e-3);
         scgbody{irow, 9} = 'fb';
-        scgbody{irow,10} = sprintf('%.1f', fbn(inm,1,ilc));
-        scgbody{irow,12} = sprintf('%.1f', fbn(inm,3,clc));
-        scgbody{irow,14} = sprintf('%.1f', fbn(inm,2,jlc));
+        scgbody{irow,10} = sprintf('%.1f', fbny(inm,1,ilc));
+        scgbody{irow,12} = sprintf('%.1f', fbny(inm,3,clc));
+        scgbody{irow,14} = sprintf('%.1f', fbny(inm,2,jlc));
       end
 
       % --- M ---
@@ -434,9 +434,9 @@ for i = 1:nstory
         scgbody{irow,14} = fmt_r(ration(inm,7,jlc));
       else
         scgbody{irow, 9} = 'fb';
-        scgbody{irow,10} = sprintf('%.1f', fbn(inm,1,ilc));
-        scgbody{irow,12} = sprintf('%.1f', fbn(inm,3,clc));
-        scgbody{irow,14} = sprintf('%.1f', fbn(inm,2,jlc));
+        scgbody{irow,10} = sprintf('%.1f', fbny(inm,1,ilc));
+        scgbody{irow,12} = sprintf('%.1f', fbny(inm,3,clc));
+        scgbody{irow,14} = sprintf('%.1f', fbny(inm,2,jlc));
       end
 
       % --- Q ---

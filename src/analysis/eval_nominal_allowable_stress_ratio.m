@@ -1,9 +1,9 @@
 function [stress_constraint, stress_result] = ...
   eval_nominal_allowable_stress_ratio(msdim, stn, A, Iy, Iz, ...
-  Zyc, C, mtype, stype, isxdir, isydir, wgx, wgy, Em, Fm, ...
+  Zyc, mtype, stype, isxdir, isydir, wgx, wgy, Em, Fm, ...
   idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, ...
   isgmirrored, idmg2ng, idmc2nc, options, beta, lcdir, ...
-  col_idstory, column_bracing, Cn, nomgc, column_buckling_K)
+  col_idstory, column_bracing, Cn, Cc, nomgc, column_buckling_K)
 %eval_nominal_allowable_stress_ratio - 名目部材の許容応力度比を算定する
 %
 %   [stress_constraint, stress_result] =
@@ -17,7 +17,6 @@ function [stress_constraint, stress_result] = ...
 %     A           - 断面積 [nme×1]
 %     Iy, Iz      - 断面2次モーメント [nme×1]
 %     Zyc         - 中央曲げ応力度用断面係数 [nme×1]
-%     C           - ねじり定数等 (struct)
 %     mtype       - 部材タイプ [nme×1]
 %     stype       - 断面タイプ [nme×1]
 %     isxdir       - X方向計算に寄与する梁部材 [nme×1]
@@ -44,7 +43,8 @@ function [stress_constraint, stress_result] = ...
 %     col_idstory - 柱の層番号 [nmc×1]
 %     column_bracing - 柱の方向別補剛点トポロジー (struct)
 %                   .x, .y [nnmc×(maxseg-1) logical]
-%     Cn          - 名目梁中央係数 (struct)
+%     Cn          - 名目梁の4検定位置の修正係数 [nng×4×nlc]
+%     Cc          - 名目柱の修正係数 [nnc×2×nlc]（局所y・z軸まわり）
 %     nomgc       - 名目梁中央データ (struct)
 %     column_buckling_K - 柱座屈長さ係数の直接入力値 (struct)
 %                         .Kx, .Ky [nmec×1]（NaN=自動計算）
@@ -56,7 +56,8 @@ function [stress_constraint, stress_result] = ...
 %       .bn      - ブレース応力制約
 %     stress_result - 最終解析・帳票用の詳細結果 (struct)
 %       .gri～.bnij - 位置・ケース別応力制約
-%       .fcn, .fbn, .fsn, .ftn - 許容応力度
+%       .fcn, .fbny, .fbnz, .fsn, .ftn - 許容応力度（fbny・fbnzは
+%                  局所y・z軸まわりの許容曲げ応力度）
 %       .fcn_display - 引張置換前の許容圧縮応力度（fcL/fcS表示用）
 %       .column_fc_applicable - fcL/fcSを数値表示できる柱 [nnm×1]
 %       .kcx, .kcy, .lkx, .lky - 座屈長さ係数・座屈長さ
@@ -65,7 +66,7 @@ function [stress_constraint, stress_result] = ...
 %       .bkinfo, .lbc_nominal - 柱座屈の帳票用結果
 %       .id_center_sel - 梁中央位置の選択インデックス
 %       .girder_axial_mask - S梁軸力考慮マスク
-%       .fbn_by_fb1 - fb1式でfbが決定した位置
+%       .fbn_by_fb1 - fb1式でfbが決定した位置（局所y軸まわりの梁だけ）
 %       .nomgc - 中央検定の採用応力度を追加した名目梁中央データ
 
 % 共通配列
@@ -99,21 +100,23 @@ column_joint_y = nominal.column.joint(:, [3, 4]);
 is_column = mtype==PRM.COLUMN;
 I_bk_y = Iy;
 I_bk_y(is_column) = Iz(is_column);
-bkx_out = cell(1, 1+need_result);
+bkx_out = cell(1, 2+need_result);
 [bkx_out{:}] = calc_column_buckling_length(Iy, mtype, idm2n1, ...
   idm2n2, isxdir, wgx, lg_bk_end, lnm, lm, lm_bk_x, Em, ...
   mejoint(:, [1, 2]), column_joint_x, nominal, idmc2nc, options, ...
   beta, ilc_x, col_idstory, column_bracing.x, column_buckling_K.Kx);
-bky_out = cell(1, 1+need_result);
+bky_out = cell(1, 2+need_result);
 [bky_out{:}] = calc_column_buckling_length(I_bk_y, mtype, idm2n1, ...
   idm2n2, isydir, wgy, lg_bk_end, lnm, lm, lm_bk_y, Em, ...
   mejoint(:, [3, 4]), column_joint_y, nominal, idmc2nc, options, ...
   beta, ilc_y, col_idstory, column_bracing.y, column_buckling_K.Ky);
 lkc_x = bkx_out{1};
 lkc_y = bky_out{1};
+lbc_max_x = bkx_out{2};
+lbc_max_y = bky_out{2};
 if need_result
-  buckling_x = bkx_out{2};
-  buckling_y = bky_out{2};
+  buckling_x = bkx_out{3};
+  buckling_y = bky_out{3};
 end
 
 % 座屈長さの組み立て（柱は算定結果、柱以外は座屈用部材長）
@@ -128,17 +131,25 @@ lky(mtype==PRM.GIRDER,:) = lb(mtype==PRM.GIRDER,1:3);
 [lambday, lambdaz] = calc_lambda(A, Iy, Iz, mtype, stype, lkx, lky);
 fc = calc_fc(lambday, lambdaz, clam, Fm);
 
-% 曲げ許容応力度の算定
-mewfs = msdim(stype==PRM.WFS,:);
-fb = calc_fb(mewfs, C, clam, ft, mtype, stype, lb(:,1:3), options);
+% 移し替え（名目部材は始端セグメントで代表する）
+idm_i = idnm2m(:, 1);
+An = A(idm_i);
+ftn = ft(idm_i,:);
+fcn = fc(idm_i,:,:);
+fsn = fs(idm_i,:);
+stype_n = stype(idm_i);
+msdim_n = msdim(idm_i, :);
 
-% 移し替え
-An = A(idnm2m(:, 1));
-ftn = ft(idnm2m(:,1),:);
-fcn = fc(idnm2m(:,1),:,:);
-fbn = fb(idnm2m(:,1),:,:);
-fbn_by_fb1 = false(size(fbn));
-fsn = fs(idnm2m(:,1),:);
+% 曲げ許容応力度は局所y軸まわり fbny と局所z軸まわり fbnz を位置別
+% （i端・j端・中央）に持つ。横座屈式（計算編 表2.16）を使うのは
+% H形鋼の強軸まわりだけで、名目梁は後段で4位置の値に、H形鋼柱は
+% 強軸の側だけ柱脚・柱頭の値に置き換える。弱軸まわりと角形・円形
+% 鋼管は ft のまま
+nlc = size(Cn, 3);
+nnm = size(idnm2m, 1);
+fbny = repmat(reshape(ftn(:, min(1:nlc, 2)), nnm, 1, nlc), 1, 3);
+fbnz = fbny;
+fbn_by_fb1 = false(size(fbny));
 
 % 名目梁のfb/fcを4位置から算定し3位置に集約
 iggg = find(nmtype==PRM.GIRDER);
@@ -169,28 +180,27 @@ for j = 1:2
   fbn4_by_fb1(:, jcol, :) = fb1_c(:, jcol, :);
   fcn4(:, jcol, :) = fcn4_c(:, jcol, :);
 end
-nlc_ = size(fbn4, 3);
 girder_axial_mask = build_girder_axial_mask(stn, nomgc.Ncn, ...
   An, nmtype, options);
 axial_on = options.s_girder_axial_design ~= PRM.S_GIRDER_AXIAL_NONE;
 % 端部軸力の引張判定（引張正）。検定のfc・fb→ft置換と、
 % S柱断面算定表のfcL/fcS表示条件で同じ判定を用いる。
 axial_tension = stn(:, [1 7], :) .* An >= PRM.TOL_FORCE_N;
-id_center_sel = 3*ones(nng_, nlc_);
+id_center_sel = 3*ones(nng_, nlc);
 nomgc.stcN = zeros(size(nomgc.Ncn));
 nomgc.stcM = zeros(size(nomgc.Mcn));
 nomgc.ratioN = zeros(size(nomgc.Ncn));
 nomgc.ratioM = zeros(size(nomgc.Mcn));
 nomgc.ratioTotal = zeros(size(nomgc.Mcn));
-nomgc.ratioTotalCandidate = zeros(nng_, 2, nlc_);
+nomgc.ratioTotalCandidate = zeros(nng_, 2, nlc);
 tol_ratio = 1e-4;
-for ilc = 1:nlc_
+for ilc = 1:nlc
   ilc_ft = min(ilc, 2);
   fb4_ = fbn4(:, :, ilc);
   fc4_ = fcn4(:, :, ilc);
   fb1_4 = fbn4_by_fb1(:, :, ilc);
-  fbn(iggg, 1, ilc) = fb4_(:, 1);
-  fbn(iggg, 2, ilc) = fb4_(:, 2);
+  fbny(iggg, 1, ilc) = fb4_(:, 1);
+  fbny(iggg, 2, ilc) = fb4_(:, 2);
   fbn_by_fb1(iggg, 1, ilc) = fb1_4(:, 1);
   fbn_by_fb1(iggg, 2, ilc) = fb1_4(:, 2);
   fcn(iggg, 1, ilc) = fc4_(:, 1);
@@ -226,7 +236,7 @@ for ilc = 1:nlc_
   stcN_sel = stcN_pair(idx_);
   fb_sel = fb_eval(idx_);
   fc_sel = fc_eval(idx_);
-  fbn(iggg, 3, ilc) = fb_sel;
+  fbny(iggg, 3, ilc) = fb_sel;
   fbn_by_fb1(iggg, 3, ilc) = fb1_4(idx_);
   fbn_by_fb1(iggg(use_ft), 3, ilc) = false;
   fcn(iggg, 3, ilc) = fc_sel;
@@ -240,6 +250,27 @@ for ilc = 1:nlc_
   nomgc.ratioTotalCandidate(:, 2, ilc) = r4;
 end
 
+% 名目柱: H形鋼は強軸まわりだけ横座屈式で、X方向強軸（CWFS）は局所
+% y軸、Y方向強軸（CWFSI）は局所z軸まわりを置き換える。横座屈長さ
+% ℓb は強軸のフランジがたわむ方向の最大横補剛間隔（控除前）で、
+% CWFSはY方向、CWFSIはX方向の値を用いる。Cは強軸まわりの Cc を
+% 柱脚・柱頭の両端に使う（計算編 表2.16）
+iccc = nominal.column.idnominal;
+is_cwfs = stype_n(iccc) == PRM.CWFS;
+is_cwfsi = stype_n(iccc) == PRM.CWFSI;
+is_h = is_cwfs | is_cwfsi;
+lb_ltb = lbc_max_x;
+lb_ltb(is_cwfs) = lbc_max_y(is_cwfs);
+Cc_strong = Cc(:, 1, :);
+Cc_strong(is_cwfsi, 1, :) = Cc(is_cwfsi, 2, :);
+inm_h = iccc(is_h);
+fbc = calc_nominal_fb(msdim_n(inm_h, :), Cc_strong(is_h, :, :), ...
+  clam(idm_i(inm_h)), ftn(inm_h, :), stype_n(inm_h), lb_ltb(is_h), ...
+  options);
+fbc = repmat(fbc, 1, 2);
+fbny(iccc(is_cwfs), 1:2, :) = fbc(is_cwfs(is_h), :, :);
+fbnz(iccc(is_cwfsi), 1:2, :) = fbc(is_cwfsi(is_h), :, :);
+
 % 表示用許容圧縮応力度（引張置換前）。SS7は引張時の検定にft
 % （計算編 式6.18）、fcL/fcS欄の表示にfcを使う（出力編7.3.11）。
 fcn_display = fcn;
@@ -249,11 +280,12 @@ fcn_display = fcn;
 is_all_tension = all(all(axial_tension, 3), 2);
 column_fc_applicable = ~(nmtype == PRM.COLUMN & is_all_tension);
 
-% 許容応力度比の算定。fcn/fbn は検定用の確定値（引張置換後）とする。
-[ration, fcn, fbn] = calc_nominal_allowable_stress_ratio(stn, ftn, ...
-  fcn, fbn, fsn, nmtype, nomgc.Ncn, An, girder_axial_mask, ...
-  axial_tension);
-for ilc = 1:nlc_
+% 許容応力度比の算定。fcn・fbny・fbnz は検定用の確定値（引張置換後）
+% とする。
+[ration, fcn, fbny, fbnz] = calc_nominal_allowable_stress_ratio( ...
+  stn, ftn, fcn, fbny, fbnz, fsn, nmtype, nomgc.Ncn, An, ...
+  girder_axial_mask, axial_tension);
+for ilc = 1:nlc
   ration(iggg, 13, ilc) = nomgc.ratioM(iggg, ilc);
   ration(iggg, 14, ilc) = nomgc.ratioN(iggg, ilc);
 end
@@ -280,6 +312,10 @@ if ~need_result
   return
 end
 
+% S柱の組合せ応力度比（柱脚・柱頭）。帳票表示だけに使う
+ration(:, 15:16, :) = calc_nominal_combined_stress_ratio(stn, ftn, ...
+  nmtype, stype_n, msdim_n, options);
+
 % 位置・ケース別制約
 stress_result.gri = gri;
 stress_result.grj = grj;
@@ -296,7 +332,8 @@ stress_result.bnij = bnij;
 stress_result.fcn = fcn;
 stress_result.fcn_display = fcn_display;
 stress_result.column_fc_applicable = column_fc_applicable;
-stress_result.fbn = fbn;
+stress_result.fbny = fbny;
+stress_result.fbnz = fbnz;
 stress_result.fsn = fsn;
 stress_result.ftn = ftn;
 stress_result.kcx = buckling_x.kc;

@@ -141,13 +141,8 @@ for ilc = 1:nlc
         continue
       end
 
-      % 逆称変形モード
-      if abs(M12(1)) >= abs(M12(2))
-        M1 = M12(1); M2 = M12(2);
-      else
-        M1 = M12(2); M2 = M12(1);
-      end
-      Cval = 1.75 - 1.05*(M2/M1) + 0.3*(M2/M1)^2;
+      % 逆称変形モード。区間端部の曲げモーメントからCを求める
+      Cval = calc_modified_C_ends(M12(1), M12(2));
 
       % 全分割部材に同じC値を設定
       for k = 1:nsub
@@ -156,9 +151,6 @@ for ilc = 1:nlc
     end
   end
 end
-
-% TODO: とりあえず
-C(C >= 2.3) = 2.3;
 
 % 並べ替え（(左端,右端,中央)×nlc → nmeg×3×nlc）
 C_ = C;

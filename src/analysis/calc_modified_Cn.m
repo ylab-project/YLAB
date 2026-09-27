@@ -144,20 +144,11 @@ for ilc = 1:nlc
         continue
       end
 
-      % 逆称変形モード
-      if abs(Ma) >= abs(Mb)
-        M1 = Ma; M2 = Mb;
-      else
-        M1 = Mb; M2 = Ma;
-      end
-      Cval = 1.75 - 1.05*(M2/M1) + 0.3*(M2/M1)^2;
-      Cn(ing, jcol, ilc) = Cval;
+      % 逆称変形モード。座屈区間の端部の曲げモーメントからCを求める
+      Cn(ing, jcol, ilc) = calc_modified_C_ends(Ma, Mb);
     end
   end
 end
-
-% 上限値
-Cn(Cn >= 2.3) = 2.3;
 
 return
 end

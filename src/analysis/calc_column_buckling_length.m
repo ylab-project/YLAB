@@ -1,15 +1,15 @@
-function [lkc, result] = calc_column_buckling_length(Iy, mtype, ...
-  js, je, is_girder, wg, lg_end, lnm, lm, lm_bk, Em, ...
+function [lkc, lbc_max, result] = calc_column_buckling_length(Iy, ...
+  mtype, js, je, is_girder, wg, lg_end, lnm, lm, lm_bk, Em, ...
   mejoint, nominal_joint, nominal, idmc2nc, options, beta, ilc, ...
   col_idstory, braced, kcUser)
 %calc_column_buckling_length - 柱部材の座屈長さを計算する（1方向分）
 %
-%   [lkc, result] = calc_column_buckling_length(Iy, mtype, js, je, ...
-%     is_girder, wg, lg_end, lnm, lm, lm_bk, Em, mejoint, ...
+%   [lkc, lbc_max, result] = calc_column_buckling_length(Iy, mtype, ...
+%     js, je, is_girder, wg, lg_end, lnm, lm, lm_bk, Em, mejoint, ...
 %     nominal_joint, nominal, idmc2nc, options, beta, ilc, ...
 %     col_idstory, braced, kcUser) は、
 %   構造骨組みにおける柱部材の座屈長さを算出する。柱以外の部材の
-%   座屈長さは呼び出し側の責務とし、本関数は返さない。第2出力を
+%   座屈長さは呼び出し側の責務とし、本関数は返さない。第3出力を
 %   要求した場合だけ、座屈長さ係数と帳票用中間値を返す。
 %
 %   入力引数:
@@ -41,14 +41,16 @@ function [lkc, result] = calc_column_buckling_length(Iy, mtype, ...
 %                   NaN=自動計算、数値=直接入力値
 %
 %   出力引数:
-%     lkc    - 柱セグメントの座屈長さ [nmc×1]
-%     result - 座屈長さ係数と帳票用中間値 (struct)
+%     lkc     - 柱セグメントの座屈長さ [nmc×1]
+%     lbc_max - 名目柱の最大横補剛間隔（控除前） [nnc×1]。H形鋼柱の
+%               横座屈長さに用いる
+%     result  - 座屈長さ係数と帳票用中間値 (struct)
 
 % 定数
 nme = length(mtype);
 nnc = size(nominal.column.idmec,1);
 BK_MAX_IG_LG = 9999.99e3;  % 梁剛比上限 [mm3]
-need_result = nargout == 2;
+need_result = nargout == 3;
 
 % ヤング係数比で補正
 Iy = Iy.*Em/max(Em);
@@ -203,6 +205,9 @@ end
 kc = kcn(idmc2nc(:,1));
 lbmax = lbc_nominal_bk(idmc2nc(:,1), 3);
 lkc = kc.*lbmax;
+
+% 名目柱の最大横補剛間隔（控除前）。H形鋼柱の横座屈長さに用いる
+lbc_max = lbc_nominal(:, 3);
 
 if ~need_result
   return
