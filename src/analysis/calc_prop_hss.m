@@ -1,6 +1,19 @@
 function section_property = calc_prop_hss(secdim)
-%CALC_PROP_HSS この関数の概要をここに記述
-%   詳細説明をここに記述
+%calc_prop_hss - 角形鋼管の断面性能を計算する
+%
+%   section_property = calc_prop_hss(secdim) は、角形鋼管の外径・板厚・
+%   角部の半径から断面性能を計算する（計算編付録1.2）。せん断力検討用
+%   断面積Awは全断面積の1/2とし、せん断形状係数κは局所y軸・z軸まわり
+%   とも1とする。
+%
+%   入力引数:
+%     secdim - 断面寸法 [n×3以上]（列1: 外径D、列2: 板厚t、列3: 角部の
+%              半径r [mm]）
+%
+%   出力引数:
+%     section_property - 断面性能 [n×14]
+%       [A, Asy, Asz, Iy, Iz, Zy, Zz, Zyf, Zpy, Zpz, JJ, Aw, kappay,
+%        kappaz]。Zyfは角形鋼管に該当しないため0
 
 % 計算の準備
 D = secdim(:,1);
@@ -32,13 +45,17 @@ AA = D.^2+pi*r.^2-t.*(2*D+pi*r-4*r) + pi/4*t.^2-4*r.^2;
 LL = 4*D-8*r+2*pi*r-pi*t;
 JJ = 4*AA.^2.*t./LL;
 
-% ダミー
+% フランジのみの断面係数は該当しない
 Zyf = zeros(n,1);
-% Aw = zeros(n,1);
-% Aw = A;
 Aw = Asy;
 
-% 断面性能の配列化
-section_property = [A, Asy, Asz, Iy, Iz, Zy, Zz, Zyf, Zpy, Zpz, JJ, Aw];
-end
+% せん断形状係数（局所y軸・z軸まわりとも1）
+kappay = ones(n,1);
+kappaz = kappay;
 
+% 断面性能の配列化
+section_property = [A, Asy, Asz, Iy, Iz, Zy, Zz, Zyf, Zpy, Zpz, JJ, Aw, ...
+  kappay, kappaz];
+
+return
+end

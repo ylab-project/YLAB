@@ -16,9 +16,12 @@ function section_property = calc_secprop(secdim, stype, scallop, secmgr)
 %   出力引数:
 %     section_property - 断面諸量のscalar struct-of-arrays
 %       A,Asy,Asz,Iy,Iz,Zy,Zz,Zyf,Zpy,Zpz,JJ,Aw,Af,Zysc,Lkmax,
-%       Iyr,Asc,Aqy,Aqz,Zzsc,Zzf（各フィールド [n×1 double]）
+%       Iyr,Asc,Aqy,Aqz,Zzsc,Zzf,kappay,kappaz（各フィールド
+%       [n×1 double]）
 %       Aqy,Aqz は応力度計算でせん断力Qy,Qzを除す面積、
-%       Zzsc,Zzf は局所z軸まわりの端部断面係数（Zysc,Zyfと対）
+%       Zzsc,Zzf は局所z軸まわりの端部断面係数（Zysc,Zyfと対）、
+%       kappay,kappaz は剛性用せん断面積Asy,Aszのせん断形状係数。
+%       せん断面積を持たない種別（BRB,HBR,TB）は0
 
 if nargin<3 || isempty(scallop)
   scallop = 0;
@@ -26,7 +29,7 @@ end
 
 % 計算の準備
 n = size(secdim,1);
-secprop_values = zeros(n,21);
+secprop_values = zeros(n,23);
 if isscalar(stype)
   stype = stype*ones(1,n);
 end
@@ -40,6 +43,7 @@ if any(iw)
   secprop_values(iw,16) = props(:,15);  % Iyr
   secprop_values(iw,17) = props(:,16);  % Asc
   secprop_values(iw,20:21) = props(:,17:18);  % Zzsc, Zzf
+  secprop_values(iw,22:23) = props(:,19:20);  % kappay, kappaz
 end
 
 % H形鋼ブレース（BWFS）: ガセット接合のためスカラップなし
@@ -49,18 +53,23 @@ if any(ibw)
   props = calc_prop_wfs(secdim(ibw,:), 0);
   secprop_values(ibw,1:14) = props(:,1:14);
   secprop_values(ibw,20:21) = props(:,17:18);  % Zzsc, Zzf
+  secprop_values(ibw,22:23) = props(:,19:20);  % kappay, kappaz
 end
 
 % 角形鋼管（HSS + BHSS）
 ih = stype==PRM.HSS | stype==PRM.BHSS;
 if any(ih)
-  secprop_values(ih,1:12) = calc_prop_hss(secdim(ih,:));
+  props = calc_prop_hss(secdim(ih,:));
+  secprop_values(ih,1:12) = props(:,1:12);
+  secprop_values(ih,22:23) = props(:,13:14);  % kappay, kappaz
 end
 
 % RC矩形断面
 irc = stype==PRM.RCRS;
 if any(irc)
-  secprop_values(irc,1:12) = calc_prop_rcrs(secdim(irc,:));
+  props = calc_prop_rcrs(secdim(irc,:));
+  secprop_values(irc,1:12) = props(:,1:12);
+  secprop_values(irc,22:23) = props(:,13:14);  % kappay, kappaz
 end
 
 % 座屈拘束ブレース
@@ -76,7 +85,9 @@ end
 % 円形鋼管（HSR + BHSR）
 ir = stype==PRM.HSR | stype==PRM.BHSR;
 if any(ir)
-  secprop_values(ir,1:12) = calc_prop_hsr(secdim(ir,:));
+  props = calc_prop_hsr(secdim(ir,:));
+  secprop_values(ir,1:12) = props(:,1:12);
+  secprop_values(ir,22:23) = props(:,13:14);  % kappay, kappaz
 end
 
 % 水平ブレース
@@ -110,7 +121,7 @@ secprop_values(iws,18) = secprop_values(iws,13)*2/3;
 % 数値計算結果を列番号順の名前付き列配列へ分離
 prop_names = {'A', 'Asy', 'Asz', 'Iy', 'Iz', 'Zy', 'Zz', 'Zyf', ...
   'Zpy', 'Zpz', 'JJ', 'Aw', 'Af', 'Zysc', 'Lkmax', 'Iyr', 'Asc', ...
-  'Aqy', 'Aqz', 'Zzsc', 'Zzf'};
+  'Aqy', 'Aqz', 'Zzsc', 'Zzf', 'kappay', 'kappaz'};
 for k = 1:numel(prop_names)
   section_property.(prop_names{k}) = secprop_values(:,k);
 end
@@ -122,7 +133,7 @@ end
 ii = stype(:)==PRM.CWFSI;
 if any(ii)
   yz_pairs = {'Asy', 'Asz'; 'Iy', 'Iz'; 'Zy', 'Zz'; 'Zpy', 'Zpz'; ...
-    'Zysc', 'Zzsc'; 'Zyf', 'Zzf'; 'Aqy', 'Aqz'};
+    'Zysc', 'Zzsc'; 'Zyf', 'Zzf'; 'Aqy', 'Aqz'; 'kappay', 'kappaz'};
   for k = 1:size(yz_pairs, 1)
     values_y = section_property.(yz_pairs{k,1})(ii);
     section_property.(yz_pairs{k,1})(ii) = ...

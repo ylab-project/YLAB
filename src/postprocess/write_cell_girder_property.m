@@ -150,8 +150,7 @@ return
     gpbody{irow_*2,11} = sprintf('%.3f', gphiAn(ig_));
     gpbody{irow_*2,12} = fmt_adaptive(Ano_ * gphiAn(ig_));
     gpbody{irow_*2,13} = 1;
-    kappa_ = get_kappa(secg.type(girder.idsecg(ig_)));
-    gpbody{irow_*2,14} = kappa_;
+    gpbody{irow_*2,14} = msprop.kappay(idm_);
     gpbody{irow_*2,16} = sprintf('%.0f', lrg(ig_,2));
     gpbody{irow_*2,17} = sprintf('%.0f', lfg(ig_,2));
     gpbody{irow_*2,19} = joint_label(girder.joint(ig_,2));
@@ -177,27 +176,6 @@ return
       otherwise
         label = "";
     end
-  end
-
-  function kappa = get_kappa(stype)
-  %get_kappa - 断面種別に応じたせん断形状係数を返す
-  %
-  %   kappa = get_kappa(stype) は、断面種別 stype に応じて
-  %   せん断形状係数 κ を返す。RC矩形断面（PRM.RCRS）は 1.2、
-  %   それ以外は 1 を返す。
-  %
-  %   入力引数:
-  %     stype - 断面種別コード
-  %
-  %   出力引数:
-  %     kappa - せん断形状係数
-    if stype == PRM.RCRS
-      kappa = 1.2;
-    else
-      kappa = 1;
-    end
-
-    return
   end
 
   function s = fmt_adaptive(v)

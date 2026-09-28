@@ -167,8 +167,7 @@ return
     cpbody(irow*2-1:irow*2,17) = {1; 1};
     cpbody{irow*2-1,18} = 1;
     cpbody(irow*2-1:irow*2,19) = {1; 1};
-    kappa_ = get_kappa(secc.type(idsc));
-    cpbody(irow*2-1:irow*2,20) = {kappa_(1); kappa_(2)};
+    cpbody(irow*2-1:irow*2,20) = {msprop.kappay(idm); msprop.kappaz(idm)};
     cpbody{irow*2-1,21} = sprintf('%.0f', lm_);
     cpbody(irow*2-1:irow*2,22) = {sprintf('%.0f', lrcx_(2)); ...
       sprintf('%.0f', lrcy_(2))};
@@ -201,32 +200,6 @@ return
       cpbody(irow*2-1:irow*2,icol_joint(1)) = {sprintf('%.0f', ...
         kcb*1.d-6); sprintf('%.0f', kcb*1.d-6)};
     end
-    return
-  end
-
-  function kappa = get_kappa(stype)
-  %get_kappa - 断面種別に応じたせん断形状係数を返す
-  %
-  %   kappa = get_kappa(stype) は、断面種別 stype に応じて
-  %   X/Y方向のせん断形状係数κを返す。SS7計算編3.2.5に従い、
-  %   H形鋼柱は強軸1、弱軸1.2とし、断面の向きに対応させる。
-  %
-  %   入力引数:
-  %     stype - 断面種別コード
-  %
-  %   出力引数:
-  %     kappa - せん断形状係数 [X方向, Y方向]
-    switch stype
-      case PRM.RCRS
-        kappa = [1.2 1.2];
-      case PRM.CWFS
-        kappa = [1 1.2];
-      case PRM.CWFSI
-        kappa = [1.2 1];
-      otherwise
-        kappa = [1 1];
-    end
-
     return
   end
 end

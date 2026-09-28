@@ -10,13 +10,13 @@ function section_property = calc_prop_wfs(secdim, scallop)
 %     scallop - スカラップ寸法 (mm)、省略時は0
 %
 %   出力引数:
-%     section_property - 断面性能 [n×18]
+%     section_property - 断面性能 [n×20]
 %       [A, Asy, Asz, Iy, Iz, Zy, Zz, Zyf, Zpy, Zpz, JJ, Aw, Af,
-%        Zysc, Iyr, Asc, Zzsc, Zzf]
+%        Zysc, Iyr, Asc, Zzsc, Zzf, kappay, kappaz]
 %       Zy/Zzは全断面、Zysc/Zzscはスカラップ控除後、Zyf/Zzfは
 %       フランジのみの断面係数（局所y軸が強軸）
-%       Asy/Aszは各軸まわりの曲げに対応する剛性用せん断面積
-%       （せん断形状係数で除した値）
+%       Asy/Aszは各軸まわりの曲げに対応する剛性用せん断面積で、
+%       せん断形状係数kappay/kappazで除した値
 if nargin<2 || isempty(scallop)
   scallop = 0;
 end
@@ -38,9 +38,10 @@ A = H.*B-(B-tw).*(H-2*tf)+4*rA;  % 全断面積
 Aw = (H-2*tf-2*scallop).*tw;     % ウェブ断面積（スカラップ考慮）
 Af = B.*tf*2;                    % フランジ断面積
 % SS7計算編3.2.5：強軸はウェブ、弱軸は両フランジをκで除す
-kappa = 1.2;
-Asy = (H-2*tf).*tw;              % 強軸曲げのせん断面積（κ=1）
-Asz = Af/kappa;                  % 弱軸曲げのせん断面積（κ=1.2）
+kappay = ones(size(H));          % 強軸のせん断形状係数
+kappaz = 1.2*ones(size(H));      % 弱軸のせん断形状係数
+Asy = (H-2*tf).*tw;              % 強軸曲げのせん断面積
+Asz = Af./kappaz;                % 弱軸曲げのせん断面積
 
 % 強軸（y軸）まわりの断面二次モーメント
 If1 = B.*tf.^3/12 + B.*tf.*(H-tf).^2/4;  % フランジ
@@ -87,7 +88,7 @@ JJ = ((B.*tf.^3)*2 + ((H-2*tf).*tw.^3))/3;
 
 % 断面性能の配列化
 section_property = [A, Asy, Asz, Iy, Iz, Zy, Zz, Zyf, Zpy, Zpz, ...
-  JJ, Aw, Af, Zysc, Iyr, Asc, Zzsc, Zzf];
+  JJ, Aw, Af, Zysc, Iyr, Asc, Zzsc, Zzf, kappay, kappaz];
 
 return
 end
