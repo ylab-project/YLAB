@@ -63,6 +63,9 @@ lfcx = result.lf.columnx;
 lfcy = result.lf.columny;
 lm_nominal = result.lm_nominal;
 lbc_nominal = result.lbc_nominal;
+% H形鋼柱の強軸まわりの許容曲げ応力度に用いた修正係数C（名目柱、
+% 局所y軸まわり・z軸まわり、荷重ケース別）
+Cc = result.Cc;
 cri_all = result.cri;
 crj_all = result.crj;
 idsecc2sec = com.section.column.idsec;
@@ -157,6 +160,22 @@ for i = 1:nstory
       im2 = idmc2m(ic2);
       isc_ = idnm2sc(inc);
 
+      % H形鋼柱は検定行の欄構成が角形・円形鋼管と異なる（SS7出力編
+      % 7.3.11）。強軸はX方向強軸（CWFS）が局所y軸まわり、Y方向強軸
+      % （CWFSI）が局所z軸まわりで、横座屈長さLbは強軸のフランジが
+      % たわむ方向の梁で決まる控除前の最大横補剛間隔を用いる
+      % （許容曲げ応力度の算定と同じ選択）
+      ctype_ = stype(idsecc2sec(isc_));
+      is_h_col = PRM.list_type_of_section_type(ctype_) == PRM.WFS;
+      is_strong_x = ctype_ == PRM.CWFS;
+      if is_strong_x
+        iax_strong = 1;
+        lb_ltb = lbc_nominal.y.max(inc);
+      else
+        iax_strong = 2;
+        lb_ltb = lbc_nominal.x.max(inc);
+      end
+
       % 一本部材指定による帳票形式を選ぶ。内部分割の有無は問わない
       is_through = nominal_column.isthrough(inc);
       if is_through
@@ -223,34 +242,22 @@ for i = 1:nstory
         % iy + <X>柱頭 検定
         irow = irow + 1;
         write_iy_label(irow, im1);
-        write_check_row(irow, '<X>柱頭', Zyeff(im2), ...
-          Asceff(im2), Aqzeff(im2), fbny(inm, 2, jlx), ...
-          ration(inm, 1, jlx), ration(inm, 11, jlx), ...
-          ration(inm, 12, jlx), ration(inm, 9, jlx), ration(inm, 16, jlx));
+        write_check_row(irow, true, 2, im2, jlx);
 
         % λ + 柱脚 X 検定
         irow = irow + 1;
         write_lambda_label(irow, im1);
-        write_check_row(irow, '柱脚', Zyeff(im1), Asceff(im1), ...
-          Aqzeff(im1), fbny(inm, 1, ilx), ration(inm, 1, ilx), ...
-          ration(inm, 5, ilx), ration(inm, 6, ilx), ...
-          ration(inm, 3, ilx), ration(inm, 15, ilx));
+        write_check_row(irow, true, 1, im1, ilx);
 
         % fcL + <Y>柱頭 検定
         irow = irow + 1;
         write_fcl_label(irow);
-        write_check_row(irow, '<Y>柱頭', Zzeff(im2), ...
-          Asceff(im2), Aqyeff(im2), fbnz(inm, 2, jly), ...
-          ration(inm, 1, jly), ration(inm, 11, jly), ...
-          ration(inm, 12, jly), ration(inm, 8, jly), ration(inm, 16, jly));
+        write_check_row(irow, false, 2, im2, jly);
 
         % fcS + 柱脚 Y 検定（柱エントリ末尾、CONT_MARKER は付与しない）
         irow = irow + 1;
         write_fcs_label(irow);
-        write_check_row(irow, '柱脚', Zzeff(im1), Asceff(im1), ...
-          Aqyeff(im1), fbnz(inm, 1, ily), ration(inm, 1, ily), ...
-          ration(inm, 5, ily), ration(inm, 6, ily), ...
-          ration(inm, 2, ily), ration(inm, 15, ily));
+        write_check_row(irow, false, 1, im1, ily);
         sccbody{irow, ncol} = '';
 
       else
@@ -319,10 +326,7 @@ for i = 1:nstory
         % fcL + <X>柱頭 検定
         irow = irow + 1;
         write_fcl_label(irow);
-        write_check_row(irow, '<X>柱頭', Zyeff(im2), ...
-          Asceff(im2), Aqzeff(im2), fbny(inm, 2, jlx), ...
-          ration(inm, 1, jlx), ration(inm, 11, jlx), ...
-          ration(inm, 12, jlx), ration(inm, 9, jlx), ration(inm, 16, jlx));
+        write_check_row(irow, true, 2, im2, jlx);
 
         % fcS + 中央 X 検定（Zy/A のみ）
         irow = irow + 1;
@@ -334,17 +338,11 @@ for i = 1:nstory
 
         % 柱脚 X 検定
         irow = irow + 1;
-        write_check_row(irow, '柱脚', Zyeff(im1), Asceff(im1), ...
-          Aqzeff(im1), fbny(inm, 1, ilx), ration(inm, 1, ilx), ...
-          ration(inm, 5, ilx), ration(inm, 6, ilx), ...
-          ration(inm, 3, ilx), ration(inm, 15, ilx));
+        write_check_row(irow, true, 1, im1, ilx);
 
         % <Y>柱頭 検定
         irow = irow + 1;
-        write_check_row(irow, '<Y>柱頭', Zzeff(im2), ...
-          Asceff(im2), Aqyeff(im2), fbnz(inm, 2, jly), ...
-          ration(inm, 1, jly), ration(inm, 11, jly), ...
-          ration(inm, 12, jly), ration(inm, 8, jly), ration(inm, 16, jly));
+        write_check_row(irow, false, 2, im2, jly);
 
         % 中央 Y 検定（Zz/A のみ）
         irow = irow + 1;
@@ -355,10 +353,7 @@ for i = 1:nstory
 
         % 柱脚 Y 検定（柱エントリ末尾、CONT_MARKER は付与しない）
         irow = irow + 1;
-        write_check_row(irow, '柱脚', Zzeff(im1), Asceff(im1), ...
-          Aqyeff(im1), fbnz(inm, 1, ily), ration(inm, 1, ily), ...
-          ration(inm, 5, ily), ration(inm, 6, ily), ...
-          ration(inm, 2, ily), ration(inm, 15, ily));
+        write_check_row(irow, false, 1, im1, ily);
         sccbody{irow, ncol} = '';
       end
 
@@ -432,57 +427,108 @@ return
     return
   end
 
-  function write_check_row(irow_, label, Z_val, A_val, Aw_val, ...
-    fb_val, r_n, r_bx, r_by, tau, combined)
-  %write_check_row - 検定行 1 行を埋める（col 10-20, 25）
+  function write_check_row(irow_, is_x, pos_, im_, ilc_)
+  %write_check_row - 検定行 1 行を埋める（col 10-24, 25）
   %
-  %   write_check_row(irow_, label, Z_val, A_val, Aw_val,
-  %     fb_val, r_n, r_bx, r_by, tau, combined) は、S柱断面
-  %   算定表の検定行 1 行に断面諸量と各応力比・合算値を埋める。
-  %   検定比は SS7 互換で切り上げ（ceil）表示する。外側スコープの
-  %   sccbody, ncol を共有する。
+  %   write_check_row(irow_, is_x, pos_, im_, ilc_) は、S柱断面算定表
+  %   の検定行 1 行に断面諸量、許容曲げ応力度、各応力比と合算値を
+  %   埋める。X方向の行は局所y軸まわりのZとQz用のAw、Y方向の行は
+  %   局所z軸まわりのZとQy用のAwを書く。角形・円形鋼管の行はfbと
+  %   組合せ応力度比の欄を持ち、H形鋼柱の行はSS7と同じくLb、C、fbx、
+  %   fbyの欄を持つ（出力編7.3.11）。LbとCは強軸の側の行にだけ書き、
+  %   Cは行の決定ケースの値とする。ウェブを考慮したH形鋼柱の組合せ
+  %   応力度比の欄は未対応で書かない。検定比は SS7 互換で切り上げ
+  %   表示する。外側スコープの sccbody, ncol, inm, inc, is_h_col,
+  %   is_strong_x, iax_strong, lb_ltb を共有する。
   %
   %   入力引数:
-  %     irow_  - 書き込み行番号
-  %     label  - 位置ラベル（'<X>柱頭' 等）
-  %     Z_val  - 断面係数 Z [mm3]
-  %     A_val  - 断面積 A [mm2]
-  %     Aw_val - せん断有効断面積 Aw [mm2]
-  %     fb_val - 許容曲げ応力度 fb [N/mm2]
-  %     r_n    - 軸応力比 σc/fc
-  %     r_bx   - 曲げ応力比 σbx/fb
-  %     r_by   - 曲げ応力比 σby/fb
-  %     tau    - せん断応力比 τ/fs
-  %     combined - 組合せ応力比 sqrt(σ^2+3τ^2)/ft（解析側で算定した値。
-  %                算定しない柱は NaN で、欄を空にし警告694も出さない）
+  %     irow_ - 書き込み行番号
+  %     is_x  - true で X 方向の行、false で Y 方向の行
+  %     pos_  - 位置（1: 柱脚 = i端、2: 柱頭 = j端）
+  %     im_   - 断面諸量を採る部材番号
+  %     ilc_  - 行の決定ケース番号
   %
   %   備考:
-  %     col 10:ラベル / 11:Z / 12:A / 13:Aw / 14:fb /
-  %     15:σc/fc / 16:σbx/fb / 17:σby/fb / 18:TOTAL / 19:τ/fs /
-  %     20:組合せ / 25:CONT_MARKER
-    total = r_n + r_bx + r_by;
-    warn_axial_bending = warn_axial_bending || total > 1.0;
-    warn_shear = warn_shear || tau > 1.0;
-    warn_combined = warn_combined || combined > 1.0;
+  %     角形・円形鋼管: col 10:ラベル / 11:Z / 12:A / 13:Aw / 14:fb /
+  %       15:σc/fc / 16:σbx/fb / 17:σby/fb / 18:TOTAL / 19:τ/fs /
+  %       20:組合せ / 25:CONT_MARKER
+  %     H形鋼: col 10:ラベル / 11:Z / 12:A / 13:Aw / 14:Lb / 15:C /
+  %       16:fbx / 17:fby / 18:σc/fc / 19:σbx/fbx / 20:σby/fby /
+  %       22:TOTAL / 24:τ/fs / 25:CONT_MARKER
+    % ration は1-6列がi端（柱脚）、7-12列がj端（柱頭）。曲げの応力比は
+    % 局所y軸まわり(5/11)とz軸まわり(6/12)、せん断はX方向の行が
+    % Qzによるτ(3/9)、Y方向の行がQyによるτ(2/8)。組合せ応力度比は
+    % 15列(i端)と16列(j端)
+    if is_x
+      Z_val_ = Zyeff(im_);
+      Aw_val_ = Aqzeff(im_);
+      icol_q_ = 3;
+    else
+      Z_val_ = Zzeff(im_);
+      Aw_val_ = Aqyeff(im_);
+      icol_q_ = 2;
+    end
+    if pos_ == 1
+      label_ = '柱脚';
+      icol_b_ = [5 6];
+      icol_comb_ = 15;
+    else
+      icol_b_ = [11 12];
+      icol_q_ = icol_q_ + 6;
+      icol_comb_ = 16;
+      if is_x
+        label_ = '<X>柱頭';
+      else
+        label_ = '<Y>柱頭';
+      end
+    end
+    fbx_ = fbny(inm, pos_, ilc_);
+    fby_ = fbnz(inm, pos_, ilc_);
+    r_n_ = ration(inm, 1, ilc_);
+    r_bx_ = ration(inm, icol_b_(1), ilc_);
+    r_by_ = ration(inm, icol_b_(2), ilc_);
+    tau_ = ration(inm, icol_q_, ilc_);
+    total_ = r_n_ + r_bx_ + r_by_;
+    warn_axial_bending = warn_axial_bending || total_ > 1.0;
+    warn_shear = warn_shear || tau_ > 1.0;
     % 検定比は SS7 互換で小数2桁切り上げ表示(丸め規則を一元化)
     fmt2 = @(r) fmt_ratio(r, true);
-    sccbody{irow_, 10} = label;
-    sccbody{irow_, 11} = fmt_ceil_abs(Z_val * 1e-3, 0);
-    sccbody{irow_, 12} = fmt_ceil_abs(A_val * 1e-2, 1);
-    sccbody{irow_, 13} = fmt_ceil_abs(Aw_val * 1e-2, 1);
-    sccbody{irow_, 14} = fmt_ceil_abs(fb_val, 0);
-    sccbody{irow_, 15} = fmt2(r_n);
-    sccbody{irow_, 16} = fmt2(r_bx);
-    sccbody{irow_, 17} = fmt2(r_by);
-    sccbody{irow_, 18} = fmt2(total);
-    sccbody{irow_, 19} = fmt2(tau);
-    if ~isnan(combined)
-      sccbody{irow_, 20} = fmt2(combined);
+    sccbody{irow_, 10} = label_;
+    sccbody{irow_, 11} = fmt_ceil_abs(Z_val_ * 1e-3, 0);
+    sccbody{irow_, 12} = fmt_ceil_abs(Asceff(im_) * 1e-2, 1);
+    sccbody{irow_, 13} = fmt_ceil_abs(Aw_val_ * 1e-2, 1);
+    if is_h_col
+      if is_x == is_strong_x
+        sccbody{irow_, 14} = fmt_ceil_abs(lb_ltb, 0);
+        sccbody{irow_, 15} = fmt_ceil_abs(Cc(inc, iax_strong, ilc_), 3);
+      end
+      sccbody{irow_, 16} = fmt_ceil_abs(fbx_, 0);
+      sccbody{irow_, 17} = fmt_ceil_abs(fby_, 0);
+      sccbody{irow_, 18} = fmt2(r_n_);
+      sccbody{irow_, 19} = fmt2(r_bx_);
+      sccbody{irow_, 20} = fmt2(r_by_);
+      sccbody{irow_, 22} = fmt2(total_);
+      sccbody{irow_, 24} = fmt2(tau_);
+    else
+      combined_ = ration(inm, icol_comb_, ilc_);
+      warn_combined = warn_combined || combined_ > 1.0;
+      if is_x
+        sccbody{irow_, 14} = fmt_ceil_abs(fbx_, 0);
+      else
+        sccbody{irow_, 14} = fmt_ceil_abs(fby_, 0);
+      end
+      sccbody{irow_, 15} = fmt2(r_n_);
+      sccbody{irow_, 16} = fmt2(r_bx_);
+      sccbody{irow_, 17} = fmt2(r_by_);
+      sccbody{irow_, 18} = fmt2(total_);
+      sccbody{irow_, 19} = fmt2(tau_);
+      if ~isnan(combined_)
+        sccbody{irow_, 20} = fmt2(combined_);
+      end
     end
     sccbody{irow_, ncol} = PRM.CONT_MARKER;
     return
   end
-
   function append_warning_row(message)
   %append_warning_row - 現在の柱エントリ末尾に警告・注意行を追加する
   %
@@ -498,21 +544,27 @@ return
   end
 
   function write_check_header(irow_)
-  %write_check_header - 検定行のカラムヘッダを書き込む（col 11-20）
+  %write_check_header - 検定行のカラムヘッダを書き込む（col 11-24）
   %
   %   write_check_header(irow_) は、S柱断面算定表の検定行群の
-  %   直前に置くカラムヘッダ（Z/A/Aw/fb/σc/fc/σbx/fb/σby/fb/
-  %   TOTAL/τ/fs/組合せ）を書き込む。外側スコープの sccbody,
-  %   ncol を共有する。
+  %   直前に置くカラムヘッダを書き込む。角形・円形鋼管は
+  %   Z/A/Aw/fb/σc/fc/σbx/fb/σby/fb/TOTAL/τ/fs/組合せ、H形鋼柱は
+  %   Z/A/Aw/Lb/C/fbx/fby/σc/fc/σbx/fbx/σby/fby/TOTAL/τ/fs とする
+  %   （SS7出力編7.3.11）。外側スコープの sccbody, ncol, is_h_col を
+  %   共有する。
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
-    sccbody(irow_, 11:20) = {'Z', 'A', 'Aw', 'fb', 'σc/fc', ...
-      'σbx/fb', 'σby/fb', 'TOTAL', 'τ/fs', '組合せ'};
+    if is_h_col
+      sccbody(irow_, 11:24) = {'Z', 'A', 'Aw', 'Lb', 'C', 'fbx', ...
+        'fby', 'σc/fc', 'σbx/fbx', 'σby/fby', '', 'TOTAL', '', 'τ/fs'};
+    else
+      sccbody(irow_, 11:20) = {'Z', 'A', 'Aw', 'fb', 'σc/fc', ...
+        'σbx/fb', 'σby/fb', 'TOTAL', 'τ/fs', '組合せ'};
+    end
     sccbody{irow_, ncol} = PRM.CONT_MARKER;
     return
   end
-
   function reps = pick_representative(cands)
   %pick_representative - 符号・材料IDペアごとに代表を選定する
   %
@@ -686,7 +738,8 @@ return
   %
   %   [name_, rank_str, rank_v] = make_section_label(isc_) は、
   %   柱断面番号 isc_ に対応する断面表示文字列と、判定ランクの
-  %   表示用文字列および数値を返す。判定ランクが未設定の場合、
+  %   表示用文字列および数値を返す。H形鋼柱はSS7と同じく断面名の前に
+  %   強軸の方向（X:／Y:）を付ける。判定ランクが未設定の場合、
   %   rank_v=0, rank_str='' を返す。外側スコープの idsecc2sec,
   %   stype, secdim, secmgr, has_drank, result を共有する。
   %
@@ -705,6 +758,13 @@ return
     sl_ = secmgr.secList.list{idsl_};
     sym_ = sl_.symbol{idsec_};
     secname_ = format_steel_cost_dim(stype_, dim_, sym_);
+    % H形鋼柱はSS7と同じく断面名の前に強軸の方向を付ける
+    switch stype_
+      case PRM.CWFS
+        secname_ = ['X:' secname_];
+      case PRM.CWFSI
+        secname_ = ['Y:' secname_];
+    end
     if has_drank
       rank_v = result.rank.section(is2_);
       if rank_v >= 1 && rank_v <= numel(PRM.MEMBER_RANK_NAME)

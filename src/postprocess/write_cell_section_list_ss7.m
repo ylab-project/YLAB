@@ -80,11 +80,7 @@ for i = 1:nstory
       idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
       secglist = seclist{idslist};
       symbol = secglist.symbol{idsection};
-      if secdim(is,5)==0
-        sdim = sprintf('%s-%gx%gx%gx%g', symbol, secdim(is,1:4));
-      else
-        sdim = sprintf('%s-%gx%gx%gx%gx%g', symbol, secdim(is,1:5));
-      end
+      sdim = format_section_list_dim(secg.type(ig), secdim(is,:), symbol);
       sectype = normalize_ss7_steel_type_name(secglist.type{idsection});
       gsbody{irow,7} = sdim;
       gsbody{irow,8} = sectype;
@@ -122,7 +118,8 @@ for i = 1:nstory
   for icr = 1:ncr
     % 出力
     for ic=1:nc
-      if cstype(ic)~=PRM.HSS
+      % 鉄骨柱（角形鋼管・円形鋼管・H形鋼）だけを書く。RC柱は対象外
+      if cstype(ic)==PRM.RCRS
         continue
       end
       if secc.idstory(ic)~=ist || ~matches(secc.name{ic},crname{icr})
@@ -132,15 +129,24 @@ for i = 1:nstory
       csbody{irow,1} = secc.floor_name{ic};
       csbody{irow,2} = secc.name{ic};
       csbody{irow,3} = format_subindex(secc.subindex{ic});
-      type_name = secc.type_name{ic};
-      csbody{irow,4} = type_name;
+      % 鉄骨形状はSS7の柱の形状と同じ表記で、H形鋼柱はX方向強軸をＨ、
+      % Y方向強軸をＩと書き、鋼管は断面リストの鉄骨形状をそのまま書く
+      % （入力編 表7.1.3）。登録形状はH形鋼柱も同じ列に書く
+      switch cstype(ic)
+        case PRM.CWFS
+          csbody{irow,4} = 'Ｈ';
+        case PRM.CWFSI
+          csbody{irow,4} = 'Ｉ';
+        otherwise
+          csbody{irow,4} = secc.type_name{ic};
+      end
       is = secc.idsec(ic);
       idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
       idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
       secclist = seclist{idslist};
       symbol = secclist.symbol{idsection};
       sectype = secclist.type{idsection};
-      sdim = sprintf('%s-%gx%gx%gx%g', symbol, secdim(is,[1 1 2 3]));
+      sdim = format_section_list_dim(cstype(ic), secdim(is,:), symbol);
       csbody{irow,5} = sdim;
       csbody{irow,6} = sectype;
       % 鉄骨材料（選択した候補断面が属するサブリストの材料）

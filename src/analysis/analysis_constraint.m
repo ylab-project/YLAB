@@ -464,6 +464,7 @@ result.rvec = rvec;
 result.rvec0 = rvec0;
 result.secdim = secdim;
 result.C = C;
+result.Cc = Cc;
 result.vix = vix;
 result.viy = viy;
 result.cgsr = cgsr;

@@ -78,13 +78,7 @@ for igr = 1:ngr
           idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
           secglist = seclist{idslist};
           symbol = secglist.symbol{idsection};
-          if secdim(is,5)==0
-            % sdim = sprintf('%s-%g×%g×%g×%g', ...
-            %   secg.type_name{ig}, secdim(is,1:4));
-            sdim = sprintf('%s-%gx%gx%gx%g', symbol, secdim(is,1:4));
-          else
-            sdim = sprintf('%s-%gx%gx%gx%gx%g', symbol, secdim(is,1:5));
-          end
+          sdim = format_section_list_dim(gstype(ig), secdim(is,:), symbol);
         end
         gsbody{nstory-ist+1,igr+1} = sdim;
         isemptyrow(nstory-ist+1) = false;
@@ -118,7 +112,8 @@ for icr = 1:ncr
   for ist = nstory:-1:1
     csbody{nstory-ist+1,1} = story.floor_name{ist};
     for ic=1:nc
-      if cstype(ic)~=PRM.HSS
+      % 鉄骨柱（角形鋼管・円形鋼管・H形鋼）だけを書く。RC柱は対象外
+      if cstype(ic)==PRM.RCRS
         continue
       end
       if secc.idstory(ic)==ist && istarget(ic)
@@ -126,13 +121,14 @@ for icr = 1:ncr
         is = secc.idsec(ic);
         if isempty(secdim)
           iv = ids2var(is,:);
-          sdim = sprintf('%s, %s', vname{iv(1:2)});
+          nvar = PRM.nvar_of_section_type(cstype(ic));
+          sdim = strjoin(vname(iv(1:nvar)), ', ');
         else
           idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
           idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);
           secclist = seclist{idslist};
           symbol = secclist.symbol{idsection};
-          sdim = sprintf('%s-%gx%gx%gx%g', symbol, secdim(is,[1 1 2 3]));
+          sdim = format_section_list_dim(cstype(ic), secdim(is,:), symbol);
         end
         csbody{nstory-ist+1,icr+1} = sdim;
         isemptyrow(nstory-ist+1) = false;

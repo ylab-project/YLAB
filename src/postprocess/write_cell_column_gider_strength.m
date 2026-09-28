@@ -1,4 +1,17 @@
 function sdrcell = write_cell_column_gider_strength(com, result, icase)
+%write_cell_column_gider_strength - 柱梁耐力比のセル配列を生成する
+%
+%   sdrcell = write_cell_column_gider_strength(com, result, icase) は、
+%   加力ケース icase の柱梁耐力比（SS7出力編10.20）を節点ごとに並べた
+%   見出しと本体のセル配列を返す。
+%
+%   入力引数:
+%     com    - 共通データ構造体（cgsr, node, member）
+%     result - 解析結果構造体（cgsr, msprop）
+%     icase  - 加力ケース (PRM.EXP, PRM.EXN, PRM.EYP, PRM.EYN)
+%
+%   出力引数:
+%     sdrcell - 見出し head [4×13] と本体 body [nrow×13] を持つ構造体
 
 % 共通定数
 ncgsr = com.ncgsr;
@@ -12,6 +25,7 @@ idcg2n = com.cgsr.idnode;
 node = com.node;
 cgsr = result.cgsr;
 matname = result.msprop.material_name;
+stype_m = com.member.property.section_type;
 
 % 加力方向（X系/Y系）に応じたヘッダ表記と接合部の角度
 if icase==PRM.EXP || icase==PRM.EXN
@@ -83,9 +97,9 @@ for i = 1:nstory
         body{irow,4} = sprintf('%.1f', angle);
         sr = cgsr.ratio(icg, icase-1);
         body{irow,5} = sprintf('%.1f', sc(2)*1.d-6);
-        body{irow,6} = steel_kind(matname, cgsr.idmc_upper(icg));
+        body{irow,6} = steel_kind(matname, stype_m, cgsr.idmc_upper(icg));
         body{irow,7} = sprintf('%.1f', sc(1)*1.d-6);
-        body{irow,8} = steel_kind(matname, cgsr.idmc_lower(icg));
+        body{irow,8} = steel_kind(matname, stype_m, cgsr.idmc_lower(icg));
         body{irow,9} = sprintf('%.1f', sg(1)*1.d-6);
         body{irow,10} = sprintf('%.1f', sg(2)*1.d-6);
         body{irow,11} = sprintf('%.1f', sum(sc)*1.d-6);
@@ -106,15 +120,27 @@ return
 end
 
 %--------------------------------------------------------------------------
-function kind = steel_kind(matname, imc)
-%steel_kind - 部材の材料名から鋼材種別（先頭の英字部分）を取り出す
+function kind = steel_kind(matname, stype, im)
+%steel_kind - 柱梁耐力比の種別欄に書く柱の鋼材種別を返す
+%
+%   kind = steel_kind(matname, stype, im) は、柱梁耐力比の種別欄に
+%   書く文字列を返す。SS7の柱梁耐力比は冷間成形角形鋼管の柱を対象と
+%   し（出力編10.20）、種別欄には角形鋼管の柱だけ材料名の先頭の英字
+%   （BCR、BCP、STKR）を表示する。H形鋼柱と柱がない側は「－」とする。
+%
+%   入力引数:
+%     matname - 部材の材料名セル配列
+%     stype   - 部材の断面種別
+%     im      - 柱の部材番号（柱がない側は0）
+%
+%   出力引数:
+%     kind - 種別文字列
 
-% 柱が存在しない側はSS7と同様に「－」を表示する
-if imc==0
+if im==0 || stype(im)~=PRM.HSS
   kind = '－';
   return
 end
-kind = regexp(matname{imc}, '^[A-Za-z]+', 'match', 'once');
+kind = regexp(matname{im}, '^[A-Za-z]+', 'match', 'once');
 if isempty(kind)
   kind = '－';
 end
