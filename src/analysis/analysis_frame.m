@@ -20,6 +20,8 @@ function [msprop, dvec, dnode, felement, ignored_moment, ...
 %
 %   出力引数:
 %     msprop   - 部材断面性能の構造体（A, Iy, Iz, E, F 等）
+%       Asceff, Aqyeff, Aqzeff, Zyeff, Zzeffは材端部、Aeff, Zyceff,
+%       Zzceffは中央部の応力度の計算に用いる断面性能（有効断面）
 %     dvec     - 自由度別変位ベクトル [ndf x nlc]
 %     dnode    - 節点変位（剛床補正後） [nnode x 6 x nlc]
 %     felement - 等価節点荷重（要素荷重起因） [nnode x 6 x nlc]
@@ -173,11 +175,8 @@ Fs = secmgr.extractSectionMaterialF(secdim, matF);
 msprop.F = Fs(idm2s);
 msdim = secdim(idm2s,:);
 A = msprop.A;
-Asc = msprop.Asc;
 Asy = msprop.Asy;
 Asz = msprop.Asz;
-Aqy = msprop.Aqy;
-Aqz = msprop.Aqz;
 Iy = msprop.Iy;
 Iz = msprop.Iz;
 
@@ -249,12 +248,6 @@ Iy(mtype==PRM.COLUMN) = Iy(mtype==PRM.COLUMN).*cphiI(:,1);
 Iz(mtype==PRM.COLUMN) = Iz(mtype==PRM.COLUMN).*cphiI(:,2);
 
 % その他
-Zy = msprop.Zy;
-Zz = msprop.Zz;
-Zyf = msprop.Zyf;
-Zzf = msprop.Zzf;
-Zysc = msprop.Zysc;
-Zzsc = msprop.Zzsc;
 JJ = msprop.JJ;
 
 %% 柱脚剛性の計算
@@ -696,32 +689,14 @@ Cc = calc_modified_Cc(rs, com.nominal.column.idmec, idmc2m);
 [vix, viy] = reduction_rate(mtype, cgsrn, A, Fm, lcdir);
 
 %% 応力度計算
-if options.consider_web_at_girder_center
-  Zyc = Zy;
-else
-  Zyc = Zyf;
-end
-
-%% 材端部の断面係数
-% H形鋼の梁端と柱頭・柱脚は、曲げの設計におけるウェブの考慮が
-% 「する」ならスカラップ欠損を控除したウェブ込みの断面係数、
-% 「しない」ならフランジのみの断面係数を用いる（計算編6.4.1・
-% 6.5.1）。梁は梁端部、柱は柱の指定に従う。局所y・z軸の対で持ち、
-% Y方向強軸の柱は calc_secprop で入替え済み
-mstype = stype(idm2s);
-is_h_girder = mstype==PRM.WFS;
-is_h_column = mstype==PRM.CWFS | mstype==PRM.CWFSI;
-use_web = (is_h_girder & options.consider_web_at_girder_end) ...
-  | (is_h_column & options.consider_web_at_column);
-use_flange = (is_h_girder | is_h_column) & ~use_web;
-Zyij = Zy;
-Zzij = Zz;
-Zyij(use_web) = Zysc(use_web);
-Zzij(use_web) = Zzsc(use_web);
-Zyij(use_flange) = Zyf(use_flange);
-Zzij(use_flange) = Zzf(use_flange);
-[stn, stcn] = calc_nominal_stress(dfn, Mcn, A, Asc, Aqy, Aqz, ...
-  Zyij, Zzij, Zyc, msdim, mstype, Fm, mtype, idnm2m, cxl, cyl);
+% 検定と帳票で共用する断面性能。材端部と中央部の断面係数の選択と、
+% 幅厚比の規定値を超える部分の控除をまとめて行う
+[msprop.Asceff, msprop.Aqyeff, msprop.Aqzeff, msprop.Zyeff, ...
+  msprop.Zzeff, msprop.Aeff, msprop.Zyceff, msprop.Zzceff] = ...
+  calc_effective_stress_secprop(msprop, msdim, stype(idm2s), options);
+[stn, stcn] = calc_nominal_stress(dfn, Mcn, msprop.Asceff, ...
+  msprop.Aqyeff, msprop.Aqzeff, msprop.Zyeff, msprop.Zzeff, ...
+  msprop.Zyceff, mtype, idnm2m, cxl, cyl);
 
 %% 部材長構造体の組立て（戻り値）
 % buckling はブレース座屈長用（暫定。後日 lnom.buckling に整理）

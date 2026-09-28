@@ -27,7 +27,7 @@ nstory = com.nstory;
 nominal_column = com.nominal.column;
 column = com.member.column;
 secc = com.section.column;
-bkinfo = result.bkinfo;
+bkdir = {result.bkinfo.x, result.bkinfo.y};
 
 % ID変換
 idnm2mc = nominal_column.idmec;
@@ -81,27 +81,20 @@ for i = 1:nstory
           column.coord_name{ic1,1}, column.coord_name{ic1,2}, ...
           secc.full_name{isc}};
 
-        % X方向（列5-13）[剛比: mm3→cm3]
-        body{irow,5} = sprintf('%.2f', bkinfo.IcLc(inc) / 1000);
-        body{irow,6} = sprintf('%.2f', bkinfo.sumIcTop(inc) / 1000);
-        body{irow,7} = sprintf('%.2f', bkinfo.sumIgTopX(inc) / 1000);
-        body{irow,8} = sprintf('%.3f', bkinfo.GAx(inc));
-        body{irow,9} = sprintf('%.2f', bkinfo.sumIcBot(inc) / 1000);
-        body{irow,10} = sprintf('%.2f', bkinfo.sumIgBotX(inc) / 1000);
-        body{irow,11} = sprintf('%.3f', bkinfo.GBx(inc));
-        body{irow,12} = sprintf('%.3f', bkinfo.kcxRaw(inc));
-        body{irow,13} = sprintf('%.3f', bkinfo.kcx(inc));
-
-        % Y方向（列14-22）[剛比: mm3→cm3]
-        body{irow,14} = sprintf('%.2f', bkinfo.IcLc(inc) / 1000);
-        body{irow,15} = sprintf('%.2f', bkinfo.sumIcTop(inc) / 1000);
-        body{irow,16} = sprintf('%.2f', bkinfo.sumIgTopY(inc) / 1000);
-        body{irow,17} = sprintf('%.3f', bkinfo.GAy(inc));
-        body{irow,18} = sprintf('%.2f', bkinfo.sumIcBot(inc) / 1000);
-        body{irow,19} = sprintf('%.2f', bkinfo.sumIgBotY(inc) / 1000);
-        body{irow,20} = sprintf('%.3f', bkinfo.GBy(inc));
-        body{irow,21} = sprintf('%.3f', bkinfo.kcyRaw(inc));
-        body{irow,22} = sprintf('%.3f', bkinfo.kcy(inc));
+        % X方向（列5-13）とY方向（列14-22）[剛比: mm3→cm3]
+        for idir = 1:2
+          bk = bkdir{idir};
+          c0 = 4 + 9*(idir-1);
+          body{irow,c0+1} = sprintf('%.2f', bk.IcLc(inc) / 1000);
+          body{irow,c0+2} = sprintf('%.2f', bk.sumIcTop(inc) / 1000);
+          body{irow,c0+3} = sprintf('%.2f', bk.sumIgTop(inc) / 1000);
+          body{irow,c0+4} = sprintf('%.3f', bk.GA(inc));
+          body{irow,c0+5} = sprintf('%.2f', bk.sumIcBot(inc) / 1000);
+          body{irow,c0+6} = sprintf('%.2f', bk.sumIgBot(inc) / 1000);
+          body{irow,c0+7} = sprintf('%.3f', bk.GB(inc));
+          body{irow,c0+8} = sprintf('%.3f', bk.kcRaw(inc));
+          body{irow,c0+9} = sprintf('%.3f', bk.kcNominal(inc));
+        end
       end
     end
   end

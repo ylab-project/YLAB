@@ -39,6 +39,7 @@ if any(iw)
   secprop_values(iw,1:14) = props(:,1:14);
   secprop_values(iw,16) = props(:,15);  % Iyr
   secprop_values(iw,17) = props(:,16);  % Asc
+  secprop_values(iw,20:21) = props(:,17:18);  % Zzsc, Zzf
 end
 
 % H形鋼ブレース（BWFS）: ガセット接合のためスカラップなし
@@ -47,6 +48,7 @@ ibw = stype==PRM.BWFS;
 if any(ibw)
   props = calc_prop_wfs(secdim(ibw,:), 0);
   secprop_values(ibw,1:14) = props(:,1:14);
+  secprop_values(ibw,20:21) = props(:,17:18);  % Zzsc, Zzf
 end
 
 % 角形鋼管（HSS + BHSS）
@@ -104,11 +106,6 @@ secprop_values(:,18) = secprop_values(:,12);
 secprop_values(:,19) = secprop_values(:,12);
 iws = PRM.list_type_of_section_type(stype) == PRM.WFS;
 secprop_values(iws,18) = secprop_values(iws,13)*2/3;
-
-% 局所z軸まわりの端部断面係数。弱軸ではウェブが中立軸上にあるため、
-% スカラップ欠損とウェブ考慮の有無で値を変えない
-secprop_values(:,20) = secprop_values(:,7);
-secprop_values(:,21) = secprop_values(:,7);
 
 % 数値計算結果を列番号順の名前付き列配列へ分離
 prop_names = {'A', 'Asy', 'Asz', 'Iy', 'Iz', 'Zy', 'Zz', 'Zyf', ...

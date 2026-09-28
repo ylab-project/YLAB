@@ -1,21 +1,22 @@
 function section_property = calc_prop_wfs(secdim, scallop)
-%calc_prop_wfs - H形鋼（溶接組立H形鋼含む）の断面性能を計算
+%calc_prop_wfs - H形鋼の断面性能と端部の断面係数を計算する
 %
-% 入力:
-%   secdim  - 断面寸法 [H, B, tw, tf, r] (mm)
-%   scallop - スカラップ寸法 (mm), 省略時は0
+%   section_property = calc_prop_wfs(secdim, scallop) は、全断面と
+%   スカラップ控除後、フランジのみの断面性能を計算する。
+%   強軸・弱軸ともウェブ考慮の指定に対応する断面係数を返す。
 %
-% 出力:
-%   section_property - 断面性能配列
-%     [A, Asy, Asz, Iy, Iz, Zy, Zz, Zyf, Zpy,
-%      Zpz, JJ, Aw, Af, Zysc, Iyr, Asc]
+%   入力引数:
+%     secdim  - 断面寸法 [H, B, tw, tf, r] (mm)
+%     scallop - スカラップ寸法 (mm)、省略時は0
 %
-% 断面係数の使い分け:
-%   Zy  - スカラップなし断面係数（梁中央部用）
-%   Zysc - スカラップ考慮断面係数（梁端部用、scallop=0ならZyと同値）
-%   Zyf - フランジのみ断面係数（ウェブ非考慮時用）
-%   Asc - スカラップ考慮断面積（梁端部用、scallop=0ならAと同値）
-
+%   出力引数:
+%     section_property - 断面性能 [n×18]
+%       [A, Asy, Asz, Iy, Iz, Zy, Zz, Zyf, Zpy, Zpz, JJ, Aw, Af,
+%        Zysc, Iyr, Asc, Zzsc, Zzf]
+%       Zy/Zzは全断面、Zysc/Zzscはスカラップ控除後、Zyf/Zzfは
+%       フランジのみの断面係数（局所y軸が強軸）
+%       Asy/Aszは各軸まわりの曲げに対応する剛性用せん断面積
+%       （せん断形状係数で除した値）
 if nargin<2 || isempty(scallop)
   scallop = 0;
 end
@@ -34,10 +35,12 @@ rI = (1/3-pi/16-1/9/(4-pi))*r.^4;  % 断面二次モーメント
 
 % 断面積
 A = H.*B-(B-tw).*(H-2*tf)+4*rA;  % 全断面積
-Asy = (H-2*tf).*tw;              % せん断断面積（y方向）
-Asz = B.*tf.*2;                  % せん断断面積（z方向）
 Aw = (H-2*tf-2*scallop).*tw;     % ウェブ断面積（スカラップ考慮）
 Af = B.*tf*2;                    % フランジ断面積
+% SS7計算編3.2.5：強軸はウェブ、弱軸は両フランジをκで除す
+kappa = 1.2;
+Asy = (H-2*tf).*tw;              % 強軸曲げのせん断面積（κ=1）
+Asz = Af/kappa;                  % 弱軸曲げのせん断面積（κ=1.2）
 
 % 強軸（y軸）まわりの断面二次モーメント
 If1 = B.*tf.^3/12 + B.*tf.*(H-tf).^2/4;  % フランジ
@@ -63,14 +66,17 @@ if scallop > 0
   Iw_eff = tw .* hw_eff.^3 / 12;
   Iy_scallop = 2*If1 + Iw_eff;
   Zysc = Iy_scallop ./ (H/2);
+  Zzsc = (2*If2 + hw_eff.*tw.^3/12)./(B/2);
   Asc = 2*B.*tf + tw.*hw_eff;  % スカラップ考慮断面積
 else
   Zysc = Zy;
+  Zzsc = Zz;
   Asc = A;
 end
 
 % フランジのみ断面係数（ウェブ非考慮時用）
 Zyf = B.*(H.^3-(H-2*tf).^3)./(6*H);
+Zzf = 2*If2./(B/2);
 
 % 塑性断面係数
 Zpy = B.*tf.*(H-tf) + 1/4*tw.*(H-2*tf).^2 + 2*rA.*(H-2*tf-2*rd);
@@ -80,7 +86,9 @@ Zpz = 1/2*B.^2.*tf + 1/4*(H-2*tf).*tw.^2 + 2*rA.*(tw+2*rd);
 JJ = ((B.*tf.^3)*2 + ((H-2*tf).*tw.^3))/3;
 
 % 断面性能の配列化
-section_property = [A, Asy, Asz, Iy, Iz, ...
-  Zy, Zz, Zyf, Zpy, Zpz, JJ, Aw, Af, Zysc, Iyr, Asc];
+section_property = [A, Asy, Asz, Iy, Iz, Zy, Zz, Zyf, Zpy, Zpz, ...
+  JJ, Aw, Af, Zysc, Iyr, Asc, Zzsc, Zzf];
+
+return
 end
 

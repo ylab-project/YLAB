@@ -1,12 +1,11 @@
-function [stn, stcn] = calc_nominal_stress(dfn, Mc, A, Asc, ...
-  Aqy, Aqz, Zyij, Zzij, Zyc, secdim, stype, F, mtype, idnm2m, ...
-  cxl, cyl)
+function [stn, stcn] = calc_nominal_stress(dfn, Mc, Asc, Aqy, Aqz, ...
+  Zyij, Zzij, Zyc, mtype, idnm2m, cxl, cyl)
 %calc_nominal_stress - 応力から応力度を計算する
 %
-%   [stn, stcn] = calc_nominal_stress(dfn, Mc, A, Asc, Aqy, Aqz,
-%     Zyij, Zzij, Zyc, secdim, stype, F, mtype, idnm2m, cxl, cyl)
+%   [stn, stcn] = calc_nominal_stress(dfn, Mc, Asc, Aqy, Aqz,
+%     Zyij, Zzij, Zyc, mtype, idnm2m, cxl, cyl)
 %     は、名目部材応力から許容応力度検定用の応力度を計算する。
-%     幅厚比制限超過時の有効断面性能は内部で作成する。
+%     幅厚比の規定値を超える部分を控除済みの断面性能を受け取る。
 %     せん断応力度は局所y・z方向のせん断力をそれぞれAqy・Aqzで
 %     除す（計算編6.4.2・6.5.2）。梁については、設計用せん断力を
 %     断面内の最鉛直方向へ射影し、支配軸の面積で除した鉛直方向
@@ -15,16 +14,12 @@ function [stn, stcn] = calc_nominal_stress(dfn, Mc, A, Asc, ...
 %   入力引数:
 %     dfn    - 名目部材の設計応力 [nmn×12×nlc]
 %     Mc     - 名目梁中央の曲げモーメント [nmn×nlc]
-%     A      - 断面積 [nme×1]
 %     Asc    - 軸応力度用断面積（スカラップ考慮） [nme×1]
 %     Aqy    - 局所y方向せん断力に対する断面積 [nme×1]
 %     Aqz    - 局所z方向せん断力に対する断面積 [nme×1]
 %     Zyij   - 材端部の局所y軸まわり断面係数 [nme×1]
 %     Zzij   - 材端部の局所z軸まわり断面係数 [nme×1]
 %     Zyc    - 中央部の局所y軸まわり断面係数 [nme×1]
-%     secdim - 断面寸法 [nme×ndim]
-%     stype  - 断面種別 [nme×1]
-%     F      - 基準強度 [nme×1]
 %     mtype  - 部材種別 [nme×1]
 %     idnm2m - 名目部材→実部材の対応 [nmn×ncol]
 %     cxl    - 形状更新後の方向余弦（材軸） [nme×3]
@@ -36,10 +31,6 @@ function [stn, stcn] = calc_nominal_stress(dfn, Mc, A, Asc, ...
 
 % 計算の準備
 [nmn, ~, nlc] = size(dfn);
-
-% 応力度計算用の有効断面性能
-[~, Asc, Aqy, Aqz, Zyij, Zzij] = calc_effective_stress_secprop(...
-  A, Asc, Aqy, Aqz, Zyij, Zzij, secdim, stype, F);
 
 % 前処理
 Zzij(mtype==PRM.BRACE) = 1.d-6;

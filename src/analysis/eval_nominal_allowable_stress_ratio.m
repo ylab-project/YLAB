@@ -341,22 +341,13 @@ stress_result.lambday = lambday;
 stress_result.lambdaz = lambdaz;
 stress_result.ration = ration;
 
-% 柱座屈長さ係数の帳票用中間値
-bkinfo.IcLc = buckling_x.IcLc;
-bkinfo.sumIcTop = buckling_x.sumIcTop;
-bkinfo.sumIcBot = buckling_x.sumIcBot;
-bkinfo.sumIgTopX = buckling_x.sumIgTop;
-bkinfo.sumIgBotX = buckling_x.sumIgBot;
-bkinfo.sumIgTopY = buckling_y.sumIgTop;
-bkinfo.sumIgBotY = buckling_y.sumIgBot;
-bkinfo.GAx = buckling_x.GA;
-bkinfo.GBx = buckling_x.GB;
-bkinfo.GAy = buckling_y.GA;
-bkinfo.GBy = buckling_y.GB;
-bkinfo.kcxRaw = buckling_x.kcRaw;
-bkinfo.kcyRaw = buckling_y.kcRaw;
-bkinfo.kcx = buckling_x.kcNominal;
-bkinfo.kcy = buckling_y.kcNominal;
+% 柱座屈長さ係数の帳票用中間値（X・Y方向）
+bkfields = {'IcLc', 'sumIcTop', 'sumIcBot', 'sumIgTop', 'sumIgBot', ...
+  'GA', 'GB', 'kcRaw', 'kcNominal'};
+for k = 1:numel(bkfields)
+  bkinfo.x.(bkfields{k}) = buckling_x.(bkfields{k});
+  bkinfo.y.(bkfields{k}) = buckling_y.(bkfields{k});
+end
 stress_result.bkinfo = bkinfo;
 
 % 柱補剛間隔は座屈係数中間値と分離する
@@ -378,6 +369,19 @@ end
 %----------------------------------------------------------
 function mask = build_girder_axial_mask(stn, Ncn, An, nmtype, options)
 %build_girder_axial_mask - S梁の軸力考慮マスクを作成
+%
+%   mask = build_girder_axial_mask(stn, Ncn, An, nmtype, options) は、
+%   軸力考慮の指定と各位置の軸力により検定対象を判定する。
+%
+%   入力引数:
+%     stn     - 名目部材の応力度 [nnm×ncomp×nlc]
+%     Ncn     - 梁中央軸力 [nnm×nlc]
+%     An      - 名目部材の断面積 [nnm×1]
+%     nmtype  - 名目部材種別 [nnm×1]
+%     options - 軸力考慮の指定を持つ解析オプション
+%
+%   出力引数:
+%     mask - i端・中央・j端の軸力考慮対象（i, c, j）
 
 nlc = size(stn, 3);
 nnm = size(stn, 1);

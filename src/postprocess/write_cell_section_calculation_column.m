@@ -29,9 +29,6 @@ secc = com.section.column;
 secmgr = com.secmgr;
 secdim = result.secdim;
 stype = com.section.property.type;
-idm2s = com.member.property.idsec;
-msdim = secdim(idm2s, :);
-mstype = stype(idm2s);
 dfn = result.dfn;
 % fb欄はX方向の検定行に局所y軸まわり、Y方向の検定行に局所z軸まわりの
 % 許容曲げ応力度を表示する（H形鋼柱は強軸の側だけ横座屈式の値）
@@ -40,19 +37,19 @@ fbnz = result.fbnz;
 fcn_display = result.fcnDisplay;
 fc_applicable = result.columnFcApplicable;
 A = result.msprop.A;
-Asc = result.msprop.Asc;
-Aqy = result.msprop.Aqy;
-Aqz = result.msprop.Aqz;
 Iy = result.msprop.Iy;
 Iz = result.msprop.Iz;
-Zy = result.msprop.Zy;
-Zz = result.msprop.Zz;
 F = result.msprop.F;
-% Aw欄はX方向の検定行にQzに対する面積、Y方向の検定行にQyに対する
-% 面積を表示する
-[Aeff, ~, Aqyeff, Aqzeff, Zyeff, Zzeff] = ...
-  calc_effective_stress_secprop(A, Asc, Aqy, Aqz, Zy, Zz, ...
-  msdim, mstype, F);
+% 応力度計算と同じ有効断面性能を表示する。X方向は局所y軸まわり
+% のZとQz用面積、Y方向は局所z軸まわりのZとQy用面積を使う。
+Asceff = result.msprop.Asceff;
+Aeff = result.msprop.Aeff;
+Zyceff = result.msprop.Zyceff;
+Zzceff = result.msprop.Zzceff;
+Aqyeff = result.msprop.Aqyeff;
+Aqzeff = result.msprop.Aqzeff;
+Zyeff = result.msprop.Zyeff;
+Zzeff = result.msprop.Zzeff;
 idmaterial = result.msprop.idmaterial;
 material_name = result.msprop.material_name;
 kcx = result.kcx;
@@ -227,14 +224,14 @@ for i = 1:nstory
         irow = irow + 1;
         write_iy_label(irow, im1);
         write_check_row(irow, '<X>柱頭', Zyeff(im2), ...
-          Aeff(im2), Aqzeff(im2), fbny(inm, 2, jlx), ...
+          Asceff(im2), Aqzeff(im2), fbny(inm, 2, jlx), ...
           ration(inm, 1, jlx), ration(inm, 11, jlx), ...
           ration(inm, 12, jlx), ration(inm, 9, jlx), ration(inm, 16, jlx));
 
         % λ + 柱脚 X 検定
         irow = irow + 1;
         write_lambda_label(irow, im1);
-        write_check_row(irow, '柱脚', Zyeff(im1), Aeff(im1), ...
+        write_check_row(irow, '柱脚', Zyeff(im1), Asceff(im1), ...
           Aqzeff(im1), fbny(inm, 1, ilx), ration(inm, 1, ilx), ...
           ration(inm, 5, ilx), ration(inm, 6, ilx), ...
           ration(inm, 3, ilx), ration(inm, 15, ilx));
@@ -242,15 +239,15 @@ for i = 1:nstory
         % fcL + <Y>柱頭 検定
         irow = irow + 1;
         write_fcl_label(irow);
-        write_check_row(irow, '<Y>柱頭', Zyeff(im2), ...
-          Aeff(im2), Aqyeff(im2), fbnz(inm, 2, jly), ...
+        write_check_row(irow, '<Y>柱頭', Zzeff(im2), ...
+          Asceff(im2), Aqyeff(im2), fbnz(inm, 2, jly), ...
           ration(inm, 1, jly), ration(inm, 11, jly), ...
           ration(inm, 12, jly), ration(inm, 8, jly), ration(inm, 16, jly));
 
         % fcS + 柱脚 Y 検定（柱エントリ末尾、CONT_MARKER は付与しない）
         irow = irow + 1;
         write_fcs_label(irow);
-        write_check_row(irow, '柱脚', Zzeff(im1), Aeff(im1), ...
+        write_check_row(irow, '柱脚', Zzeff(im1), Asceff(im1), ...
           Aqyeff(im1), fbnz(inm, 1, ily), ration(inm, 1, ily), ...
           ration(inm, 5, ily), ration(inm, 6, ily), ...
           ration(inm, 2, ily), ration(inm, 15, ily));
@@ -323,7 +320,7 @@ for i = 1:nstory
         irow = irow + 1;
         write_fcl_label(irow);
         write_check_row(irow, '<X>柱頭', Zyeff(im2), ...
-          Aeff(im2), Aqzeff(im2), fbny(inm, 2, jlx), ...
+          Asceff(im2), Aqzeff(im2), fbny(inm, 2, jlx), ...
           ration(inm, 1, jlx), ration(inm, 11, jlx), ...
           ration(inm, 12, jlx), ration(inm, 9, jlx), ration(inm, 16, jlx));
 
@@ -331,34 +328,34 @@ for i = 1:nstory
         irow = irow + 1;
         write_fcs_label(irow);
         sccbody{irow, 10} = '中央';
-        sccbody{irow, 11} = fmt_ceil_abs(Zyeff(im_mid) * 1e-3, 0);
+        sccbody{irow, 11} = fmt_ceil_abs(Zyceff(im_mid) * 1e-3, 0);
         sccbody{irow, 12} = fmt_ceil_abs(Aeff(im_mid) * 1e-2, 1);
         sccbody{irow, ncol} = PRM.CONT_MARKER;
 
         % 柱脚 X 検定
         irow = irow + 1;
-        write_check_row(irow, '柱脚', Zyeff(im1), Aeff(im1), ...
+        write_check_row(irow, '柱脚', Zyeff(im1), Asceff(im1), ...
           Aqzeff(im1), fbny(inm, 1, ilx), ration(inm, 1, ilx), ...
           ration(inm, 5, ilx), ration(inm, 6, ilx), ...
           ration(inm, 3, ilx), ration(inm, 15, ilx));
 
         % <Y>柱頭 検定
         irow = irow + 1;
-        write_check_row(irow, '<Y>柱頭', Zyeff(im2), ...
-          Aeff(im2), Aqyeff(im2), fbnz(inm, 2, jly), ...
+        write_check_row(irow, '<Y>柱頭', Zzeff(im2), ...
+          Asceff(im2), Aqyeff(im2), fbnz(inm, 2, jly), ...
           ration(inm, 1, jly), ration(inm, 11, jly), ...
           ration(inm, 12, jly), ration(inm, 8, jly), ration(inm, 16, jly));
 
         % 中央 Y 検定（Zz/A のみ）
         irow = irow + 1;
         sccbody{irow, 10} = '中央';
-        sccbody{irow, 11} = fmt_ceil_abs(Zzeff(im_mid) * 1e-3, 0);
+        sccbody{irow, 11} = fmt_ceil_abs(Zzceff(im_mid) * 1e-3, 0);
         sccbody{irow, 12} = fmt_ceil_abs(Aeff(im_mid) * 1e-2, 1);
         sccbody{irow, ncol} = PRM.CONT_MARKER;
 
         % 柱脚 Y 検定（柱エントリ末尾、CONT_MARKER は付与しない）
         irow = irow + 1;
-        write_check_row(irow, '柱脚', Zzeff(im1), Aeff(im1), ...
+        write_check_row(irow, '柱脚', Zzeff(im1), Asceff(im1), ...
           Aqyeff(im1), fbnz(inm, 1, ily), ration(inm, 1, ily), ...
           ration(inm, 5, ily), ration(inm, 6, ily), ...
           ration(inm, 2, ily), ration(inm, 15, ily));
@@ -473,7 +470,7 @@ return
     sccbody{irow_, 11} = fmt_ceil_abs(Z_val * 1e-3, 0);
     sccbody{irow_, 12} = fmt_ceil_abs(A_val * 1e-2, 1);
     sccbody{irow_, 13} = fmt_ceil_abs(Aw_val * 1e-2, 1);
-    sccbody{irow_, 14} = sprintf('%.0f', fb_val);
+    sccbody{irow_, 14} = fmt_ceil_abs(fb_val, 0);
     sccbody{irow_, 15} = fmt2(r_n);
     sccbody{irow_, 16} = fmt2(r_bx);
     sccbody{irow_, 17} = fmt2(r_by);

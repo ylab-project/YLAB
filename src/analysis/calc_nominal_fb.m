@@ -34,9 +34,12 @@ is_fb1_4 = false(nn, npos, nlc);
 % H形断面のr込みA,Izを一括取得
 stype_n = stype_n(:);
 is_h = stype_n == PRM.WFS | stype_n == PRM.CWFS | stype_n == PRM.CWFSI;
-sp_n = zeros(nn, 16);
+A_h = zeros(nn, 1);
+Iz_h = zeros(nn, 1);
 if any(is_h)
-  sp_n(is_h, :) = calc_prop_wfs(msdim_n(is_h, :));
+  props = calc_prop_wfs(msdim_n(is_h, :));
+  A_h(is_h) = props(:, 1);
+  Iz_h(is_h) = props(:, 5);
 end
 
 for ing = 1:nn
@@ -56,8 +59,8 @@ for ing = 1:nn
     B = msdim_n(ing, 2);
     tw = msdim_n(ing, 3);
     tf = msdim_n(ing, 4);
-    Az = sp_n(ing, 1);
-    Iz = sp_n(ing, 5);
+    Az = A_h(ing);
+    Iz = Iz_h(ing);
     lbi = lbn(ing, :);
     C1 = Cn(ing, :, jlc);
     I16 = Iz/2 - (H*tw^3/12)/3;

@@ -154,20 +154,21 @@ return
     cpbody{irow*2,9} = sprintf('%.3f', cphiI(ic,2));
     cpbody{irow*2-1,10} = sprintf('%.0f', Iy(idm)*1.d-4);
     cpbody{irow*2,10} = sprintf('%.0f', Iz(idm)*1.d-4);
-    As = sprintf('%.2f', msprop.Asy(idm)*1.d-2);
+    As = {sprintf('%.2f', msprop.Asy(idm)*1.d-2); sprintf('%.2f', ...
+      msprop.Asz(idm)*1.d-2)};
     An = sprintf('%.2f', msprop.A(idm)*1.d-2);
-    cpbody(irow*2-1:irow*2,11) = {As; As};
+    cpbody(irow*2-1:irow*2,11) = As;
     cpbody{irow*2-1,12} = An;
     cpbody{irow*2-1,13} = 1;
     cpbody{irow*2,13} = 1;
     cpbody{irow*2-1,14} = 1;
-    cpbody(irow*2-1:irow*2,15) = {As; As};
+    cpbody(irow*2-1:irow*2,15) = As;
     cpbody{irow*2-1,16} = An;
     cpbody(irow*2-1:irow*2,17) = {1; 1};
     cpbody{irow*2-1,18} = 1;
     cpbody(irow*2-1:irow*2,19) = {1; 1};
     kappa_ = get_kappa(secc.type(idsc));
-    cpbody(irow*2-1:irow*2,20) = {kappa_; kappa_};
+    cpbody(irow*2-1:irow*2,20) = {kappa_(1); kappa_(2)};
     cpbody{irow*2-1,21} = sprintf('%.0f', lm_);
     cpbody(irow*2-1:irow*2,22) = {sprintf('%.0f', lrcx_(2)); ...
       sprintf('%.0f', lrcy_(2))};
@@ -189,9 +190,9 @@ return
         jjj = jxy*2+kbt-2;
         switch joint_(jjj)
           case PRM.PIN
-            cpbody{irow*2+jxy-2,icol_joint(kbt)} = "ピン";
+            cpbody{irow*2+jxy-2,icol_joint(kbt)} = 'ピン';
           case PRM.FIX
-            cpbody{irow*2+jxy-2,icol_joint(kbt)} = "剛接";
+            cpbody{irow*2+jxy-2,icol_joint(kbt)} = '剛接';
         end
       end
     end
@@ -207,18 +208,23 @@ return
   %get_kappa - 断面種別に応じたせん断形状係数を返す
   %
   %   kappa = get_kappa(stype) は、断面種別 stype に応じて
-  %   せん断形状係数 κ を返す。RC矩形断面（PRM.RCRS）は 1.2、
-  %   それ以外は 1 を返す。
+  %   X/Y方向のせん断形状係数κを返す。SS7計算編3.2.5に従い、
+  %   H形鋼柱は強軸1、弱軸1.2とし、断面の向きに対応させる。
   %
   %   入力引数:
   %     stype - 断面種別コード
   %
   %   出力引数:
-  %     kappa - せん断形状係数
-    if stype == PRM.RCRS
-      kappa = 1.2;
-    else
-      kappa = 1;
+  %     kappa - せん断形状係数 [X方向, Y方向]
+    switch stype
+      case PRM.RCRS
+        kappa = [1.2 1.2];
+      case PRM.CWFS
+        kappa = [1 1.2];
+      case PRM.CWFSI
+        kappa = [1.2 1];
+      otherwise
+        kappa = [1 1];
     end
 
     return
