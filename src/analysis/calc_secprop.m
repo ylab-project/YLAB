@@ -102,7 +102,7 @@ secprop_values(noAs,17) = secprop_values(noAs,1);
 % 付録1.1）
 secprop_values(:,18) = secprop_values(:,12);
 secprop_values(:,19) = secprop_values(:,12);
-iws = iw | ibw;
+iws = PRM.list_type_of_section_type(stype) == PRM.WFS;
 secprop_values(iws,18) = secprop_values(iws,13)*2/3;
 
 % 局所z軸まわりの端部断面係数。弱軸ではウェブが中立軸上にあるため、

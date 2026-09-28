@@ -1,7 +1,12 @@
 function limitSlrSection(obj, member, nominal, lm, secmgr, options)
 %limitSlrSection - 保有耐力横補剛の断面制約チェック
 %
+%   limitSlrSection(obj, member, nominal, lm, secmgr, options) は、
+%   名目梁の保有耐力横補剛を満たす断面候補に限定する。
+%
 %   入力引数:
+%     obj     - SectionConstraintValidatorインスタンス
+%     lm      - 部材長 [nme×1] (mm)
 %     member  - 部材情報構造体
 %     nominal - 名目部材情報構造体
 %     options - オプション構造体
@@ -64,13 +69,11 @@ for idsList = 1:nlist_
   isvalid = obj.validSectionFlagCell_{idsList};
   
   % OKか判定
-  isec_targets = 1:nsec;
-  isec_targets = isec_targets( ...
+  isec_targets = find( ...
     idsec2slist_' == idsList & idsec2stype_' == PRM.WFS);
   
   for isec = isec_targets
-    imtargets = 1:nme;
-    imtargets = imtargets(idme2sec' == isec);
+    imtargets = find(idme2sec' == isec);
     nmtargets = length(imtargets);
     isvalid_ = true(1, n);
     

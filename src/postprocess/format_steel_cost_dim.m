@@ -13,26 +13,24 @@ function str = format_steel_cost_dim(stype, dim, sym)
 %   出力引数:
 %     str - 断面名文字列 (例: 'H-400*200*8*13')
 
-switch stype
-  case PRM.HSS
-    str = sprintf('%s-%g*%g*%g*%g', sym, dim(1), dim(1), dim(2), dim(3));
-  case {PRM.WFS, PRM.BWFS, PRM.CWFS, PRM.CWFSI}
-    if dim(5) > 0
-      str = sprintf( ...
-        '%s-%g*%g*%g*%g*%g', sym, ...
-        dim(1), dim(2), dim(3), ...
-        dim(4), dim(5));
-    else
-      str = sprintf('%s-%g*%g*%g*%g', sym, dim(1), dim(2), dim(3), dim(4));
-    end
-  case PRM.BHSS
-    str = sprintf('%s-%g*%g*%g*%g', sym, dim(1), dim(1), dim(2), dim(3));
-  case PRM.BHSR
-    str = sprintf('%s-%g*%g', sym, dim(1), dim(2));
-  case PRM.TB
-    str = sym;
-  otherwise
-    str = '';
+if PRM.list_type_of_section_type(stype) == PRM.WFS
+  if dim(5) > 0
+    str = sprintf('%s-%g*%g*%g*%g*%g', sym, dim(1), dim(2), dim(3), ...
+      dim(4), dim(5));
+  else
+    str = sprintf('%s-%g*%g*%g*%g', sym, dim(1), dim(2), dim(3), dim(4));
+  end
+else
+  switch stype
+    case {PRM.HSS, PRM.BHSS}
+      str = sprintf('%s-%g*%g*%g*%g', sym, dim(1), dim(1), dim(2), dim(3));
+    case PRM.BHSR
+      str = sprintf('%s-%g*%g', sym, dim(1), dim(2));
+    case PRM.TB
+      str = sym;
+    otherwise
+      str = '';
+  end
 end
 
 return

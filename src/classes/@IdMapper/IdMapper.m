@@ -267,11 +267,6 @@ classdef IdMapper < handle
       % リストは読込み時にBWFS等へ書き戻されているため別グループになる。
       % 検定規則に使う利用種別 idsec2stype とは区別する
       idlist2stype = idlist2stype(:);
-      if numel(idlist2stype) ~= numel(idsublistCell)
-        error('IdMapper:InconsistentData', ...
-          'idlist2stypeのサイズ(%d)がnlist(%d)と一致しません', ...
-          numel(idlist2stype), numel(idsublistCell));
-      end
       has_list = idSectionList > 0;
       obj.idsec2shape_ = zeros(size(idSectionList));
       obj.idsec2shape_(has_list) = idlist2stype(idSectionList(has_list));

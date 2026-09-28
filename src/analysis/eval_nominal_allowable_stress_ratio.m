@@ -258,18 +258,15 @@ end
 iccc = nominal.column.idnominal;
 is_cwfs = stype_n(iccc) == PRM.CWFS;
 is_cwfsi = stype_n(iccc) == PRM.CWFSI;
-is_h = is_cwfs | is_cwfsi;
 lb_ltb = lbc_max_x;
 lb_ltb(is_cwfs) = lbc_max_y(is_cwfs);
 Cc_strong = Cc(:, 1, :);
 Cc_strong(is_cwfsi, 1, :) = Cc(is_cwfsi, 2, :);
-inm_h = iccc(is_h);
-fbc = calc_nominal_fb(msdim_n(inm_h, :), Cc_strong(is_h, :, :), ...
-  clam(idm_i(inm_h)), ftn(inm_h, :), stype_n(inm_h), lb_ltb(is_h), ...
-  options);
+fbc = calc_nominal_fb(msdim_n(iccc, :), Cc_strong, clam(idm_i(iccc)), ...
+  ftn(iccc, :), stype_n(iccc), lb_ltb, options);
 fbc = repmat(fbc, 1, 2);
-fbny(iccc(is_cwfs), 1:2, :) = fbc(is_cwfs(is_h), :, :);
-fbnz(iccc(is_cwfsi), 1:2, :) = fbc(is_cwfsi(is_h), :, :);
+fbny(iccc(is_cwfs), 1:2, :) = fbc(is_cwfs, :, :);
+fbnz(iccc(is_cwfsi), 1:2, :) = fbc(is_cwfsi, :, :);
 
 % 表示用許容圧縮応力度（引張置換前）。SS7は引張時の検定にft
 % （計算編 式6.18）、fcL/fcS欄の表示にfcを使う（出力編7.3.11）。

@@ -1,11 +1,11 @@
 function [joint_top, joint_bottom] = calc_column_joint_length( ...
-  member_column, member_girder, ~, stype_sec, idsecg2sec, secdim, ...
+  member_column, member_girder, stype_sec, idsecg2sec, secdim, ...
   cxl_girder)
 %calc_column_joint_length - 柱仕口部長さを算出
 %
 %   [joint_top, joint_bottom] =
 %     calc_column_joint_length(member_column,
-%     member_girder, [], stype_sec,
+%     member_girder, stype_sec,
 %     idsecg2sec, secdim, cxl_girder) は、
 %   SS7マニュアル 4.4.1 に基づき柱頭・柱脚の
 %   仕口部長さを算出する。
@@ -17,7 +17,6 @@ function [joint_top, joint_bottom] = calc_column_joint_length( ...
 %   入力引数:
 %     member_column - 柱部材構造体。BODYのidsplitはFOUNDATION番号
 %     member_girder - 梁部材構造体
-%     ~             - 未使用（既存の呼出し引数位置を維持）
 %     stype_sec     - 断面種別配列 [nsec x 1]
 %     idsecg2sec    - 梁断面→統一断面ID変換配列
 %     secdim        - 断面寸法配列 [nsec x ncol]

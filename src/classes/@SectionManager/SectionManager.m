@@ -81,7 +81,7 @@ classdef SectionManager < handle
     
     %% 断面数関連
     nxvar
-    nsec, nhss, nwfs, nrcrs, nbrbs
+    nsec
     nsrep, nrephss, nrepwfs, nreprcrs, nrepbrbs
     nme, nmewfs, nmehss, nmercrs
     nlist
@@ -364,35 +364,6 @@ classdef SectionManager < handle
     %% 断面数関連のDependentプロパティgetter
     function nsec = get.nsec(secmgr)
       nsec = length(secmgr.idsec2stype);
-    end
-    function nwfs = get.nwfs(secmgr)
-      % 断面数の定義はIdMapperに従う（鋼材はリストの種別、RCは利用種別）
-      if ~isempty(secmgr.idMapper_)
-        nwfs = secmgr.idMapper_.nwfs;
-      else
-        nwfs = 0;
-      end
-    end
-    function nhss = get.nhss(secmgr)
-      if ~isempty(secmgr.idMapper_)
-        nhss = secmgr.idMapper_.nhss;
-      else
-        nhss = 0;
-      end
-    end
-    function nrcrs = get.nrcrs(secmgr)
-      if ~isempty(secmgr.idMapper_)
-        nrcrs = secmgr.idMapper_.nrcrs;
-      else
-        nrcrs = 0;
-      end
-    end
-    function nbrbs = get.nbrbs(secmgr)
-      if ~isempty(secmgr.idMapper_)
-        nbrbs = secmgr.idMapper_.nbrbs;
-      else
-        nbrbs = 0;
-      end
     end
     %---
     function nme = get.nme(secmgr)

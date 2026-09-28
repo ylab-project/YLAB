@@ -83,7 +83,7 @@ for inm = 1:nnm
   end
 end
 
-% 結果の保存め
+% 結果の保存
 nominal_property = table(mtype, idme);
 
 return

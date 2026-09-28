@@ -1,4 +1,16 @@
 function com = parse_frame_data(com, options)
+%parse_frame_data - 読込済み架構データを解析用の共通データへ展開する
+%
+%   com = parse_frame_data(com, options) は、節点・部材・断面・変数の
+%   対応と断面管理オブジェクトを構築し、解析で使う配列を設定する。
+%
+%   入力引数:
+%     com     - 読込済みの共通データ構造体
+%     options - 解析オプション
+%
+%   出力引数:
+%     com - 解析用の対応関係と配列を設定した共通データ構造体
+
 %  --- 新旧対応 ---
 %  [定数]
 %   nb -> nbw
@@ -351,6 +363,20 @@ end
 
 %--------------------------------------------------------------------------
 function  [idvar, idsec, vartype, idpvar] = set_idvar_to_design(com)
+%set_idvar_to_design - 断面形状別の設計変数と断面番号を整理する
+%
+%   [idvar, idsec, vartype, idpvar] = set_idvar_to_design(com) は、
+%   断面リストの鉄骨形状から寸法変数を分類する。
+%
+%   入力引数:
+%     com - 部材・断面・断面リストを含む共通データ構造体
+%
+%   出力引数:
+%     idvar   - 形状と寸法成分ごとの設計変数番号を持つ構造体
+%     idsec   - 形状ごとの断面番号を持つ構造体（各値は行ベクトル）
+%     vartype - 各設計変数の寸法種別 [nvar×1]
+%     idpvar  - 変数種別内の番号の初期値 [nvar×1]（全要素0）
+
 % 共通定数
 nsec = com.nsec;
 nvar = com.nvar;
@@ -443,20 +469,26 @@ idpvar = zeros(nvar,1);
 % end
 
 % 断面番号
-isss = 1:nsec;
-isWFS = (section_shape==PRM.WFS);
-idsec.wfs = isss(isWFS);
-isHSS = (section_shape==PRM.HSS);
-idsec.hss = isss(isHSS);
-isBRB = (section_shape==PRM.BRB);
-idsec.brb = isss(isBRB);
-isHSR = (section_shape==PRM.HSR);
-idsec.hsr = isss(isHSR);
+idsec.wfs = find(section_shape' == PRM.WFS);
+idsec.hss = find(section_shape' == PRM.HSS);
+idsec.brb = find(section_shape' == PRM.BRB);
+idsec.hsr = find(section_shape' == PRM.HSR);
 return
 end
 
 %--------------------------------------------------------------------------
 function  nbw = countup_band_width(com)
+%countup_band_width - 部材両端の自由度番号からバンド幅を求める
+%
+%   nbw = countup_band_width(com) は、部材が接続する自由度番号の
+%   最大差に1を加えた値を返す。
+%
+%   入力引数:
+%     com - 部材の端節点番号と節点自由度番号を持つ共通データ
+%
+%   出力引数:
+%     nbw - 剛性行列のバンド幅
+
 % 共通配列
 idm2n1 = com.member.property.idnode1;
 idm2n2 = com.member.property.idnode2;
@@ -472,6 +504,19 @@ end
 %--------------------------------------------------------------------------
 function [idstory2var_girder, idstory2num_var_girder] = ...
   countup_idvar_each_story(com)
+%countup_idvar_each_story - 層ごとの梁の設計変数番号と個数を求める
+%
+%   [idstory2var_girder, idstory2num_var_girder] =
+%   countup_idvar_each_story(com) は、梁の4寸法成分について層別に
+%   重複しない正の設計変数番号を集める。
+%
+%   入力引数:
+%     com - 層と梁の設計変数番号を持つ共通データ
+%
+%   出力引数:
+%     idstory2var_girder     - 層・寸法成分別の変数番号 {nstory×4}
+%     idstory2num_var_girder - 層・寸法成分別の変数個数 [nstory×4]
+
 % 共通定数
 nstory = com.nstory;
 
@@ -494,6 +539,17 @@ end
 
 %--------------------------------------------------------------------------
 function  section_representative = countup_srep(com)
+%countup_srep - 変数・指定寸法・リストが同一の断面を集約する
+%
+%   section_representative = countup_srep(com) は、各組合せの最初の
+%   断面を代表として、断面番号・種別・変数・指定寸法を返す。
+%
+%   入力引数:
+%     com - 統一断面情報を持つ共通データ
+%
+%   出力引数:
+%     section_representative - 代表断面の情報を持つテーブル
+
 
 % 共通定数
 % nsec = com.nsec;
@@ -531,6 +587,27 @@ end
 function [idmec2seg1x, idmec2seg1y, idmec2seg2x, idmec2seg2y, ...
   idmec2meg1x, idmec2meg1y, idmec2meg2x, idmec2meg2y] = ...
   countup_column_to_girder_face(com)
+%countup_column_to_girder_face - 柱端節点に接続する梁を方向別に集める
+%
+%   [idmec2seg1x, idmec2seg1y, idmec2seg2x, idmec2seg2y,
+%   idmec2meg1x, idmec2meg1y, idmec2meg2x, idmec2meg2y] =
+%   countup_column_to_girder_face(com) は、各柱端のX・Y方向に接続する
+%   梁断面番号と梁部材番号を求める。接続のない欄は0とする。
+%
+%   入力引数:
+%     com - 柱・梁の端節点番号と方向を持つ共通データ
+%
+%   出力引数:
+%     idmec2seg1x - 柱脚X方向の統一断面番号
+%     idmec2seg1y - 柱脚Y方向の統一断面番号
+%     idmec2seg2x - 柱頭X方向の統一断面番号
+%     idmec2seg2y - 柱頭Y方向の統一断面番号
+%     idmec2meg1x - 柱脚X方向の梁部材番号
+%     idmec2meg1y - 柱脚Y方向の梁部材番号
+%     idmec2meg2x - 柱頭X方向の梁部材番号
+%     idmec2meg2y - 柱頭Y方向の梁部材番号
+%       各配列は [nmec×接続数]、接続数は全柱端共通で最低2列とする。
+
 % 共通定数
 nmec = com.nmec;
 nmeg = com.nmeg;
@@ -624,6 +701,20 @@ end
 %--------------------------------------------------------------------------
 function [idsecc2mec, idsecc2crep, idsecc2mem, idsecc2repm] = ...
   find_crep(com)
+%find_crep - 柱断面ごとの部材番号と代表部材番号を求める
+%
+%   [idsecc2mec, idsecc2crep, idsecc2mem, idsecc2repm] = find_crep(com)
+%   は、柱断面を使う部材を集め、その最初の部材番号を代表とする。
+%
+%   入力引数:
+%     com - 柱断面と部材の対応を持つ共通データ
+%
+%   出力引数:
+%     idsecc2mec  - 断面ごとの柱部材番号 {nsecc×1}
+%     idsecc2crep - 代表柱部材番号 [nsecc×1]（部材なしは0）
+%     idsecc2mem  - 断面ごとの統一部材番号 {nsecc×1}
+%     idsecc2repm - 代表統一部材番号 [nsecc×1]（部材なしは0）
+
 % 共通定数
 nmec = com.nmec;
 nsecc = com.nsecc;
@@ -660,6 +751,20 @@ end
 
 %--------------------------------------------------------------------------
 function [idseg2meg, idseg2repg, idseg2mem, idseg2repm] = find_repg(com)
+%find_repg - 梁断面ごとの部材番号と代表部材番号を求める
+%
+%   [idseg2meg, idseg2repg, idseg2mem, idseg2repm] = find_repg(com)
+%   は、梁断面を使う部材を集め、その最初の部材番号を代表とする。
+%
+%   入力引数:
+%     com - 梁断面と部材の対応を持つ共通データ
+%
+%   出力引数:
+%     idseg2meg  - 断面ごとの梁部材番号 {nsecg×1}
+%     idseg2repg - 代表梁部材番号 [nsecg×1]（部材なしは0）
+%     idseg2mem  - 断面ごとの統一部材番号 {nsecg×1}
+%     idseg2repm - 代表統一部材番号 [nsecg×1]（部材なしは0）
+
 % 共通定数
 nmeg = com.nmeg;
 nsecg = com.nsecg;
@@ -695,6 +800,19 @@ end
 
 %--------------------------------------------------------------------------
 function  [idvar2srep, idsec2srep, idsrep2sec] = find_idvar2srep(com)
+%find_idvar2srep - 設計変数・断面・代表断面の対応を求める
+%
+%   [idvar2srep, idsec2srep, idsrep2sec] = find_idvar2srep(com) は、
+%   変数・指定寸法・リストの組合せで断面を集約し、相互の番号を返す。
+%
+%   入力引数:
+%     com - 統一断面情報と設計変数数を持つ共通データ
+%
+%   出力引数:
+%     idvar2srep - 各設計変数を使う代表断面番号 {nvar×1}
+%     idsec2srep - 断面から代表断面への番号 [nsec×1]
+%     idsrep2sec - 代表断面から断面への番号 [nsrep×1]
+
 % 共通定数
 nvar = com.nvar;
 

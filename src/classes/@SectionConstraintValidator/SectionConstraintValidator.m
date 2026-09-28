@@ -9,7 +9,6 @@ classdef SectionConstraintValidator < handle
   %     isVarofSlist - 変数-断面リストマッピング [nxvar×nlist]
   %     columnBaseList - 柱脚リスト [1×ncbs] 構造体配列
   %     nlist - 断面リスト数
-  %     nwfs - WFS断面数
   %     nxvar - 変数総数
   %
   %   SectionConstraintValidator メソッド:
@@ -46,7 +45,6 @@ classdef SectionConstraintValidator < handle
 
   properties (Dependent)
     nlist                   % 断面リスト数
-    nwfs                    % WFS断面数
     nxvar                   % 変数総数
     validSectionFlagCell    % 有効断面フラグ全体 {nlist×1} cell配列
     % IdMapperへの委譲プロパティ
@@ -103,12 +101,6 @@ classdef SectionConstraintValidator < handle
       else
         nlist_ = 0;
       end
-    end
-
-    %% get.nwfs
-    function nwfs_ = get.nwfs(obj)
-      % WFS断面数を取得
-      nwfs_ = obj.idMapper_.nwfs;
     end
 
     %% get.nxvar
