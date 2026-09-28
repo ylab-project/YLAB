@@ -1,9 +1,11 @@
 function limitWtRatioSection(obj, section, options, secmgr)
 %limitWtRatioSection - 幅厚比制限チェック
 %
-%   limitWtRatioSection(obj, section, options, secmgr) は、WFS断面
-%   およびHSS断面について幅厚比の判定を行い、条件を満たさない断面
-%   を無効化する（obj.validSectionFlagCell_ を更新）。
+%   limitWtRatioSection(obj, section, options, secmgr) は、H形鋼の
+%   梁断面、角形鋼管の柱断面およびH形鋼の柱断面について幅厚比の判定
+%   を行い、条件を満たさない断面を無効化する（obj.validSectionFlagCell_
+%   を更新）。H形鋼の柱は梁と同じ断面リストの候補を柱の部材種別と
+%   柱用の制限値で判定する。
 %
 %   入力引数:
 %     obj     - SectionConstraintValidator インスタンス
@@ -18,15 +20,23 @@ function limitWtRatioSection(obj, section, options, secmgr)
 % 定数
 idphase = 999;
 
-% 計算の準備（判定対象はH形鋼の梁断面と角形鋼管の柱断面）
-is_girder = section.girder.type == PRM.WFS;
-girder_isec = section.girder.idsec(is_girder);
-girder_rank = section.girder.rank(is_girder);
-girder_idslist = section.girder.id_section_list(is_girder);
-is_column = section.column.type == PRM.HSS;
-column_isec = section.column.idsec(is_column);
-column_rank = section.column.rank(is_column);
-column_idslist = section.column.id_section_list(is_column);
+% 計算の準備。H形鋼リストの利用断面は梁と柱をまとめ、部材の区分で
+% 制限値の表を選ぶ。角形鋼管リストの利用断面は柱だけ
+is_h_girder = section.girder.type == PRM.WFS;
+is_h_column = PRM.list_type_of_section_type(section.column.type) ...
+  == PRM.WFS;
+h_isec = [section.girder.idsec(is_h_girder); ...
+  section.column.idsec(is_h_column)];
+h_rank = [section.girder.rank(is_h_girder); ...
+  section.column.rank(is_h_column)];
+h_idslist = [section.girder.id_section_list(is_h_girder); ...
+  section.column.id_section_list(is_h_column)];
+h_mtype = [PRM.GIRDER*ones(nnz(is_h_girder), 1); ...
+  PRM.COLUMN*ones(nnz(is_h_column), 1)];
+is_hss = section.column.type == PRM.HSS;
+hss_isec = section.column.idsec(is_hss);
+hss_rank = section.column.rank(is_hss);
+hss_idslist = section.column.id_section_list(is_hss);
 
 % 断面リストごとに幅厚比を満たす断面だけに限定
 for idsList = 1:obj.nlist
@@ -39,41 +49,44 @@ for idsList = 1:obj.nlist
   % 断面種別ごと
   switch obj.secList_.section_type(idsList)
     case PRM.WFS
-      % --- WFS ---
-      isSN = secmgr.getIdSecList2isSN(idsList);
-      isSNH = isSN & options.consider_SNH_WTRATIO;
-
+      % --- H形鋼リスト ---
+      isSNH = secmgr.getIdSecList2isSN(idsList) ...
+        & options.consider_SNH_WTRATIO;
       F = secmgr.getIdSecList2F(idsList);
       H = sdimlist(:, 1);
       B = sdimlist(:, 2);
       tw = sdimlist(:, 3);
       tf = sdimlist(:, 4);
 
-      % 部材種別ごとに、その種別の梁断面の行だけを更新する
-      for irank = 1:4
-        match = (girder_rank == irank) & (girder_idslist == idsList);
-        if ~any(match)
-          continue
+      % 部材の区分と部材種別ごとに、その利用断面の行だけを更新する。
+      % FDは制約がないため対象外
+      for mtype = [PRM.GIRDER PRM.COLUMN]
+        for irank = 1:3
+          match = h_mtype == mtype & h_rank == irank ...
+            & h_idslist == idsList;
+          if ~any(match)
+            continue
+          end
+          [~, ~, conwt_] = wtratioH(H, B, tw, tf, F, irank, isSNH, mtype);
+          isec_ = h_isec(match);
+          isvalid(isec_, :) = isvalid(isec_, :) & (conwt_(:)' <= 0);
         end
-        [~, ~, conwt_] = wtratioH(H, B, tw, tf, F, irank, isSNH);
-        isec_ = girder_isec(match);
-        isvalid(isec_, :) = isvalid(isec_, :) & (conwt_(:)' <= 0);
       end
 
     case PRM.HSS
-      % --- HSS ---
+      % --- 角形鋼管リスト ---
       F = secmgr.getIdSecList2F(idsList);
       D = sdimlist(:, 1);
       t = sdimlist(:, 2);
 
-      % 部材種別ごとに、その種別の柱断面の行だけを更新する
-      for irank = 1:4
-        match = (column_rank == irank) & (column_idslist == idsList);
+      % 部材種別ごとに、その柱断面の行だけを更新する
+      for irank = 1:3
+        match = hss_rank == irank & hss_idslist == idsList;
         if ~any(match)
           continue
         end
         [~, conwt_] = wtratioBox(D, t, F, irank);
-        isec_ = column_isec(match);
+        isec_ = hss_isec(match);
         isvalid(isec_, :) = isvalid(isec_, :) & (conwt_(:)' <= 0);
       end
   end
