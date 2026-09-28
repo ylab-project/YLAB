@@ -2,10 +2,12 @@ function gapjoint = countup_column_gapjoint(com)
 %countup_column_gapjoint - 柱外径差制限のペアテーブル生成
 %
 %   gapjoint = countup_column_gapjoint(com) は、xy通りごとに柱を階順に
-%   並べ、除外柱・RC柱を除いた残りの柱の隣接ペアを生成して、節点番号・
-%   xy通り番号・変数番号の対応テーブルを返す。除外指定の柱やRC柱を
-%   挟んだS柱同士も跨ぎ比較される。両方が固定変数のペアは対象外と
-%   する（段差ペアは少なくとも一方が動かせること）。
+%   並べ、上下に隣接する柱のペアを生成して、節点番号・xy通り番号・
+%   変数番号の対応テーブルを返す。除外指定の柱、RC柱、断面種別が
+%   異なる柱（角形鋼管・円形鋼管・H形鋼のX方向強軸・Y方向強軸）を
+%   含むペアは対象外とし、対象外の柱を挟んだ上下の柱を新たにペアには
+%   しない。両方が固定変数のペアも対象外とする（段差ペアは少なくとも
+%   一方が動かせること）。
 %
 %   入力引数:
 %     com - 共通オブジェクト (struct)
@@ -37,7 +39,7 @@ is_excluded(idexclude) = true;
 [~, ~, ig] = unique([idmec2x idmec2y], 'rows');
 nxy = max(ig);
 
-% 結果格納用を事前確保（最大ペア数はvalid柱数-1の総和、上限はnmec）
+% 結果格納用を事前確保（最大ペア数は通りごとの柱数-1の総和、上限はnmec）
 nmax = nmec;
 result_idnode = zeros(nmax,1);
 result_idvar  = zeros(nmax,2);
@@ -50,14 +52,17 @@ for ixy = 1:nxy
   [~, iord] = sort(idmec2z(idcols,1));
   idcols = idcols(iord);
 
-  % 除外柱・RC柱を落としてvalidな柱のみ残す
-  valid = ~is_excluded(idcols) & column_type(idcols) ~= PRM.RCRS;
-  idcols_valid = idcols(valid);
+  % 上下に隣接する柱のペアだけを見る
+  for k = 1:length(idcols)-1
+    mc2 = idcols(k);       % 下階柱
+    mc1 = idcols(k+1);     % 上階柱
 
-  % 残った柱の隣接ペアを生成
-  for k = 1:length(idcols_valid)-1
-    mc2 = idcols_valid(k);       % 下階柱
-    mc1 = idcols_valid(k+1);     % 上階柱
+    % 除外柱・RC柱を含むペアと断面種別が異なるペアは対象外
+    if is_excluded(mc1) || is_excluded(mc2) ...
+        || column_type(mc1) ~= column_type(mc2) ...
+        || column_type(mc1) == PRM.RCRS
+      continue
+    end
 
     % 同じ変数のペア・両方固定のペアは除外
     % （段差ペアは少なくとも一方が動かせること）
