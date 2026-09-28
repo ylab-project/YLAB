@@ -100,15 +100,15 @@ if any(is_h_column)
   Aeff(ic) = msprop.A(ic) - Aloss;
 
   % 無効部分の断面二次モーメント。ウェブは中央、フランジは左右端から
-  % 控除し、ウェブ分はウェブ考慮の部材にだけ効く
+  % 控除し、ウェブ分はウェブ考慮の柱にだけ効く。柱の指定は1つなので
+  % 控除量は1組で、材端部と中央部の断面係数の違いはスカラップ欠損の
+  % 有無（控除前の値）だけになる
   Is_loss_f = 2*Bloss.*(tf.^3/12 + tf.*(H-tf).^2/4);
   Is_loss_w = tw.*Hloss.^3/12;
   Iw_loss_f = tf.*(B.^3 - (B-Bloss).^3)/6;
   Iw_loss_w = Hloss.*tw.^3/12;
-  Is_loss_end = Is_loss_f + Is_loss_w.*consider_web_end(ic);
-  Iw_loss_end = Iw_loss_f + Iw_loss_w.*consider_web_end(ic);
-  Is_loss_center = Is_loss_f + Is_loss_w.*consider_web_center(ic);
-  Iw_loss_center = Iw_loss_f + Iw_loss_w.*consider_web_center(ic);
+  Is_loss = Is_loss_f + Is_loss_w.*consider_web_column(ic);
+  Iw_loss = Iw_loss_f + Iw_loss_w.*consider_web_column(ic);
 
   % 強軸は局所y軸（CWFS）または局所z軸（CWFSI）。[n×2]の局所y・z列
   % から強軸側と弱軸側の要素を選ぶ添字を作る
@@ -129,13 +129,13 @@ if any(is_h_column)
   % 断面係数。強軸は無効部分の断面二次モーメントをせいの半分で除した
   % 分を控除し、弱軸は断面二次モーメントを有効幅の半分で除して求め直す
   Zend = [Zyeff(ic) Zzeff(ic)];
-  Zend(istrong) = Zend(istrong) - Is_loss_end./(H/2);
-  Zend(iweak) = (Zend(iweak).*B/2 - Iw_loss_end)./((B-Bloss)/2);
+  Zend(istrong) = Zend(istrong) - Is_loss./(H/2);
+  Zend(iweak) = (Zend(iweak).*B/2 - Iw_loss)./((B-Bloss)/2);
   Zyeff(ic) = Zend(:, 1);
   Zzeff(ic) = Zend(:, 2);
   Zc = [Zyceff(ic) Zzceff(ic)];
-  Zc(istrong) = Zc(istrong) - Is_loss_center./(H/2);
-  Zc(iweak) = (Zc(iweak).*B/2 - Iw_loss_center)./((B-Bloss)/2);
+  Zc(istrong) = Zc(istrong) - Is_loss./(H/2);
+  Zc(iweak) = (Zc(iweak).*B/2 - Iw_loss)./((B-Bloss)/2);
   Zyceff(ic) = Zc(:, 1);
   Zzceff(ic) = Zc(:, 2);
 end
