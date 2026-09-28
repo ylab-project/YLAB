@@ -128,14 +128,16 @@ if any(is_h_column)
 
   % 断面係数。強軸は無効部分の断面二次モーメントをせいの半分で除した
   % 分を控除し、弱軸は断面二次モーメントを有効幅の半分で除して求め直す
+  Zs_loss = Is_loss./(H/2);
+  Beff = B - Bloss;
   Zend = [Zyeff(ic) Zzeff(ic)];
-  Zend(istrong) = Zend(istrong) - Is_loss./(H/2);
-  Zend(iweak) = (Zend(iweak).*B/2 - Iw_loss)./((B-Bloss)/2);
+  Zend(istrong) = Zend(istrong) - Zs_loss;
+  Zend(iweak) = (Zend(iweak).*B/2 - Iw_loss)./(Beff/2);
   Zyeff(ic) = Zend(:, 1);
   Zzeff(ic) = Zend(:, 2);
   Zc = [Zyceff(ic) Zzceff(ic)];
-  Zc(istrong) = Zc(istrong) - Is_loss./(H/2);
-  Zc(iweak) = (Zc(iweak).*B/2 - Iw_loss)./((B-Bloss)/2);
+  Zc(istrong) = Zc(istrong) - Zs_loss;
+  Zc(iweak) = (Zc(iweak).*B/2 - Iw_loss)./(Beff/2);
   Zyceff(ic) = Zc(:, 1);
   Zzceff(ic) = Zc(:, 2);
 end

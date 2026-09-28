@@ -25,7 +25,7 @@ idcg2n = com.cgsr.idnode;
 node = com.node;
 cgsr = result.cgsr;
 matname = result.msprop.material_name;
-stype_m = com.member.property.section_type;
+mstype = com.member.property.section_type;
 
 % 加力方向（X系/Y系）に応じたヘッダ表記と接合部の角度
 if icase==PRM.EXP || icase==PRM.EXN
@@ -97,9 +97,9 @@ for i = 1:nstory
         body{irow,4} = sprintf('%.1f', angle);
         sr = cgsr.ratio(icg, icase-1);
         body{irow,5} = sprintf('%.1f', sc(2)*1.d-6);
-        body{irow,6} = steel_kind(matname, stype_m, cgsr.idmc_upper(icg));
+        body{irow,6} = steel_kind(matname, mstype, cgsr.idmc_upper(icg));
         body{irow,7} = sprintf('%.1f', sc(1)*1.d-6);
-        body{irow,8} = steel_kind(matname, stype_m, cgsr.idmc_lower(icg));
+        body{irow,8} = steel_kind(matname, mstype, cgsr.idmc_lower(icg));
         body{irow,9} = sprintf('%.1f', sg(1)*1.d-6);
         body{irow,10} = sprintf('%.1f', sg(2)*1.d-6);
         body{irow,11} = sprintf('%.1f', sum(sc)*1.d-6);

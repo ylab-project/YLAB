@@ -2,7 +2,7 @@ function [msprop, dvec, dnode, felement, ignored_moment, ...
   stn, stcn, Mc, C, vix, viy, rvec, rs, dfn, rvec0, rs0, ...
   rs_analysis0, Mc0, dfn0, state, sw, lf, lr, lmem, lnm, ...
   lbnm, Iy0, Iz0, gphiI, gphiAs, gphiAn, cphiI, cbs, baseline, ...
-  node, story, floor, Cn, Cc, nomgc] = analysis_frame(secdim, ...
+  node, story, floor, Cng, Cnc, nomgc] = analysis_frame(secdim, ...
   com, options)
 %analysis_frame - 骨組のマトリクス解析本体（剛性組立・変位・応力算定）
 %
@@ -58,8 +58,8 @@ function [msprop, dvec, dnode, felement, ignored_moment, ...
 %     node     - 節点情報（Z座標更新後）
 %     story    - ストーリー情報（形状更新後）
 %     floor    - フロア情報（形状更新後）
-%     Cn       - 許容応力度計算用の係数（公称部材用）
-%     Cc       - 許容曲げ応力度の修正係数（名目柱、局所y・z軸別）
+%     Cng      - 名目梁の4検定位置の修正係数C [nng×4×nlc]
+%     Cnc      - 名目柱の修正係数C [nnc×2×nlc]（局所y・z軸まわり）
 %     nomgc    - 公称梁の検定位置情報（lb, xc, Mcn, Ncn 等）
 %
 %   備考:
@@ -681,9 +681,10 @@ nomgc.Ncn = squeeze(Ncn);
 %% 許容応力度計算用の係数算定
 [C, ~] = calc_modified_C(rs, M0, lm, lbng, nomgc.xc, ...
   idm2mg, is_through_girder, idmeg, Mc);
-Cn = calc_modified_Cn(rs, M0, lm, nomgc, idm2mg, is_through_girder, idmeg);
+Cng = calc_modified_Cng(rs, M0, lm, nomgc, idm2mg, is_through_girder, ...
+  idmeg);
 % 名目柱の修正係数C（H形鋼柱の強軸まわりの許容曲げ応力度に用いる）
-Cc = calc_modified_Cc(rs, com.nominal.column.idmec, idmc2m);
+Cnc = calc_modified_Cnc(rs, com.nominal.column.idmec, idmc2m);
 
 %% 柱梁耐力比算定用の軸力による全塑性曲げモーメント低下率の算定
 [vix, viy] = reduction_rate(mtype, cgsrn, A, Fm, lcdir);

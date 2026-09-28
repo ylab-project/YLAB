@@ -72,7 +72,8 @@ for igr = 1:ngr
         is = secg.idsec(ig);
         if isempty(secdim)
           iv = ids2var(is,:);
-          sdim = sprintf('%s, %s, %s, %s', vname{iv(1:4)});
+          nvar = PRM.nvar_of_section_type(gstype(ig));
+          sdim = strjoin(vname(iv(1:nvar)), ', ');
         else
           idslist = secdim(is, PRM.MAPPED_SECDIM_SLIST);
           idsection = secdim(is, PRM.MAPPED_SECDIM_SECTION);

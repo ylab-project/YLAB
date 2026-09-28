@@ -77,7 +77,7 @@ xvar = xvar(:);                               % 設計変数を列ベクトル�
 [msprop, dvec, dnode, felement, ignored_moment, stn, stcn, ...
   Mc, C, vix, viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, ...
   Mc0, dfn0, state, sw, lf, lr, lmem, lnm, lb, Iy, Iz, gphiI, ...
-  gphiAs, gphiAn, cphiI, cbs, baseline, node, story, floor, Cn, Cc, ...
+  gphiAs, gphiAn, cphiI, cbs, baseline, node, story, floor, Cng, Cnc, ...
   nomgc] = analysis_frame(secdim, com, options);
 lm = lmem.stiff;
 lm_weight = lmem.weight;
@@ -178,7 +178,7 @@ if do_stress_eval
     Iy, Iz, msprop.Zyceff, mtype, mstype, isxdir_member, ...
     isydir_member, wgx, wgy, Em, Fm, idm2n, lb, lm, lm_bk_x, lm_bk_y, ...
     lnm, mejoint, nominal, isgmirrored, idmg2mng, idmc2mnc, options, ...
-    beta, lcdir, idmc2st, com.column_bracing, Cn, Cc, nomgc, ...
+    beta, lcdir, idmc2st, com.column_bracing, Cng, Cnc, nomgc, ...
     com.column_buckling_K);
   stress_constraint = stress_out{1};
   if need_result
@@ -455,6 +455,8 @@ result.kcx = stress_result.kcx;
 result.kcy = stress_result.kcy;
 result.bkinfo = stress_result.bkinfo;
 result.lbc_nominal = stress_result.lbc_nominal;
+result.lbc_ltb = stress_result.lbc_ltb;
+result.Cnc_ltb = stress_result.Cnc_ltb;
 result.lambday = stress_result.lambday;
 result.lambdaz = stress_result.lambdaz;
 result.ration = stress_result.ration;
@@ -464,7 +466,6 @@ result.rvec = rvec;
 result.rvec0 = rvec0;
 result.secdim = secdim;
 result.C = C;
-result.Cc = Cc;
 result.vix = vix;
 result.viy = viy;
 result.cgsr = cgsr;

@@ -1,8 +1,8 @@
-function Cn = calc_modified_Cn(rs, M0, lm, nomgc, idg2m, ...
+function Cng = calc_modified_Cng(rs, M0, lm, nomgc, idg2m, ...
   is_through_girder, idmeg)
-%calc_modified_Cn - 名目梁4検定位置の修正係数Cnを算定
+%calc_modified_Cng - 名目梁4検定位置の修正係数Cを算定
 %
-%   Cn = calc_modified_Cn(rs, M0, lm, nomgc, idg2m,
+%   Cng = calc_modified_Cng(rs, M0, lm, nomgc, idg2m,
 %   is_through_girder, idmeg) は、名目梁の4検定位置（左端、右端、
 %   中央L、中央R）ごとに、その位置が属する座屈区間のC値を算定
 %   する。通し梁区間は C=1 のまま据え置く。
@@ -19,14 +19,14 @@ function Cn = calc_modified_Cn(rs, M0, lm, nomgc, idg2m, ...
 %     idmeg             - 名目梁→sub梁 [nng×nsub]
 %
 %   出力引数:
-%     Cn - 名目梁4位置のC [nng×4×nlc]
+%     Cng - 名目梁4位置のC [nng×4×nlc]
 
 % 計算の準備
 nlc = size(rs, 3);
 nng = size(idmeg, 1);
 lb = nomgc.lb;
 lxc = nomgc.xc;
-Cn = ones(nng, 4, nlc);
+Cng = ones(nng, 4, nlc);
 
 for ilc = 1:nlc
   for ing = 1:nng
@@ -145,7 +145,7 @@ for ilc = 1:nlc
       end
 
       % 逆称変形モード。座屈区間の端部の曲げモーメントからCを求める
-      Cn(ing, jcol, ilc) = calc_modified_C_ends(Ma, Mb);
+      Cng(ing, jcol, ilc) = calc_modified_C_ends(Ma, Mb);
     end
   end
 end

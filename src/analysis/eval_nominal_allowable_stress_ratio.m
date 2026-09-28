@@ -3,7 +3,7 @@ function [stress_constraint, stress_result] = ...
   Zyc, mtype, stype, isxdir, isydir, wgx, wgy, Em, Fm, ...
   idm2n, lb, lm, lm_bk_x, lm_bk_y, lnm, mejoint, nominal, ...
   isgmirrored, idmg2ng, idmc2nc, options, beta, lcdir, ...
-  col_idstory, column_bracing, Cn, Cc, nomgc, column_buckling_K)
+  col_idstory, column_bracing, Cng, Cnc, nomgc, column_buckling_K)
 %eval_nominal_allowable_stress_ratio - 名目部材の許容応力度比を算定する
 %
 %   [stress_constraint, stress_result] =
@@ -43,8 +43,8 @@ function [stress_constraint, stress_result] = ...
 %     col_idstory - 柱の層番号 [nmc×1]
 %     column_bracing - 柱の方向別補剛点トポロジー (struct)
 %                   .x, .y [nnmc×(maxseg-1) logical]
-%     Cn          - 名目梁の4検定位置の修正係数 [nng×4×nlc]
-%     Cc          - 名目柱の修正係数 [nnc×2×nlc]（局所y・z軸まわり）
+%     Cng         - 名目梁の4検定位置の修正係数C [nng×4×nlc]
+%     Cnc         - 名目柱の修正係数C [nnc×2×nlc]（局所y・z軸まわり）
 %     nomgc       - 名目梁中央データ (struct)
 %     column_buckling_K - 柱座屈長さ係数の直接入力値 (struct)
 %                         .Kx, .Ky [nmec×1]（NaN=自動計算）
@@ -64,6 +64,9 @@ function [stress_constraint, stress_result] = ...
 %       .lambday, .lambdaz - 細長比
 %       .ration - 位置・成分別応力比
 %       .bkinfo, .lbc_nominal - 柱座屈の帳票用結果
+%       .lbc_ltb - H形鋼柱の横座屈式に用いた強軸の横座屈長さ [nnc×1]
+%       .Cnc_ltb - H形鋼柱の横座屈式に用いた強軸まわりの修正係数C
+%                  [nnc×nlc]
 %       .id_center_sel - 梁中央位置の選択インデックス
 %       .girder_axial_mask - S梁軸力考慮マスク
 %       .fbn_by_fb1 - fb1式でfbが決定した位置（局所y軸まわりの梁だけ）
@@ -145,7 +148,7 @@ msdim_n = msdim(idm_i, :);
 % H形鋼の強軸まわりだけで、名目梁は後段で4位置の値に、H形鋼柱は
 % 強軸の側だけ柱脚・柱頭の値に置き換える。弱軸まわりと角形・円形
 % 鋼管は ft のまま
-nlc = size(Cn, 3);
+nlc = size(Cng, 3);
 nnm = size(idnm2m, 1);
 fbny = repmat(reshape(ftn(:, min(1:nlc, 2)), nnm, 1, nlc), 1, 3);
 fbnz = fbny;
@@ -155,7 +158,7 @@ fbn_by_fb1 = false(size(fbny));
 iggg = find(nmtype==PRM.GIRDER);
 nng_ = length(iggg);
 img1 = idnm2m(iggg, 1);
-[fbn4, fbn4_by_fb1] = calc_nominal_fb(msdim(img1, :), Cn, ...
+[fbn4, fbn4_by_fb1] = calc_nominal_fb(msdim(img1, :), Cng, ...
   clam(img1), ft(img1, :), stype(img1), nomgc.lb, options);
 % 強軸側は4位置の鉛直補剛区間、弱軸側は水平補剛区間を用いる
 fcn4 = calc_nominal_fc(A(img1), Iy(img1), Iz(img1), ...
@@ -171,7 +174,7 @@ nomgc.A_center = A(id_center_m);
 nomgc.Z_center = Zyc(id_center_m);
 for j = 1:2
   imc_ = id_center_m(:, j);
-  [fbn4_c, fb1_c] = calc_nominal_fb(msdim(imc_, :), Cn, ...
+  [fbn4_c, fb1_c] = calc_nominal_fb(msdim(imc_, :), Cng, ...
     clam(imc_), ft(imc_, :), stype(imc_), nomgc.lb, options);
   fcn4_c = calc_nominal_fc(A(imc_), Iy(imc_), Iz(imc_), ...
     clam(imc_), Fm(imc_), nomgc.lb_vertical, nomgc.lb);
@@ -253,17 +256,17 @@ end
 % 名目柱: H形鋼は強軸まわりだけ横座屈式で、X方向強軸（CWFS）は局所
 % y軸、Y方向強軸（CWFSI）は局所z軸まわりを置き換える。横座屈長さ
 % ℓb は強軸のフランジがたわむ方向の最大横補剛間隔（控除前）で、
-% CWFSはY方向、CWFSIはX方向の値を用いる。Cは強軸まわりの Cc を
+% CWFSはY方向、CWFSIはX方向の値を用いる。Cは強軸まわりの Cnc を
 % 柱脚・柱頭の両端に使う（計算編 表2.16）
 iccc = nominal.column.idnominal;
 is_cwfs = stype_n(iccc) == PRM.CWFS;
 is_cwfsi = stype_n(iccc) == PRM.CWFSI;
-lb_ltb = lbc_max_x;
-lb_ltb(is_cwfs) = lbc_max_y(is_cwfs);
-Cc_strong = Cc(:, 1, :);
-Cc_strong(is_cwfsi, 1, :) = Cc(is_cwfsi, 2, :);
-fbc = calc_nominal_fb(msdim_n(iccc, :), Cc_strong, clam(idm_i(iccc)), ...
-  ftn(iccc, :), stype_n(iccc), lb_ltb, options);
+lbc_ltb = lbc_max_x;
+lbc_ltb(is_cwfs) = lbc_max_y(is_cwfs);
+Cnc_ltb = Cnc(:, 1, :);
+Cnc_ltb(is_cwfsi, 1, :) = Cnc(is_cwfsi, 2, :);
+fbc = calc_nominal_fb(msdim_n(iccc, :), Cnc_ltb, clam(idm_i(iccc)), ...
+  ftn(iccc, :), stype_n(iccc), lbc_ltb, options);
 fbc = repmat(fbc, 1, 2);
 fbny(iccc(is_cwfs), 1:2, :) = fbc(is_cwfs, :, :);
 fbnz(iccc(is_cwfsi), 1:2, :) = fbc(is_cwfsi, :, :);
@@ -356,6 +359,10 @@ lbc_nominal.y = buckling_y.lbc_nominal;
 lbc_nominal.bk.x = buckling_x.lbc_nominal_bk;
 lbc_nominal.bk.y = buckling_y.lbc_nominal_bk;
 stress_result.lbc_nominal = lbc_nominal;
+% H形鋼柱の横座屈式に用いた強軸の横座屈長さと修正係数C（帳票のLb・
+% C欄に使う）
+stress_result.lbc_ltb = lbc_ltb;
+stress_result.Cnc_ltb = permute(Cnc_ltb, [1 3 2]);
 
 % 梁中央検定と帳票用補助結果
 stress_result.id_center_sel = id_center_sel;
