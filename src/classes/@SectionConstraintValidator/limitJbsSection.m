@@ -1,9 +1,9 @@
 function limitJbsSection(obj, isjbs, nominal_girder, ...
-  section_girder, section_column, secmgr, options, apply_filter)
+  section_girder, section_column, member, secmgr, options, apply_filter)
 %limitJbsSection - 保有耐力接合(JBS)制限チェック
 %
 %   limitJbsSection(obj, isjbs, nominal_girder,
-%     section_girder, section_column, secmgr,
+%     section_girder, section_column, member, secmgr,
 %     options) は、保有耐力接合の条件を満たす断面
 %   のみを有効とする。H形鋼断面に対して接合部の
 %   耐力をチェックし、条件を満たさない断面を無効化
@@ -18,6 +18,7 @@ function limitJbsSection(obj, isjbs, nominal_girder, ...
 %     nominal_girder - 名目梁テーブル
 %     section_girder - 梁断面構造体
 %     section_column - 柱断面構造体
+%     member         - 柱形状と梁端節点を含む部材情報
 %     secmgr         - SectionManagerインスタンス
 %     options        - オプション構造体
 %     apply_filter   - 候補リスト更新フラグ（省略時true）
@@ -26,7 +27,7 @@ function limitJbsSection(obj, isjbs, nominal_girder, ...
 %     SectionConstraintValidator, limitSlrSection
 
 % 定数
-if nargin < 8
+if nargin < 9
   apply_filter = true;
 end
 
@@ -46,29 +47,40 @@ idsecg_jbs = idsecg_jbs(section_girder.type(idsecg_jbs) == PRM.WFS);
 is_jbs_sec = false(1, nsec);
 is_jbs_sec(section_girder.idsec(idsecg_jbs)) = true;
 
-% HSS柱候補の最大値を計算（最大柱でもNGなら除外）
-% HSS柱がない場合は柱側制約なしとして [] を渡す
-hss_secc = section_column.type == PRM.HSS;
-hss_lists = unique(idsec2slist_(section_column.idsec(hss_secc)));
-has_hss_col = ~isempty(hss_lists);
-max_sigu = 0;
-max_m_num = 0;
-for ii = 1:length(hss_lists)
-  il_ = hss_lists(ii);
-  sdim_ = secmgr.getDimension(il_, idphase);
-  D_ = sdim_(:, 1);
-  t_ = sdim_(:, 2);
+% 梁端に接続する上下の柱形状から式の適用範囲を決める
+[ng_node1, ng_node2] = get_nominal_girder_end_nodes( ...
+  member.girder, nominal_girder.idmeg);
+is_tube = is_tube_column_end(member, ng_node1, ng_node2);
+
+% 最も有利な柱候補でもNGとなる梁を除外するための上限
+% 引張強さは対象の全鋼柱、mファクター分子は角形鋼管だけから求める
+istarget = ismember(section_column.type, [PRM.HSS PRM.CWFS PRM.CWFSI]);
+col_lists = unique(idsec2slist_(section_column.idsec(istarget)));
+max_sigu = inf;
+max_m_num = inf;
+if ~isempty(col_lists)
+  max_sigu = 0;
+end
+for ii = 1:length(col_lists)
+  il_ = col_lists(ii);
   Fc_ = secmgr.getIdSecList2F(il_);
-  % STD式用: F値からσuを導出
   sigu_ = zeros(size(Fc_));
   sigu_(Fc_ == 235 | Fc_ == 295) = 400;
   sigu_(Fc_ == 325) = 490;
   max_sigu = max(max_sigu, max(sigu_));
-  % AIJ式用: m_num = 4*t*sqrt((D-2t)*F)
-  m_num_ = 4 * t_ .* sqrt((D_ - 2*t_) .* Fc_);
+end
+hss_lists = unique(idsec2slist_( ...
+  section_column.idsec(section_column.type == PRM.HSS)));
+if ~isempty(hss_lists)
+  max_m_num = 0;
+end
+for ii = 1:length(hss_lists)
+  il_ = hss_lists(ii);
+  sdim_ = secmgr.getDimension(il_, idphase);
+  Fc_ = secmgr.getIdSecList2F(il_);
+  m_num_ = 4 * sdim_(:,2) .* sqrt((sdim_(:,1)-2*sdim_(:,2)) .* Fc_);
   max_m_num = max(max_m_num, max(m_num_));
 end
-
 % 断面リストごとに保有耐力接合(仕口)を満たす断面だけに限定
 % JBS対象外の断面（非対象の梁だけが使う断面・未使用断面・梁以外）はOK
 isvalid_sec = ~is_jbs_sec;
@@ -97,29 +109,20 @@ for idsList = 1:nlist_
   % リストの有効性フラグ正本
   isvalid = obj.validSectionFlagCell_{idsList};
 
-  % OKか判定（最大柱でもNGなら除外。HSS柱なしは[]で柱制約なし）
+  % 同じリストの候補は、対象端に接続する柱形状ごとに一度だけ検定する
+  % 両方の柱形状に接続する断面には、それぞれの検定結果を適用する
   n = size(sdimlist, 1);
-  if options.jbs_mu_formula == PRM.JBS_AIJ
-    if has_hss_col
-      col_arg = max_m_num * ones(n, 2);
-    else
-      col_arg = [];
+  for is_tube_ = [false true]
+    isec_targets = intersect(isec_jbs, section_girder.idsec( ...
+      nominal_girder.idsecg(any(isjbs & is_tube == is_tube_, 2))));
+    if isempty(isec_targets)
+      continue
     end
-    conjbs_ = calc_joint_bearing_strength_aij(sdimlist, ...
-      Zpylist, Flist, gradelist, col_arg, [], options);
-  else
-    if has_hss_col
-      col_arg = max_sigu * ones(n, 2);
-    else
-      col_arg = [];
-    end
-    conjbs_ = calc_joint_bearing_strength_std(sdimlist, ...
-      Zpylist, Flist, gradelist, col_arg, [], options);
+    conjbs_ = calc_joint_bearing_strength(sdimlist, Zpylist, ...
+      Flist, gradelist, max_sigu*ones(n, 2), max_m_num*ones(n, 2), ...
+      repmat(is_tube_, n, 2), [], options);
+    isvalid(isec_targets, :) = isvalid(isec_targets, :) & (conjbs_ < 0)';
   end
-  isvalid_ = (conjbs_ < 0)';
-
-  isvalid(isec_jbs, :) = isvalid(isec_jbs, :) & isvalid_;
-
   % 条件を満たさないH形断面の除外
   if apply_filter
     obj.validSectionFlagCell_{idsList} = isvalid;

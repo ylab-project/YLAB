@@ -1154,12 +1154,12 @@ classdef SectionManager < handle
     end
     
     function limit_jbs_section(secmgr, isjbs, nominal_girder, ...
-        section_girder, section_column, options, apply_filter)
+        section_girder, section_column, member, options, apply_filter)
     %limit_jbs_section - 保有耐力接合(JBS)制限チェック
     %
     %   limit_jbs_section(secmgr, isjbs,
     %   nominal_girder, section_girder,
-    %   section_column, options) は、保有耐力接合の
+    %   section_column, member, options) は、保有耐力接合の
     %   制限チェックを実行します。
     %
     %   入力引数:
@@ -1167,19 +1167,20 @@ classdef SectionManager < handle
     %     nominal_girder - 名目梁テーブル
     %     section_girder - 梁断面構造体
     %     section_column - 柱断面構造体
+    %     member         - 柱形状と梁端節点を含む部材情報
     %     options        - オプション構造体
     %     apply_filter   - 候補リスト更新フラグ（省略時true）
     %
     %   参考:
     %     SectionConstraintValidator.limitJbsSection
 
-      if nargin < 7
+      if nargin < 8
         apply_filter = true;
       end
 
       % constraintValidatorへ委譲
       secmgr.constraintValidator.limitJbsSection(isjbs, ...
-        nominal_girder, section_girder, section_column, secmgr, ...
+        nominal_girder, section_girder, section_column, member, secmgr, ...
         options, apply_filter);
     end
 

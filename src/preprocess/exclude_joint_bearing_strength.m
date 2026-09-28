@@ -1,8 +1,15 @@
 function isjbs = exclude_joint_bearing_strength(com)
 %exclude_joint_bearing_strength - 保有耐力接合（仕口）の除外指定
-%   名目梁単位で判定。戻り値は [nng×2]。
-%   WFS梁端が剛接合かつHSS柱に接合する場合のみ対象。
-%   断面算定省略（F）指定の梁は対象外。
+%
+%   isjbs = exclude_joint_bearing_strength(com) は名目梁端を判定する。
+%   H形鋼梁の剛接合端で角形鋼管柱・H形鋼柱への接続を対象とする。
+%   RC柱が接続する梁端と断面算定省略（F）指定の梁は対象外。
+%
+%   入力引数:
+%     com - 共通構造体
+%
+%   出力引数:
+%     isjbs - 名目梁の左右端の評価対象フラグ [nng×2]
 
 girder = com.member.girder;
 nominal_girder = com.nominal.girder;
@@ -23,19 +30,22 @@ end
 % 名目梁の断面タイプ（代表部材から）
 ng_stype = girder.section_type(idmeg(:, 1));
 
-% HSS柱の節点集合
+% 検定対象の柱の節点集合
 col = com.member.column;
 ctype = com.member.property.section_type(col.idme);
-hss = (ctype == PRM.HSS);
-cnode = sort([col.idnode1(hss); col.idnode2(hss)]);
+istarget = ismember(ctype, [PRM.HSS PRM.CWFS PRM.CWFSI]);
+% RC柱との上下境界は保有耐力接合の対象外（SS7 1.22で確認）
+is_rc = ctype == PRM.RCRS;
+cnode = setdiff([col.idnode1(istarget); col.idnode2(istarget)], ...
+  [col.idnode1(is_rc); col.idnode2(is_rc)]);
 
-% 判定: WFS梁 かつ 剛接合 かつ HSS柱に接合
+% 判定: WFS梁 かつ 剛接合 かつ 対象柱に接合
 isjbs = false(nng, 2);
 is_wfs = (ng_stype == PRM.WFS);
 isjbs(is_wfs, 1) = (ng_joint1(is_wfs) == PRM.FIX);
 isjbs(is_wfs, 2) = (ng_joint2(is_wfs) == PRM.FIX);
 
-% HSS柱に接合しない端部は除外
+% 対象柱に接合しない端部は除外
 isjbs(:,1) = isjbs(:,1) & ismember(ng_node1, cnode);
 isjbs(:,2) = isjbs(:,2) & ismember(ng_node2, cnode);
 

@@ -1,7 +1,22 @@
 function xlist = restore_joint_bearing_strength(xlist0, ...
   member, matF, matGrade, secmgr, options, isjbs, nominal_girder)
 %restore_joint_bearing_strength - 仕口の保有耐力接合の復元
-%   名目梁単位で候補を生成する。
+%
+%   xlist = restore_joint_bearing_strength(xlist0, member, ...
+%     matF, matGrade, secmgr, options, isjbs, nominal_girder) は、
+%   梁端別の仕口検定に基づき名目梁単位で復元候補を生成する。
+%
+%   入力引数:
+%     xlist0 - 復元前の設計変数候補 [n×nx]
+%     member - 柱・梁の部材情報
+%     matF, matGrade - 材料の基準強度と鋼種
+%     secmgr - 断面管理オブジェクト
+%     options - 解析・復元のオプション
+%     isjbs - 名目梁の左右端の評価対象 [nng×2]
+%     nominal_girder - 名目梁と分割部材の対応
+%
+%   出力引数:
+%     xlist - 復元した設計変数候補 [nres×nx]
 
 [nlist0, nx] = size(xlist0);
 xcell = cell(nlist0, 1);
@@ -11,7 +26,8 @@ girder = member.girder;
 idmeg = nominal_girder.idmeg;
 [ng_node1, ng_node2] = get_nominal_girder_end_nodes(girder, idmeg);
 
-if options.jbs_mu_formula == PRM.JBS_AIJ
+if options.jbs_mu_formula == PRM.JBS_AIJ ...
+    && any(isjbs & is_tube_column_end(member, ng_node1, ng_node2), 'all')
   % 真値評価と同じく、梁端節点へ柱上端が接続する下側柱を対応付ける
   col = member.column;
   nc_ = length(col.idme);
@@ -35,19 +51,17 @@ if options.jbs_mu_formula == PRM.JBS_AIJ
     end
   end
 else
-  secdim0_ = secmgr.findNearestSection(xlist0(1,:), options);
-  F0_ = secmgr.extractMemberMaterialF(secdim0_, matF);
-  Fcol_ = F0_(member.column.idme);
-  sigu_col = calc_sigu_col(member, Fcol_, ng_node1, ng_node2);
   if nlist0 == 1 || ~options.do_parallel
     for id = 1:nlist0
       xcell{id} = restore_individual_std(xlist0(id,:), member, matF, ...
-        matGrade, secmgr, options, sigu_col, isjbs, nominal_girder);
+        matGrade, secmgr, options, isjbs, nominal_girder, ...
+        ng_node1, ng_node2);
     end
   else
     parfor id = 1:nlist0
       xcell{id} = restore_individual_std(xlist0(id,:), member, matF, ...
-        matGrade, secmgr, options, sigu_col, isjbs, nominal_girder);
+        matGrade, secmgr, options, isjbs, nominal_girder, ...
+        ng_node1, ng_node2);
     end
   end
 end
@@ -68,7 +82,26 @@ end
 
 %----------------------------------------------------------
 function xlist = restore_individual_std(xvar, member, ...
-  matF, matGrade, secmgr, options, sigu_col, isjbs, nominal_girder)
+  matF, matGrade, secmgr, options, isjbs, nominal_girder, ...
+  ng_node1, ng_node2)
+%restore_individual_std - 柱寸法によらない仕口の梁断面を復元する
+%
+%   xlist = restore_individual_std(xvar, member, matF, matGrade, ...
+%     secmgr, options, isjbs, nominal_girder, ng_node1, ng_node2) は、
+%   基準解説書で検定する梁に対して断面リストから充足候補を探す。
+%
+%   入力引数:
+%     xvar - 復元前の設計変数 [1×nx]
+%     member - 部材情報
+%     matF, matGrade - 材料の基準強度と鋼種
+%     secmgr - 断面管理オブジェクト
+%     options - 解析・復元のオプション
+%     isjbs - 左右端の評価対象 [nng×2]
+%     nominal_girder - 名目梁と分割部材の対応
+%     ng_node1, ng_node2 - 名目梁の左右端節点 [nng×1]
+%
+%   出力引数:
+%     xlist - 復元後の設計変数 [1×nx]、不要なら空
 
 % 共通配列(ID変換)
 girder = member.girder;
@@ -104,8 +137,11 @@ grade_ng = grade_mem(idm_ng);
 sdimg_ng = msdim(idm_ng, :);
 
 % 仕口の保有耐力接合制約の計算（名目梁単位、isjbs対象に圧縮）
-[conjbs, ~, idjbs] = calc_joint_bearing_strength_std( ...
-  sdimg_ng, Zpyg_ng, Fg_ng, grade_ng, sigu_col, isjbs, options);
+sigu_col = calc_sigu_col(member, F(member.column.idme), ...
+  ng_node1, ng_node2);
+is_tube = is_tube_column_end(member, ng_node1, ng_node2);
+[conjbs, ~, idjbs] = calc_joint_bearing_strength(sdimg_ng, ...
+  Zpyg_ng, Fg_ng, grade_ng, sigu_col, [], is_tube, isjbs, options);
 if all(conjbs <= 0)
   return
 end
@@ -138,8 +174,9 @@ for i = 1:nstarget
     Fi = Fg_ng(ig) * ones(n, 1);
     grade_i = grade_ng(ig) * ones(n, 1);
     sc_i = repmat(sigu_col(ig, :), n, 1);
-    conjbs_ = calc_joint_bearing_strength_std(sdimlist, ...
-      Zpylist, Fi, grade_i, sc_i, [], options);
+    conjbs_ = calc_joint_bearing_strength(sdimlist, Zpylist, ...
+      Fi, grade_i, sc_i, [], repmat(is_tube(ig, :), n, 1), ...
+      repmat(isjbs(ig, :), n, 1), options);
     isok(:, j) = conjbs_ < 0;
   end
   isok = all(isok, 2);
@@ -147,7 +184,8 @@ for i = 1:nstarget
   if isempty(sdimlist_)
     continue
   end
-  sdim_res = find_feasible_section(sdim_, sdimlist_);
+  [~, idcand] = min(pdist2(sdim_, sdimlist_(:, 1:4)));
+  sdim_res = sdimlist_(idcand, :);
 
   % 代表断面に変換
   idsrep = idsec2srep(isg);
@@ -158,17 +196,32 @@ xlist = secmgr.findNearestXvar(secdim_res, options);
 
 return
 
-  function sdimcand_ = find_feasible_section(sdim_, sdimlist_)
-    ddd = pdist2(sdim_, sdimlist_(:, 1:4));
-    [~, idcand] = min(ddd);
-    sdimcand_ = sdimlist_(idcand, :);
-  end
 end
 
 %----------------------------------------------------------
 function xlist = restore_individual_aij(xvar, member, ...
   matF, matGrade, secmgr, options, isjbs, nominal_girder, ...
   ng_node1, ng_node2, node2col)
+%restore_individual_aij - 接合部設計指針の柱・梁候補を復元する
+%
+%   xlist = restore_individual_aij(xvar, member, matF, matGrade, ...
+%     secmgr, options, isjbs, nominal_girder, ...
+%     ng_node1, ng_node2, node2col) は、式を梁端別に選択して
+%   復元候補を評価する。柱候補の更新は指針を使う端に限る。
+%
+%   入力引数:
+%     xvar - 復元前の設計変数 [1×nx]
+%     member - 部材情報
+%     matF, matGrade - 材料の基準強度と鋼種
+%     secmgr - 断面管理オブジェクト
+%     options - 解析・復元のオプション
+%     isjbs - 左右端の評価対象 [nng×2]
+%     nominal_girder - 名目梁と分割部材の対応
+%     ng_node1, ng_node2 - 名目梁の左右端節点 [nng×1]
+%     node2col - 節点に柱頭が接続する柱番号のセル配列
+%
+%   出力引数:
+%     xlist - 復元した設計変数候補 [nres×nx]
 
 col = member.column;
 girder = member.girder;
@@ -213,8 +266,11 @@ m_num_col = calc_col_dim_jbs(member, secdim_col, Fcol_, ...
 
 % JBS制約計算（名目梁単位、isjbs対象に圧縮）
 sdimg_ng = msdim(idm_ng, :);
-[conjbs, ~, idjbs] = calc_joint_bearing_strength_aij( ...
-  sdimg_ng, Zpyg_ng, Fg_ng, grade_ng, m_num_col, isjbs, options);
+sigu_col = calc_sigu_col(member, Fcol_, ng_node1, ng_node2);
+is_tube = is_tube_column_end(member, ng_node1, ng_node2);
+[conjbs, ~, idjbs] = calc_joint_bearing_strength(sdimg_ng, ...
+  Zpyg_ng, Fg_ng, grade_ng, sigu_col, m_num_col, is_tube, isjbs, ...
+  options);
 if all(conjbs <= 0)
   return
 end
@@ -244,13 +300,13 @@ for it = 1:n_target
   idslist_col_end = zeros(1, 2);
   Fcol_end = zeros(1, 2);
   for iend = 1:2
+    if ~isjbs(ing, iend) || ~is_tube(ing, iend)
+      continue
+    end
     ic_list = node2col{nodes_end(iend)};
     if isempty(ic_list), continue, end
     [~, imin] = min(m_num_each(ic_list));
     ic = ic_list(imin);
-    if member.property.section_type(col.idme(ic)) ~= PRM.HSS
-      continue
-    end
     ic_end(iend) = ic;
     isec_col = idm2s(col.idme(ic));
     isec_col_end(iend) = isec_col;
@@ -349,11 +405,12 @@ for it = 1:n_target
     m_num_cand(:,2) = inf;
   end
 
-  % calc_joint_bearing_strength_aij で一括評価
+  % 柱形状に応じた式を対象端だけに適用する
   Fg_cand = Fg_i .* ones(n, 1);
   grade_cand = grade_ng(ing) .* ones(n, 1);
-  [conjbs_cand, ~] = calc_joint_bearing_strength_aij( ...
-    br, Zpy_cand, Fg_cand, grade_cand, m_num_cand, [], options);
+  conjbs_cand = calc_joint_bearing_strength(br, Zpy_cand, Fg_cand, ...
+    grade_cand, repmat(sigu_col(ing, :), n, 1), m_num_cand, ...
+    repmat(is_tube(ing, :), n, 1), repmat(isjbs(ing, :), n, 1), options);
 
   % 距離（主寸法 + 付随寸法）
   dist_all = sum(abs(br(:,2:4) - sdim_beam_cur(2:4)), 2) ...

@@ -295,8 +295,17 @@ end
 
 %% 保有耐力接合（仕口）制約（名目梁単位）
 if coptions.consider_joint_bearing_strength
+  [ng_node1, ng_node2] = get_nominal_girder_end_nodes( ...
+    com.member.girder, nominal.girder.idmeg);
+  idm_ng = idmg2m(nominal.girder.idmeg(:, 1));
+  sigu_col = calc_sigu_col(com.member, Fm(idmc2m), ng_node1, ng_node2);
+  m_num_col = calc_col_dim_jbs(com.member, secdim(idm2s(idmc2m), :), ...
+    Fm(idmc2m), ng_node1, ng_node2);
+  is_tube = is_tube_column_end(com.member, ng_node1, ng_node2);
   [conjbs, jbsratio, idjbs] = calc_joint_bearing_strength( ...
-    secdim, Zpy, Fm, msprop.steel_grade, com, options);
+    secdim(idm2s(idm_ng), :), Zpy(idm_ng), Fm(idm_ng), ...
+    msprop.steel_grade(idm_ng), sigu_col, m_num_col, is_tube, ...
+    com.exclusion.is_joint_bearing_strength, options);
 else
   conjbs = [];
   jbsratio = [];
