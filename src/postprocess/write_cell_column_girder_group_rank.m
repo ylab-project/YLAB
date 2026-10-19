@@ -87,15 +87,18 @@ for igroup = 1:ngroup
   elseif any(drank(idme) == PRM.RANK_NONE)
     reason = '／種別未評価の部材あり';
   else
-    % 数値集計と判定はN・丸め前の値で行う。QはFA～FCの合計で
-    % FA+FB+FC欄に使う。Q_totalはFDを含む合計で表示割合の分母と
-    % Q(合計)欄に使い、FDがないときは表12.12の判定用分母と一致する
+    % 数値集計と判定はN・丸め前の値で行う。割合の分母はFA～FCの
+    % 合計Q（SS7計算編12.3.7）とし、FDを含むQ_totalはQ(合計)欄に使う
     Qrank = accumarray(drank(idme), result.Qm(idme, ilc), ...
       [numel(PRM.MEMBER_RANK_NAME) 1])';
     Q = sum(Qrank(1:3));
     Q_total = sum(Qrank);
-    if Q_total ~= 0
-      ratio = Qrank(1:3) / Q_total;
+    is_fd = drank(idme) == PRM.MEMBER_RANK_FD;
+    if all(is_fd)
+      % FA～FCの部材がなく分母に対象がない。SS7と同じ0表示にする
+      body(igroup, [4 6 8]) = repmat({'0.000'}, 1, 3);
+    elseif Q ~= 0
+      ratio = Qrank(1:3) / Q;
       body(igroup, [4 6 8]) = arrayfun(@(r) sprintf('%.3f', r + 0), ...
         ratio, 'UniformOutput', false);
       if ratio(1) >= PRM.GROUP_RANK_A_MIN_RATIO ...
@@ -107,10 +110,10 @@ for igroup = 1:ngroup
         rank = PRM.GROUP_RANK_C;
       end
     else
-      reason = '／Q(合計)が0（割合未判定）';
+      reason = '／FA+FB+FCが0（割合未判定）';
     end
     % FDがあるときは割合や水平力の合計によらずD
-    if any(drank(idme) == PRM.MEMBER_RANK_FD)
+    if any(is_fd)
       rank = PRM.GROUP_RANK_D;
     end
 
