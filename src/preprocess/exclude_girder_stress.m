@@ -20,7 +20,7 @@ function girder_rank = exclude_girder_stress(com)
 % 検定除外断面の処理（幅厚比の除外 -> ランクFD）
 girder_rank = com.section.girder.rank;
 is_girder_stress = com.exclusion.is_section_girder_allowable_stress;
-girder_rank(~is_girder_stress) = PRM.GIRDER_RANK_FD;
+girder_rank(~is_girder_stress) = PRM.MEMBER_RANK_FD;
 
 return
 end

@@ -246,7 +246,7 @@ for i = 1:nstory
       secname_ = format_steel_cost_dim(stype_, dim_, sym_);
       is_r = idsecg2sec(isg);
       rk_v = result.rank.section(is_r);
-      if rk_v >= 1 && rk_v <= numel(PRM.MEMBER_RANK_NAME)
+      if rk_v ~= PRM.RANK_NONE
         rk_s = PRM.MEMBER_RANK_NAME{rk_v};
       else
         rk_s = '';
@@ -565,6 +565,12 @@ return
   %
   %   s = fmt1(x) は S梁断面算定表の応力表示。丸め・文字列化は共通
   %   ヘルパ fmt_ceil_abs に委譲し、小数1桁で切り上げ表示する。
+  %
+  %   入力引数:
+  %     x - 表示する応力値
+  %
+  %   出力引数:
+  %     s - 書式化した表示文字列
     s = fmt_ceil_abs(x, 1);
 
     return
@@ -576,6 +582,12 @@ return
   %   s = fmt_r(r) は検定比 r を小数2桁で切り上げ（ceil_ratio）した
   %   文字列を返す。1.0 を超える（NG）場合は SS7 互換で末尾に '*' を
   %   付す。切り上げ規則は検定比一覧・S柱断面算定表と統一する。
+  %
+  %   入力引数:
+  %     r - 表示する検定比
+  %
+  %   出力引数:
+  %     s - 書式化した表示文字列
     s = fmt_ratio(r, true);
 
     return

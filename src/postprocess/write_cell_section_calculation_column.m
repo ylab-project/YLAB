@@ -386,7 +386,7 @@ for i = 1:nstory
       end
 
       % FD ランク = S 規準幅厚比超過。SS7 互換の注意を末尾に出力する
-      if rk_v == PRM.COLUMN_RANK_FD
+      if rk_v == PRM.MEMBER_RANK_FD
         append_warning_row(['　　　注意  695： S柱で幅厚比がS規準の' ...
           '制限値を超えています。']);
       end
@@ -413,6 +413,9 @@ return
   %     spec_  - 応力成分仕様（n_idx/m_idx/q_idx/sign_n/sign_m/sign_q）
   %     lc1    - 長期側荷重ケース番号
   %     lc2    - 組合せ側荷重ケース番号
+  %
+  %   出力引数:
+  %     なし
   %
   %   備考:
   %     col 10:ラベル / 11:フェイス長 / 12-14:設計時力 (N/M/Q) /
@@ -458,6 +461,9 @@ return
   %     pos_  - 位置（1: 柱脚 = i端、2: 柱頭 = j端）
   %     im_   - 断面諸量を採る部材番号
   %     ilc_  - 行の決定ケース番号
+  %
+  %   出力引数:
+  %     なし
     % ration は1-6列がi端（柱脚）、7-12列がj端（柱頭）で、j端の列番号
     % はi端の+6。曲げの応力比は局所y軸まわり(5)とz軸まわり(6)、せん断
     % はX方向の行がQzによるτ(3)、Y方向の行がQyによるτ(2)。組合せ
@@ -530,6 +536,9 @@ return
   %     row  - 書き込み行番号
   %     icol - 列番号（0: 欄なし）
   %     s    - 書き込む文字列
+  %
+  %   出力引数:
+  %     なし
     if icol > 0
       sccbody{row, icol} = s;
     end
@@ -543,6 +552,9 @@ return
   %
   %   入力引数:
   %     message - 出力する警告・注意の文字列
+  %
+  %   出力引数:
+  %     なし
     sccbody{irow, ncol} = PRM.CONT_MARKER;
     irow = irow + 1;
     sccbody{irow, 1} = message;
@@ -561,6 +573,9 @@ return
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
+  %
+  %   出力引数:
+  %     なし
     header_ = check_spec_.header;
     sccbody(irow_, 10 + (1:numel(header_))) = header_;
     sccbody{irow_, ncol} = PRM.CONT_MARKER;
@@ -689,6 +704,9 @@ return
   %
   %   入力引数:
   %     inc_ - 材料グループの代表名目柱番号
+  %
+  %   出力引数:
+  %     なし
     [~, ~, im_top_, im_bot_] = get_material_pair(inc_);
     mat_top_ = material_name{im_top_};
     mat_bot_ = material_name{im_bot_};
@@ -767,7 +785,7 @@ return
         secname_ = ['Y:' secname_];
     end
     rank_v = result.rank.section(is2_);
-    if rank_v >= 1 && rank_v <= numel(PRM.MEMBER_RANK_NAME)
+    if rank_v ~= PRM.RANK_NONE
       rank_str = PRM.MEMBER_RANK_NAME{rank_v};
     else
       rank_str = '';
@@ -787,6 +805,9 @@ return
   %   入力引数:
   %     irow_ - 書き込み行番号
   %     im_   - 部材番号
+  %
+  %   出力引数:
+  %     なし
     sccbody{irow_, 1} = ['部材長 ' fmt_ceil_abs(lm_nominal(im_), 0)];
     return
   end
@@ -800,6 +821,9 @@ return
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
+  %
+  %   出力引数:
+  %     なし
     sccbody{irow_, 2} = '<X>';
     sccbody{irow_, 5} = '<Y>';
     return
@@ -815,6 +839,9 @@ return
   %   入力引数:
   %     irow_ - 書き込み行番号
   %     ic_   - 柱部材番号
+  %
+  %   出力引数:
+  %     なし
     sccbody{irow_, 1} = 'Lk/h';
     sccbody{irow_, 2} = fmt_ceil_abs(kcx(ic_), 2);
     sccbody{irow_, 5} = fmt_ceil_abs(kcy(ic_), 2);
@@ -831,6 +858,9 @@ return
   %   入力引数:
   %     irow_ - 書き込み行番号
   %     im_   - 部材番号
+  %
+  %   出力引数:
+  %     なし
     sccbody{irow_, 1} = 'Lk';
     sccbody{irow_, 2} = fmt_ceil_abs(lkx(im_), 0);
     sccbody{irow_, 5} = fmt_ceil_abs(lky(im_, 1), 0);
@@ -847,6 +877,9 @@ return
   %   入力引数:
   %     irow_ - 書き込み行番号
   %     im_   - 部材番号
+  %
+  %   出力引数:
+  %     なし
     sccbody{irow_, 1} = 'iy';
     sccbody{irow_, 2} = sprintf('%.2f', iy_(im_) * 1e-1);
     sccbody{irow_, 5} = sprintf('%.2f', iz_(im_) * 1e-1);
@@ -863,6 +896,9 @@ return
   %   入力引数:
   %     irow_ - 書き込み行番号
   %     im_   - 部材番号
+  %
+  %   出力引数:
+  %     なし
     sccbody{irow_, 1} = 'λ';
     sccbody{irow_, 2} = fmt_ceil_abs(lambday(im_), 1);
     sccbody{irow_, 5} = fmt_ceil_abs(lambdaz(im_), 1);
@@ -881,6 +917,9 @@ return
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
+  %
+  %   出力引数:
+  %     なし
     if ~fc_applicable(inm)
       sccbody{irow_, 2} = 'fcL  ---';
       return
@@ -902,6 +941,9 @@ return
   %
   %   入力引数:
   %     irow_ - 書き込み行番号
+  %
+  %   出力引数:
+  %     なし
     if ~fc_applicable(inm)
       sccbody{irow_, 2} = 'fcS  ---';
       return
@@ -918,6 +960,9 @@ return
   %   成分インデックスと符号を struct で返す。write_stress_row の
   %   spec_ 引数として使う。
   %
+  %   入力引数:
+  %     なし
+  %
   %   出力引数:
   %     s - 応力成分仕様 struct（n_idx/m_idx/q_idx/sign_n/sign_m/sign_q）
     s = struct('n_idx', 1, 'm_idx', 11, 'q_idx', 9, ...
@@ -931,6 +976,9 @@ return
   %   s = stress_spec_bot_x は、柱脚 X 方向の応力行に書き出す N/M/Q
   %   の成分インデックスと符号を struct で返す。write_stress_row の
   %   spec_ 引数として使う。
+  %
+  %   入力引数:
+  %     なし
   %
   %   出力引数:
   %     s - 応力成分仕様 struct（n_idx/m_idx/q_idx/sign_n/sign_m/sign_q）
@@ -946,6 +994,9 @@ return
   %   成分インデックスと符号を struct で返す。write_stress_row の
   %   spec_ 引数として使う。
   %
+  %   入力引数:
+  %     なし
+  %
   %   出力引数:
   %     s - 応力成分仕様 struct（n_idx/m_idx/q_idx/sign_n/sign_m/sign_q）
     s = struct('n_idx', 1, 'm_idx', 12, 'q_idx', 8, ...
@@ -959,6 +1010,9 @@ return
   %   s = stress_spec_bot_y は、柱脚 Y 方向の応力行に書き出す N/M/Q
   %   の成分インデックスと符号を struct で返す。write_stress_row の
   %   spec_ 引数として使う。
+  %
+  %   入力引数:
+  %     なし
   %
   %   出力引数:
   %     s - 応力成分仕様 struct（n_idx/m_idx/q_idx/sign_n/sign_m/sign_q）

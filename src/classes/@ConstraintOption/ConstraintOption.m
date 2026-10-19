@@ -31,8 +31,8 @@ classdef ConstraintOption
     reqHgap (1,1) double = 0;
   
     % その他
-    rank_column(1,1) double = PRM.COLUMN_RANK_FB;
-    rank_girder(1,1) double = PRM.COLUMN_RANK_FA;
+    rank_column(1,1) double = PRM.MEMBER_RANK_FB;
+    rank_girder(1,1) double = PRM.MEMBER_RANK_FA;
     % consider_thickness = false
     % consider_fix_group = false
     % consider_wt_ratio_L = true
@@ -40,6 +40,18 @@ classdef ConstraintOption
   end
   methods
     function coptions = setFromDataBlock(coptions, data)
+      %setFromDataBlock - 制約条件ブロックの指定を計算条件へ反映する
+      %
+      %   coptions = setFromDataBlock(coptions, data) は、指定された
+      %   制約の有無、余裕率および柱・梁の部材種別を設定する。
+      %
+      %   入力引数:
+      %     coptions - 反映前の制約条件
+      %     data - 読込済み制約条件ブロック [n×3] cell
+      %
+      %   出力引数:
+      %     coptions - 入力の指定を反映した制約条件
+
       for i=1:size(data,1)
         if ismissing(data{i,1})
           continue
@@ -108,27 +120,29 @@ classdef ConstraintOption
           case '柱部材種別'
             switch data{i,2}
               case 'FA'
-                coptions.rank_column = PRM.COLUMN_RANK_FA;
+                coptions.rank_column = PRM.MEMBER_RANK_FA;
               case 'FB'
-                coptions.rank_column = PRM.COLUMN_RANK_FB;
+                coptions.rank_column = PRM.MEMBER_RANK_FB;
               case 'FC'
-                coptions.rank_column = PRM.COLUMN_RANK_FC;
+                coptions.rank_column = PRM.MEMBER_RANK_FC;
               case 'FD'
-                coptions.rank_column = PRM.COLUMN_RANK_FD;
+                coptions.rank_column = PRM.MEMBER_RANK_FD;
             end
           case '梁部材種別'
             switch data{i,2}
               case 'FA'
-                coptions.rank_girder = PRM.GIRDER_RANK_FA;
+                coptions.rank_girder = PRM.MEMBER_RANK_FA;
               case 'FB'
-                coptions.rank_girder = PRM.GIRDER_RANK_FB;
+                coptions.rank_girder = PRM.MEMBER_RANK_FB;
               case 'FC'
-                coptions.rank_girder = PRM.GIRDER_RANK_FC;
+                coptions.rank_girder = PRM.MEMBER_RANK_FC;
               case 'FD'
-                coptions.rank_girder = PRM.GIRDER_RANK_FD;
+                coptions.rank_girder = PRM.MEMBER_RANK_FD;
             end
         end
       end
+
+      return
     end
   end
 end

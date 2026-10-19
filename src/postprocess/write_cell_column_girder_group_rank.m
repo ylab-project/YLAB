@@ -90,34 +90,34 @@ for igroup = 1:ngroup
     % 数値集計と判定はN・丸め前の値で行う。QはFA～FCの合計で
     % FA+FB+FC欄に使う。Q_totalはFDを含む合計で表示割合の分母と
     % Q(合計)欄に使い、FDがないときは表12.12の判定用分母と一致する
-    Qrank = accumarray(drank(idme), result.Qm(idme, ilc), [4 1])';
+    Qrank = accumarray(drank(idme), result.Qm(idme, ilc), ...
+      [numel(PRM.MEMBER_RANK_NAME) 1])';
     Q = sum(Qrank(1:3));
     Q_total = sum(Qrank);
-    % FDがあるときは割合によらずD
-    if any(drank(idme) == PRM.COLUMN_RANK_FD)
-      rank = PRM.COLUMN_RANK_FD;
-    elseif Q_total ~= 0
+    if Q_total ~= 0
       ratio = Qrank(1:3) / Q_total;
+      body(igroup, [4 6 8]) = arrayfun(@(r) sprintf('%.3f', r + 0), ...
+        ratio, 'UniformOutput', false);
       if ratio(1) >= PRM.GROUP_RANK_A_MIN_RATIO ...
           && ratio(3) <= PRM.GROUP_RANK_A_MAX_C_RATIO
-        rank = PRM.COLUMN_RANK_FA;
+        rank = PRM.GROUP_RANK_A;
       elseif ratio(3) < PRM.GROUP_RANK_C_MIN_RATIO
-        rank = PRM.COLUMN_RANK_FB;
+        rank = PRM.GROUP_RANK_B;
       else
-        rank = PRM.COLUMN_RANK_FC;
+        rank = PRM.GROUP_RANK_C;
       end
+    else
+      reason = '／Q(合計)が0（割合未判定）';
+    end
+    % FDがあるときは割合や水平力の合計によらずD
+    if any(drank(idme) == PRM.MEMBER_RANK_FD)
+      rank = PRM.GROUP_RANK_D;
     end
 
     % 表示はkN小数1桁、割合は小数3桁。+0は-0.0の表示を避ける
     body(igroup, [3 5 7 9 10 11]) = arrayfun(@(q) sprintf('%.1f', q), ...
       sign_dir * [Qrank(1:3), Q, Qrank(4), Q_total] / 1000 + 0, ...
       'UniformOutput', false);
-    if Q_total ~= 0
-      body(igroup, [4 6 8]) = arrayfun(@(r) sprintf('%.3f', r + 0), ...
-        Qrank(1:3) / Q_total, 'UniformOutput', false);
-    else
-      reason = '／Q(合計)が0（割合未判定）';
-    end
   end
 
   body{igroup, 1} = floor.name{ifl};

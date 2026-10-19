@@ -20,7 +20,7 @@ function column_rank = exclude_column_stress(com)
 % 検定除外断面の処理（幅厚比の除外 -> ランクFD）
 column_rank = com.section.column.rank;
 is_column_stress = com.exclusion.is_section_column_allowable_stress;
-column_rank(~is_column_stress) = PRM.COLUMN_RANK_FD;
+column_rank(~is_column_stress) = PRM.MEMBER_RANK_FD;
 
 return
 end

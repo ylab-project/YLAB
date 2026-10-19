@@ -332,21 +332,21 @@ classdef PRM
     WTYPE_NAMES = {'床自重', '梁自重', '壁自重', '特殊荷重', ...
       '補正', 'ﾌﾚｰﾑ外', '基礎重量'}
 
-    %% 部材群種別
-    COLUMN_RANK_FA = 1        % 柱FAランク
-    COLUMN_RANK_FB = 2        % 柱FBランク
-    COLUMN_RANK_FC = 3        % 柱FCランク
-    COLUMN_RANK_FD = 4        % 柱FDランク
-    GIRDER_RANK_FA = 1        % 梁FAランク
-    GIRDER_RANK_FB = 2        % 梁FBランク
-    GIRDER_RANK_FC = 3        % 梁FCランク
-    GIRDER_RANK_FD = 4        % 梁FDランク
+    %% 部材種別（柱・梁共通）
+    MEMBER_RANK_FA = 1
+    MEMBER_RANK_FB = 2
+    MEMBER_RANK_FC = 3
+    MEMBER_RANK_FD = 4
 
     % 部材種別名称
     RANK_NONE = 0             % ランク対象外（RC等）
     MEMBER_RANK_NAME = {'FA', 'FB', 'FC', 'FD'}
 
-    % 柱・梁群の種別の境界（SS7マニュアル計算編 表12.12）
+    %% 柱・梁群の種別（SS7マニュアル計算編 表12.12）
+    GROUP_RANK_A = 1
+    GROUP_RANK_B = 2
+    GROUP_RANK_C = 3
+    GROUP_RANK_D = 4
     GROUP_RANK_A_MIN_RATIO = 0.5
     GROUP_RANK_A_MAX_C_RATIO = 0.2
     GROUP_RANK_C_MIN_RATIO = 0.5
