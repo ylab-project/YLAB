@@ -11,11 +11,13 @@ if isempty(cat) && isempty(id) && ~isempty(varargin) && ischar(varargin{1})
   if fid ~= -1
     fclose(fid);
   end
-  msgtable = error_messages_table();
   return;
 end
 
-% メッセージ取得
+% メッセージ表は初回使用時に読み込む
+if isempty(msgtable)
+  msgtable = error_messages_table();
+end
 msg = get_message(id, msgtable, varargin);
 fullID = sprintf('YLAB:%s:%s', cat, id);
 
@@ -33,7 +35,8 @@ end
 % severityに応じてエラーまたは警告を発行
 switch severity
   case 'error'
-    throwAsCaller(MException(fullID, msg));
+    % msg は整形済みなので書式文字列として解釈させない（'%' を含み得る）
+    throwAsCaller(MException(fullID, '%s', msg));
   case 'warning'
     warning(fullID, '%s', msg);
   otherwise

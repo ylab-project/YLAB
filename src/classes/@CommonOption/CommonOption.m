@@ -43,6 +43,9 @@ classdef CommonOption
     discretization(1,1) logical = true
     do_writeout_pdf(1,1) logical = false;
     do_parallel(1,1) logical = true;
+    % 並列プールのワーカー数の指定（整数または 'N%'）。空は指定なしで、
+    % MATLAB既定のワーカー数で起動する。整数への換算は並列プール起動時
+    num_workers = '';
     save_full_result(1,1) logical = false;
     idtrial(1,1) double {mustBeNonnegative} = 0;
     idphase(1,1) double {mustBeNonnegative} = 999;

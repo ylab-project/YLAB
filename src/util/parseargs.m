@@ -68,6 +68,7 @@ addParameter(p, 'iter', options.iter_resume);
 addParameter(p, 'maxiter', options.maxiter_in_LS);
 addParameter(p, 'maxphase', options.maxphase);
 addParameter(p, 'lsfr_diagnostic_file', options.lsfr_diagnostic_file);
+addParameter(p, 'numworkers', options.num_workers);
 parse(p,varargin{:});
 
 % UIモードの決定（文字列 -> 数値ID変換）
@@ -92,6 +93,7 @@ options.solutionfile = p.Results.solutionfile;
 options.optionfile = p.Results.optionfile;
 options.matfile = p.Results.matfile;
 options.lsfr_diagnostic_file = p.Results.lsfr_diagnostic_file;
+options.num_workers = p.Results.numworkers;
 if isstring(p.Results.trial)
   options.idtrial_resume = str2double(p.Results.trial);
 else

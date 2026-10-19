@@ -424,6 +424,11 @@ classdef PRM
     ROW_END_MARKER = '<RE>';
     CONT_MARKER    = '<CONT>';
 
+    %% 並列計算
+    % PARALLEL_PROFILE: 並列プールの起動と、numworkers の割合指定の
+    %   分母（既定ワーカー数）に使うクラスタプロファイル名
+    PARALLEL_PROFILE = 'Processes';
+
     %% 節点重量表の表示下限
     % 絶対値がこの値未満の欄は空欄にする。床自重欄の有無による
     % 1行/2行モードの切替も同じ下限で判定する（kN）。
