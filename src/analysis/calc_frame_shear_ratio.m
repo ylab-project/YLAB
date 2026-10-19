@@ -1,11 +1,11 @@
-function frame_shear_ratio = calc_frame_shear_ratio(com, rs_force, ...
-  cxl, cyl, Q_nb, brace_in_story)
+function [frame_shear_ratio, Qm] = calc_frame_shear_ratio(com, ...
+  rs_force, cxl, cyl, Qnb, brace_in_story)
 %calc_frame_shear_ratio - 水平力分担表相当の階別・フレーム別集計
 %
-%   frame_shear_ratio = calc_frame_shear_ratio(com, rs_force, cxl, ...
-%   cyl, Q_nb, brace_in_story) は、各階・各フレーム・各荷重ケースの
+%   [frame_shear_ratio, Qm] = calc_frame_shear_ratio(com, rs_force,
+%   cxl, cyl, Qnb, brace_in_story) は、各階・各フレーム・荷重ケースの
 %   柱負担水平力Qc・ブレース負担水平力Qwとそれらの比率を集計する。
-%   水平力分担表出力と柱座屈長さ係数補正βが共通参照する正本となる。
+%   水平力分担表出力と柱座屈長さ係数補正βで同じ集計値を用いる。
 %   柱水平力は解析基底の部材力を加力方向へ水平投影して集計する。
 %   出力対象階(is_output_story)とその参照階(output_idstory)も返す。
 %
@@ -14,10 +14,12 @@ function frame_shear_ratio = calc_frame_shear_ratio(com, rs_force, ...
 %     rs_force       - 部材応力(重ね合わせ前、解析基底) [nme×12×nlc]
 %     cxl            - 部材x軸方向余弦 [nme×3]
 %     cyl            - 部材y軸方向余弦 [nme×3]
-%     Q_nb           - 名目ブレースごとのQ値 [nnb×nlc] (N)
+%     Qnb            - 名目ブレースごとのQ値 [nnb×nlc] (N)
 %     brace_in_story - 名目ブレースの跨ぐ階 [nnb×nstory] logical
 %
 %   出力引数:
+%     Qm - 部材の加力方向水平力 [nme×nlc] (N, FEM符号)
+%          地震ケースのi端の応力を投影。非地震ケースはNaN。
 %     frame_shear_ratio - 階別・フレーム別集計 (struct)。
 %       Qc/Qw/Qcw       : [story×frame×lc] 負担水平力 (kN, FEM符号)
 %       Qc_total等       : [story×lc] 層合計負担水平力 (kN, FEM符号)
@@ -73,7 +75,7 @@ col_idy(is_col) = column.idy(mp.idmec(is_col), 1);
 col_idx(is_col) = column.idx(mp.idmec(is_col), 1);
 
 % 名目ブレースのフレーム通りインデックス
-nnb = size(Q_nb, 1);
+nnb = size(Qnb, 1);
 if nnb > 0
   nb = com.nominal.brace;
   nb_idy = nb.idy(:, 1);
@@ -83,7 +85,8 @@ else
   nb_idx = zeros(0, 1);
 end
 
-% 結果配列の確保
+% 結果配列の確保。加力方向のない荷重ケースは部材水平力を定義しない
+Qm = nan(size(rs_force, 1), nlc);
 Qc = zeros(nstory, nframe_report, nlc);
 Qw = zeros(nstory, nframe_report, nlc);
 Qcw = zeros(nstory, nframe_report, nlc);
@@ -125,13 +128,13 @@ for ilc = 1:nlc
   end
   nframe(ilc) = nframe_report;
 
-  % 柱の水平力成分(kN, FEM符号)
+  % 部材の水平力成分(N, FEM符号)
   % 解析基底の軸力・局所せん断を加力方向へ水平投影する。
   N = rs_force(:, 1, ilc);
   Qy = rs_force(:, 2, ilc);
   Qz = rs_force(:, 3, ilc);
-  Fh_col = (N .* cxl(:, idir_eq) + Qy .* cyl(:, idir_eq) ...
-    + Qz .* czl(:, idir_eq)) .* sign_cz / 1000;
+  Qm(:, ilc) = (N .* cxl(:, idir_eq) + Qy .* cyl(:, idir_eq) ...
+    + Qz .* czl(:, idir_eq)) .* sign_cz;
 
   % フレーム別の柱負担水平力を集計
   sel_c = is_target_col & midstory >= 1 & midstory <= nstory ...
@@ -139,10 +142,10 @@ for ilc = 1:nlc
   if any(sel_c)
     idx_c = [midstory(sel_c), main_offset + col_idmain(sel_c)];
     Qc(:, :, ilc) = Qc(:, :, ilc) + accumarray(idx_c, ...
-      Fh_col(sel_c), [nstory, nframe_report]);
+      Qm(sel_c, ilc) / 1000, [nstory, nframe_report]);
   end
   % ブレースの水平力(跨ぐ階に計上, kN)
-  Qb_nb = Q_nb(:, ilc) / 1000;
+  Qb_nb = Qnb(:, ilc) / 1000;
   f_col = main_offset + nb_idframe(b_row);
   sel_b = f_col >= 1 & f_col <= nframe_report ...
     & s_col >= 1 & s_col <= nstory;

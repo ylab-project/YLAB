@@ -346,6 +346,13 @@ classdef PRM
     RANK_NONE = 0             % ランク対象外（RC等）
     MEMBER_RANK_NAME = {'FA', 'FB', 'FC', 'FD'}
 
+    % 柱・梁群の種別の境界（SS7マニュアル計算編 表12.12）
+    GROUP_RANK_A_MIN_RATIO = 0.5
+    GROUP_RANK_A_MAX_C_RATIO = 0.2
+    GROUP_RANK_C_MIN_RATIO = 0.5
+    % 柱・梁群の種別の表示名（表12.12のA～D）
+    GROUP_RANK_NAME = {'A', 'B', 'C', 'D'}
+
     %% ブレース配置タイプ
     BRACE_MEMBER_TYPE_X = 1        % X型配置
     BRACE_MEMBER_TYPE_K_UPPER = 2  % K上形

@@ -361,6 +361,20 @@ for icase = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
     loadcase.name{icase}), cgscell.head, cgscell.body, true);
 end
 
+%% 柱・梁群の種別
+for ilc = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
+  [head, body] = write_cell_column_girder_group_rank( ...
+    com, result, options, ilc);
+  switch ilc
+    case PRM.EXP, label = 'X正加力';
+    case PRM.EXN, label = 'X負加力';
+    case PRM.EYP, label = 'Y正加力';
+    case PRM.EYN, label = 'Y負加力';
+  end
+  write_table(fout, sprintf('柱・梁群の種別,case=%s', label), ...
+    head, body, true);
+end
+
 %% 鉄骨数量
 [sch, scb] = write_cell_steel_cost_column(com, result);
 write_table(fout, '柱の部位ごと数量(鉄骨)', sch, scb);

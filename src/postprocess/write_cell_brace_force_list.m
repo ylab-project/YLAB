@@ -4,11 +4,11 @@ function [bflhead, bflbody] = write_cell_brace_force_list( ...
 %
 %   [bflhead, bflbody] = write_cell_brace_force_list( ...
 %     com, result, icase) は、指定荷重ケースの鉛直ブレース応力表
-%   を生成します。Q値はresult.Q_nbから取得します。
+%   を生成します。Q値はresult.Qnbから取得します。
 %
 %   入力引数:
 %     com    - 共通オブジェクト
-%     result - 解析結果（rs0, Q_nbフィールドを含む）
+%     result - 解析結果（rs0, Qnbフィールドを含む）
 %     icase  - 荷重ケース番号
 %
 %   出力引数:
@@ -20,13 +20,13 @@ brace = com.member.brace;
 secb = com.section.brace;
 lm = result.lm;
 rs = result.rs0(:,:,icase);
-Q_nb = result.Q_nb(:, icase);
+Qnb = result.Qnb(:, icase);
 lcdir_i = com.loadcase.dir(icase);
 is_eq = ismember(lcdir_i, [PRM.EXP, PRM.EXN, PRM.EYP, PRM.EYN]);
 
 bflhead = cell(2,11);
-bflhead(1,1:11) = {'階','ﾌﾚｰﾑ','軸－軸','','符号', ...
-  'タイプ','左下り','','右下り','','Q'};
+bflhead(1,1:11) = {'階','ﾌﾚｰﾑ','軸－軸','','符号','タイプ', ...
+  '左下り','','右下り','','Q'};
 bflhead(2,7:10) = {'部材長','N','部材長','N'};
 bflhead(3,7:11) = {'mm','kN','mm','kN','kN'};
 
@@ -76,6 +76,17 @@ end
 return
 
   function add_row(inb)
+  %add_row - 名目ブレース1本の表示行を追加する
+  %
+  %   add_row(inb) は、親関数の部材情報と応力を使ってrowsへ行を追加し、
+  %   irowを更新する。Qnbは名目ブレース全体の水平力として表示する。
+  %
+  %   入力引数:
+  %     inb - 名目ブレース番号
+  %
+  %   出力引数:
+  %     なし（親関数のrowsとirowを更新する）
+
     ibij = nominal_brace.idmeb(inb,:);
     nz_cols = find(ibij > 0);
     npair = length(nz_cols);
@@ -98,8 +109,8 @@ return
       end
 
       % ブレース配置タイプ
-      [ipos, type_label] = ...
-        resolve_brace_position_label(brace, ib, ij, npair);
+      [ipos, type_label] = resolve_brace_position_label( ...
+        brace, ib, ij, npair);
       rows{irow,6} = type_label;
 
       % ブレースペアタイプ
@@ -114,10 +125,12 @@ return
     end
 
     % Q [N→kN]（地震時は符号反転、非地震時はそのまま）
-    q_out = Q_nb(inb) * 1.d-3;
+    q_out = Qnb(inb) * 1.d-3;
     if is_eq
       q_out = -q_out;
     end
     rows{irow,11} = sprintf('%.1f', q_out + 0);
+
+    return
   end
 end

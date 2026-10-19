@@ -98,9 +98,6 @@ idnm2mc = nominal_column.idmec;
 idnmc2nm = nominal_column.idnominal;
 idmc2m = column.idme;
 
-% 判定ランク
-has_drank = isfield(result, 'rank') && isfield(result.rank, 'section');
-
 % H形鋼柱（断面リストがH形鋼の柱）。検定行の欄構成の選択に使う
 is_h_column = PRM.list_type_of_section_type(stype) == PRM.WFS;
 
@@ -389,7 +386,7 @@ for i = 1:nstory
       end
 
       % FD ランク = S 規準幅厚比超過。SS7 互換の注意を末尾に出力する
-      if has_drank && rk_v == PRM.COLUMN_RANK_FD
+      if rk_v == PRM.COLUMN_RANK_FD
         append_warning_row(['　　　注意  695： S柱で幅厚比がS規準の' ...
           '制限値を超えています。']);
       end
@@ -743,9 +740,9 @@ return
   %   [name_, rank_str, rank_v] = make_section_label(isc_) は、
   %   柱断面番号 isc_ に対応する断面表示文字列と、判定ランクの
   %   表示用文字列および数値を返す。H形鋼柱はSS7と同じく断面名の前に
-  %   強軸の方向（X:／Y:）を付ける。判定ランクが未設定の場合、
-  %   rank_v=0, rank_str='' を返す。外側スコープの idsecc2sec,
-  %   stype, secdim, secmgr, has_drank, result を共有する。
+  %   強軸の方向（X:／Y:）を付ける。ランク対象外（RC等）の断面は
+  %   rank_str='' を返す。外側スコープの idsecc2sec, stype, secdim,
+  %   secmgr, result を共有する。
   %
   %   入力引数:
   %     isc_ - 柱断面番号
@@ -769,15 +766,10 @@ return
       case PRM.CWFSI
         secname_ = ['Y:' secname_];
     end
-    if has_drank
-      rank_v = result.rank.section(is2_);
-      if rank_v >= 1 && rank_v <= numel(PRM.MEMBER_RANK_NAME)
-        rank_str = PRM.MEMBER_RANK_NAME{rank_v};
-      else
-        rank_str = '';
-      end
+    rank_v = result.rank.section(is2_);
+    if rank_v >= 1 && rank_v <= numel(PRM.MEMBER_RANK_NAME)
+      rank_str = PRM.MEMBER_RANK_NAME{rank_v};
     else
-      rank_v = 0;
       rank_str = '';
     end
     name_ = sprintf('%s [%s]', secname_, rank_str);

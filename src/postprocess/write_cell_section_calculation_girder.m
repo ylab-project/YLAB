@@ -110,9 +110,6 @@ idnm2mg = nominal_girder.idmeg;
 idnmg2nm = nominal_girder.idnominal;
 idmg2m = girder.idme;
 
-% 判定ランク
-has_drank = isfield(result, 'rank') && isfield(result.rank, 'section');
-
 % 出力順序マッピング（出力制御の符号順）
 ogl_ = options.output_girder_list_label;
 secg_order = zeros(nng, 1);
@@ -247,14 +244,10 @@ for i = 1:nstory
       stype_ = stype(is_);
       dim_ = secdim(is_, :);
       secname_ = format_steel_cost_dim(stype_, dim_, sym_);
-      if has_drank
-        is_r = idsecg2sec(isg);
-        rk_v = result.rank.section(is_r);
-        if rk_v >= 1 && rk_v <= numel(PRM.MEMBER_RANK_NAME)
-          rk_s = PRM.MEMBER_RANK_NAME{rk_v};
-        else
-          rk_s = '';
-        end
+      is_r = idsecg2sec(isg);
+      rk_v = result.rank.section(is_r);
+      if rk_v >= 1 && rk_v <= numel(PRM.MEMBER_RANK_NAME)
+        rk_s = PRM.MEMBER_RANK_NAME{rk_v};
       else
         rk_s = '';
       end

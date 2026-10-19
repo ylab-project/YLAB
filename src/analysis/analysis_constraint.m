@@ -138,7 +138,7 @@ mejoint(idmc2m,:) = cjoint;                  % 柱の結合条件を設定
 isgmirrored = com.member.girder.ismirrored;  % 梁の左右反転フラグ
 
 % 名目ブレースごとの水平力成分Q
-Q_nb = calc_Q_nominal_brace(com, rs_analysis0, cxl, cyl);
+Qnb = calc_Q_nominal_brace(com, rs_analysis0, cxl, cyl);
 
 % 各名目ブレースが跨ぐ階（多層ブレースの水平力を跨ぐ各階に計上する
 % ため、βおよび水平力分担表 writer が共通参照する）
@@ -146,8 +146,8 @@ brace_in_story = calc_brace_story_membership(com);
 
 % 水平力分担表相当の階別・フレーム別集計（柱座屈長さ補正βと水平力
 % 分担表出力が共通参照する正本）。出力でも使うため制約評価の外で生成
-frame_shear_ratio = calc_frame_shear_ratio(com, rs_analysis0, cxl, cyl, ...
-  Q_nb, brace_in_story);
+[frame_shear_ratio, Qm] = calc_frame_shear_ratio(com, ...
+  rs_analysis0, cxl, cyl, Qnb, brace_in_story);
 
 %% 許容応力度比制約
 need_result = nargout == 2;
@@ -258,20 +258,20 @@ else
   gdef_angle = [];
 end
 
-%% 幅厚比制約
-if coptions.consider_section_wt_ratio
-  % 完全結果を要求する場合だけ第3出力（判定ランク）を受け取る
+%% 幅厚比制約と帳票用の部材種別
+conwtg = []; conwtc = [];
+if coptions.consider_section_wt_ratio || need_result
+  % 完全結果では制約の有無によらず実際の部材種別を求める
   wtout = cell(1, 2+need_result);
   [wtout{:}] = calc_wtratio(secdim, Fs, idsrep2s, idsrep2stype, ...
     grank, crank, isSNsec, options);
-  conwtg = wtout{1}+coptions.alfa_section_wt_ratio;
-  conwtc = wtout{2}+coptions.alfa_section_wt_ratio;
-  wtratio = [];
+  if coptions.consider_section_wt_ratio
+    conwtg = wtout{1}+coptions.alfa_section_wt_ratio;
+    conwtc = wtout{2}+coptions.alfa_section_wt_ratio;
+  end
   if need_result
     wtratio = wtout{3};
   end
-else
-  conwtg = []; conwtc = []; wtratio = [];
 end
 
 %% 細長比（保有耐力横補剛）制約
@@ -387,7 +387,7 @@ if nargout==3
   result.secdim = secdim;
   result.cxl = cxl;
   result.cyl = cyl;
-  result.Q_nb = Q_nb;
+  result.Qnb = Qnb;
   result.frame_shear_ratio = frame_shear_ratio;
   return
 end
@@ -424,10 +424,10 @@ result.drift.height = drift_height;
 result.drift.delta_x = drift_delta_x;
 result.drift.delta_y = drift_delta_y;
 result.deflection_angle = gdef_angle;
-result.wtratio = wtratio;
-if ~isempty(wtratio)
-  result.rank.section = wtratio.drank_sec;
-end
+% 幅厚比の判定ランクは代表断面の位置にだけ入る。断面→代表断面の対応で
+% 全断面へ展開して保存し、帳票は断面番号で直接読む
+result.rank.section = wtratio.drank_sec( ...
+  idsrep2s(com.section.property.idsrep));
 result.standardGap_gc = congapstd;
 result.Hgapval = conhgapvar;
 result.Hgapsec = conhgapsec;
@@ -435,7 +435,8 @@ result.rs = rs;
 result.rs0 = rs0;
 result.rs_analysis0 = rs_analysis0;
 result.beta = beta;
-result.Q_nb = Q_nb;
+result.Qm = Qm;
+result.Qnb = Qnb;
 result.frame_shear_ratio = frame_shear_ratio;
 result.Mc = Mc;
 result.Mc0 = Mc0;

@@ -1,7 +1,7 @@
-function Q_nb = calc_Q_nominal_brace(com, rs0, cxl, cyl)
+function Qnb = calc_Q_nominal_brace(com, rs0, cxl, cyl)
 %calc_Q_nominal_brace - 名目ブレースごとの水平力成分Qを算出
 %
-%   Q_nb = calc_Q_nominal_brace(com, rs0, cxl, cyl) は、
+%   Qnb = calc_Q_nominal_brace(com, rs0, cxl, cyl) は、
 %   各名目ブレースについて構成部材の応力を全体座標系に変換し、
 %   加力方向への水平力成分Qを算出します。
 %
@@ -12,7 +12,7 @@ function Q_nb = calc_Q_nominal_brace(com, rs0, cxl, cyl)
 %     cyl - 部材y軸方向余弦 [nme×3]
 %
 %   出力引数:
-%     Q_nb - 名目ブレースごとのQ値 [nnb×nlc] (単位: N)
+%     Qnb - 名目ブレースごとのQ値 [nnb×nlc] (単位: N)
 
 nominal_brace = com.nominal.brace;
 brace = com.member.brace;
@@ -20,7 +20,7 @@ nnb = com.num.nominal_brace;
 lcdir = com.loadcase.dir;
 nlc = length(lcdir);
 
-Q_nb = zeros(nnb, nlc);
+Qnb = zeros(nnb, nlc);
 if nnb == 0
   return
 end
@@ -60,11 +60,10 @@ for ilc = 1:nlc
     Q = 0;
     for ij = find(ibij > 0)
       im = idme(ibij(ij));
-      Q = Q + (N(im) * cxl(im, ideq) ...
-        + Qy(im) * cyl(im, ideq) ...
+      Q = Q + (N(im) * cxl(im, ideq) + Qy(im) * cyl(im, ideq) ...
         + Qz(im) * czl(im, ideq)) * sign_cz(im);
     end
-    Q_nb(inb, ilc) = Q;
+    Qnb(inb, ilc) = Q;
   end
 end
 
