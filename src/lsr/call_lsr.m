@@ -266,8 +266,8 @@ function check_max_section_violation(cvec, result, options) %#ok<INUSD>
 %check_max_section_violation - 最大断面での制約違反チェック
 %
 %   check_max_section_violation(cvec, result, options) は、
-%   断面サイズ依存の制約（ncon[1]-[11]）のみを対象に
-%   カテゴリ別の違反件数を集計しワーニングを出す。
+%   断面サイズで決まる制約の分類だけを対象に
+%   分類別の違反件数を集計しワーニングを出す。
 %
 %   入力引数:
 %     cvec    - 制約値ベクトル [1×ncon]
@@ -275,17 +275,19 @@ function check_max_section_violation(cvec, result, options) %#ok<INUSD>
 %     options - オプション構造体（未使用）
   ncon = result.ncon;
   label = result.conlabel;
-  % 断面サイズ依存の制約（[1]-[11]）
-  ncat = 11;
+  % 断面サイズで決まる検定ではない柱梁耐力比と幾何制約を除く
+  excluded_label = {'柱梁耐力比', '断面規格', '梁せい差-呼称', ...
+    '梁せい差-寸法', '柱外径', '梁せい分布'};
+  % 各分類が占める制約番号の範囲
+  category_end = cumsum(ncon);
+  category_start = category_end - ncon + 1;
   parts = {};
-  idx = 0;
-  for k = 1:ncat
-    vio = cvec(idx+1:idx+ncon(k));
+  for k = find(~ismember(label, excluded_label))
+    vio = cvec(category_start(k):category_end(k));
     nvio = sum(vio > 0);
     if nvio > 0
       parts{end+1} = sprintf('%s:%d件', label{k}, nvio); %#ok<AGROW>
     end
-    idx = idx + ncon(k);
   end
   if ~isempty(parts)
     detail = strjoin(parts, ', ');
