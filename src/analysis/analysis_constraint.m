@@ -267,11 +267,10 @@ if coptions.consider_section_wt_ratio || coptions.consider_group_rank ...
   % 群種別に関わる代表断面だけFC以上を要求する。入力値は変更しない
   is_group = false(nsec, 1);
   if coptions.consider_group_rank
-    z = com.floor.idz(com.floor.rank_group > 0)';
-    bottom = min(com.node.idz(idm2n(:, 1)), com.node.idz(idm2n(:, 2)));
-    top = max(com.node.idz(idm2n(:, 1)), com.node.idz(idm2n(:, 2)));
-    idme = find(any(bottom < z & z <= top, 2) & ismember(mstype, ...
-      [PRM.WFS PRM.HSS PRM.CWFS PRM.CWFSI]));
+    idfl_group = find(com.floor.rank_group > 0);
+    idm2fl = com.member.property.idfloor;
+    idme = find(any(ismember(idm2fl, idfl_group), 2) ...
+      & ismember(mstype, [PRM.WFS PRM.HSS PRM.CWFS PRM.CWFSI]));
     idme_rank = get_group_rank_members(com, idme);
     ids = idsrep2s(com.section.property.idsrep(idm2s(idme_rank)));
     is_group(ids) = true;

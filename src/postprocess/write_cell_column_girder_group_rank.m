@@ -39,12 +39,8 @@ ngroup = numel(idfloor);
 drank0 = result.rank.section(mp.idsec);
 drank = result.rank.member;
 
-% 階上端の直下を横切る部材を採る。内部分割の隣接要素を重複せず、
-% 通し柱と多層にわたる梁は、それぞれが跨ぐ階へ計上する
-idz1 = com.node.idz(mp.idnode1);
-idz2 = com.node.idz(mp.idnode2);
-bottom = min(idz1, idz2);
-top = max(idz1, idz2);
+% 階上端の直下を横切る柱・梁を採る。内部分割の隣接要素を重複せず、
+% 通し柱と多層にわたる梁は、読込時に数えた跨ぐ階のそれぞれに載せる
 target = mp.type == PRM.COLUMN | mp.type == PRM.GIRDER;
 
 head = cell(3, 13);
@@ -58,7 +54,7 @@ note = ['一次解析による推定（全方向の柱・接続梁で最下位�
 
 for igroup = 1:ngroup
   ifl = idfloor(igroup);
-  idme = find(target & bottom < floor.idz(ifl) & floor.idz(ifl) <= top);
+  idme = find(target & any(mp.idfloor == ifl, 2));
   idme_rank = get_group_rank_members(com, idme);
   rank = PRM.RANK_NONE;
   reason = '';

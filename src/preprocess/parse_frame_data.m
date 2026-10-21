@@ -90,6 +90,8 @@ girder_dy = node_std.y(girder_idnode2) - node_std.y(girder_idnode1);
   classify_girder_xy_direction(girder_dx, girder_dy);
 com.member.girder = member_girder;
 com.node.is_roof = countup_node_is_roof(com);
+% 部材が跨ぐ階は断面寸法に依存しない幾何判定なので前処理で確定する
+com.member.property.idfloor = countup_member_floor(com);
 
 %% 変数配列
 [design_idvar, design_idsec, design_variable_type, ...

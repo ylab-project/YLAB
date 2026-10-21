@@ -50,17 +50,24 @@ end
 
 % 階上端を横切る区間だけを採り、内部分割の二重計上を避ける
 % 通し柱・多層梁は跨ぐ各階へ計上し、逆向きの負担も符号を保つ
-bottom = min(com.node.idz(mp.idnode1), com.node.idz(mp.idnode2));
-top = max(com.node.idz(mp.idnode1), com.node.idz(mp.idnode2));
+% 部材と対象階の組は加力ケースによらないので、読込時に数えた跨ぐ階から
+% 一度だけ作る
 target = ismember(mp.type, [PRM.COLUMN PRM.GIRDER]) & drank > 0;
+idfloor = mp.idfloor;
+idfloor(~target, :) = 0;
+[ime, ~, ifl] = find(idfloor);
+ime = ime(:);
+ifl = ifl(:);
+is_group_floor = floor.rank_group(ifl) > 0;
+ime = ime(is_group_floor);
+ifl = ifl(is_group_floor);
 idlc = find(ismember(com.loadcase.dir, [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]));
-Qrank = zeros(numel(floor.idz), size(Qm, 2), numel(PRM.MEMBER_RANK_NAME));
-for ifl = find(floor.rank_group > 0)'
-  idme = find(target & bottom < floor.idz(ifl) & floor.idz(ifl) <= top);
-  for ilc = idlc(:)'
-    Qrank(ifl, ilc, :) = accumarray(drank(idme), Qm(idme, ilc), ...
-      [numel(PRM.MEMBER_RANK_NAME) 1]);
-  end
+nfl = numel(floor.idz);
+nrank = numel(PRM.MEMBER_RANK_NAME);
+Qrank = zeros(nfl, size(Qm, 2), nrank);
+for ilc = idlc(:)'
+  Qrank(:, ilc, :) = reshape(accumarray([ifl drank(ime)], Qm(ime, ilc), ...
+    [nfl nrank]), nfl, 1, nrank);
 end
 
 % FD込みの水平力合計を分母とする。分母が0の割合制約だけを0とする
