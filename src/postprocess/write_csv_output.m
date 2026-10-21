@@ -363,8 +363,7 @@ end
 
 %% 柱・梁群の種別
 for ilc = [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]
-  [head, body] = write_cell_column_girder_group_rank( ...
-    com, result, options, ilc);
+  [head, body] = write_cell_column_girder_group_rank(com, result, ilc);
   switch ilc
     case PRM.EXP, label = 'X正加力';
     case PRM.EXN, label = 'X負加力';

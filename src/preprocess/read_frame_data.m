@@ -161,6 +161,7 @@ com.nnominal_story = size(nominal_story,1);
 span.x = set_xspan_block(dbc, com);
 span.y = set_yspan_block(dbc, com);
 [floor, story] = set_floor_block(dbc, com);
+floor = set_group_rank_block(dbc, floor, options);
 story = set_story_diff_height_block(dbc, story);
 com.span = span;
 com.floor = floor;

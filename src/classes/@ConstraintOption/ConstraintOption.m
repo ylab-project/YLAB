@@ -5,6 +5,7 @@ classdef ConstraintOption
     consider_inter_story (1,1) logical = true
     consider_girder_deflection (1,1) logical = true
     consider_section_wt_ratio (1,1) logical = true
+    consider_group_rank (1,1) logical = false
     consider_slenderness_ratio (1,1) logical = true
     consider_joint_bearing_strength (1,1) logical = true
     consider_joint_strength_ratio (1,1) logical = true
@@ -19,6 +20,7 @@ classdef ConstraintOption
     alfa_inter_story (1,1) double = 0.05;
     alfa_girder_deflection (1,1) double = 0;
     alfa_section_wt_ratio (1,1) double = 0;
+    alfa_group_rank (1,1) double = 0;
     alfa_slenderness_ratio (1,1) double = 0;
     alfa_joint_bearing_strength (1,1) double = 0;
     alfa_joint_strength_ratio (1,1) double = 0;
@@ -31,6 +33,7 @@ classdef ConstraintOption
     reqHgap (1,1) double = 0;
   
     % その他
+    rank_group(1,1) double = PRM.GROUP_RANK_A;
     rank_column(1,1) double = PRM.MEMBER_RANK_FB;
     rank_girder(1,1) double = PRM.MEMBER_RANK_FA;
     % consider_thickness = false
@@ -47,11 +50,21 @@ classdef ConstraintOption
       %
       %   入力引数:
       %     coptions - 反映前の制約条件
-      %     data - 読込済み制約条件ブロック [n×3] cell
+      %     data - 読込済み制約条件ブロック [n×m] cell（m>=2）
       %
       %   出力引数:
       %     coptions - 入力の指定を反映した制約条件
 
+      % 余裕率を全行省略した2列CSVにも対応する
+      data(:, end+1:3) = {missing};
+      keys = {'部材群種別', '柱梁部材群種別'};
+      for k = 1:numel(keys)
+        idrow = find(strcmp(data(:, 1), keys{k}));
+        if numel(idrow) > 1
+          throw_err('Input', 'DuplicateGroupRankInput', ...
+            '制約条件', idrow(2), keys{k});
+        end
+      end
       for i=1:size(data,1)
         if ismissing(data{i,1})
           continue
@@ -73,6 +86,25 @@ classdef ConstraintOption
             if ~ismissing(alfa)
               coptions.alfa_girder_deflection = alfa;
             end
+          case '部材群種別'
+            if ~any(strcmp(data{i,2}, {'Y', 'N'}))
+              throw_err('Input', 'InvalidGroupRankSwitch', '制約条件', i);
+            end
+            coptions.consider_group_rank = (data{i,2}=='Y');
+            [alfa, valid] = normalize_numeric_cell(alfa);
+            if ~valid || alfa < 0 || alfa >= 1
+              throw_err('Input', 'InvalidGroupRankMargin', '制約条件', i);
+            end
+            if ~isnan(alfa)
+              coptions.alfa_group_rank = alfa;
+            end
+          case '柱梁部材群種別'
+            rank = find(strcmp(PRM.GROUP_RANK_NAME( ...
+              PRM.GROUP_RANK_A:PRM.GROUP_RANK_C), data{i,2}));
+            if isempty(rank)
+              throw_err('Input', 'InvalidGroupRank', '制約条件', i);
+            end
+            coptions.rank_group = rank;
           case '幅厚比'
             coptions.consider_section_wt_ratio = (data{i,2}=='Y');
             if ~ismissing(alfa)

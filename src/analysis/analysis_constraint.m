@@ -107,8 +107,9 @@ ids2m = ones(nsec,1);
 ids2m(uidm2s) = uidmem;
 Fs = Fm(ids2m);                              % 断面の基準強度
 isSNsec = isSNmem(ids2m);                    % SN材判定フラグ（断面）
-grank = com.section.girder.rank;             % 梁断面ランク（制約用）
-% 柱断面ランクを全断面ベクトルに展開（idhssrepが全断面IDのため）
+% 梁・柱の要求種別を全断面番号で参照する配列へ展開する
+grank = zeros(nsec, 1);
+grank(com.section.girder.idsec) = com.section.girder.rank;
 crank = zeros(nsec, 1);
 crank(com.section.column.idsec) = com.section.column.rank;
 
@@ -258,19 +259,40 @@ else
   gdef_angle = [];
 end
 
-%% 幅厚比制約と帳票用の部材種別
+%% 幅厚比制約と部材群種別
 conwtg = []; conwtc = [];
-if coptions.consider_section_wt_ratio || need_result
-  % 完全結果では制約の有無によらず実際の部材種別を求める
-  wtout = cell(1, 2+need_result);
-  [wtout{:}] = calc_wtratio(secdim, Fs, idsrep2s, idsrep2stype, ...
-    grank, crank, isSNsec, options);
-  if coptions.consider_section_wt_ratio
-    conwtg = wtout{1}+coptions.alfa_section_wt_ratio;
-    conwtc = wtout{2}+coptions.alfa_section_wt_ratio;
+confa = []; confc = [];
+if coptions.consider_section_wt_ratio || coptions.consider_group_rank ...
+    || need_result
+  % 群種別に関わる代表断面だけFC以上を要求する。入力値は変更しない
+  is_group = false(nsec, 1);
+  if coptions.consider_group_rank
+    z = com.floor.idz(com.floor.rank_group > 0)';
+    bottom = min(com.node.idz(idm2n(:, 1)), com.node.idz(idm2n(:, 2)));
+    top = max(com.node.idz(idm2n(:, 1)), com.node.idz(idm2n(:, 2)));
+    idme = find(any(bottom < z & z <= top, 2) & ismember(mstype, ...
+      [PRM.WFS PRM.HSS PRM.CWFS PRM.CWFSI]));
+    idme_rank = get_group_rank_members(com, idme);
+    ids = idsrep2s(com.section.property.idsrep(idm2s(idme_rank)));
+    is_group(ids) = true;
   end
-  if need_result
-    wtratio = wtout{3};
+  idg = idsrep2s(idsrep2stype == PRM.WFS);
+  idc = idsrep2s(ismember(idsrep2stype, [PRM.HSS PRM.CWFS PRM.CWFSI]));
+  grank(is_group) = min(grank(is_group), PRM.MEMBER_RANK_FC);
+  crank(is_group) = min(crank(is_group), PRM.MEMBER_RANK_FC);
+  [conwtg, conwtc, drank] = calc_wtratio(secdim, Fs, idsrep2s, ...
+    idsrep2stype, grank, crank, isSNsec, options);
+  is_wtcon = is_group | coptions.consider_section_wt_ratio;
+  conwtg = conwtg(is_wtcon(idg)) + coptions.alfa_section_wt_ratio;
+  conwtc = conwtc(is_wtcon(idc)) + coptions.alfa_section_wt_ratio;
+  if coptions.consider_group_rank || need_result
+    % 判定ランクを代表断面から全断面へ展開し、種別別水平力を確定する
+    ranksection = drank(com.section.property.idsrep);
+    [confa, confc, rankmember, Qrank] = calc_group_rank(com, ...
+      ranksection(idm2s), Qm);
+    if ~coptions.consider_group_rank
+      confa = []; confc = [];
+    end
   end
 end
 
@@ -356,7 +378,7 @@ end
 %% 制約値ベクトルの集約
 cvec = [gr; gs; cr; cs; bn; congdef; conwtg; conwtc; ...
   conslr; conjbs; condrift; concgsr; congapstd; ...
-  conhgapvar; conhgapsec; condgapvar; conhsmoothvar]';
+  conhgapvar; conhgapsec; condgapvar; conhsmoothvar; confa; confc]';
 if nargout<2
   return
 end
@@ -367,14 +389,15 @@ result.ncon = [length(gr) length(gs) length(cr) ...
   length(conwtg) length(conwtc) length(conslr) ...
   length(conjbs) length(condrift) length(concgsr) ...
   length(congapstd) length(conhgapvar) ...
-  length(conhgapsec) length(condgapvar) length(conhsmoothvar)];
+  length(conhgapsec) length(condgapvar) length(conhsmoothvar) ...
+  length(confa) length(confc)];
 % 分類の名前。call_lsrの最大断面チェックとupdate_lsfr_fusion_constraints
 % はこのラベル文字列で分類を選ぶので、変更時はそちらも更新する
 result.conlabel = {'梁曲げ応力', '梁せん断応力', '柱曲げ応力', ...
   '柱せん断応力', 'ブレース応力', '梁たわみ', '梁幅厚比', ...
   '柱幅厚比', '保有耐力横補剛', '保有耐力接合(仕口)', ...
   '層間変形', '柱梁耐力比', '断面規格', '梁せい差-呼称', ...
-  '梁せい差-寸法', '柱外径', '梁せい分布'};
+  '梁せい差-寸法', '柱外径', '梁せい分布', 'FA割合', 'FC割合'};
 
 %% 出力引数に応じた結果の設定
 if nargout==3
@@ -426,10 +449,9 @@ result.drift.height = drift_height;
 result.drift.delta_x = drift_delta_x;
 result.drift.delta_y = drift_delta_y;
 result.deflection_angle = gdef_angle;
-% 幅厚比の判定ランクは代表断面の位置にだけ入る。断面→代表断面の対応で
-% 全断面へ展開して保存し、帳票は断面番号で直接読む
-result.rank.section = wtratio.drank_sec( ...
-  idsrep2s(com.section.property.idsrep));
+result.rank.section = ranksection;
+result.rank.member = rankmember;
+result.Qrank = Qrank;
 result.standardGap_gc = congapstd;
 result.Hgapval = conhgapvar;
 result.Hgapsec = conhgapsec;
@@ -522,6 +544,6 @@ result.girderSectionCase = girderSectionCase;
 result.girderSectionAxialMask = girderSectionAxialMask;
 result.girderSectionHasAxial = girderSectionHasAxial;
 result.nomgc = stress_result.nomgc;
+
 return
 end
-

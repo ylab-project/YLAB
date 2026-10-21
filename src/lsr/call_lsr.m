@@ -401,9 +401,9 @@ function check_max_section_violation(cvec, result)
 %     なし
   ncon = result.ncon;
   label = result.conlabel;
-  % 断面サイズで決まる検定ではない柱梁耐力比と幾何制約を除く
+  % 最大断面でも充足を保証できない耐力比・種別割合・幾何制約を除く
   excluded_label = {'柱梁耐力比', '断面規格', '梁せい差-呼称', ...
-    '梁せい差-寸法', '柱外径', '梁せい分布'};
+    '梁せい差-寸法', '柱外径', '梁せい分布', 'FA割合', 'FC割合'};
   % 各分類が占める制約番号の範囲
   category_end = cumsum(ncon);
   category_start = category_end - ncon + 1;
