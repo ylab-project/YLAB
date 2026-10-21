@@ -217,7 +217,7 @@ for i = 1:nstory
       % 使っていたが、SS7 S柱断面算定表は最大軸力（柱脚値）を表示
       % する仕様のため、独立柱の自重分の微差は無視して 1 に統一する。
       irow = irow + 1;
-      [name_, ~, rk_v] = make_section_label(isc_);
+      [name_, rk_v] = make_section_label(isc_);
       sccbody{irow, 1} = name_;
       write_stress_row(irow, '<X>柱頭', lfcx(ic2, 2), ...
         stress_spec_top_x, 1, jlx);
@@ -752,23 +752,21 @@ return
     return
   end
 
-  function [name_, rank_str, rank_v] = make_section_label(isc_)
-  %make_section_label - 断面名と判定ランクラベル/値を返す
+  function [name_, rank_v] = make_section_label(isc_)
+  %make_section_label - 断面表示文字列と判定種別の数値を返す
   %
-  %   [name_, rank_str, rank_v] = make_section_label(isc_) は、
-  %   柱断面番号 isc_ に対応する断面表示文字列と、判定ランクの
-  %   表示用文字列および数値を返す。H形鋼柱はSS7と同じく断面名の前に
-  %   強軸の方向（X:／Y:）を付ける。ランク対象外（RC等）の断面は
-  %   rank_str='' を返す。外側スコープの idsecc2sec, stype, secdim,
-  %   secmgr, result を共有する。
+  %   [name_, rank_v] = make_section_label(isc_) は、柱断面番号
+  %   isc_ に対応する断面表示文字列と判定種別の数値を返す。
+  %   H形鋼柱はSS7と同じく断面名の前に強軸の方向（X:／Y:）を付ける。
+  %   ランク対象外（RC等）の断面は種別を空欄で表示する。
+  %   外側スコープの idsecc2sec, stype, secdim, secmgr, result を共有する。
   %
   %   入力引数:
   %     isc_ - 柱断面番号
   %
   %   出力引数:
-  %     name_     - 断面表示文字列（'<断面名> [<ランク>]' 形式）
-  %     rank_str  - 判定ランク文字列（'FA' 等。無ければ空）
-  %     rank_v    - 判定ランク数値（無ければ 0）
+  %     name_  - 断面表示文字列（'<断面名> [<ランク>]' 形式）
+  %     rank_v - 判定ランク数値（無ければ 0）
     is2_ = idsecc2sec(isc_);
     stype_ = stype(is2_);
     dim_ = secdim(is2_, :);

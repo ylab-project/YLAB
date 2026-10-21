@@ -118,26 +118,14 @@ classdef ConstraintOption
                 'ました。第3列を空欄にしてください。'])
             end
           case '柱部材種別'
-            switch data{i,2}
-              case 'FA'
-                coptions.rank_column = PRM.MEMBER_RANK_FA;
-              case 'FB'
-                coptions.rank_column = PRM.MEMBER_RANK_FB;
-              case 'FC'
-                coptions.rank_column = PRM.MEMBER_RANK_FC;
-              case 'FD'
-                coptions.rank_column = PRM.MEMBER_RANK_FD;
+            idx = find(strcmp(PRM.MEMBER_RANK_NAME, data{i,2}), 1);
+            if ~isempty(idx)
+              coptions.rank_column = idx;
             end
           case '梁部材種別'
-            switch data{i,2}
-              case 'FA'
-                coptions.rank_girder = PRM.MEMBER_RANK_FA;
-              case 'FB'
-                coptions.rank_girder = PRM.MEMBER_RANK_FB;
-              case 'FC'
-                coptions.rank_girder = PRM.MEMBER_RANK_FC;
-              case 'FD'
-                coptions.rank_girder = PRM.MEMBER_RANK_FD;
+            idx = find(strcmp(PRM.MEMBER_RANK_NAME, data{i,2}), 1);
+            if ~isempty(idx)
+              coptions.rank_girder = idx;
             end
         end
       end
@@ -146,4 +134,3 @@ classdef ConstraintOption
     end
   end
 end
-

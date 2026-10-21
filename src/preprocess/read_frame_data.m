@@ -1,4 +1,16 @@
 function [com, options] = read_frame_data(input, options)
+%read_frame_data - 入力CSVを読み込み解析共通データを構築する
+%
+%   [com, options] = read_frame_data(input, options) は、入力ブロックを
+%   階・節点・断面・部材・荷重へ対応付け、計算条件を更新する。
+%
+%   入力引数:
+%     input   - 入力CSVのパス
+%     options - 読込前の計算条件
+%
+%   出力引数:
+%     com     - 解析共通データ
+%     options - 入力指定を反映した計算条件
 
 %  --- 新旧対応 ---
 %  [定数]

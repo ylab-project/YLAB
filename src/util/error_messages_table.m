@@ -4,6 +4,9 @@ function tbl = error_messages_table()
 %   tbl = error_messages_table() は、エラーID・exitflag・
 %   メッセージを管理するテーブルを返す。
 %
+%   入力引数:
+%     なし
+%
 %   出力引数:
 %     tbl - エラー定義テーブル (table)
 %           列: id, exitflag, message

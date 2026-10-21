@@ -1,4 +1,19 @@
 function [x, fval, exitflag, com] = call_lsr(com, options)
+%call_lsr - 局所探索の試行とフェーズを実行し最良解を選ぶ
+%
+%   [x, fval, exitflag, com] = call_lsr(com, options) は、最大断面の
+%   制約違反を確認して局所探索を実行し、試行履歴から最良解を返す。
+%
+%   入力引数:
+%     com     - モデルと断面リストの共通データ
+%     options - 探索条件と履歴保存・再開条件
+%
+%   出力引数:
+%     x        - 選択した設計変数 [nvar×1]
+%     fval     - 選択した解の目的関数値
+%     exitflag - 探索の終了状態
+%     com      - 制約分類と制約数を設定した共通データ
+
 % --- common ---
 secmgr = com.secmgr;
 section = com.section;
@@ -45,7 +60,7 @@ f0 = (fub+flb)/2;
 
 % 最大断面での制約チェック（限定結果から制約メタデータを取得する）
 [cvec, result, ~] = analysis_constraint(ub, secdim_ub, com, options);
-check_max_section_violation(cvec, result, options);
+check_max_section_violation(cvec, result);
 
 % LSR全体で不変の制約数と制約ラベルを共通構造体へ保存する
 com.ncon = result.ncon;
@@ -105,9 +120,21 @@ fval = best.fval;
 if best.maxvio > PRM.TOL_MAX_VIOLATION
   exitflag = PRM.EXITFLAG_NO_FEASIBLE;
 end
+
 return
 %--------------------------------------------------------------------------
   function save_trial
+  %save_trial - 現在の試行・フェーズの結果を履歴ファイルへ保存する
+  %
+  %   save_trial は、外側の探索結果をtrialsとtrials_historyへ反映する。
+  %   履歴ファイルの指定がない場合は保存しない。
+  %
+  %   入力引数:
+  %     なし（外側の探索状態を参照）
+  %
+  %   出力引数:
+  %     なし（外側のtrialsとtrials_historyを更新）
+
     if isempty(options.historyfile)
       return
     end
@@ -139,9 +166,24 @@ return
     trials.nexec(idtrial, idphase) = history.nexec(n_);
     trials_history(idtrial, idphase) = history;
     trials.history = trials_history;
+
+    return
   end
 %--------------------------------------------------------------------------
   function initialize_trials(nx, n1, n2)
+  %initialize_trials - 試行履歴の数値配列を確保する
+  %
+  %   initialize_trials(nx, n1, n2) は、試行数とフェーズ数に合わせて
+  %   配列を確保し、再開時は既存の記録をコピーする。
+  %
+  %   入力引数:
+  %     nx - 設計変数の数
+  %     n1 - 試行数
+  %     n2 - フェーズ数
+  %
+  %   出力引数:
+  %     なし（外側のtrialsを更新）
+
     x0_array = nan(nx, n1, n2);
     xopt_array = nan(nx, n1, n2);
     fval_array = nan(n1, n2);
@@ -170,10 +212,23 @@ return
     trials.time = time_array;
     trials.maxvio = maxvio_array;
     trials.nexec = nexec_array;
+
     return
   end
 %--------------------------------------------------------------------------
   function initialize_trials_history(n1, n2)
+  %initialize_trials_history - 試行ごとの探索履歴配列を確保する
+  %
+  %   initialize_trials_history(n1, n2) は、指定サイズの履歴配列を
+  %   確保し、再開時は保存済みの履歴を引き継ぐ。
+  %
+  %   入力引数:
+  %     n1 - 試行数
+  %     n2 - フェーズ数
+  %
+  %   出力引数:
+  %     なし（外側のtrials_historyを更新）
+
     if exist('resume', 'var')
       trials_history = resume.history;
       if size(trials_history, 1) < n1 || size(trials_history, 2) < n2
@@ -184,10 +239,22 @@ return
       trials_history = struct(history);
       trials_history(n1, n2) = struct(history);
     end
+
     return
   end
 %--------------------------------------------------------------------------
   function validate_resume_variables
+  %validate_resume_variables - 再開用データに必須変数があるか確認する
+  %
+  %   validate_resume_variables は、保存履歴の変数名を確認し、
+  %   必須変数が不足する場合はエラーにする。
+  %
+  %   入力引数:
+  %     なし（外側のresumeを参照）
+  %
+  %   出力引数:
+  %     なし
+
     names = {'x0','xopt','fval','iter','time','maxvio','nexec','history'};
     for i = 1:numel(names)
       if ~isfield(resume, names{i})
@@ -195,10 +262,23 @@ return
           'Resume file does not contain %s.', names{i});
       end
     end
+
     return
   end
 %--------------------------------------------------------------------------
   function array = copy_array(array, source)
+  %copy_array - 旧履歴配列の共通範囲を新しい配列へコピーする
+  %
+  %   array = copy_array(array, source) は、各次元の共通範囲だけを
+  %   コピーし、新たに確保した範囲の初期値を保つ。
+  %
+  %   入力引数:
+  %     array  - コピー先の配列
+  %     source - 保存済みの配列
+  %
+  %   出力引数:
+  %     array - 共通範囲を反映した配列
+
     array_size = size(array);
     source_size = size(source);
     nd = max(numel(array_size), numel(source_size));
@@ -209,10 +289,24 @@ return
       subs{i} = 1:min(array_size(i), source_size(i));
     end
     array(subs{:}) = source(subs{:});
+
     return
   end
 %--------------------------------------------------------------------------
   function tf = needs_trial_initialization(nx, n1, n2)
+  %needs_trial_initialization - 履歴の変数とサイズを確認する
+  %
+  %   tf = needs_trial_initialization(nx, n1, n2) は、履歴配列の
+  %   変数不足またはサイズの不一致があればtrueを返す。
+  %
+  %   入力引数:
+  %     nx - 設計変数の数
+  %     n1 - 試行数
+  %     n2 - フェーズ数
+  %
+  %   出力引数:
+  %     tf - 配列の初期化が必要か
+
     vars = who(trials);
     if isempty(vars)
       tf = true;
@@ -230,17 +324,46 @@ return
       || ~has_trial_size(vars, 'maxvio', [n1 n2]) ...
       || ~has_trial_size(vars, 'nexec', [n1 n2]) ...
       || ~has_trial_size(vars, 'history', [n1 n2]);
+
+    return
   end
 %--------------------------------------------------------------------------
   function tf = has_trial_size(vars, name, expected_size)
+  %has_trial_size - 保存変数の存在と配列サイズを照合する
+  %
+  %   tf = has_trial_size(vars, name, expected_size) は、履歴に変数が
+  %   存在し、要求サイズと一致する場合にtrueを返す。
+  %
+  %   入力引数:
+  %     vars          - 履歴に保存された変数名
+  %     name          - 確認する変数名
+  %     expected_size - 要求する配列サイズ
+  %
+  %   出力引数:
+  %     tf - 変数の存在とサイズが一致するか
+
     if ~ismember(name, vars)
       tf = false;
       return
     end
     tf = isequal(size(trials, name), expected_size);
+
+    return
   end
 %--------------------------------------------------------------------------
   function [x0, history] = load_trial
+  %load_trial - 指定した試行と反復回数の履歴を読み出す
+  %
+  %   [x0, history] = load_trial は、再開条件に対応する保存履歴を
+  %   選び、再開位置の設計変数を返す。
+  %
+  %   入力引数:
+  %     なし（外側のresumeとoptionsを参照）
+  %
+  %   出力引数:
+  %     x0      - 再開位置の設計変数
+  %     history - 再開する試行・フェーズの履歴
+
     idtrial_ = options.idtrial_resume;
     idphase_ = options.idphase_resume;
     iter_ = options.iter_resume;
@@ -257,22 +380,25 @@ return
         'Resume iter %d does not exist.', iter_);
     end
     x0 = history.xvar(iter_index, :);
+
     return
   end
 end
 
 %--------------------------------------------------------------------------
-function check_max_section_violation(cvec, result, options) %#ok<INUSD>
+function check_max_section_violation(cvec, result)
 %check_max_section_violation - 最大断面での制約違反チェック
 %
-%   check_max_section_violation(cvec, result, options) は、
+%   check_max_section_violation(cvec, result) は、
 %   断面サイズで決まる制約の分類だけを対象に
 %   分類別の違反件数を集計しワーニングを出す。
 %
 %   入力引数:
 %     cvec    - 制約値ベクトル [1×ncon]
 %     result  - 結果構造体（ncon, conlabel）
-%     options - オプション構造体（未使用）
+%
+%   出力引数:
+%     なし
   ncon = result.ncon;
   label = result.conlabel;
   % 断面サイズで決まる検定ではない柱梁耐力比と幾何制約を除く
