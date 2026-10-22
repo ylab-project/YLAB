@@ -109,12 +109,10 @@ is_output_best_point = true;
 penalty_method = options.penalty_method;
 pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
 [pfval, vio] = pffun(fval, cvec);
+% 比較基準になる前回点の初期値（入れ子関数と共有する）
 xold = xvar;
 fvalold = fval;
 cvecold = cvec;
-% pfvalold/viold は比較対象なしを表す番兵値。
-pfvalold = inf;
-viold = inf(size(vio));
 nexec = 1;
 iter = 1;
 nlist0 = 1;
@@ -144,10 +142,9 @@ else
   last_history_index = resume_index;
   restore_current_state(resume_index);
   restore_previous_state(start_iter);
-  pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
-  if ~is_pure_lsr
-    [pfvalold, viold] = pffun(fvalold, cvecold);
-  end
+  % 復元した係数で現在点を評価し直す。履歴の pf・vio は記録として扱う
+  refresh_pffun();
+  [pfval, vio] = pffun(fval, cvec);
 end
 history = ensure_lsr_history_info(history);
 exitflag = PRM.EXITFLAG_MAXITER;
@@ -155,12 +152,8 @@ exitflag = PRM.EXITFLAG_MAXITER;
 % ---　局所探索スタート ---
 for iter = start_iter+1:max_iter+1
   previous_iter = iter-1;
-  if previous_iter == 0
-    update_old_state();
-  else
-    if postprocess_iteration(previous_iter)
-      break
-    end
+  if previous_iter > 0 && postprocess_iteration(previous_iter)
+    break
   end
   if iter > max_iter
     break
@@ -408,8 +401,7 @@ return
   function print_status(iter)
     [maxvio, idmaxvio, idmaxvioc, ccategory] = ...
       extract_convio(ncon, clabel, tau, cvec);
-    vio = cvec;
-    vio(vio<tau) = 0;
+    % 表示用の違反量ノルム。calc_penalty が返した vio をそのまま使う
     vnorm = sum(vio.^ppp,2)^(1/ppp);
     switch(display_mode)
       case 'Iter'
@@ -454,13 +446,36 @@ return
 %   end
 % end
 %--------------------------------------------------------------------------
-  function muvec = update_muvec(muvec, r, vio, tau)
-    % [maxmu, imax] = max(muvec);
-    for i = 1 : length(muvec)
-      if vio(i)>tau
-        muvec(i) = r*muvec(i);
-      end
-    end
+  function muvec = update_muvec(muvec, r, vio)
+  %update_muvec - 違反が残る制約のペナルティ係数を r 倍する
+  %
+  %   muvec = update_muvec(muvec, r, vio) は、違反量が正の制約の
+  %   係数だけを r 倍して返す。
+  %
+  %   入力引数:
+  %     muvec - 更新前のペナルティ係数 [nc×1]
+  %     r     - 係数の倍率
+  %     vio   - 現在点の制約違反量 [1×nc]（充足は0）
+  %
+  %   出力引数:
+  %     muvec - 更新後のペナルティ係数 [nc×1]
+
+    muvec(vio > 0) = r*muvec(vio > 0);
+  end
+%--------------------------------------------------------------------------
+  function refresh_pffun
+  %refresh_pffun - 現在のペナルティ係数で評価関数を作り直す
+  %
+  %   refresh_pffun() は、係数 muvec を変えた直後に呼び、以後の候補
+  %   評価と比較基準の再評価が同じ係数を使うようにする。
+  %
+  %   入力引数:
+  %     なし（外側の muvec・tau・penalty_method・ppp を参照）
+  %
+  %   出力引数:
+  %     なし（外側の pffun を更新）
+
+    pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
   end
 %--------------------------------------------------------------------------
   function [pflist_, vlist_, old_muvec_, new_muvec_] = ...
@@ -476,8 +491,8 @@ return
   %     old_muvec_, new_muvec_ - 更新前後のペナルティ係数
 
     old_muvec_ = muvec;
-    muvec = update_muvec(muvec, r, current_vio_, tau);
-    pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
+    muvec = update_muvec(muvec, r, current_vio_);
+    refresh_pffun();
     candidate_count_ = size(flist_, 1);
     pflist_ = zeros(candidate_count_, 1);
     vlist_ = zeros(size(clist_));
@@ -485,7 +500,6 @@ return
       [pflist_(candidate_index_), vlist_(candidate_index_, :)] = ...
         pffun(flist_(candidate_index_), clist_(candidate_index_, :));
     end
-    [pfvalold, viold] = pffun(fvalold, cvecold);
     new_muvec_ = muvec;
 
     return
@@ -616,8 +630,6 @@ return
     xvar = history.xvar(row,:);
     fval = history.fval(row,1);
     cvec = history.cvec(row,:);
-    vio = history.vio(row,:);
-    pfval = history.pf(row,1);
     muvec = history.muvec(row,:)';
     nexec = history.nexec(row,1);
     time = history.time(row,1);
@@ -628,21 +640,20 @@ return
       xold = history.initial.xvar;
       fvalold = history.initial.fval;
       cvecold = history.initial.cvec;
-      viold = history.initial.vio;
-      pfvalold = history.initial.pf;
       return
     end
     old_index = history_index_by_iter(current_iter-1);
     xold = history.xvar(old_index,:);
     fvalold = history.fval(old_index,1);
     cvecold = history.cvec(old_index,:);
-    viold = history.vio(old_index,:);
-    pfvalold = history.pf(old_index,1);
     return
   end
 %--------------------------------------------------------------------------
   function tf = postprocess_iteration(processed_iter)
     tf = false;
+
+    % 前回点を現在の係数で再評価し、候補と同じ係数で比較する
+    [pfvalold, viold] = pffun(fvalold, cvecold);
 
     % --- 終了判定 ---
     if all(vio<=0) && pfval-pfvalold>=omega && all(viold<=0)
@@ -705,25 +716,11 @@ return
         return
       end
 
-      % ペナルティ係数更新法その１
+      % 違反が残る制約の係数を増やし、次反復の候補評価と比較に反映する
       if is_pure_lsr
-        muvec = update_muvec(muvec, r, vio, tau);
-        pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
+        muvec = update_muvec(muvec, r, vio);
+        refresh_pffun();
       end
-
-      % % ペナルティ係数更新法その２
-      % if isupdatedmu
-      %   isupdatedmu = false;
-      %   [~, idpfval] = min(max(vlist,[],2));
-      %   xvar = xlist(idpfval,:);
-      %   pfval = pflist(idpfval);
-      %   vio = vlist(idpfval,:);
-      %   cvec = clist(idpfval,:);
-      %   fval = flist(idpfval);
-      % else
-      %   muvec = update_muvec(muvec, r, vio, tau);
-      %   isupdatedmu = true;
-      % end
     end
 
     update_old_state();
@@ -748,8 +745,6 @@ return
   end
 %--------------------------------------------------------------------------
   function update_old_state
-    viold = vio;
-    pfvalold = pfval;
     xold = xvar;
     cvecold = cvec;
     fvalold = fval;
@@ -825,21 +820,4 @@ return
     return
   end
 %--------------------------------------------------------------------------
-end
-
-%==========================================================================
-function [pfval, vio] = calc_penalty(fval, cvec, ...
-  muvec, tau, penalty_method, ppp)
-%calc_penalty - ペナルティ関数の評価
-vio = cvec;
-vio(vio<tau) = 0;
-switch penalty_method
-  case PRM.PENALTY_SUM_TOTAL
-    pfval = fval+sum(vio(:).*muvec(:));
-  case PRM.PENALTY_MAXIMUM
-    vvv = sum(vio.^ppp,2)^(1/ppp);
-    pfval = fval+max(muvec)*vvv;
-end
-
-return
 end
