@@ -1,7 +1,7 @@
 function [x, fval, exitflag, com] = call_lsr(com, options)
 %call_lsr - 局所探索の試行とフェーズを実行し最良解を選ぶ
 %
-%   [x, fval, exitflag, com] = call_lsr(com, options) は、最大断面の
+%   [x, fval, exitflag, com] = call_lsr(com, options) は、上限断面の
 %   制約違反を確認して局所探索を実行し、試行履歴から最良解を返す。
 %
 %   入力引数:
@@ -58,9 +58,9 @@ fub = objective_lsr(secdim_ub, secmgr, node, section, member, floor);
 flb = objective_lsr(secdim_lb, secmgr, node, section, member, floor);
 f0 = (fub+flb)/2;
 
-% 最大断面での制約チェック（限定結果から制約メタデータを取得する）
-[cvec, result, ~] = analysis_constraint(ub, secdim_ub, com, options);
-check_max_section_violation(cvec, result);
+% 上限断面の警告に使う部材・材料・検定位置を完全結果から取得する。
+[cvec, result] = analysis_constraint(ub, secdim_ub, com, options);
+check_max_section_violation(cvec, result, com, options);
 
 % LSR全体で不変の制約数と制約ラベルを共通構造体へ保存する
 com.ncon = result.ncon;
@@ -383,42 +383,4 @@ return
 
     return
   end
-end
-
-%--------------------------------------------------------------------------
-function check_max_section_violation(cvec, result)
-%check_max_section_violation - 最大断面での制約違反チェック
-%
-%   check_max_section_violation(cvec, result) は、
-%   断面サイズで決まる制約の分類だけを対象に
-%   分類別の違反件数を集計しワーニングを出す。
-%
-%   入力引数:
-%     cvec    - 制約値ベクトル [1×ncon]
-%     result  - 結果構造体（ncon, conlabel）
-%
-%   出力引数:
-%     なし
-  ncon = result.ncon;
-  label = result.conlabel;
-  % 最大断面でも充足を保証できない耐力比・種別割合・幾何制約を除く
-  excluded_label = {'柱梁耐力比', '断面規格', '梁せい差-呼称', ...
-    '梁せい差-寸法', '柱外径', '梁せい分布', 'FA割合', 'FC割合'};
-  % 各分類が占める制約番号の範囲
-  category_end = cumsum(ncon);
-  category_start = category_end - ncon + 1;
-  parts = {};
-  for k = find(~ismember(label, excluded_label))
-    vio = cvec(category_start(k):category_end(k));
-    nvio = sum(vio > 0);
-    if nvio > 0
-      parts{end+1} = sprintf('%s:%d件', label{k}, nvio); %#ok<AGROW>
-    end
-  end
-  if ~isempty(parts)
-    detail = strjoin(parts, ', ');
-    throw_warn('List', 'MaxSectionViolation', detail);
-  end
-
-  return
 end
