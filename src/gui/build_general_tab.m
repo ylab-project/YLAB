@@ -1,33 +1,34 @@
 function h = build_general_tab(parent, options)
-% BUILD_GENERAL_TAB 基本設定タブの構築
+%build_general_tab - 入出力と実行内容の設定欄を作る
 %
-%   h = build_general_tab(parent, options)
-%   Returns a struct of UI handles.
+%   h = build_general_tab(parent, options) は、基本設定タブを作る。
+%
+%   入力引数:
+%     parent  - 配置先のタブグループ
+%     options - 初期設定のCommonOption
+%
+%   出力引数:
+%     h - 設定欄と表示欄のハンドルを持つ構造体
 
 tab = uitab(parent, 'Title', '基本設定');
 gl = uigridlayout(tab, [8, 3]);
 gl.RowHeight = {30, 30, 30, 30, 30, 30, 30, '1x'};
-gl.ColumnWidth = {100, '1x', 80};
+gl.ColumnWidth = {110, '1x', 80};
 
 h = struct();
-
-% 1: Input
 uilabel(gl, 'Text', 'Input File:');
 h.edt_input = uieditfield(gl, 'text', 'Value', options.inputfile);
 h.btn_input = uibutton(gl, 'Text', '...');
 
-% 2: Output
-uilabel(gl, 'Text', 'Output File:');
+h.lbl_output = uilabel(gl, 'Text', 'Output File:');
 h.edt_output = uieditfield(gl, 'text', 'Value', options.outputfile);
 h.btn_output = uibutton(gl, 'Text', '...');
 
-% 3: ExeMode
 uilabel(gl, 'Text', 'ExeMode:');
 h.dd_exemode = uidropdown(gl, 'Items', {'OPT', 'CHECK', ...
-  'CONVERT'}, 'Value', options.exemode);
+  'CONVERT', 'COPY'}, 'Value', options.exemode);
 uilabel(gl, 'Text', '');
 
-% 4: Algorithm
 algorithm_items = {'LSR（全Phase）', 'LSFR（全Phase）', ...
   'LSR → LSFR（Phase 1 → Phase 2以降）', 'GA'};
 uilabel(gl, 'Text', 'Algorithm:');
@@ -35,18 +36,19 @@ h.dd_algorithm = uidropdown(gl, 'Items', algorithm_items, 'ItemsData', ...
   {'LSR', 'LSFR', 'LSR_LSFR', 'GA'}, 'Value', options.algorithm);
 uilabel(gl, 'Text', '');
 
-% 5: Auto Copy
-h.cb_autocopy = uicheckbox(gl, 'Text', ...
-  'Copy Output File to Original source');
-h.cb_autocopy.Layout.Row = 5; h.cb_autocopy.Layout.Column = [1 3];
+% コピー元を選び直しても、起動時の返却先は変わらない。
+uilabel(gl, 'Text', 'SS7返却先:');
+edt_target = uieditfield(gl, 'text', 'Value', options.outputfile, ...
+  'Editable', 'off', 'Tooltip', 'GUI起動時のOutput File（編集不可）', ...
+  'Placeholder', 'SS7返却先が指定されていません');
+edt_target.Layout.Row = 5;
+edt_target.Layout.Column = [2 3];
 
-% 6: PDF
 h.cb_pdf = uicheckbox(gl, 'Text', 'Create PDF Report');
 h.cb_pdf.Value = options.do_writeout_pdf;
 h.cb_pdf.Layout.Row = 6;
 h.cb_pdf.Layout.Column = [1 3];
 
-% 7: Preprocess
 h.cb_nopreprocess = uicheckbox(gl, 'Text', ...
   '断面リスト事前処理を無効化（比較用）');
 h.cb_nopreprocess.Value = ~options.do_preprocess_section_list;
