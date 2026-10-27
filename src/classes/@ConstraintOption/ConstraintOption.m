@@ -46,7 +46,7 @@ classdef ConstraintOption
       %setFromDataBlock - 制約条件ブロックの指定を計算条件へ反映する
       %
       %   coptions = setFromDataBlock(coptions, data) は、指定された
-      %   制約の有無、余裕率および柱・梁の部材種別を設定する。
+      %   制約の有無、余裕率、部材種別と部材群種別を設定する。
       %
       %   入力引数:
       %     coptions - 反映前の制約条件
@@ -57,13 +57,10 @@ classdef ConstraintOption
 
       % 余裕率を全行省略した2列CSVにも対応する
       data(:, end+1:3) = {missing};
-      keys = {'部材群種別', '柱梁部材群種別'};
-      for k = 1:numel(keys)
-        idrow = find(strcmp(data(:, 1), keys{k}));
-        if numel(idrow) > 1
-          throw_err('Input', 'DuplicateGroupRankInput', ...
-            '制約条件', idrow(2), keys{k});
-        end
+      idrow = find(strcmp(data(:, 1), '部材群種別'));
+      if numel(idrow) > 1
+        throw_err('Input', 'DuplicateGroupRankInput', ...
+          '制約条件', idrow(2), '部材群種別');
       end
       for i=1:size(data,1)
         if ismissing(data{i,1})
@@ -87,10 +84,14 @@ classdef ConstraintOption
               coptions.alfa_girder_deflection = alfa;
             end
           case '部材群種別'
-            if ~any(strcmp(data{i,2}, {'Y', 'N'}))
+            rank = find(strcmp(PRM.GROUP_RANK_NAME( ...
+              PRM.GROUP_RANK_A:PRM.GROUP_RANK_C), data{i,2}));
+            coptions.consider_group_rank = ~isempty(rank);
+            if coptions.consider_group_rank
+              coptions.rank_group = rank;
+            elseif ~strcmp(data{i,2}, 'N')
               throw_err('Input', 'InvalidGroupRankSwitch', '制約条件', i);
             end
-            coptions.consider_group_rank = (data{i,2}=='Y');
             [alfa, valid] = normalize_numeric_cell(alfa);
             if ~valid || alfa < 0 || alfa >= 1
               throw_err('Input', 'InvalidGroupRankMargin', '制約条件', i);
@@ -99,12 +100,7 @@ classdef ConstraintOption
               coptions.alfa_group_rank = alfa;
             end
           case '柱梁部材群種別'
-            rank = find(strcmp(PRM.GROUP_RANK_NAME( ...
-              PRM.GROUP_RANK_A:PRM.GROUP_RANK_C), data{i,2}));
-            if isempty(rank)
-              throw_err('Input', 'InvalidGroupRank', '制約条件', i);
-            end
-            coptions.rank_group = rank;
+            throw_err('Input', 'ObsoleteGroupRankOption', '制約条件', i);
           case '幅厚比'
             coptions.consider_section_wt_ratio = (data{i,2}=='Y');
             if ~ismissing(alfa)
@@ -145,9 +141,8 @@ classdef ConstraintOption
           case '梁せい分布平滑化'
             coptions.consider_girder_height_smooth_var = (data{i,2}=='Y');
             if ~ismissing(alfa)
-              error('YLAB:ObsoleteGirderHeightSmoothOption', ...
-                ['梁せい分布平滑化の第3列（方式選択）は廃止され' ...
-                'ました。第3列を空欄にしてください。'])
+              throw_err('Input', 'ObsoleteGirderHeightSmoothOption', ...
+                '制約条件', i);
             end
           case '柱部材種別'
             idx = find(strcmp(PRM.MEMBER_RANK_NAME, data{i,2}), 1);
