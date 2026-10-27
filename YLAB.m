@@ -1,5 +1,5 @@
 function [exitflag, result, com] = YLAB(varargin) %#ok<STOUT>
-%YLAB 鋼構造骨組の最適設計プログラム
+%YLAB - 鋼構造骨組の最適設計プログラム
 %
 %   局所探索法に基づき建物の断面設計を行う。
 %
@@ -20,11 +20,15 @@ function [exitflag, result, com] = YLAB(varargin) %#ok<STOUT>
 %     optionfile   - オプションを記述したCSVファイル
 %     matfile      - 計算履歴ファイル（中断再開用）
 %     lsfr_diagnostic_file - LSFR反復診断情報の保存先MATファイル
+%     fusion_keep_ratio - 3操作後の経路継続率（既定0.70）
 %     trial        - 試行番号（履歴管理用）
 %     phase        - 開始フェーズ番号
 %     iter         - 開始繰返し番号
 %     maxphase     - 最大フェーズ数（計算時間制御）
 %     maxiter      - 最大繰返し数（計算時間制御）
+%     numworkers   - 並列プールのワーカー数。整数、またはPコアと
+%                    Eコアを含む有効物理コア数に対する割合 'N%'
+%                    省略時は '100%'
 %
 %   オプションフラグ:
 %     -pdf         - PDFレポートを作成
