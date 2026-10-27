@@ -167,7 +167,7 @@ classdef CommonOption
     s_girder_axial_design (1,1) double = PRM.S_GIRDER_AXIAL_AUTO
 
     % 最適化計算オプション
-    penalty_method = PRM.PENALTY_WEIGHTED_NORM;
+    penalty_method = PRM.PENALTY_MAXIMUM;
     algorithm (1,:) char {mustBeMember(algorithm, {'LSR', ...
       'LSFR', 'LSR_LSFR', 'GA'})} = 'LSFR'
     max_fusion_depth (1,1) double {mustBeInteger, ...
