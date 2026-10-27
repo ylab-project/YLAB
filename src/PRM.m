@@ -279,6 +279,7 @@ classdef PRM
     %% ペナルティ指標
     PENALTY_SUM_TOTAL = 0     % 総和
     PENALTY_MAXIMUM = 1       % 最大値
+    PENALTY_WEIGHTED_NORM = 2 % 項別係数のノルム
 
     %% 結合状態
     PIN = 0               % ピン結合
