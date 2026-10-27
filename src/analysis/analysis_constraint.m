@@ -28,7 +28,6 @@ function [cvec, result, restoration] = analysis_constraint( ...
 %       eval_nominal_allowable_stress_ratio
 
 % 共通定数の取得
-nsec = com.nsec;                              % 断面数
 nme = com.nme;                                % 部材数
 
 % ID配列の取得
@@ -45,9 +44,7 @@ idmwfs2m = com.member.girder.idme(...         % H形梁→部材番号
 idm2s = com.member.property.idsec;            % 部材→断面番号
 idmc2st = com.member.column.idstory;          % 柱→層番号
 idncgsr = com.cgsr.idnode;                    % 柱梁耐力比評価節点番号
-idsrep2s = com.section.representative.idsec;  % 代表断面→断面番号
-% 代表断面→断面タイプ
-idsrep2stype = com.section.representative.section_type;
+
 height_smooth = com.height_smooth;      % 梁せい平滑化固定データ
 
 % 共通配列の取得
@@ -78,7 +75,7 @@ xvar = xvar(:);                               % 設計変数を列ベクトル�
   Mc, C, vix, viy, rvec, rs, dfn, rvec0, rs0, rs_analysis0, ...
   Mc0, dfn0, state, sw, lf, lr, lmem, lnm, lb, Iy, Iz, gphiI, ...
   gphiAs, gphiAn, cphiI, cbs, baseline, node, story, floor, Cng, Cnc, ...
-  nomgc] = analysis_frame(secdim, com, options);
+  nomgc, Fs, isSNsec] = analysis_frame(secdim, com, options);
 lm = lmem.stiff;
 lm_weight = lmem.weight;
 
@@ -99,19 +96,6 @@ Zpy = msprop.Zpy;                            % 塑性断面係数（Y軸）
 Zpz = msprop.Zpz;                            % 塑性断面係数（Z軸）
 Em = msprop.E;                               % ヤング率
 Fm = msprop.F;                               % 基準強度
-isSNmem = msprop.isSN;                       % SN材判定フラグ（部材）
-
-% 断面ごとの基準強度を取得
-[uidm2s, uidmem] = unique(idm2s);
-ids2m = ones(nsec,1);
-ids2m(uidm2s) = uidmem;
-Fs = Fm(ids2m);                              % 断面の基準強度
-isSNsec = isSNmem(ids2m);                    % SN材判定フラグ（断面）
-% 梁・柱の要求種別を全断面番号で参照する配列へ展開する
-grank = zeros(nsec, 1);
-grank(com.section.girder.idsec) = com.section.girder.rank;
-crank = zeros(nsec, 1);
-crank(com.section.column.idsec) = com.section.column.rank;
 
 % H形梁の断面諸元を取得
 Ag = A(idmwfs2m);                            % 断面積
@@ -264,26 +248,13 @@ conwtg = []; conwtc = [];
 confa = []; confc = [];
 if coptions.consider_section_wt_ratio || coptions.consider_group_rank ...
     || need_result
-  % 群種別に関わる代表断面だけFC以上を要求する。入力値は変更しない
-  is_group = false(nsec, 1);
-  if coptions.consider_group_rank
-    idfl_group = find(com.floor.rank_group > 0);
-    idm2fl = com.member.property.idfloor;
-    idme = find(any(ismember(idm2fl, idfl_group), 2) ...
-      & ismember(mstype, [PRM.WFS PRM.HSS PRM.CWFS PRM.CWFSI]));
-    idme_rank = get_group_rank_members(com, idme);
-    ids = idsrep2s(com.section.property.idsrep(idm2s(idme_rank)));
-    is_group(ids) = true;
-  end
-  idg = idsrep2s(idsrep2stype == PRM.WFS);
-  idc = idsrep2s(ismember(idsrep2stype, [PRM.HSS PRM.CWFS PRM.CWFSI]));
-  grank(is_group) = min(grank(is_group), PRM.MEMBER_RANK_FC);
-  crank(is_group) = min(crank(is_group), PRM.MEMBER_RANK_FC);
-  [conwtg, conwtc, drank] = calc_wtratio(secdim, Fs, idsrep2s, ...
-    idsrep2stype, grank, crank, isSNsec, options);
-  is_wtcon = is_group | coptions.consider_section_wt_ratio;
-  conwtg = conwtg(is_wtcon(idg)) + coptions.alfa_section_wt_ratio;
-  conwtc = conwtc(is_wtcon(idc)) + coptions.alfa_section_wt_ratio;
+  % 通常評価と候補生成で実効要求と評価対象を共用する。
+  [grank, crank, is_wtcon, idg, idc] = get_wtratio_requirements( ...
+    com, options);
+  [conwt, drank] = eval_section_wtratio(secdim, com, options, ...
+    Fs, isSNsec, grank, crank, is_wtcon);
+  conwtg = conwt(idg);
+  conwtc = conwt(idc);
   if coptions.consider_group_rank || need_result
     % 判定ランクを代表断面から全断面へ展開し、種別別水平力を確定する
     ranksection = drank(com.section.property.idsrep);
@@ -412,6 +383,7 @@ if nargout==3
   result.cxl = cxl;
   result.cyl = cyl;
   result.Qnb = Qnb;
+  result.Qm = Qm;
   result.frame_shear_ratio = frame_shear_ratio;
   return
 end

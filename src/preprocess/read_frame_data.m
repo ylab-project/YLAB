@@ -571,6 +571,9 @@ com.faddnode_report_excl = faddnode_report_excl;
 com.ar = ar + ar_element;
 com.M0 = M0 + M0_element;
 
+% 未使用行の判定が終わった読込境界で、下流のフラグを論理型にする。
+com.design.variable.isvar = com.design.variable.isvar > 0;
+
 return
 end
 

@@ -29,7 +29,7 @@ idm2s = com.member.property.idsec;
 idn2s = com.node.idstory;
 mtype = com.member.property.type;
 mstype = com.member.property.section_type;
-isv = com.design.variable.isvar > 0;   % 未使用スロットは論理偽
+isv = com.design.variable.isvar;
 
 % 接合部数の数え上げ
 % TODO 対象階の指定方法を要見直し

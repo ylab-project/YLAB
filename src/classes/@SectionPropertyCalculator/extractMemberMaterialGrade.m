@@ -1,19 +1,19 @@
 function grade = extractMemberMaterialGrade(obj, secdim, matGrade)
-%extractMemberMaterialGrade 部材の材料鋼種を抽出
+%extractMemberMaterialGrade - 各部材の材料鋼種を抽出する
+%
 %   grade = extractMemberMaterialGrade(obj, secdim, matGrade) は、
-%   断面寸法データと材料鋼種配列を使用して、各部材に対応する
-%   鋼種（PRM.GRADE_SS/SN/SM）を抽出します。
+%   断面の材料番号を部材へ対応させ、鋼種を返す。
 %
 %   入力引数:
-%     secdim   - 断面寸法データ配列 [nsec × 7]
-%     matGrade - 材料鋼種配列 [nmat × 1]
+%     obj      - 断面性能計算オブジェクト
+%     secdim   - 全断面の寸法 [nsec×7]、第6・7列はリストと断面の番号
+%     matGrade - 材料の鋼種 [nmat×1] (PRM.GRADE_SS/SN/SM)
 %
 %   出力引数:
-%     grade - 各部材の鋼種配列 [nmember × 1]
+%     grade - 各部材の鋼種 [nme×1]、未割当は0
 %
 %   参考:
-%     extractMemberMaterialF, getIdMemberToMaterial
-
+%     extractMemberMaterialF, extractMemberMaterialId
 % 入力チェック
 if size(secdim, 2) < 7
   error('secdimは7列以上である必要があります');

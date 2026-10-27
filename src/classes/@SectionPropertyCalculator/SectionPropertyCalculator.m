@@ -13,7 +13,7 @@ classdef SectionPropertyCalculator < handle
   %     getSectionCostConstant - 断面コスト定数を取得
   %     getMemberCostFactor - 部材コスト係数を取得
   %     getSectionStressFactor - 断面応力係数を取得
-  %     extractSectionMaterialF - 断面の材料F値を抽出
+  %     extractSectionMaterialF - 断面の材料F値と材料番号を抽出
   %     extractMemberMaterialF - 部材の材料F値を抽出
   %     mapSectionToMaterial - 断面-材料IDマッピングを取得
   %     mapMemberToMaterial - 部材-材料IDマッピングを取得

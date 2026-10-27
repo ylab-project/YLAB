@@ -1,27 +1,27 @@
-function F = extractSectionMaterialF(obj, secdim, matF)
-%extractSectionMaterialF 断面の材料F値を抽出
-%   F = extractSectionMaterialF(obj, secdim, matF) は、
+function [F, idsec2mat] = extractSectionMaterialF(obj, secdim, matF)
+%extractSectionMaterialF - 全断面の材料F値と材料番号を抽出する
+%   [F, idsec2mat] = extractSectionMaterialF(obj, secdim, matF) は、
 %   断面寸法データと材料F値配列を使用して、各断面に対応する
-%   F値（許容応力度）を抽出します。
+%   F値（基準強度）と材料番号を抽出する。
 %
 %   入力引数:
-%     secdim - 断面寸法データ配列 [nsec × 7]
+%     obj - 断面性能計算オブジェクト
+%     secdim - 全断面の寸法データ配列 [nsec × 7]
 %              第6列: 断面リストID (idslist)
 %              第7列: 断面ID (idsection)
 %     matF - 材料F値配列 [nmat × 1]
 %
 %   出力引数:
-%     F - 各断面のF値配列 [nsec × 1]
+%     F         - 各断面のF値配列 [nsec × 1] (N/mm²)
+%     idsec2mat - 各断面の材料番号 [nsec × 1]（未割当は0）
 %
 %   例:
 %     secdim = [100, 100, 6, 9, 0, 1, 3; 200, 200, 8, 12, 0, 1, 5];
 %     matF = [235; 325; 400];
-%     F = calc.extractSectionMaterialF(secdim, matF);
+%     [F, idsec2mat] = calc.extractSectionMaterialF(secdim, matF);
 %
 %   参考:
-%     extractMemberMaterialF, getIdSectionToMaterial
-%        235
-%        235
+%     extractSectionMaterialId, extractMemberMaterialF
 
 % 入力チェック
 if size(secdim, 2) < 7
@@ -34,6 +34,7 @@ nsec = size(secdim, 1);
 % 空の配列の場合は空の結果を返す
 if nsec == 0
   F = zeros(0, 1);
+  idsec2mat = zeros(0, 1);
   return
 end
 
@@ -42,8 +43,6 @@ idsec2slist = secdim(:, ...
   [PRM.MAPPED_SECDIM_SLIST PRM.MAPPED_SECDIM_SECTION]);
 
 % 材料IDの取得
-% 注: extractSectionMaterialIdは全断面を前提とするが、
-% ここではsecdimの部分的な断面に対して適用
 idsec2mat = obj.extractSectionMaterialId(idsec2slist);
 
 % F値の抽出

@@ -22,69 +22,33 @@ function [confa, confc, drank, Qrank] = calc_group_rank(com, drank0, Qm)
 
 mp = com.member.property;
 nominal = com.nominal.property;
-floor = com.floor;
 idnm2m = nominal.idme;
 nmtype = nominal.mtype;
 idm2n = [mp.idnode1 mp.idnode2];
 drank = drank0;
 
-% 名目梁の全区間の最下位を、両端・内部の各節点へ集約する
-% 接続区間が未対応でも、同じ名目梁の他区間の種別は柱へ伝える
-ranknode = PRM.RANK_NONE * ones(numel(com.node.idz), 1);
-for inm = find(nmtype == PRM.GIRDER)'
-  idme = nonzeros(idnm2m(inm, :));
-  rank = max(drank0(idme));
-  drank(idme(drank0(idme) > PRM.RANK_NONE)) = rank;
-  idnode = unique(idm2n(idme, :));
-  ranknode(idnode) = max(ranknode(idnode), rank);
-end
+% 0埋めされた既存の区間対応から、名目部材の最下位を一括集約する。
+rank = [PRM.RANK_NONE; drank0];
+ranknominal = max(reshape(rank(idnm2m + 1), size(idnm2m)), [], 2);
+[inm, j] = find(idnm2m > 0);
+idme = idnm2m(sub2ind(size(idnm2m), inm, j));
 
-% 柱の全区間と接続梁の最下位を採り、未対応区間の0は維持する
-% 梁から柱への補正に限り、柱の種別を他の柱・梁へ伝えない
-for inm = find(nmtype == PRM.COLUMN)'
-  idme = nonzeros(idnm2m(inm, :));
-  idnode = unique(idm2n(idme, :));
-  rank = max([drank0(idme); ranknode(idnode)]);
-  drank(idme(drank0(idme) > PRM.RANK_NONE)) = rank;
-end
+% 名目梁の全区間を両端節点へ渡す。重複節点も同じ最大値となる。
+ids = nmtype(inm) == PRM.GIRDER;
+idnode = idm2n(idme(ids), :);
+rank = repmat(ranknominal(inm(ids)), 1, 2);
+ranknode = accumarray(idnode(:), rank(:), [numel(com.node.idz), 1], ...
+  @max, PRM.RANK_NONE);
 
-% 階上端を横切る区間だけを採り、内部分割の二重計上を避ける
-% 通し柱・多層梁は跨ぐ各階へ計上し、逆向きの負担も符号を保つ
-% 部材と対象階の組は加力ケースによらないので、読込時に数えた跨ぐ階から
-% 一度だけ作る
-target = ismember(mp.type, [PRM.COLUMN PRM.GIRDER]) & drank > 0;
-idfloor = mp.idfloor;
-idfloor(~target, :) = 0;
-[ime, ~, ifl] = find(idfloor);
-ime = ime(:);
-ifl = ifl(:);
-is_group_floor = floor.rank_group(ifl) > 0;
-ime = ime(is_group_floor);
-ifl = ifl(is_group_floor);
-idlc = find(ismember(com.loadcase.dir, [PRM.EXP PRM.EXN PRM.EYP PRM.EYN]));
-nfl = numel(floor.idz);
-nrank = numel(PRM.MEMBER_RANK_NAME);
-Qrank = zeros(nfl, size(Qm, 2), nrank);
-for ilc = idlc(:)'
-  Qrank(:, ilc, :) = reshape(accumarray([ifl drank(ime)], Qm(ime, ilc), ...
-    [nfl nrank]), nfl, 1, nrank);
-end
-
-% FD込みの水平力合計を分母とする。分母が0の割合制約だけを0とする
-Q = sum(Qrank(:, idlc, :), 3);
-confa = 1 - Qrank(:, idlc, PRM.MEMBER_RANK_FA) ./ Q ...
-  / PRM.GROUP_RANK_A_MIN_RATIO + floor.alfa_group_fa;
-limit = PRM.GROUP_RANK_A_MAX_C_RATIO * ones(numel(floor.idz), 1);
-limit(floor.rank_group == PRM.GROUP_RANK_B) = PRM.GROUP_RANK_B_MAX_C_RATIO;
-confc = Qrank(:, idlc, PRM.MEMBER_RANK_FC) ./ Q ./ limit ...
-  - 1 + floor.alfa_group_fc;
-confa(Q == 0) = 0;
-confc(Q == 0) = 0;
-confa = confa(floor.rank_group == PRM.GROUP_RANK_A, :);
-confc = confc(ismember(floor.rank_group, ...
-  [PRM.GROUP_RANK_A PRM.GROUP_RANK_B]), :);
-confa = confa(:);
-confc = confc(:);
+% 梁から柱への補正だけを行い、未対応区間の種別0を保つ。
+rank = [PRM.RANK_NONE; max(reshape(ranknode(idm2n), size(idm2n)), [], 2)];
+ids = nmtype == PRM.COLUMN;
+ranknominal(ids) = max(ranknominal(ids), max(reshape( ...
+  rank(idnm2m(ids, :) + 1), nnz(ids), size(idnm2m, 2)), [], 2));
+ids = ismember(nmtype(inm), [PRM.GIRDER PRM.COLUMN]) & ...
+  drank0(idme) > PRM.RANK_NONE;
+drank(idme(ids)) = ranknominal(inm(ids));
+[confa, confc, Qrank] = calc_group_rank_force(com, drank, Qm);
 
 return
 end

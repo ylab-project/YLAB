@@ -1,32 +1,22 @@
 function F = extractMemberMaterialF(obj, secdim, matF)
-%extractMemberMaterialF 部材の材料F値を抽出
+%extractMemberMaterialF - 各部材の材料F値を抽出する
+%
 %   F = extractMemberMaterialF(obj, secdim, matF) は、
-%   断面寸法データと材料F値配列を使用して、各部材に対応する
-%   F値（許容応力度）を抽出します。
+%   断面の材料番号を部材へ対応させ、F値（基準強度）を返す。
 %
 %   入力引数:
-%     secdim - 断面寸法データ配列 [nsec × 7]
-%              第6列: 断面リストID (idslist)
-%              第7列: 断面ID (idsection)
-%     matF - 材料F値配列 [nmat × 1]
+%     obj    - 断面性能計算オブジェクト
+%     secdim - 全断面の寸法 [nsec×7]、第6・7列はリストと断面の番号
+%     matF   - 材料のF値 [nmat×1] (N/mm²)
 %
 %   出力引数:
-%     F - 各部材のF値配列 [nmember × 1]
+%     F - 各部材のF値 [nme×1] (N/mm²)、未割当は0
 %
 %   例:
-%     secdim = [100, 100, 6, 9, 0, 1, 3; 200, 200, 8, 12, 0, 1, 5];
-%     matF = [235; 325; 400];
 %     F = calc.extractMemberMaterialF(secdim, matF);
 %
 %   参考:
-%     extractSectionMaterialF, getIdMemberToMaterial
-%        235
-%        235
-%        325
-%
-% See also
-%   extractSectionMaterialF, getIdMemberToMaterial
-
+%     extractSectionMaterialF, extractMemberMaterialId
 % 入力チェック
 if size(secdim, 2) < 7
   error('secdimは7列以上である必要があります');

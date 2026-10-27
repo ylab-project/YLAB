@@ -315,10 +315,31 @@ for iter = start_iter+1:max_iter+1
       %   idmaxvio_, ccategory_, idmaxvioc_, toc);
       % % ---
 
+      % 幅厚比と群種別は現在点から生成し、写像済みの組を維持する。
+      xlist_wt = zeros(0, numel(xvar));
+      sdlist_wt = result.secdim(:, :, []);
+      xlist_group = zeros(0, numel(xvar));
+      sdlist_group = result.secdim(:, :, []);
+      if copts.consider_section_wt_ratio || copts.consider_group_rank
+        [grank, crank, is_wtcon] = get_wtratio_requirements(com, options);
+        [Fs, isSNsec] = get_section_material_properties( ...
+          result.secdim, com);
+        [xlist_wt, sdlist_wt, conwt, drank] = restore_section_wtratio( ...
+          xvar, result.secdim, com, options, Fs, isSNsec, ...
+          grank, crank, is_wtcon);
+        [xlist_group, sdlist_group] = restore_group_rank(xvar, ...
+          result.secdim, result.Qm, com, options, conwt, drank, ...
+          Fs, isSNsec, grank, crank, is_wtcon);
+      end
+      % 近傍集合は反復ごとに再生成するため累積しない。
+      x_neighborhood = [x_neighborhood; xlist_wt; xlist_group]; %#ok<AGROW>
+      sd_neighborhood = cat(3, sd_neighborhood, sdlist_wt, sdlist_group);
+
       % 候補解集合の追加
       xlist  = [xlist; ...
         xlist_ggap; xlist_gsm; xlist_cgap; xlist_2;  ...
-        xlist_slr; xlist_jbs; xlist_cgsr]; %#ok<AGROW>
+        xlist_slr; xlist_jbs; xlist_cgsr; ...
+        xlist_wt; xlist_group]; %#ok<AGROW>
       xlist = unique(xlist, 'rows', 'stable');
 
       % if iter<=inf

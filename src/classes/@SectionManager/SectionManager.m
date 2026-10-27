@@ -668,8 +668,28 @@ classdef SectionManager < handle
     end
     
     % 断面・部材の材料情報抽出
-    function F = extractSectionMaterialF(secmgr, secdim, matF)
-      F = secmgr.propertyCalculator.extractSectionMaterialF(secdim, matF);
+    function [F, idmat] = extractSectionMaterialF(secmgr, secdim, matF)
+    %extractSectionMaterialF - 全断面の材料F値と材料番号を取得する
+    %
+    %   [F, idmat] = extractSectionMaterialF(secmgr, secdim, matF)
+    %   は、断面性能計算オブジェクトに材料取得を委譲する。
+    %
+    %   入力引数:
+    %     secmgr - 断面管理オブジェクト
+    %     secdim - 写像済みの全断面寸法 [nsec×7] (mm)
+    %     matF   - 材料のF値 [nmat×1] (N/mm²)
+    %
+    %   出力引数:
+    %     F     - 断面のF値 [nsec×1] (N/mm²)
+    %     idmat - 断面の材料番号 [nsec×1]（未割当は0）
+    %
+    %   参考:
+    %     SectionPropertyCalculator.extractSectionMaterialF
+
+      [F, idmat] = secmgr.propertyCalculator.extractSectionMaterialF( ...
+        secdim, matF);
+
+      return
     end
     function idMemberToMaterial = getIdMemberToMaterial( ...
         secmgr, idsec2slist)

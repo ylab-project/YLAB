@@ -356,6 +356,8 @@ classdef PRM
     GROUP_RANK_B_MAX_C_RATIO = 0.499
     % 柱・梁群の種別の表示名（表12.12のA～D）
     GROUP_RANK_NAME = {'A', 'B', 'C', 'D'}
+    % 群種別復元の二段階求解で共有する時間上限 (s)
+    GROUP_RANK_RESTORE_MAX_TIME = 3
 
     %% ブレース配置タイプ
     BRACE_MEMBER_TYPE_X = 1        % X型配置

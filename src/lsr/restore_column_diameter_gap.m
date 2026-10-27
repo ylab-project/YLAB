@@ -34,7 +34,7 @@ for id=1:max(idxy)
   % ペアと変更可能な変数を結び、固定柱を挟むペアは独立に扱う。
   ngap = size(idg2v,1);
   [ig, ~] = find(reshape(isvar(idg2v),size(idg2v)));
-  [~, ~, idg2x] = unique(idg2v(isvar(idg2v)));
+  [~, ~, idg2x] = unique(idg2v(isvar(idg2v) > 0));
   idg2x = idg2x(:);
   idgroup = conncomp(graph(ig,ngap+idg2x,[],ngap+max([0; idg2x])));
   idg2group(istarget) = max(idg2group) + idgroup(1:ngap);

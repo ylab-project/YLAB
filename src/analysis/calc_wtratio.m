@@ -1,28 +1,26 @@
-function [conwtg, conwtc, drank] = calc_wtratio(secdim, Fs, ...
-  idsrep2s, idsrep2stype, grank, crank, isSNsec, options)
+function [conwt, drank] = calc_wtratio(secdim, Fs, idsrep2s, ...
+  idsrep2stype, grank, crank, isSNsec, options)
 %calc_wtratio - 幅厚比の計算と幅厚比ランクの判定
 %
-%   [conwtg, conwtc, drank] = calc_wtratio(secdim, Fs,
+%   [conwt, drank] = calc_wtratio(secdim, Fs,
 %   idsrep2s, idsrep2stype, grank, crank, isSNsec, options) は、
-%   代表断面ごとに梁の幅厚比制約 conwtg（H形鋼の梁）と柱の幅厚比制約
-%   conwtc（角形鋼管とH形鋼の柱を代表断面の順に並べる）を計算する。
+%   H形鋼の梁、角形鋼管とH形鋼の柱を評価し、幅厚比制約と部材種別を
+%   全代表断面の順に返す。未対応断面は両出力とも0とする。
 %   H形鋼の柱は梁と同じ寸法列（H,B,tw,tf）に柱用の制限値を使う。
-%   第3出力は要求種別に依存しない幅厚比による部材種別で、
-%   群種別制約と帳票が使用する。全代表断面の順に返す。
+%   部材種別は要求種別に依存せず、群種別制約と帳票が使用する。
 %
 %   入力引数:
 %     secdim       - 断面寸法 [nsec×7] (mm)
 %     Fs           - 断面の基準強度 [nsec×1] (N/mm2)
-%     idsrep2s     - 代表断面に対応する断面番号
-%     idsrep2stype - 代表断面の形状種別
-%     grank, crank - 梁・柱の要求部材種別（断面番号で参照）
+%     idsrep2s     - 代表断面に対応する断面番号 [nsrep×1]
+%     idsrep2stype - 代表断面の形状種別 [nsrep×1]
+%     grank, crank - 梁・柱の要求部材種別 [nsec×1]
 %     isSNsec      - SN材の断面かどうか [nsec×1]
 %     options      - 計算条件
 %
 %   出力引数:
-%     conwtg - 代表H形梁の幅厚比制約値
-%     conwtc - 代表角形鋼管柱・H形柱の幅厚比制約値
-%     drank  - 全代表断面の判定種別 [nsrep×1]（未対応は0）
+%     conwt - 全代表断面の幅厚比制約値 [nsrep×1]（未対応は0）
+%     drank - 全代表断面の判定種別 [nsrep×1]（未対応は0）
 
 isSNH = isSNsec & options.consider_SNH_WTRATIO;
 
@@ -48,13 +46,12 @@ idcwfsrep = idsrep2s(is_cwfs);
   secdim(idcwfsrep,2), secdim(idcwfsrep,3), secdim(idcwfsrep,4), ...
   Fs(idcwfsrep), crank(idcwfsrep), isSNH(idcwfsrep), PRM.COLUMN);
 
-% 柱の制約値は代表断面の順で組み立て、柱の位置だけを取り出す
-conwtc = zeros(numel(idsrep2s), 1);
-conwtc(is_hss) = conwthss;
-conwtc(is_cwfs) = conwtcwfs;
-conwtc = conwtc(is_hss | is_cwfs);
+% 制約値と種別は全代表断面順に格納し、未対応の断面は0とする
+conwt = zeros(numel(idsrep2s), 1);
+conwt(is_wfs) = conwtg;
+conwt(is_hss) = conwthss;
+conwt(is_cwfs) = conwtcwfs;
 
-% 種別は全代表断面の順に格納し、未対応の断面だけを0とする
 drank = PRM.RANK_NONE * ones(numel(idsrep2s), 1);
 drank(is_wfs) = wfsdrank;
 drank(is_hss) = hssdrank;

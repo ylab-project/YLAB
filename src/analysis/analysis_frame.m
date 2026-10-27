@@ -2,8 +2,8 @@ function [msprop, dvec, dnode, felement, ignored_moment, ...
   stn, stcn, Mc, C, vix, viy, rvec, rs, dfn, rvec0, rs0, ...
   rs_analysis0, Mc0, dfn0, state, sw, lf, lr, lmem, lnm, ...
   lbnm, Iy0, Iz0, gphiI, gphiAs, gphiAn, cphiI, cbs, baseline, ...
-  node, story, floor, Cng, Cnc, nomgc] = analysis_frame(secdim, ...
-  com, options)
+  node, story, floor, Cng, Cnc, nomgc, Fs, isSNsec] = ...
+  analysis_frame(secdim, com, options)
 %analysis_frame - 骨組のマトリクス解析本体（剛性組立・変位・応力算定）
 %
 %   [msprop, ...] = analysis_frame(secdim, com, options) は、
@@ -61,6 +61,8 @@ function [msprop, dvec, dnode, felement, ignored_moment, ...
 %     Cng      - 名目梁の4検定位置の修正係数C [nng×4×nlc]
 %     Cnc      - 名目柱の修正係数C [nnc×2×nlc]（局所y・z軸まわり）
 %     nomgc    - 公称梁の検定位置情報（lb, xc, Mcn, Ncn 等）
+%     Fs       - 全断面の材料F値 [nsec×1] (N/mm²)
+%     isSNsec  - SN材の断面 [nsec×1]
 %
 %   備考:
 %     - 引張ブレース・支点浮き上がりが無い場合は Fast path を使用する。
@@ -116,10 +118,8 @@ nominal_property = com.nominal.property;
 M0 = com.M0;
 % comp_effect = com.member.girder.comp_effect;
 matE = com.material.E;
-matF = com.material.F;
 matpr = com.material.pr;
 matG = com.material.G;
-matisSN = com.material.isSN;
 matsteel_grade = com.material.steel_grade;
 matname = com.material.name;
 floor = com.floor;
@@ -171,7 +171,7 @@ ids2slist = SectionManager.getSectionListMapping(secdim);
 sprop = calc_secprop(secdim, stype, scallop, secmgr);
 msprop = structfun(@(values) values(idm2s,:), sprop, ...
   'UniformOutput', false);
-Fs = secmgr.extractSectionMaterialF(secdim, matF);
+[Fs, isSNsec, idsec2mat] = get_section_material_properties(secdim, com);
 msprop.F = Fs(idm2s);
 msdim = secdim(idm2s,:);
 A = msprop.A;
@@ -181,7 +181,7 @@ Iy = msprop.Iy;
 Iz = msprop.Iz;
 
 % 材料定数
-idm2mat = secmgr.getIdMemberToMaterial(ids2slist);
+idm2mat = idsec2mat(idm2s);
 
 % ヤング係数設定
 Em = zeros(nme,1);
@@ -198,7 +198,7 @@ end
 Fm = msprop.F;
 prm = zeros(nme,1); prm(idm2mat>0) = matpr(idm2mat(idm2mat>0));
 Gm = zeros(nme,1); Gm(idm2mat>0) = matG(idm2mat(idm2mat>0));
-isSNm = zeros(nme,1); isSNm(idm2mat>0) = matisSN(idm2mat(idm2mat>0));
+isSNm = double(isSNsec(idm2s));
 steel_grade_m = zeros(nme,1);
 steel_grade_m(idm2mat>0) = matsteel_grade(idm2mat(idm2mat>0));
 material_name_m = repmat({''}, nme, 1);
