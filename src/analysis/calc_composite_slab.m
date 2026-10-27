@@ -24,6 +24,9 @@ ba0 = member_girder.slab_width;
 Hc0 = member_girder.slab_thickness;
 Ec0 = member_girder.slab_E;
 Hd0 = member_girder.deck_height;
+% 通常床（NaN）にはデッキによる離隔がないため高さ0で計算する。
+% 自重計算では床種別を区別するので、入力の高さ配列は変更しない。
+Hd0(isnan(Hd0)) = 0;
 stype = member_girder.section_type;
 ispin = all(member_girder.joint==PRM.PIN,2);
 ispin = ispin(stype==PRM.WFS);

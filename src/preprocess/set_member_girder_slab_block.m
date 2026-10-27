@@ -1,11 +1,21 @@
 function member_girder = set_member_girder_slab_block(dbc, com)
 %set_member_girder_slab_block - スラブ協力幅データを読み込む
 %
-%   二重スラブ（上面・下面）を分離して格納する。
-%   列13「床面」が「下面」の行は下面用フィールドに格納し、
-%   それ以外は上面用フィールドに格納する。
+%   member_girder = set_member_girder_slab_block(dbc, com) は、
+%   スラブ協力幅と寸法を梁の左右・上下面ごとに読み込む。
+%   デッキ高さは空欄をNaN、明示された0を高さ0のデッキ床とする。
+%   列13「床面」が「下面」の行は下面へ、それ以外は上面へ格納する。
+%
+%   入力引数:
+%     dbc - 入力CSVのブロック読込オブジェクト
+%     com - 通り・材料・梁部材の情報を持つ構造体
+%
+%   出力引数:
+%     member_girder - スラブ協力幅・寸法を設定した梁部材情報
 
 data = dbc.get_data_block('スラブ協力幅');
+% 右側スラブ厚・デッキ高さ・床面の省略列を空欄として扱う。
+data(:,end+1:13) = {missing};
 n = size(data,1);
 
 % 共通定数
@@ -45,33 +55,25 @@ idmeg = find_idgirder_from_idxyz(idx, idy, idz, member_girder, ...
 slab_width = zeros(nmg,2);
 slab_thickness = zeros(nmg,2);
 slab_E = zeros(nmg,1);
-deck_height = zeros(nmg,2);
+deck_height = NaN(nmg,2);
 slab_width_l = zeros(nmg,2);
 slab_thickness_l = zeros(nmg,2);
 slab_E_l = zeros(nmg,1);
-deck_height_l = zeros(nmg,2);
-has_col13 = size(data,2) >= 13;
+deck_height_l = NaN(nmg,2);
 for i=1:n
   ids = idmeg(i,:);
   ids = ids(ids > 0);
   if isempty(ids); continue; end
 
   % 下面判定（列13）
-  is_lower = false;
-  if has_col13
-    v13 = data{i,13};
-    if ~any(ismissing(v13))
-      is_lower = strcmp(tochar(v13), '下面');
-    end
-  end
+  is_lower = strcmp(tochar(data{i,13}), '下面');
 
   % スラブデータの読み取り
   bl_ = data{i,6};  br_ = data{i,7};
   tl_ = data{i,8};  tr_ = tl_;
   if ~ismissing(data{i,10}); tr_ = data{i,10}; end
-  dhl_ = 0; dhr_ = 0;
-  if ~ismissing(data{i,11}); dhl_ = data{i,11}; end
-  if ~ismissing(data{i,12}); dhr_ = data{i,12}; end
+  dhl_ = read_deck_height(data, i, 11, dbc);
+  dhr_ = read_deck_height(data, i, 12, dbc);
   material_name = tochar(data{i,9});
   idm_ = find(matches(material.name, material_name));
   E_ = material.E(idm_);
@@ -105,6 +107,35 @@ member_girder.slab_width_lower = slab_width_l;
 member_girder.slab_thickness_lower = slab_thickness_l;
 member_girder.slab_E_lower = slab_E_l;
 member_girder.deck_height_lower = deck_height_l;
+
+return
+end
+
+function value = read_deck_height(data, irow, icol, dbc)
+%read_deck_height - デッキ高さの空欄と数値を区別して読む
+%
+%   value = read_deck_height(data, irow, icol, dbc) は、デッキ高さを
+%   NaN（空欄）または0以上の有限値として読み込む。入力範囲は
+%   SS7入力マニュアル7.11のデッキ高さに従う。
+%
+%   入力引数:
+%     data - スラブ協力幅の入力セル配列
+%     irow - ブロック内の行番号
+%     icol - 左右のデッキ高さの列番号
+%     dbc  - 元CSV行を示してエラー通知する読込オブジェクト
+%
+%   出力引数:
+%     value - 入力された高さ [mm]。通常の床はNaN
+
+[value, is_valid] = normalize_numeric_cell(data{irow,icol});
+if ~is_valid
+  dbc.throw_dat_err('スラブ協力幅', irow, 'Input', ...
+    'InvalidNumericValue', sprintf('デッキ高さ（%d列目）', icol));
+end
+if value < 0 || value > PRM.MAX_DECK_HEIGHT
+  dbc.throw_dat_err('スラブ協力幅', irow, 'Input', 'InvalidDeckHeight', ...
+    icol, PRM.MAX_DECK_HEIGHT, value);
+end
 
 return
 end

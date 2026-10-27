@@ -28,7 +28,8 @@ function sw = comp_self_weight(A, Asy, Iy, Em, Gm, lm_weight, ...
 %     msdim           - 部材断面寸法配列
 %     slab            - スラブ情報構造体（RC梁の重複スラブ控除用、
 %                       .width/.thickness/.width_lower/.thickness_lower
-%                       /.deck_height/.deck_height_lower）
+%                       /.deck_height/.deck_height_lower）。
+%                       デッキ高さのNaNは通常床、数値0もデッキ床
 %     cxl,cyl         - 部材座標系の方向余弦
 %     nnode           - 全節点数
 %     mejoint         - 結合条件配列
@@ -96,13 +97,13 @@ is_rc_girder = mtype==PRM.GIRDER & is_rc_member;
 % 梁せいを上回る入力に対する保護）。
 % S梁は対象外（床荷重は梁要素荷重として別途考慮される）。
 % デッキ床は SS7 式4.3 の対象外（「床（デッキ床除く）」）のため、
-% デッキ高さが入力された側は控除しない。t_left/t_right は仕上の
-% 周長控除（式4.9 の -Ls・t）でも再利用される。
+% デッキ高さがNaNの通常床だけを控除する。明示0もデッキ床である。
+% t_left/t_right は仕上の周長控除（式4.9 の -Ls・t）にも用いる。
 is_rc = is_rc_girder(mtype==PRM.GIRDER);
-has_slab_u = slab.width > 0 & slab.deck_height == 0;
+has_slab_u = slab.width > 0 & isnan(slab.deck_height);
 t_u1 = slab.thickness(:,1) .* has_slab_u(:,1);
 t_u2 = slab.thickness(:,2) .* has_slab_u(:,2);
-has_slab_l = slab.width_lower > 0 & slab.deck_height_lower == 0;
+has_slab_l = slab.width_lower > 0 & isnan(slab.deck_height_lower);
 t_l1 = slab.thickness_lower(:,1) .* has_slab_l(:,1);
 t_l2 = slab.thickness_lower(:,2) .* has_slab_l(:,2);
 % S梁の t は 0（差し引きなし）
@@ -392,6 +393,7 @@ sw.fg = fg;
 sw.fw = fw;
 sw.ar = ar;
 sw.M0 = M0;
+
 return
 end
 

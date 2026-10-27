@@ -252,6 +252,8 @@ classdef PRM
     COMPOSITE_SLAB_NONE = 0    % 合成効果なし
     COMPOSITE_SLAB_WIDTH = 1   % 幅指定
     COMPOSITE_SLAB_DIRECT = 2  % 直接指定
+    % SS7入力マニュアル7.11のデッキ高さの上限 [mm]
+    MAX_DECK_HEIGHT = 9999
 
     %% RC柱・梁Aの計算方法（せん断変形用・3択）
     RC_AREA_FLOOR_WALL_Q = 1    % 床と腰壁・垂壁を考慮
