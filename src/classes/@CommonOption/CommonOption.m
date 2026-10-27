@@ -171,8 +171,10 @@ classdef CommonOption
     algorithm (1,:) char {mustBeMember(algorithm, {'LSR', ...
       'LSFR', 'LSR_LSFR', 'GA'})} = 'LSFR'
     max_fusion_depth (1,1) double {mustBeInteger, ...
-      mustBeGreaterThanOrEqual(max_fusion_depth, 2)} = 6
-    max_num_fusion_seed (1,1) double {mustBePositive, mustBeInteger} = 50
+      mustBeGreaterThanOrEqual(max_fusion_depth, 2)} = 10
+    % 3操作終了後から毎段残す経路の割合（1なら全経路）
+    fusion_keep_ratio (1,1) double {mustBePositive, mustBeReal, ...
+      mustBeLessThanOrEqual(fusion_keep_ratio, 1)} = 0.70
     max_num_fusion_candidate (1,1) double {mustBePositive, ...
       mustBeInteger} = 20
     max_num_restoration_seed (1,1) double {mustBePositive, ...
@@ -216,7 +218,8 @@ classdef CommonOption
     mu0 double = [0.2*ones(1,PRM.MAX_NUM_PHASE-1) 1];
     mu(1,1) double;
     tau(1,1) double = 0;
-    omega(1,1) double = 0;
+    % PF差分がomega以上なら改善なしとみなす。
+    omega(1,1) double = -1e-6;
 
     % 計算用サイズ
     numc(1,1) double

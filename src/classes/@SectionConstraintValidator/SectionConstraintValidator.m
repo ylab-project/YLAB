@@ -41,6 +41,8 @@ classdef SectionConstraintValidator < handle
     % SectionManagerがDependentで参照するもの
     isVarofSlist            % 変数-断面リストマッピング [nxvar×nlist]
     columnBaseList          % 柱脚リスト [1×ncbs] 構造体配列
+    lb                      % 現在フェーズの下限値 [nxvar×1]
+    ub                      % 現在フェーズの上限値 [nxvar×1]
   end
 
   properties (Dependent)
@@ -58,7 +60,7 @@ classdef SectionConstraintValidator < handle
   methods
     function obj = SectionConstraintValidator(secList, ...
         standardAccessor, isVarofSlist, idMapper, columnBaseList)
-      %SectionConstraintValidator コンストラクタ
+      %SectionConstraintValidator - 断面制約と上下限を初期化する
       %   validator = SectionConstraintValidator(secList, ...
       %     standardAccessor, isVarofSlist, idMapper, columnBaseList) は、
       %   断面制約検証オブジェクトを作成します。
@@ -69,6 +71,9 @@ classdef SectionConstraintValidator < handle
       %     isVarofSlist - 変数-断面リスト対応 [nxvar×nlist]
       %     idMapper - IdMapperオブジェクト
       %     columnBaseList - 柱脚リスト [1×ncbs] 構造体配列
+      %
+      %   出力引数:
+      %     obj - 現在フェーズの上下限を持つ断面制約検証オブジェクト
       %
       %   例:
       %     validator = SectionConstraintValidator(secList, ...
@@ -89,6 +94,7 @@ classdef SectionConstraintValidator < handle
       obj.currentValidSectionFlagCell_ = {};
       obj.idMapper_ = idMapper;
       obj.initValidSectionFlagCell();
+      obj.updateGlobalBounds();
 
       return
     end

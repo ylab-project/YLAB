@@ -80,18 +80,13 @@ face_dimension_y = zeros(nmeg, 2);
 is_to_grid = false(nmeg, 2);
 
 idsec_face = {idsec_facel, idsec_facer};
-for ig = 1:nmeg
-  for iend = 1:2
-    if isthrough(ig, iend)
-      is_to_grid(ig, iend) = true;
-      continue
-    end
-    [face_dim, is_to_grid(ig, iend)] = ...
-      calc_face_dimension(idsec_face{iend}(ig,:), is_steel_g(ig), ...
-      is_steel_sec, Dc, Df_foundation);
-    face_dimension_x(ig, iend) = face_dim(1);
-    face_dimension_y(ig, iend) = face_dim(2);
-  end
+for iend = 1:2
+  [face_dim, is_to_grid(:, iend)] = calc_face_dimension( ...
+    idsec_face{iend}, is_steel_g, is_steel_sec, Dc, Df_foundation);
+  face_dim(isthrough(:, iend), :) = 0;
+  is_to_grid(isthrough(:, iend), iend) = true;
+  face_dimension_x(:, iend) = face_dim(:, 1);
+  face_dimension_y(:, iend) = face_dim(:, 2);
 end
 [face_deduct, ~, ~] = calc_girder_face_deduct(face_dimension_x, ...
   face_dimension_y, cxl);
@@ -125,52 +120,40 @@ return
 end
 
 function [face_dimension, is_to_grid] = calc_face_dimension( ...
-  ids_row, is_steel_g_, is_steel_sec_, Dc, Df_foundation)
-%calc_face_dimension - 片端の柱面寸法と通り心まで判定を算出
+  idsec_face, is_steel_g, is_steel_sec, Dc, Df_foundation)
+%calc_face_dimension - 梁端の柱面寸法と通り心までの端を求める
 %
-%   [face_dimension, is_to_grid] = calc_face_dimension(ids_row,
-%   is_steel_g_, is_steel_sec_, Dc, Df_foundation) は、
-%   梁の片端について数量控除対象の柱面寸法と、部材長を通り心まで
-%   とする端かどうかを算出する。
+%   [face_dimension, is_to_grid] = calc_face_dimension( ...
+%     idsec_face, is_steel_g, is_steel_sec, Dc, Df_foundation) は、
+%   既存の対面柱の順を保ち、対象柱の寸法を全梁で一括取得する。
 %
 %   入力引数:
-%     ids_row       - 対面柱断面IDの行 [1×ncol]
-%     is_steel_g_   - 梁がS造か (logical)
-%     is_steel_sec_ - 断面ごとのS造判定 [nsec×1]
-%     Dc            - 柱面寸法 [nsec×2]（X方向、Y方向）
-%     Df_foundation - 基礎柱面寸法 [nsec×1]
+%     idsec_face    - 各梁端の対面柱断面番号（0は対応なし）
+%     is_steel_g    - 梁がS造か [nmeg×1]
+%     is_steel_sec  - 各断面がS造か
+%     Dc            - 柱面寸法 [nsec×2] (mm)
+%     Df_foundation - 基礎柱面寸法 [nsec×1] (mm)
 %
 %   出力引数:
-%     face_dimension - 柱面寸法 [1×2]（X方向、Y方向）
-%     is_to_grid     - 通り心まで端か (logical)。対面柱があり
-%                      柱面控除を行わない組合せで true
+%     face_dimension - 控除する柱面寸法 [nmeg×2] (mm)
+%     is_to_grid     - 対面柱があり通り心までとする梁端
 
-face_dimension = [0 0];
-is_to_grid = false;
-ids = ids_row(ids_row > 0);
-if isempty(ids)
-  return
-end
-
-% 対面柱があり柱面控除が決まらない端は通り心までとする
-is_to_grid = true;
-for k = 1:length(ids)
-  is_steel_c = is_steel_sec_(ids(k));
-  if is_steel_g_ == is_steel_c
-    % 同種別（S-S または RC-RC）: 柱面まで減算
-    face_dimension = Dc(ids(k), :);
-    is_to_grid = false;
-    return;
-  elseif ~is_steel_g_ && is_steel_c
-    % RC梁-S柱: 基礎柱があれば基礎柱面まで、なければ通り心まで
-    Df = Df_foundation(ids(k));
-    if Df > 0
-      face_dimension = [Df Df];
-      is_to_grid = false;
-    end
-    return;
-  end
-end
+steel = [false; is_steel_sec];
+% S梁は最初のS柱、RC梁は最初の対面柱の条件を使う。
+ids = idsec_face > 0 & (~is_steel_g | reshape(steel(idsec_face + 1), ...
+  size(idsec_face)));
+[found, column] = max(ids, [], 2);
+idsec = idsec_face(sub2ind(size(idsec_face), (1:size(idsec_face, 1))', ...
+  column));
+idsec(~found) = 0;
+same_type = found & steel(idsec + 1) == is_steel_g;
+dimensions = [0 0; Dc];
+face_dimension = zeros(size(idsec_face, 1), 2);
+face_dimension(same_type, :) = dimensions(idsec(same_type) + 1, :);
+foundation = [0; Df_foundation];
+ids = found & ~same_type & foundation(idsec + 1) > 0;
+face_dimension(ids, :) = repmat(foundation(idsec(ids) + 1), 1, 2);
+is_to_grid = any(idsec_face > 0, 2) & ~same_type & ~ids;
 
 return
 end

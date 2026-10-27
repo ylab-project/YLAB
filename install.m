@@ -18,8 +18,10 @@ restoredefaultpath;
 % 基本パスの追加
 addpath(app_dir);
 app_paths = {'src', 'src/analysis', 'src/classes', 'src/lsr', ...
-  'src/postprocess', 'src/preprocess', 'src/util', 'src/gui'};
+  'src/lsfr', 'src/postprocess', 'src/preprocess', 'src/util', ...
+  'src/gui'};
 addpathlist_(app_dir, app_paths)
+
 return
 end
 
@@ -33,6 +35,9 @@ function addpathlist_(target_dir, paths)
 %   入力引数:
 %     target_dir - 起点ディレクトリの絶対パス (char)
 %     paths      - 相対パス文字列のセル配列 (cell of char)
+%
+%   出力引数:
+%     なし
 
 for i = 1:numel(paths)
   p = fullfile(target_dir, paths{i});
@@ -40,4 +45,6 @@ for i = 1:numel(paths)
     addpath(p);
   end
 end
+
+return
 end

@@ -28,183 +28,110 @@ function [lm_weight, lm_lower_extension] = calc_column_weight_length( ...
 %     lm_weight          - 荷重計算用部材長 [nmec×1] (mm)
 %     lm_lower_extension - 柱脚節点より下に延びる長さ [nmec×1] (mm)
 
-% 柱数
-nmec = length(member_column.idme);
-nfl = size(floor, 1);
-
-% 柱の節点情報
+nmec = numel(member_column.idme);
 idmc2n1 = member_column.idnode1;
 idmc2n2 = member_column.idnode2;
-
-% BRACE1（下側）は基礎梁内のRC部分であり、S柱自重の対象外。
-% BRACE2（上側）が実際のS柱であり、既存の計算式で自身のlm_weightを算出。
 ctype = member_column.type;
-
-% 梁の情報
-glv = member_girder.level;       % 梁レベル調整（下げが負）
-% idsecg→統一断面IDへ変換
-idmg2s = idsecg2sec(member_girder.idsecg);
-Hg = calc_girder_section_depth(secdim, stype_sec(idmg2s), idmg2s);
-
-% 柱と梁のS造判定（idsecc→統一断面IDへ変換）。RC矩形断面以外の
-% 柱・梁（角形鋼管・円形鋼管・H形鋼）はS造
-idmc2s = idsecc2sec(member_column.idsecc);
-is_steel_c = stype_sec(idmc2s) ~= PRM.RCRS;   % 柱がS造かどうか
-is_steel_g = stype_sec(idmg2s) ~= PRM.RCRS;   % 梁がS造かどうか
-
-% 柱に接続する梁ID
-idgx1 = member_column.idmeg_face1x;  % 柱脚X
-idgy1 = member_column.idmeg_face1y;  % 柱脚Y
-idgx2 = member_column.idmeg_face2x;  % 柱頭X
-idgy2 = member_column.idmeg_face2y;  % 柱頭Y
-
-% 1階判定用: 最下層の柱かどうか（最小のidstory）
-min_story = min(member_column.idstory);
-is_first_story = member_column.idstory == min_story;
-
-% BODYの柱脚節点・梁面は、idsplitで対応するFOUNDATIONから採る。
-% 分割のない柱では自身の柱脚を使う。
-is_brace2 = ctype == PRM.COLUMN_FOR_BRACE_BODY;
-is_brace1 = ctype == PRM.COLUMN_FOR_BRACE_FOUNDATION;
 idmc2base = (1:nmec)';
-if any(is_brace2)
-  idmc2base(is_brace2) = member_column.idsplit(is_brace2);
+ids = ctype == PRM.COLUMN_FOR_BRACE_BODY;
+if any(ids)
+  idmc2base(ids) = member_column.idsplit(ids);
 end
 idmc2nbase = idmc2n1(idmc2base);
+idmg2s = idsecg2sec(member_girder.idsecg);
+idmc2s = idsecc2sec(member_column.idsecc);
+is_steel_c = stype_sec(idmc2s) ~= PRM.RCRS;
+is_steel_g = [false; stype_sec(idmg2s) ~= PRM.RCRS];
+Hg = [0; calc_girder_section_depth(secdim, stype_sec(idmg2s), idmg2s)];
 
-% 下層柱抜け判定: 1階柱と人工分割されたBRACE1は対象外
-has_lower_column = ismember(idmc2nbase, idmc2n2);
-is_lower_column_missing = ~is_first_story & ~is_brace1 & ~has_lower_column;
-needs_beam_depth = is_first_story | is_lower_column_missing;
+% BODYの柱脚はFOUNDATIONの節点・梁面を用いる。
+idg1 = [member_column.idmeg_face1x(idmc2base, :) ...
+  member_column.idmeg_face1y(idmc2base, :)];
+idg2 = [member_column.idmeg_face2x member_column.idmeg_face2y];
+idnode1 = [0; member_girder.idnode1];
+idnode2 = [0; member_girder.idnode2];
+isthrough1 = [false; member_girder.isthrough(:, 1)];
+isthrough2 = [false; member_girder.isthrough(:, 2)];
+glv = [-inf; member_girder.level];
+max_glv1 = max(reshape(glv(idg1 + 1), size(idg1)), [], 2);
+max_glv2 = max(reshape(glv(idg2 + 1), size(idg2)), [], 2);
+max_glv1(~any(idg1, 2)) = 0;
+max_glv2(~any(idg2, 2)) = 0;
 
-% 通し梁フラグ [nmeg×3]: 列1=i端が通し, 列2=j端が通し, 列3=中央部が通し
-isthrough = member_girder.isthrough;
-
-% 梁の節点情報（柱頭節点と梁端の対応判定用）
-girder_idnode1 = member_girder.idnode1;
-girder_idnode2 = member_girder.idnode2;
-
-% 初期値: 柱脚〜柱頭間の標準階高を合算 + 節点移動分
-% （ダミー層を含む複数階にまたがる柱に対応）
+% 標準階高の加算順を保ち、節点移動と梁天端の高低差を反映する。
 lm_weight = zeros(nmec, 1);
 lm_lower_extension = zeros(nmec, 1);
+standard_height = floor.standard_height;
 for ic = 1:nmec
-  % BRACE1は基礎梁内のRC部分でありS柱自重の対象外
   if ctype(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
     continue
   end
-
-  % BRACE2はBRACE1のnode1を使用（分割節点のidzはフロア範囲外）
-  in1 = idmc2nbase(ic);
-  in2 = idmc2n2(ic);
-  ifl1 = node.idz(in1);       % 柱脚のフロアID
-  ifl2 = node.idz(in2) - 1;   % 柱頭のフロアID - 1
-
-  if ifl2 > nfl
-    continue
-  end
-
-  % 標準階高の合算 + 節点移動
-  lm_weight(ic) = sum(floor.standard_height(ifl1:ifl2)) ...
-    - node.dz(in1) + node.dz(in2);
-end
-
-for ic = 1:nmec
-  % BRACE1は基礎梁内のRC部分でありスキップ
-  if ctype(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
-    continue
-  end
-
-  % --- 柱脚側: 取り付く梁の最大glv ---
-  % BRACE2はBRACE1のface1を使用（分割節点には梁接続なし）
-  ic_f1 = idmc2base(ic);
-  idg1 = [idgx1(ic_f1,:) idgy1(ic_f1,:)];
-  idg1 = idg1(idg1 > 0);
-  if ~isempty(idg1)
-    max_glv1 = max(glv(idg1));  % 最も高い梁天端のglv
-  else
-    max_glv1 = 0;
-  end
-
-  % --- 柱頭側: 取り付く梁の最大glv ---
-  idg2 = [idgx2(ic,:) idgy2(ic,:)];
-  idg2 = idg2(idg2 > 0);
-  if ~isempty(idg2)
-    max_glv2 = max(glv(idg2));  % 最も高い梁天端のglv
-  else
-    max_glv2 = 0;
-  end
-
-  % --- 部材長 = 階高 + glv差分 ---
-  lm_weight(ic) = lm_weight(ic) + max_glv2 - max_glv1;
-
-  % --- 1階/下層柱抜け: 同種別なら最大梁せい分を追加 ---
-  % 柱脚側の梁を見て、通し梁の中間部は追加対象から除外する
-  if needs_beam_depth(ic) && ~isempty(idg1)
-    % 柱脚側の梁で、柱と同種別（S-S または RC-RC）のものの最大梁せいを取得
-    % 通し梁の中間部（両端でない）は除外
-    same_type_mask = is_steel_g(idg1) == is_steel_c(ic);
-    in1 = idmc2nbase(ic);  % 柱脚節点（BRACE2はBRACE1のnode1）
-    for k = 1:length(idg1)
-      ig = idg1(k);
-      % 梁のどちら側が柱脚に接続しているか
-      if girder_idnode1(ig) == in1
-        % 梁のi端が柱脚に接続 → i端が通しなら中間部
-        if isthrough(ig, 1)
-          same_type_mask(k) = false;
-        end
-      elseif girder_idnode2(ig) == in1
-        % 梁のj端が柱脚に接続 → j端が通しなら中間部
-        if isthrough(ig, 2)
-          same_type_mask(k) = false;
-        end
-      end
-    end
-    if any(same_type_mask)
-      max_beam_height = max(Hg(idg1(same_type_mask)));
-      lm_weight(ic) = lm_weight(ic) + max_beam_height;
-      if is_lower_column_missing(ic)
-        lm_lower_extension(ic) = max_beam_height;
-      end
-    end
-  end
-
-  % --- 通し梁中間部: 柱頭側の梁が通し梁の中間部なら梁せい分を減算 ---
-  % SS7の定義: 柱頭側の梁が一本部材の中間箇所の場合は
-  % 梁下面までとする
-  if ~isempty(idg2)
-    in2 = idmc2n2(ic);
-    for k = 1:length(idg2)
-      ig = idg2(k);
-      is_through_intermediate = false;
-      % 梁のどちら側が柱頭に接続しているか
-      if girder_idnode1(ig) == in2
-        % 梁のi端が柱頭に接続 → i端が通しなら中間部
-        is_through_intermediate = isthrough(ig, 1);
-      elseif girder_idnode2(ig) == in2
-        % 梁のj端が柱頭に接続 → j端が通しなら中間部
-        is_through_intermediate = isthrough(ig, 2);
-      end
-      % 通し梁の中間部かつ同種別なら梁せい分を減算
-      if is_through_intermediate && is_steel_g(ig) == is_steel_c(ic)
-        lm_weight(ic) = lm_weight(ic) - Hg(ig);
-        break;  % 1つの梁で減算したら終了
-      end
-    end
-  end
-
-  % --- 斜め柱対応: 水平移動量を考慮した斜め長さに変換 ---
-  % 節点同一化により柱頭が水平方向に移動している場合、
-  % 鉛直方向の部材長から斜め長さを計算する
-  in1 = idmc2n1(ic);
-  in2 = idmc2n2(ic);
-  dx = node.x(in2) - node.x(in1);
-  dy = node.y(in2) - node.y(in1);
-  horizontal = sqrt(dx^2 + dy^2);
-  if horizontal > 0
-    lm_weight(ic) = sqrt(lm_weight(ic)^2 + horizontal^2);
+  ifl1 = node.idz(idmc2nbase(ic));
+  ifl2 = node.idz(idmc2n2(ic)) - 1;
+  if ifl2 <= numel(standard_height)
+    lm_weight(ic) = sum(standard_height(ifl1:ifl2)) ...
+      - node.dz(idmc2nbase(ic)) + node.dz(idmc2n2(ic));
   end
 end
+lm_weight = lm_weight + max_glv2 - max_glv1;
+
+% 最下層・下層柱抜けでは、通し梁の中間端以外の梁せいを加える。
+is_first_story = member_column.idstory == min(member_column.idstory);
+is_lower_column_missing = ~is_first_story & ~ismember(idmc2nbase, ...
+  idmc2n2) & ctype ~= PRM.COLUMN_FOR_BRACE_FOUNDATION;
+is_intermediate = is_intermediate_connection(idmc2nbase, idg1, ...
+  idnode1, idnode2, isthrough1, isthrough2);
+ids = idg1 > 0 & reshape(is_steel_g(idg1 + 1), size(idg1)) == ...
+  is_steel_c & ~is_intermediate & (is_first_story | ...
+  is_lower_column_missing);
+height = max(reshape(Hg(idg1 + 1), size(idg1)) .* ids, [], 2);
+lm_weight = lm_weight + height;
+lm_lower_extension(is_lower_column_missing) = ...
+  height(is_lower_column_missing);
+
+% 柱頭は同じ構造種別の通し梁の中間箇所では梁せいを控除する。
+is_intermediate = is_intermediate_connection(idmc2n2, idg2, ...
+  idnode1, idnode2, isthrough1, isthrough2);
+ids = idg2 > 0 & reshape(is_steel_g(idg2 + 1), size(idg2)) == ...
+  is_steel_c & is_intermediate;
+[found, column] = max(ids, [], 2);
+idg = idg2(sub2ind(size(idg2), (1:nmec)', column));
+lm_weight = lm_weight - Hg(idg + 1) .* found;
+
+% 斜め柱の水平移動を反映し、基礎梁内の分割要素は自重対象外とする。
+dx = node.x(idmc2n2) - node.x(idmc2n1);
+dy = node.y(idmc2n2) - node.y(idmc2n1);
+horizontal = sqrt(dx.^2 + dy.^2);
+ids = horizontal > 0;
+lm_weight(ids) = sqrt(lm_weight(ids).^2 + horizontal(ids).^2);
+ids = ctype == PRM.COLUMN_FOR_BRACE_FOUNDATION;
+lm_weight(ids) = 0;
+lm_lower_extension(ids) = 0;
+
+return
+end
+
+function is_intermediate = is_intermediate_connection(idnode, idg, ...
+  idnode1, idnode2, isthrough1, isthrough2)
+%is_intermediate_connection - 柱の接続点が通し梁の中間端かを判定する
+%
+%   is_intermediate = is_intermediate_connection(idnode, idg, ...
+%     idnode1, idnode2, isthrough1, isthrough2) は、
+%   梁始端との一致を優先し、該当する端の通し指定を返す。
+%
+%   入力引数:
+%     idnode - 柱端の節点番号 [nmec×1]
+%     idg - 柱面の梁番号 [nmec×4]（0は梁なし）
+%     idnode1, idnode2 - 先頭に0を置いた梁端節点番号
+%     isthrough1, isthrough2 - 先頭にfalseを置いた梁端の通し指定
+%
+%   出力引数:
+%     is_intermediate - 通し梁の中間端への接続 [nmec×4]
+
+is_start = reshape(idnode1(idg + 1), size(idg)) == idnode;
+is_intermediate = (is_start & reshape(isthrough1(idg + 1), ...
+  size(idg))) | (~is_start & reshape(idnode2(idg + 1), ...
+  size(idg)) == idnode & reshape(isthrough2(idg + 1), size(idg)));
 
 return
 end

@@ -1,5 +1,5 @@
-function [xlist, sdlist] = findNearestXList( ...
-  obj, xlist0, options, initial_guess, com)
+function [xlist, sdlist] = findNearestXList(obj, xlist0, options, ...
+  initial_guess, com)
 %findNearestXList - 変数リストを最近傍断面へ写像する
 %
 %   [xlist, sdlist] = findNearestXList(obj, xlist0, options,
@@ -24,11 +24,9 @@ if nargin < 5
   com = [];
 end
 [nlist, ncols] = size(xlist0);
-do_parallel = nlist > 1 && isfield(options, 'do_parallel') && ...
-  options.do_parallel;
-use_worker_cache = do_parallel && isstruct(com) && ...
-  isfield(com, 'constant') && ...
-  isa(com.constant, 'parallel.pool.Constant');
+do_parallel = nlist > 1 && options.do_parallel;
+use_worker_cache = do_parallel && isstruct(com) && isfield(com, ...
+  'constant') && isa(com.constant, 'parallel.pool.Constant');
 xlist = zeros(nlist, ncols);
 sdlist = zeros(size(obj.dimension_, 1), PRM.MAPPED_SECDIM_NCOL, nlist);
 
@@ -37,27 +35,25 @@ if use_worker_cache
   parfor id = 1:nlist
     worker_com = worker_com_cache.Value; %#ok<PFBNS>
     worker_secmgr = worker_com.secmgr;
-    secdim = worker_secmgr.findNearestSection( ...
-      xlist0(id, :), options, initial_guess);
+    secdim = worker_secmgr.findNearestSection( xlist0(id, :), options, ...
+      initial_guess);
     sdlist(:, :, id) = secdim;
-    xlist(id, :) = worker_secmgr.findNearestXvar( ...
-      secdim, options, initial_guess);
+    xlist(id, :) = worker_secmgr.findNearestXvar( secdim, options, ...
+      initial_guess);
   end
 elseif do_parallel
   parfor id = 1:nlist
-    secdim = obj.findNearestSection( ...
-      xlist0(id, :), options, initial_guess); %#ok<PFBNS>
+    secdim = obj.findNearestSection( xlist0(id, :), options, ...
+      initial_guess); %#ok<PFBNS>
     sdlist(:, :, id) = secdim;
-    xlist(id, :) = obj.findNearestXvar( ...
-      secdim, options, initial_guess);
+    xlist(id, :) = obj.findNearestXvar( secdim, options, initial_guess);
   end
 else
   for id = 1:nlist
-    secdim = obj.findNearestSection( ...
-      xlist0(id, :), options, initial_guess);
+    secdim = obj.findNearestSection( xlist0(id, :), options, ...
+      initial_guess);
     sdlist(:, :, id) = secdim;
-    xlist(id, :) = obj.findNearestXvar( ...
-      secdim, options, initial_guess);
+    xlist(id, :) = obj.findNearestXvar( secdim, options, initial_guess);
   end
 end
 

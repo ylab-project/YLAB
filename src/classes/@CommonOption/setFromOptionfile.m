@@ -1,6 +1,15 @@
 function options = setFromOptionfile(options)
-%SET_FROM_OPTIONFILE この関数の概要をここに記述
-%   詳細説明をここに記述
+%setFromOptionfile - オプションCSVから共通設定を読み込む
+%
+%   options = setFromOptionfile(options) は、キーと値のCSVを読み、
+%   指定された設定を更新する。値の範囲はプロパティ代入時に検証する。
+%
+%   入力引数:
+%     options - optionfileに読込先を持つ共通オプション
+%
+%   出力引数:
+%     options - 読込後の共通オプション
+
 mat = readmatrix(options.optionfile, Delimiter=',', ...
   CommentStyle='%', OutputType='string', NumHeaderLines=0);
 
@@ -37,8 +46,8 @@ for i=1:size(mat,1)
       options.algorithm = char(mat{i,2});
     case 'max_fusion_depth'
       options.max_fusion_depth = str2double(mat{i,2});
-    case 'max_num_fusion_seed'
-      options.max_num_fusion_seed = str2double(mat{i,2});
+    case 'fusion_keep_ratio'
+      options.fusion_keep_ratio = str2double(mat{i,2});
     case 'max_num_fusion_candidate'
       options.max_num_fusion_candidate = str2double(mat{i,2});
     case 'max_num_restoration_seed'
@@ -54,4 +63,5 @@ for i=1:size(mat,1)
   end
 end
 
+return
 end

@@ -1,5 +1,21 @@
 function [xopt, fopt, exitflag, history] = lsr( ...
   xvar, com, history, options)
+%lsr - 近傍探索と復元候補の実評価で設計変数を更新する
+%
+%   [xopt, fopt, exitflag, history] = lsr(xvar, com, history, options)
+%   は、LSRまたはLSFRの候補を同じペナルティ係数で比較する。
+%   幅厚比・群種別の復元候補は写像済み断面と対で実評価へ渡す。
+%
+%   入力引数:
+%     xvar    - 初期設計変数
+%     com     - 断面・部材・解析条件の共通データ
+%     history - 再開する探索履歴（新規探索時は空）
+%     options - 探索条件と実行オプション
+%
+%   出力引数:
+%     xopt, fopt - 選択した設計変数と目的関数値
+%     exitflag   - 探索の終了状態
+%     history    - 各反復の評価値と選択した設計変数
 
 do_lsfr = strcmp(options.algorithm, 'LSFR') || ...
   (strcmp(options.algorithm, 'LSR_LSFR') && options.idphase >= 2);
@@ -57,10 +73,12 @@ if ~isempty(history)
   resume_rng_state = rng;
 end
 
-% 初期解の不整合除去
+% LSFRは初期値・前フェーズの採用値を保持して断面を選ぶ。
 x0 = xvar;
-secdim = secmgr.findNearestSection(xvar, options);
-xvar = secmgr.findNearestXvar(secdim, options);
+if is_pure_lsr
+  secdim = secmgr.findNearestSection(xvar, options);
+  xvar = secmgr.findNearestXvar(secdim, options);
+end
 if do_restration
   % xvar_ = restore_girder_height_gap(xvar, secdim, secmgr, options);
   xvar_ = restore_girder_height_gap_ip(xvar, 0, secmgr, isvar, options);
@@ -169,9 +187,9 @@ for iter = start_iter+1:max_iter+1
   %   options.do_parallel = false;
   % end
 
-  % 解析結果の更新
-  [cvec, result, restoration] = analysis_constraint_xvar( ...
-    xvar, com, options);
+  % 採否と係数更新は、採択時に保存したfvalとcvecを基準にする。
+  % 再解析では詳細結果だけを取得し、比較基準の丸め差を持ち込まない。
+  [~, result, restoration] = analysis_constraint_xvar(xvar, com, options);
   cxl = result.cxl;
   % st = restoration.st;
   % stc = restoration.stc;
@@ -361,7 +379,7 @@ for iter = start_iter+1:max_iter+1
   candidate_sdlist(:, :, is_reused) = ...
     sd_neighborhood(:, :, reuse_index(is_reused));
   if any(~is_reused)
-    [~, missing_sdlist] = secmgr.findNearestXList( ...
+    missing_sdlist = secmgr.findNearestSectionList( ...
       xlist(~is_reused, :), options, initial_guess, com);
     candidate_sdlist(:, :, ~is_reused) = missing_sdlist;
   end

@@ -136,9 +136,23 @@ classdef SectionManager < handle
     end
     
     function set.idphase(secmgr, val)
-      % フェーズIDと現在フェーズ用検索配列を同期
+      %set.idphase - フェーズと検索配列・上下限を同期する
+      %
+      %   secmgr.idphase = val は、規格値のフェーズを切り替え、有効断面
+      %   フラグと上下限を更新する。同じフェーズの再指定でも更新する。
+      %
+      %   入力引数:
+      %     secmgr - SectionManagerオブジェクト
+      %     val    - フェーズ番号
+      %
+      %   出力引数:
+      %     なし
+
       secmgr.standardAccessor_.idPhase = val;
       secmgr.constraintValidator_.updateValidSectionFlagCell(val);
+      secmgr.constraintValidator_.updateGlobalBounds();
+
+      return
     end
     
     %% neighborSearcherから取得するプロパティのgetter
@@ -482,13 +496,35 @@ classdef SectionManager < handle
     %% ConstraintValidatorへの委譲（制約関連）
     % 上下限値取得（全断面リストの統合値）
     function lb = get.lb(secmgr)
-      % 全断面リストの下限値を統合取得
-      lb = secmgr.constraintValidator_.getGlobalLowerBounds();
+      %get.lb - 現在フェーズの下限値を取得する
+      %
+      %   lb = secmgr.lb は、フェーズ設定時に確定した下限値を返す。
+      %
+      %   入力引数:
+      %     secmgr - SectionManagerオブジェクト
+      %
+      %   出力引数:
+      %     lb - 設計変数の下限値 [nxvar×1]
+
+      lb = secmgr.constraintValidator_.lb;
+
+      return
     end
     
     function ub = get.ub(secmgr)
-      % 全断面リストの上限値を統合取得
-      ub = secmgr.constraintValidator_.getGlobalUpperBounds();
+      %get.ub - 現在フェーズの上限値を取得する
+      %
+      %   ub = secmgr.ub は、フェーズ設定時に確定した上限値を返す。
+      %
+      %   入力引数:
+      %     secmgr - SectionManagerオブジェクト
+      %
+      %   出力引数:
+      %     ub - 設計変数の上限値 [nxvar×1]
+
+      ub = secmgr.constraintValidator_.ub;
+
+      return
     end
     
     %% ID変換用Dependentプロパティ（計算またはIdMapper委譲）
@@ -852,6 +888,38 @@ classdef SectionManager < handle
           xvar, idslist, options);
     end
     
+    function sdlist = findNearestSectionList(secmgr, xlist, ...
+        options, initial_guess, com)
+    %findNearestSectionList - 候補の設計変数から断面だけを選択する
+    %
+    %   sdlist = findNearestSectionList(secmgr, xlist, options,
+    %     initial_guess, com) は、各候補を変更せず規格断面へ写像する。
+    %
+    %   入力引数:
+    %     secmgr - SectionManagerインスタンス
+    %     xlist - 候補の設計変数 [nlist×nxvar]
+    %     options - 共通オプション
+    %     initial_guess - 基点の設計変数と断面。省略可能
+    %     com - workerへ配布する共通データ。省略可能
+    %
+    %   出力引数:
+    %     sdlist - 候補別の断面寸法 [nsec×7×nlist]
+    %
+    %   参考:
+    %     SectionNeighborSearcher.findNearestSectionList
+
+      if nargin < 4
+        initial_guess = [];
+      end
+      if nargin < 5
+        com = [];
+      end
+      sdlist = secmgr.neighborSearcher.findNearestSectionList( ...
+        xlist, options, initial_guess, com);
+
+      return
+    end
+
     function [xlist, sdlist] = findNearestXList(secmgr, xlist, ...
         options, initial_guess, com)
     %findNearestXList 変数リストから最近傍断面を選択

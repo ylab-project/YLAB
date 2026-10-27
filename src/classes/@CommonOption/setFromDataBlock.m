@@ -196,8 +196,8 @@ for i=1:size(data,1)
       options.algorithm = char(data{i,2});
     case 'max_fusion_depth'
       options.max_fusion_depth = data{i,2};
-    case 'max_num_fusion_seed'
-      options.max_num_fusion_seed = data{i,2};
+    case 'fusion_keep_ratio'
+      options.fusion_keep_ratio = data{i,2};
     case 'max_num_fusion_candidate'
       options.max_num_fusion_candidate = data{i,2};
     case 'max_num_restoration_seed'

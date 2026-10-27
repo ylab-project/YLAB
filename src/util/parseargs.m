@@ -67,6 +67,7 @@ addParameter(p, 'phase', options.idphase_resume);
 addParameter(p, 'iter', options.iter_resume);
 addParameter(p, 'maxiter', options.maxiter_in_LS);
 addParameter(p, 'maxphase', options.maxphase);
+addParameter(p, 'fusion_keep_ratio', options.fusion_keep_ratio);
 addParameter(p, 'lsfr_diagnostic_file', options.lsfr_diagnostic_file);
 addParameter(p, 'numworkers', options.num_workers);
 parse(p,varargin{:});
@@ -118,6 +119,13 @@ if ischar(p.Results.maxphase) || isstring(p.Results.maxphase)
   options.maxphase = str2double(p.Results.maxphase);
 else
   options.maxphase = p.Results.maxphase;
+end
+
+if ischar(p.Results.fusion_keep_ratio) || ...
+    isstring(p.Results.fusion_keep_ratio)
+  options.fusion_keep_ratio = str2double(p.Results.fusion_keep_ratio);
+else
+  options.fusion_keep_ratio = p.Results.fusion_keep_ratio;
 end
 
 % オプションファイルの読み込み

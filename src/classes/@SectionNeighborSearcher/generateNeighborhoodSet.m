@@ -44,10 +44,9 @@ idvlist_ = struct('up', [], 'dw', []);
 idvlist_(1:nvar) = struct('up', [], 'dw', []);
 
 % 並列処理フラグの確認（デフォルトはfalse）
-do_parallel = isfield(options, 'do_parallel') && options.do_parallel;
-use_worker_cache = do_parallel && isstruct(com) && ...
-  isfield(com, 'constant') && ...
-  isa(com.constant, 'parallel.pool.Constant');
+do_parallel = options.do_parallel;
+use_worker_cache = do_parallel && isstruct(com) && isfield(com, ...
+  'constant') && isa(com.constant, 'parallel.pool.Constant');
 
 % worker配布済みcom、通常の並列処理、逐次処理を切り替える。
 if use_worker_cache
@@ -60,8 +59,8 @@ if use_worker_cache
       continue
     end
 
-    [xlist_, idvlist_current] = enumerate_neighbor( ...
-      worker_searcher, xvar, idvar, vtype(idvar), options);
+    [xlist_, idvlist_current] = worker_searcher.enumerateNeighbor( ...
+      xvar, idvar, vtype(idvar), options);
     xcell{idvar} = xlist_;
     idvlist_(idvar) = idvlist_current;
   end
@@ -72,8 +71,8 @@ elseif do_parallel
       continue
     end
 
-    [xlist_, idvlist_current] = enumerate_neighbor( ...
-      obj, xvar, idvar, vtype(idvar), options);
+    [xlist_, idvlist_current] = obj.enumerateNeighbor( ...
+      xvar, idvar, vtype(idvar), options); %#ok<PFBNS>
     xcell{idvar} = xlist_;
     idvlist_(idvar) = idvlist_current;
   end
@@ -84,8 +83,8 @@ else
       continue
     end
 
-    [xlist_, idvlist_current] = enumerate_neighbor( ...
-      obj, xvar, idvar, vtype(idvar), options);
+    [xlist_, idvlist_current] = obj.enumerateNeighbor( ...
+      xvar, idvar, vtype(idvar), options);
     xcell{idvar} = xlist_;
     idvlist_(idvar) = idvlist_current;
   end
@@ -127,60 +126,7 @@ idvlist = [0; idvlist];
 idvlist = idvlist(ia);
 
 % 最近傍断面に調整し、同じ写像で得た断面寸法を保持
-[xlist, sdlist] = obj.findNearestXList(xlist, options, ...
-  initial_guess, com);
-
-return
-end
-
-%--------------------------------------------------------------------------
-function [xlist, idvlist] = enumerate_neighbor(searcher, xvar, ...
-  idvar, vtype_id, options)
-%enumerate_neighbor - 変数種別に応じた近傍断面を列挙
-%
-%   [xlist, idvlist] = enumerate_neighbor(searcher, xvar, idvar,
-%     vtype_id, options) は、指定した変数種別に対応する列挙メソッドを
-%   呼び出し、近傍断面と上下方向の行番号を返す。
-%
-%   入力引数:
-%     searcher - SectionNeighborSearcherインスタンス
-%     xvar     - 現在の変数値 [1×nxvar]
-%     idvar    - 列挙対象の変数ID
-%     vtype_id - 列挙対象の変数種別
-%     options  - 共通オプション
-%
-%   出力引数:
-%     xlist   - 列挙した近傍断面の変数値リスト
-%     idvlist - 上下方向の行番号（.up、.dw）
-
-xlist = [];
-idvlist = struct('up', [], 'dw', []);
-switch vtype_id
-  case PRM.WFS_H
-    [xlist, ~, ~, idvlist] = searcher.enumerateNeighborH( ...
-      xvar, idvar, options);
-  case PRM.WFS_B
-    [xlist, ~, ~, idvlist] = searcher.enumerateNeighborB( ...
-      xvar, idvar, options);
-  case PRM.WFS_TW
-    [xlist, ~, ~, ~, idvlist] = searcher.enumerateNeighborTw( ...
-      xvar, idvar, options);
-  case PRM.WFS_TF
-    [xlist, ~, ~, ~, idvlist] = searcher.enumerateNeighborTf( ...
-      xvar, idvar, options);
-  case PRM.HSS_D
-    [xlist, ~, ~, idvlist] = searcher.enumerateNeighborD( ...
-      xvar, idvar, options);
-  case PRM.HSS_T
-    [xlist, ~, ~, ~, idvlist] = searcher.enumerateNeighborT( ...
-      xvar, idvar, options);
-  case PRM.BRB_V1
-    [xlist, ~, ~, idvlist] = searcher.enumerateBrbV1( ...
-      xvar, idvar, options);
-  case PRM.BRB_V2
-    [xlist, ~, ~, idvlist] = searcher.enumerateBrbV2( ...
-      xvar, idvar, options);
-end
+[xlist, sdlist] = obj.findNearestXList(xlist, options, initial_guess, com);
 
 return
 end

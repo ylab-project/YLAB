@@ -1,9 +1,9 @@
 function [fval, fdetail, cost] = objective_lsr(secdim, ...
-  secmgr, node, section, member, floor)
+  secmgr, node, section, member, floor, A)
 %objective_lsr - 断面最適化の目的関数（鉄骨コスト）
 %
-%   [fval, fdetail, cost] = objective_lsr(secdim, secmgr,
-%   node, section, member, floor) は、写像済み断面寸法から
+%   [fval, fdetail, cost] = objective_lsr(secdim, secmgr, ...
+%     node, section, member, floor, A) は、写像済み断面寸法から
 %   部材重量・コストを算出し、目的関数値を返す。
 %
 %   入力引数:
@@ -13,6 +13,7 @@ function [fval, fdetail, cost] = objective_lsr(secdim, ...
 %     section - 断面データ構造体
 %     member  - 部材データ構造体
 %     floor   - 床データ構造体
+%     A       - 計算済み断面積 [nsec×1] (mm²)、省略・空なら計算
 %
 %   出力引数:
 %     fval    - 総コスト [スカラ]
@@ -39,8 +40,10 @@ column_base = section.column_base;
 column_base_list = secmgr.column_base_list;
 
 % 断面積の計算
-sprop = calc_secprop(secdim, stype, [], secmgr);
-A = sprop.A;
+if nargin < 7 || isempty(A)
+  sprop = calc_secprop(secdim, stype, [], secmgr);
+  A = sprop.A;
+end
 Am = A(idm2s);
 
 % RC断面を除外
@@ -68,8 +71,7 @@ lm_col = calc_column_weight_length(mcol_, mgir_, floor, ...
 
 % 梁: 柱面間内法の積算長さ
 lm_gir = calc_girder_weight_length(mgir_, node, ...
-  member.property.cxl(idmg2m, :), stype, idsg2s, secdim, ...
-  Df_foundation);
+  member.property.cxl(idmg2m, :), stype, idsg2s, secdim, Df_foundation);
 
 % ブレース: 標準階高の内法対角長
 mbrc_ = member.brace;
