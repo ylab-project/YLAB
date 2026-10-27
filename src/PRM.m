@@ -428,8 +428,7 @@ classdef PRM
     CONT_MARKER    = '<CONT>';
 
     %% 並列計算
-    % PARALLEL_PROFILE: 並列プールの起動と、numworkers の割合指定の
-    %   分母（既定ワーカー数）に使うクラスタプロファイル名
+    % PARALLEL_PROFILE: 並列プールを起動するクラスタプロファイル名
     PARALLEL_PROFILE = 'Processes';
 
     %% 節点重量表の表示下限
