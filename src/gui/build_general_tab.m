@@ -11,8 +11,8 @@ function h = build_general_tab(parent, options)
 %     h - 設定欄と表示欄のハンドルを持つ構造体
 
 tab = uitab(parent, 'Title', '基本設定');
-gl = uigridlayout(tab, [8, 3]);
-gl.RowHeight = {30, 30, 30, 30, 30, 30, 30, '1x'};
+gl = uigridlayout(tab, [9, 3]);
+gl.RowHeight = {30, 30, 30, 30, 30, 30, 30, 30, '1x'};
 gl.ColumnWidth = {110, '1x', 80};
 
 h = struct();
@@ -36,23 +36,30 @@ h.dd_algorithm = uidropdown(gl, 'Items', algorithm_items, 'ItemsData', ...
   {'LSR', 'LSFR', 'LSR_LSFR', 'GA'}, 'Value', options.algorithm);
 uilabel(gl, 'Text', '');
 
+% 整数と割合をそのまま指定できるようテキスト欄を使う。
+uilabel(gl, 'Text', 'ワーカー数:');
+h.edt_num_workers = uieditfield(gl, 'text', 'Value', ...
+  char(string(options.num_workers)), 'Placeholder', '100%', ...
+  'Tooltip', '正の整数または有効物理コア数に対する割合（既定100%）');
+uilabel(gl, 'Text', '例: 4, 50%');
+
 % コピー元を選び直しても、起動時の返却先は変わらない。
 uilabel(gl, 'Text', 'SS7返却先:');
 edt_target = uieditfield(gl, 'text', 'Value', options.outputfile, ...
   'Editable', 'off', 'Tooltip', 'GUI起動時のOutput File（編集不可）', ...
   'Placeholder', 'SS7返却先が指定されていません');
-edt_target.Layout.Row = 5;
+edt_target.Layout.Row = 6;
 edt_target.Layout.Column = [2 3];
 
 h.cb_pdf = uicheckbox(gl, 'Text', 'Create PDF Report');
 h.cb_pdf.Value = options.do_writeout_pdf;
-h.cb_pdf.Layout.Row = 6;
+h.cb_pdf.Layout.Row = 7;
 h.cb_pdf.Layout.Column = [1 3];
 
 h.cb_nopreprocess = uicheckbox(gl, 'Text', ...
   '断面リスト事前処理を無効化（比較用）');
 h.cb_nopreprocess.Value = ~options.do_preprocess_section_list;
-h.cb_nopreprocess.Layout.Row = 7;
+h.cb_nopreprocess.Layout.Row = 8;
 h.cb_nopreprocess.Layout.Column = [1 3];
 
 return

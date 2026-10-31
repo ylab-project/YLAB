@@ -46,6 +46,8 @@ fprintf(fid, 'YLAB( ...\n');
 fprintf(fid, '    ''uimode'', ''CUI'', ...\n');
 fprintf(fid, '    ''exemode'', ''%s'', ...\n', options.exemode);
 fprintf(fid, '    ''-alg:%s'', ...\n', options.algorithm);
+fprintf(fid, '    ''numworkers'', ''%s'', ...\n', ...
+  strrep(char(string(options.num_workers)), '''', ''''''));
 if ~options.do_preprocess_section_list
   fprintf(fid, '    ''-nopreprocess'', ...\n');
 end

@@ -18,16 +18,8 @@ function [num_workers, num_cores] = resolve_num_workers(spec)
 %     - 不正な指定は YLAB:Input:InvalidNumWorkers、コア数の取得に
 %       失敗した場合は YLAB:Env:ProcessorInfoFailed で停止する
 
-spec = convertStringsToChars(spec);
-is_percent = false;
-number = spec;
-if ischar(spec)
-  % 末尾の '%' を除いて数値化する
-  is_percent = endsWith(spec, '%');
-  number = str2double(spec(1:end-is_percent));
-end
-if ~(isscalar(number) && isfinite(number) && number > 0 ...
-    && (is_percent || number == floor(number)))
+[number, is_percent, is_valid] = parse_num_workers(spec);
+if ~is_valid
   throw_err('Input', 'InvalidNumWorkers', spec);
 end
 if is_percent || nargout >= 2

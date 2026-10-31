@@ -120,6 +120,8 @@ return
     h_gen.edt_input.Enable = ~is_copy;
     h_gen.btn_input.Enable = ~is_copy;
     h_gen.dd_algorithm.Enable = strcmp(source.Value, 'OPT');
+    h_gen.edt_num_workers.Enable = strcmp(source.Value, 'OPT') ...
+      && options.do_parallel;
     h_gen.cb_pdf.Enable = ~is_copy;
     h_gen.cb_nopreprocess.Enable = ~is_copy;
     h_hist.edt_matfile.Enable = ~is_copy;
@@ -356,7 +358,9 @@ return
         return
       end
     else
-      update_options();
+      if ~update_options()
+        return
+      end
       action = 'continue';
     end
     delete(fig);
@@ -375,7 +379,9 @@ return
   %   出力引数:
   %     なし
 
-    update_options();
+    if ~update_options()
+      return
+    end
 
     try
       [p, ~, ~] = fileparts(mod_options.inputfile);
@@ -444,7 +450,9 @@ return
   %   出力引数:
   %     なし
 
-    update_options();
+    if ~update_options()
+      return
+    end
     try
       [input_dir, ~, ~] = fileparts(mod_options.inputfile);
       if isempty(input_dir), input_dir = pwd; end
@@ -501,23 +509,38 @@ return
     return
   end
 
-  function update_options()
+  function is_valid = update_options()
   %update_options - 画面から計算設定を取り込む
   %
-  %   update_options() は、計算実行またはスクリプト生成に使う
-  %   CommonOptionを更新する。COPYでは呼び出さない。
+  %   is_valid = update_options() は、設定を検証して取り込む。
+  %   不正入力は画面で通知し、設定を更新せずにfalseを返す。
   %
   %   入力引数:
   %     なし
   %
   %   出力引数:
-  %     なし
+  %     is_valid - 設定を取り込めた場合はtrue
+  %                （外側のmod_optionsを更新）
+
+    % 空欄は並列プール起動時の既定値に従う
+    is_valid = true;
+    num_workers = strtrim(h_gen.edt_num_workers.Value);
+    if strcmp(h_gen.dd_exemode.Value, 'OPT') && options.do_parallel ...
+        && ~isempty(num_workers)
+      [~, ~, is_valid] = parse_num_workers(num_workers);
+      if ~is_valid
+        uialert(fig, '並列数は正の整数または N% で指定してください', ...
+          'エラー');
+        return
+      end
+    end
 
     % 基本設定
     mod_options.inputfile = h_gen.edt_input.Value;
     mod_options.outputfile = h_gen.edt_output.Value;
     mod_options.exemode = h_gen.dd_exemode.Value;
     mod_options.algorithm = h_gen.dd_algorithm.Value;
+    mod_options.num_workers = num_workers;
     mod_options.do_writeout_pdf = h_gen.cb_pdf.Value;
     mod_options.do_preprocess_section_list = ~h_gen.cb_nopreprocess.Value;
 

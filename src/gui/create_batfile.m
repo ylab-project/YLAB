@@ -1,14 +1,15 @@
 function bat_path = create_batfile(options, output_dir)
-%CREATE_BATFILE 実行用バッチファイルを作成する
+%create_batfile - 実行用バッチファイルを作成する
 %
-%   bat_path = create_batfile(options, output_dir)
+%   bat_path = create_batfile(options, output_dir) は、
+%   指定設定でEXEを実行するバッチファイルを作る。
 %
-%   Input:
-%       options - CommonOption オブジェクト
-%       output_dir - バッチファイルの保存先ディレクトリ (省略時はpwd)
+%   入力引数:
+%     options    - 計算設定のCommonOption
+%     output_dir - 保存先フォルダ（省略時は現在のフォルダ）
 %
-%   Output:
-%       bat_path - 作成されたバッチファイルのフルパス
+%   出力引数:
+%     bat_path - 生成したバッチファイルのパス
 
 % 実行中EXEパスが未確定（MATLAB実行時）ではbatを生成できない
 if isempty(options.exepath)
@@ -48,6 +49,9 @@ fprintf(fid, '%%EXE_PATH%% ^\r\n');
 fprintf(fid, '  uimode CUI ^\r\n');
 fprintf(fid, '  exemode %s ^\r\n', options.exemode);
 fprintf(fid, '  -alg:%s ^\r\n', options.algorithm);
+% 割合の '%' がバッチの変数展開で失われないよう二重化する。
+fprintf(fid, '  numworkers "%s" ^\r\n', ...
+  strrep(char(string(options.num_workers)), '%', '%%'));
 fprintf(fid, '  inputfile "%s" ^\r\n', options.inputfile);
 fprintf(fid, '  outputfile "%s"', options.outputfile);
 
@@ -72,4 +76,6 @@ fprintf(fid, '    pause\r\n');
 fprintf(fid, ')\r\n');
 
 fprintf(fid, 'endlocal\r\n');
+
+return
 end
