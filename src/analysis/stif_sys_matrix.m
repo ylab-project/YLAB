@@ -1,13 +1,12 @@
 function ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
-  cxl, cyl, lm, Em, Gm, xr, yr, lrxm, lrym, lrnm, cbstiff, ...
-  mtype, idn2df, idf2n, idm2n1, idm2n2, idm2scb, joint, ...
-  ndf, nbw, flag, br_stif, hstiff_type, factor_J)
+  cxl, cyl, lm, Em, Gm, xr, yr, lrxm, lrym, lrnm, kcb, ...
+  mtype, idn2df, idf2n, idm2n1, idm2n2, joint, ndf, nbw, flag, ...
+  br_stif, hstiff_type, factor_J)
 %stif_sys_matrix - 全体剛性行列の組立（帯行列形式）
 %
 %   ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, cxl, cyl, lm, ...
-%     Em, Gm, xr, yr, lrxm, lrym, lrnm, cbstiff, mtype, idn2df, ...
-%     idf2n, ...
-%     idm2n1, idm2n2, idm2scb, joint, ndf, nbw, flag, br_stif, ...
+%     Em, Gm, xr, yr, lrxm, lrym, lrnm, kcb, mtype, idn2df, idf2n, ...
+%     idm2n1, idm2n2, joint, ndf, nbw, flag, br_stif, ...
 %     hstiff_type, factor_J) は、各部材の要素剛性行列を組立て全体剛性
 %   行列を帯行列形式で返す。梁はstif_beam_matrix、ブレースは br_stif
 %   事前計算 ke を用いる。
@@ -21,12 +20,12 @@ function ksmat = stif_sys_matrix(A, Asy, Asz, Iy, Iz, JJ, ...
 %     xr, yr      - 剛床重心座標 [nnode×1]
 %     lrxm, lrym  - 曲げ用剛域長X/Y [nm×2]
 %     lrnm        - 材軸方向剛域長 [nm×2]
-%     cbstiff     - 複合梁剛性配列
+%     kcb         - 局所Y/Z軸回りの柱脚回転剛性 [nm×2]
+%                   (N.mm/rad)、Infは固定
 %     mtype       - 部材種別 [nm×1]（PRM.GIRDER等）
 %     idn2df      - 節点→自由度番号 [nnode×6]
 %     idf2n       - 自由度→節点番号 [ndf×2]
 %     idm2n1,idm2n2 - 部材両端節点番号 [nm×1]
-%     idm2scb     - 部材→複合梁マッピング [nm×1]
 %     joint       - 接合条件 [nm×4]
 %     ndf         - 全自由度数
 %     nbw         - 帯幅
@@ -103,14 +102,8 @@ for im = 1:nm
     Ei = Em(im); Gi = Gm(im);
     jointi = joint(im,:);
 
-    if idm2scb(im)>0
-      kcbi = cbstiff(idm2scb(im));
-      ke = stif_beam_matrix(li, Ai, Asyi, Aszi, Iyi, Izi, Ji, ...
-        Ei, Gi, lrxi, lryi, lrni, jointi, kcbi, flag);
-    else
-      ke = stif_beam_matrix(li, Ai, Asyi, Aszi, Iyi, Izi, Ji, ...
-        Ei, Gi, lrxi, lryi, lrni, jointi, [], flag);
-    end
+    ke = stif_beam_matrix(li, Ai, Asyi, Aszi, Iyi, Izi, Ji, ...
+      Ei, Gi, lrxi, lryi, lrni, jointi, kcb(im,:), flag);
 
     % 剛域を考慮した座標変換（柱は回転断面基底の面で適用）
     if any([lrxi lryi]>0)

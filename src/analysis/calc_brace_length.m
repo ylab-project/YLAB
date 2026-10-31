@@ -1,69 +1,22 @@
-function [lm_brace, Lx_all, Lz_all] = calc_brace_length(...
-  member_brace, member_girder, node)
-%calc_brace_length - ブレース部材長を算出
+function [lm_brace, Lx_all, Lz_all] = calc_brace_length(member_brace, node)
+%calc_brace_length - 解析節点間のブレース部材長を算出する
 %
-%   [lm_brace, Lx_all, Lz_all] = calc_brace_length(
-%     member_brace, member_girder, node) は、
-%   ブレース端点間の斜め距離（構造心間距離）を算出する。
-%   glv（梁レベル調整）を考慮し、分割節点では
-%   nodezに反映済みのためglvをスキップする。
+%   [lm_brace, Lx_all, Lz_all] = calc_brace_length(member_brace, node)
+%   は、確定した解析節点間の距離を求める。梁レベルによる構造階高の
+%   更新と柱の分割は座標へ反映済みであり、ここでは加算しない。
 %
 %   入力引数:
-%     member_brace  - ブレース部材テーブル
-%     member_girder - 梁部材テーブル
-%     node          - 節点テーブル (x, y, z, type)
+%     member_brace - 接続節点と形状を持つブレースデータ
+%     node         - 解析に使用する節点座標
 %
 %   出力引数:
-%     lm_brace - ブレース部材長 [nmeb×1]
-%     Lx_all   - 水平距離 [nmeb×1]
-%     Lz_all   - 鉛直距離（glv補正後） [nmeb×1]
+%     lm_brace - ブレース部材長 [nmeb×1] (mm)
+%     Lx_all   - 水平距離 [nmeb×1] (mm)
+%     Lz_all   - 鉛直距離 [nmeb×1] (mm)
 
-nmeb = length(member_brace.idme);
-
-% 水平距離
 Lx_all = calc_brace_Lx(member_brace, node);
-
-% ブレース節点
-idnode1 = member_brace.idnode1;
-idnode2 = member_brace.idnode2;
-
-% ブレース両端の採用梁
-selected_girder1 = member_brace.idmeg_selected1;
-selected_girder2 = member_brace.idmeg_selected2;
-
-% 梁レベル調整（下げが負）
-glv = member_girder.level;
-
-lm_brace = zeros(nmeb, 1);
-Lz_all = zeros(nmeb, 1);
-
-for ib = 1:nmeb
-  in1 = idnode1(ib);
-  in2 = idnode2(ib);
-
-  % 分割節点判定（glvスキップ用）
-  is_split1 = node.type(in1) == PRM.NODE_BRACE_FOR_COLUMN;
-  is_split2 = node.type(in2) == PRM.NODE_BRACE_FOR_COLUMN;
-
-  % glv補正（分割節点はnodezに反映済み）
-  ig1 = selected_girder1(ib);
-  glv1 = 0;
-  if ~is_split1 && ig1 > 0
-    glv1 = glv(ig1);
-  end
-
-  ig2 = selected_girder2(ib);
-  glv2 = 0;
-  if ~is_split2 && ig2 > 0
-    glv2 = glv(ig2);
-  end
-
-  Lz = node.z(in2) - node.z(in1) + glv2 - glv1;
-  Lz_all(ib) = Lz;
-
-  % 斜め距離（部材長）
-  lm_brace(ib) = sqrt(Lx_all(ib)^2 + Lz^2);
-end
+Lz_all = node.z(member_brace.idnode2) - node.z(member_brace.idnode1);
+lm_brace = sqrt(Lx_all.^2 + Lz_all.^2);
 
 return
 end

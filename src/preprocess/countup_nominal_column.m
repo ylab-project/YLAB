@@ -34,7 +34,13 @@ idsecc = member_column.idsecc;
 % 接続先に現れない柱を起点とし、内部分割の連結も保つ
 isprimary = true(nmc, 1);
 isprimary(idconnected(idconnected > 0)) = false;
-idnominal(isprimary, 1) = (1:nnz(isprimary)).';
+% 追加区間の有無によらず、入力柱の順序で名目柱番号を固定する。
+ids = find(isprimary);
+idorder = ids;
+is_foundation = member_column.type(ids) == PRM.COLUMN_FOR_BRACE_FOUNDATION;
+idorder(is_foundation) = member_column.idsplit(ids(is_foundation));
+[~, order] = sort(idorder);
+idnominal(ids(order), 1) = (1:numel(ids))';
 idnominal(isprimary, 2) = 1;
 
 % 接続関係を柱脚から柱頭へたどり、構成要素の順序を記録する

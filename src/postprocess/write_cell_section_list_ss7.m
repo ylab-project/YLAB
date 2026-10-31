@@ -185,7 +185,7 @@ for icb = 1:ncb
   end
   cbsbody{irow,5} = cbsDf(icb);
   cbsbody{irow,6} = cbsDf(icb);
-  cbsbody{irow,7} = cbstiff(icb)*1.d-9;
+  cbsbody{irow,7} = cbstiff(icb)*1.d-6;
 end
 
 % ブレース断面リストは呼び出し元から別関数で処理される
@@ -193,6 +193,9 @@ return
 %--------------------------------------------------------------------------
   function [grname, idsecg] = find_section_girder(secname)
   %find_section_girder - 出力制御ラベル順に梁符号と参照行を返す
+  %
+  %   [grname, idsecg] = find_section_girder(secname) は、
+  %   出力ラベルに対応する梁符号の先頭行を返す。
   %
   %   入力引数:
   %     secname - 梁断面の符号セル配列
@@ -209,11 +212,15 @@ return
       end
     end
     grname = options.output_girder_list_label';
+
     return
   end
 %--------------------------------------------------------------------------
   function [crname, idsecc] = find_section_column(secname)
   %find_section_column - 出力制御ラベル順に柱符号と参照行を返す
+  %
+  %   [crname, idsecc] = find_section_column(secname) は、
+  %   出力ラベルに対応する柱符号の先頭行を返す。
   %
   %   入力引数:
   %     secname - 柱断面の符号セル配列
@@ -230,11 +237,15 @@ return
       end
     end
     crname = options.output_column_list_label';
+
     return
   end
 %--------------------------------------------------------------------------
   function [grname, idsec] = sort_section_girder(secname)
   %sort_section_girder - 梁符号を文字列ソートして返す
+  %
+  %   [grname, idsec] = sort_section_girder(secname) は、
+  %   梁符号を文字列順に並べて元の行番号とともに返す。
   %
   %   入力引数:
   %     secname - 梁断面の符号セル配列
@@ -261,6 +272,7 @@ return
     % ソート
     [~, idsec] = sort(labels_tmp);
     grname = labels_(idsec);
+
     return
   end
 end

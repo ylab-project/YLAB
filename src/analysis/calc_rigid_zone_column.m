@@ -1,7 +1,8 @@
 function [lrcolumnx, lrcolumny] = calc_rigid_zone_column(secdim, stdh, ...
   mglevel, mgstype, idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y, ...
   idmc2st, idmg2sg, idsg2s, mcstype, idmc2s, cz_std)
-%calc_rigid_zone_column 柱の剛域長を計算
+%calc_rigid_zone_column - 柱の剛域長を計算
+%
 %   [lrcolumnx, lrcolumny] = calc_rigid_zone_column(secdim, stdh,
 %     mglevel, mgstype, idmc2mf1x, idmc2mf2x, idmc2mf1y, idmc2mf2y,
 %     idmc2st, idmg2sg, idsg2s, mcstype, idmc2s, cz_std) は、柱の
@@ -77,7 +78,8 @@ for ic=1:nmc
         % X方向梁の処理
         idm_ = idmc2mf1x(ic,:);
         idm_ = idm_(idm_>0);
-        if any(mgstype(idm_)==PRM.RCRS)
+        idm_ = idm_(mgstype(idm_) == PRM.RCRS);
+        if ~isempty(idm_)
           % RC梁が接続する場合
           rx = max([dh+mglevel(idm_); 0]);
           % SS7仕様：柱寸法×αを減じる
@@ -87,7 +89,8 @@ for ic=1:nmc
         % Y方向梁の処理
         idm_ = idmc2mf1y(ic,:);
         idm_ = idm_(idm_>0);
-        if any(mgstype(idm_)==PRM.RCRS)
+        idm_ = idm_(mgstype(idm_) == PRM.RCRS);
+        if ~isempty(idm_)
           ry = max([dh+mglevel(idm_); 0]);
           % SS7仕様：柱寸法×αを減じる
           ry = ry - alfa * col_B;  % Y方向梁なので柱幅を減じる

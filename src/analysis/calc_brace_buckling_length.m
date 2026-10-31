@@ -1,25 +1,27 @@
 function lm_brace_buckling = calc_brace_buckling_length(...
-  member_brace, member_girder, node, stype_sec, idsecg2sec, secdim)
+  member, node, section, secdim, options)
 %calc_brace_buckling_length - ブレース座屈長Lを算出
 %
 %   lm_brace_buckling = calc_brace_buckling_length(
-%     member_brace, member_girder, node,
-%     stype_sec, idsecg2sec, secdim) は、
-%   SS7 3.8.1 で定義されるブレース長さ L を算出する。
-%   S梁に取り付く端は梁部材心、RC梁に取り付く端は他点に近い
-%   方のコンクリート面をブレース端として扱う。
-%   idnode1 は常に下端、idnode2 は常に上端である前提。
+%     member, node, section, secdim, options) は、SS7 3.8.1の
+%   ブレース長さLを算出する。解析用の取り付き位置とは独立して
+%   基礎柱・基礎梁の天端を採用する。RC下端は梁天端を使う。
+%   idnode1は下端、idnode2は上端である前提とする。
 %
 %   入力引数:
-%     member_brace  - ブレース部材テーブル (has_girder1/2 必須)
-%     member_girder - 梁部材テーブル
-%     node          - 節点テーブル (z, z_standard, type 必須)
-%     stype_sec     - 断面種別配列 [nsec×1]
-%     idsecg2sec    - 梁断面ID→統一断面ID変換配列
-%     secdim        - 断面寸法配列 [nsec×ncol]
+%     member  - 接続柱梁と入力柱の端点を持つ部材データ
+%     node    - 節点データ (z, z_standard, type)
+%     section - 断面種別と部材別断面の対応
+%     secdim  - 断面寸法 [nsec×ncol] (mm)
+%     options - 基礎柱・基礎梁の天端の選択を持つオプション
 %
 %   出力引数:
-%     lm_brace_buckling - ブレース長さ L [nmeb×1]
+%     lm_brace_buckling - ブレース長さL [nmeb×1] (mm)
+
+member_brace = member.brace;
+member_girder = member.girder;
+stype_sec = section.property.type;
+idsecg2sec = section.girder.idsec;
 
 % 水平距離
 Lx_all = calc_brace_Lx(member_brace, node);
@@ -50,43 +52,49 @@ for ib = 1:nmeb
   ig1 = selected_girder1(ib);
   ig2 = selected_girder2(ib);
 
-  % 端部の基準レベル。接続梁はあるが採用梁がない端は、引き算の
-  % 対象になる梁がないため階高レベル（大梁天端）のままとする。
-  % 接続梁が1本もない端は、基礎梁天端に合わせた分割節点の node.z
-  % をそのまま使い、階高レベルへ丸めない。node.z は断面寸法から
-  % update_geometry_z が再計算するため、この判定は前処理へ移せない。
+  % 採用梁がない端は既存の接続条件による基準高さを使う。
+  % 基礎部の柱端は後段で指定された天端へ置き換える。
   z1 = node.z(in1);
-  if ig1 == 0 && has_girder1(ib)
+  if ig1 == 0 && has_girder1(ib) ...
+      && node.type(in1) ~= PRM.NODE_BRACE_FOR_COLUMN
     z1 = node.z_standard(in1);
   end
   z2 = node.z(in2);
-  if ig2 == 0 && has_girder2(ib)
+  if ig2 == 0 && has_girder2(ib) ...
+      && node.type(in2) ~= PRM.NODE_BRACE_FOR_COLUMN
     z2 = node.z_standard(in2);
   end
   is_split1 = node.type(in1) == PRM.NODE_BRACE_FOR_COLUMN;
   is_split2 = node.type(in2) == PRM.NODE_BRACE_FOR_COLUMN;
 
-  if ig1 > 0
-    if ~is_split1 && stype_gir(ig1) == PRM.WFS
+  if ig1 > 0 && ~is_split1
+    if stype_gir(ig1) == PRM.WFS
       z1 = girder_center_z_standard(node.z_standard(in1), ...
         glv(ig1), Hg_gir(ig1));
     else
-      z1 = z1 + glv(ig1);
-      if ~is_split1 && stype_gir(ig1) == PRM.RCRS
-        z1 = z1 + Hg_gir(ig1) / 2;
+      if stype_gir(ig1) == PRM.RCRS
+        z1 = node.z_standard(in1) + glv(ig1);
+      else
+        z1 = z1 + glv(ig1);
       end
     end
   end
-  if ig2 > 0
-    if ~is_split2 && stype_gir(ig2) == PRM.WFS
+  if ig2 > 0 && ~is_split2
+    if stype_gir(ig2) == PRM.WFS
       z2 = girder_center_z_standard(node.z_standard(in2), ...
         glv(ig2), Hg_gir(ig2));
     else
       z2 = z2 + glv(ig2);
-      if ~is_split2 && stype_gir(ig2) == PRM.RCRS
+      if stype_gir(ig2) == PRM.RCRS
         z2 = z2 - Hg_gir(ig2) / 2;
       end
     end
+  end
+
+  % 柱端の物理的な高さは解析節点や同スパン梁の有無と分けて求める。
+  ztop = calc_brace_foundation_z(ib, member, node, options);
+  if ~isnan(ztop)
+    z1 = ztop;
   end
 
   Lz = z2 - z1;

@@ -1,18 +1,17 @@
 function [member_brace, baseline, node, member_column, member_girder] = ...
-  set_member_brace_block(dbc, com, options)
+  set_member_brace_block(dbc, com)
 %set_member_brace_block - ブレース配置データの読み込みと処理
 %
 %   [member_brace, baseline, node, member_column, ...
 %     member_girder] = ...
-%     set_member_brace_block(dbc, com, options) は、
+%     set_member_brace_block(dbc, com) は、
 %   鉛直ブレース配置データを読み込み、ブレース部材テーブルを
-%   作成する。K形ブレースの梁分割、梁天端接続時の柱分割、
+%   作成する。K形ブレースの梁分割と
 %   BOTHペアの展開処理も行う。
 %
 %   入力引数:
 %     dbc     - データブロックコントローラ
 %     com     - 共通データ構造体
-%     options - オプション設定
 %
 %   出力引数:
 %     member_brace  - ブレース部材テーブル
@@ -242,47 +241,6 @@ for i=1:n
   end
 end
 
-%% 梁天端接続時の柱分割処理
-pos_brace_fg = options.position_brace_foundation_girder;
-if pos_brace_fg == PRM.BRACE_FOUNDATION_GIRDER_TOP && any(idz(:,1)==1 ...
-    & (brace_type == PRM.BRACE_MEMBER_TYPE_X ...
-    | brace_type == PRM.BRACE_MEMBER_TYPE_K_UPPER))
-  [baseline, node, member_column] = ...
-    split_column_for_brace_at_girder_top_func(baseline, node, ...
-      member_column, member_girder);
-
-  % 柱分割後、ブレースの idnode1（下端）を分割点に置き換え
-  % idnode1 は常に下端なので、K上/X形 ともに idnode1 を置換するだけでよい
-  for i=1:n
-    if idz(i,1) == 1 ...
-        && (brace_type(i) == PRM.BRACE_MEMBER_TYPE_K_UPPER ...
-        || brace_type(i) == PRM.BRACE_MEMBER_TYPE_X)
-      % 左側物理位置: X形 PAIR_L, K上 BOTH_L, BOTH（未展開）
-      is_left_pos = pair(i) == PRM.BRACE_MEMBER_PAIR_L ...
-        || pair(i) == PRM.BRACE_MEMBER_PAIR_BOTH_L ...
-        || pair(i) == PRM.BRACE_MEMBER_PAIR_BOTH;
-      if is_left_pos
-        idc_L = find(member_column.idx(:,1) == idx(i,1) & ...
-                     member_column.idy(:,1) == idy(i,1) & ...
-                     member_column.type == PRM.COLUMN_FOR_BRACE_BODY, 1);
-        if ~isempty(idc_L)
-          idnode1(i) = member_column.idnode1(idc_L);
-        end
-      end
-      % 右側物理位置: X形 PAIR_R, K上 BOTH_R
-      if pair(i) == PRM.BRACE_MEMBER_PAIR_R ...
-          || pair(i) == PRM.BRACE_MEMBER_PAIR_BOTH_R
-        idc_R = find(member_column.idx(:,1) == idx(i,2) ...
-          & member_column.idy(:,1) == idy(i,2) ...
-          & member_column.type == PRM.COLUMN_FOR_BRACE_BODY, 1);
-        if ~isempty(idc_R)
-          idnode1(i) = member_column.idnode1(idc_R);
-        end
-      end
-    end
-  end
-end
-
 %% 断面変数配列の取得
 mvar = PRM.MAX_NSVAR;
 idvar = zeros(n,mvar);
@@ -326,208 +284,9 @@ member_brace = table(floor_name, frame_name, coord_name, ...
 %% BOTHペアの展開処理
 if any(pair == PRM.BRACE_MEMBER_PAIR_BOTH)
   member_brace = expand_brace_pair_both_func(member_brace);
-
-  % BOTH_R展開後の柱分割点への節点置換（1階X形）
-  if pos_brace_fg == PRM.BRACE_FOUNDATION_GIRDER_TOP
-    nb_ = size(member_brace, 1);
-    for ib_ = 1:nb_
-      if member_brace.idz(ib_,1) ~= 1
-        continue
-      end
-      if member_brace.type(ib_) ~= PRM.BRACE_MEMBER_TYPE_X
-        continue
-      end
-      if member_brace.pair(ib_) ~= PRM.BRACE_MEMBER_PAIR_R
-        continue
-      end
-      % PAIR_R（X形右側対角）のidnode1（下端）を右柱分割点に置換
-      idc_ = find(member_column.idx(:,1) == member_brace.idx(ib_,2) ...
-        & member_column.idy(:,1) == member_brace.idy(ib_,2) ...
-        & member_column.type == PRM.COLUMN_FOR_BRACE_BODY, 1);
-      if ~isempty(idc_)
-        member_brace.idnode1(ib_) = member_column.idnode1(idc_);
-      end
-    end
-  end
 end
 
 return
-
-  function [baseline, node, member_column] = ...
-      split_column_for_brace_at_girder_top_func(baseline, node, ...
-        member_column, member_girder_arg)
-    %split_column_for_brace_at_girder_top_func - 梁天端接続時の柱分割
-    %
-    %   [baseline, node, member_column] = ...
-    %     split_column_for_brace_at_girder_top_func(
-    %       baseline, node, member_column, ...
-    %       member_girder_arg) は、
-    %   1階ブレース（X形・K上形）が梁天端に接続する場合、
-    %   柱を分割して接続節点を作成する。
-    %
-    %   入力引数:
-    %     baseline         - 通り線データ
-    %     node             - 節点データ
-    %     member_column    - 柱部材データ
-    %     member_girder_arg - 梁部材データ
-    %
-    %   出力引数:
-    %     baseline      - 更新された通り線データ
-    %     node          - 更新された節点データ
-    %     member_column - 更新された柱部材データ
-
-    nnode = size(node,1);
-    member_girder = member_girder_arg;
-    % ダミーZ通りの追加（ブレース接合部用）
-    baseline.z = [baseline.z; baseline.z(1,:)];
-    nz = size(baseline.z,1);
-    baseline.z.id(nz) = nz;
-    baseline.z.idstory(nz) = nz;
-    baseline.z.isdummy(nz) = true;
-    baseline.z.name(nz) = strcat(baseline.z.name(nz),'-BRACE-JOINT');
-
-    % 対象ブレースの抽出（1階のX形・K上形のみ）
-    id_target_brace = find(idz(:,1)==1 ...
-      & (brace_type == PRM.BRACE_MEMBER_TYPE_X ...
-      | brace_type == PRM.BRACE_MEMBER_TYPE_K_UPPER));
-    ntarget = length(id_target_brace);
-
-    % 追加節点が取り付く基礎梁を保持する
-    idfg = find_idgirder_from_idxyz(idx(id_target_brace,:), ...
-      idy(id_target_brace,:), idz(id_target_brace,[1 1]), ...
-      member_girder, [], baseline);
-    % 配列の事前確保（各ブレース最大2柱を上界として確保し末尾で切詰）
-    iac_all = zeros(ntarget*2, 1);
-    idnode_template_all = zeros(ntarget*2, 1);
-    idfg_all = zeros(ntarget*2, 1);
-    idz_target_all = zeros(ntarget*2, 1);
-
-    icnt = 0;
-    for ib=1:ntarget
-      tid_ = id_target_brace(ib);
-      pair_type = pair(tid_);
-
-      if brace_type(tid_) == PRM.BRACE_MEMBER_TYPE_K_UPPER
-        % K上形：pairに応じて分割対象の柱を決定（SS7整合）
-        % 左柱分割: BOTH_L（片(左)）または BOTH（両方）
-        if pair_type == PRM.BRACE_MEMBER_PAIR_BOTH_L ...
-            || pair_type == PRM.BRACE_MEMBER_PAIR_BOTH
-          iac_L = find_idcolumn_from_idxyz(idx(tid_,[1 1]), ...
-            idy(tid_,[1 1]), [idz(tid_,1), idz(tid_,1)+1], member_column);
-          icnt = icnt + 1;
-          iac_all(icnt) = iac_L;
-          idnode_template_all(icnt) = member_column.idnode1(iac_L);
-          idfg_all(icnt) = idfg(ib);
-          idz_target_all(icnt) = idz(tid_, 1);
-        end
-        % 右柱分割: BOTH_R（片(右)）または BOTH（両方）
-        if pair_type == PRM.BRACE_MEMBER_PAIR_BOTH_R ...
-            || pair_type == PRM.BRACE_MEMBER_PAIR_BOTH
-          iac_R = find_idcolumn_from_idxyz(idx(tid_,[2 2]), ...
-            idy(tid_,[2 2]), [idz(tid_,1), idz(tid_,1)+1], member_column);
-          icnt = icnt + 1;
-          iac_all(icnt) = iac_R;
-          idnode_template_all(icnt) = member_column.idnode1(iac_R);
-          idfg_all(icnt) = idfg(ib);
-          idz_target_all(icnt) = idz(tid_, 1);
-        end
-      else
-        % X形：ペアに応じた柱を分割
-        if pair_type == PRM.BRACE_MEMBER_PAIR_L
-          iac_L = find_idcolumn_from_idxyz(idx(tid_,[1 1]), ...
-            idy(tid_,[1 1]), [idz(tid_,1), idz(tid_,1)+1], member_column);
-          icnt = icnt + 1;
-          iac_all(icnt) = iac_L;
-          idnode_template_all(icnt) = member_column.idnode1(iac_L);
-          idfg_all(icnt) = idfg(ib);
-          idz_target_all(icnt) = idz(tid_, 1);
-        elseif pair_type == PRM.BRACE_MEMBER_PAIR_R
-          iac_R = find_idcolumn_from_idxyz(idx(tid_,[2 2]), ...
-            idy(tid_,[2 2]), [idz(tid_,1), idz(tid_,1)+1], member_column);
-          icnt = icnt + 1;
-          iac_all(icnt) = iac_R;
-          idnode_template_all(icnt) = member_column.idnode1(iac_R);
-          idfg_all(icnt) = idfg(ib);
-          idz_target_all(icnt) = idz(tid_, 1);
-        elseif pair_type == PRM.BRACE_MEMBER_PAIR_BOTH
-          % BOTH：左右両方の柱を分割
-          iac_L = find_idcolumn_from_idxyz(idx(tid_,[1 1]), ...
-            idy(tid_,[1 1]), [idz(tid_,1), idz(tid_,1)+1], member_column);
-          iac_R = find_idcolumn_from_idxyz(idx(tid_,[2 2]), ...
-            idy(tid_,[2 2]), [idz(tid_,1), idz(tid_,1)+1], member_column);
-          icnt = icnt + 1;
-          iac_all(icnt) = iac_L;
-          idnode_template_all(icnt) = member_column.idnode1(iac_L);
-          idfg_all(icnt) = idfg(ib);
-          idz_target_all(icnt) = idz(tid_, 1);
-          icnt = icnt + 1;
-          iac_all(icnt) = iac_R;
-          idnode_template_all(icnt) = member_column.idnode1(iac_R);
-          idfg_all(icnt) = idfg(ib);
-          idz_target_all(icnt) = idz(tid_, 1);
-        end
-      end
-    end
-
-    % 使用分に切詰
-    iac_all = iac_all(1:icnt);
-    idnode_template_all = idnode_template_all(1:icnt);
-    idfg_all = idfg_all(1:icnt);
-    idz_target_all = idz_target_all(1:icnt);
-
-    % Z座標の計算
-    zcoord_all = member_girder.level(idfg_all);
-
-    % 重複する柱・Z座標の統合（同一位置の節点は1つだけ作成）
-    [~, idu2o, ~] = unique([iac_all zcoord_all],'rows','stable');
-
-    if isempty(idu2o)
-      return
-    end
-
-    iac = iac_all(idu2o);
-    idnode_template = idnode_template_all(idu2o);
-    zcoord = zcoord_all(idu2o);
-    idfg_brace_top = idfg_all(idu2o);
-    idz_brace_top = idz_target_all(idu2o);
-
-
-    % 追加節点の作成
-    add_node = node(idnode_template,:);
-    add_node.idz(:) = nz;
-    % dzは柱脚節点からコピー
-    add_node.dz = node.dz(member_column.idnode1(iac));
-    add_node.idfg_brace_top = idfg_brace_top;
-    add_node.idz_brace_top = idz_brace_top;
-    zstandard = baseline.z.coord_standard(idz_brace_top);
-    add_node.z = zstandard + add_node.dz + zcoord(:);
-    add_node.z_standard = zstandard + add_node.dz;
-    add_node.type(:) = PRM.NODE_BRACE_FOR_COLUMN;
-    add_node.zname(:) = baseline.z.name(nz);
-
-    % 柱の分割（下側：FOUNDATION、上側：BODY）
-    ncolumn_original = size(member_column,1);
-    member_column.idsplit = zeros(ncolumn_original,1);
-    add_column = member_column(iac,:);
-    add_column.type(:) = PRM.COLUMN_FOR_BRACE_FOUNDATION;
-    add_column.idnode2 = (1:length(iac))' + nnode;
-    add_column.idz(:,2) = nz;
-    member_column.idnode1(iac) = (1:length(iac))' + nnode;
-    member_column.idz(iac,1) = nz;
-    member_column.type(iac) = PRM.COLUMN_FOR_BRACE_BODY;
-
-    % 元の名目柱を検索したとき上下両要素を取得できるようにする
-    member_column.idsplit(iac) = ncolumn_original + (1:length(iac))';
-    add_column.idsplit = iac;
-
-    % 結果の更新と分割後の柱軸方向余弦の再計算
-    node = [node; add_node];
-    member_column = [member_column; add_column];
-    member_column.cz_std = calc_column_standard_cosine_z( ...
-      member_column.idnode1, member_column.idnode2, node);
-
-    return
-  end
 
   function [idnode_mid_array, baseline, node, member_girder] = ...
       split_girder_for_kbrace_func(baseline, node, member_girder)
@@ -892,18 +651,6 @@ return
         i_src = expand_idx(ie);
         % 既定: 右脚基部は反対側遠端節点（R_far）
         tb_add.idnode1(ie) = idnode_k_R_far_src(i_src);
-        is_fg_top_ = pos_brace_fg == PRM.BRACE_FOUNDATION_GIRDER_TOP ...
-          && tb_add.idz(ie, 1) == 1;
-        if is_fg_top_
-          % 基礎梁上端＋1層目は柱分割BODY柱下端を優先
-          idc_right = find(member_column.idx(:,1) == tb_add.idx(ie,2) ...
-            & member_column.idy(:,1) == tb_add.idy(ie,2) ...
-            & member_column.type == PRM.COLUMN_FOR_BRACE_BODY, 1);
-          if ~isempty(idc_right)
-            tb_add.idnode1(ie) = member_column.idnode1(idc_right);
-          end
-        end
-
       % K下形の場合
       elseif brace_type_expand(ie) == PRM.BRACE_MEMBER_TYPE_K_LOWER
         % 右側：中間→上柱頭(R_far)（BOTH_L、／）
@@ -974,7 +721,6 @@ return
     return
   end
 end
-
 
 function idgirder = select_kbrace_girder_func(idgirder_list, ...
   x_mid, y_mid, member_girder, node, match_tol, idbrace)

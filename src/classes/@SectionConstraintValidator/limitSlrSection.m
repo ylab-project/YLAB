@@ -12,21 +12,24 @@ function limitSlrSection(obj, member, nominal, lm, secmgr, options)
 %     options - オプション構造体
 %     secmgr  - SectionManagerインスタンス
 %
+%   出力引数:
+%     なし（objの断面候補フラグを更新する）
+%
 %   参考:
 %     SectionConstraintValidator, limitJbsSection
 
 % 定数
 idphase = 999;
 nsec = length(obj.idsec2stype);
-nme = secmgr.nme;
-nmwfs = secmgr.nmewfs;
+nme = height(member.property);
+nmwfs = nnz(member.property.section_type == PRM.WFS);
 nlist_ = obj.nlist;
 scallop = options.girder_scallop_size;
 
 % 計算の準備
 idsec2slist_ = obj.idsec2slist;
 idsec2stype_ = obj.idsec2stype;
-idme2sec = secmgr.idme2sec;
+idme2sec = member.property.idsec;
 
 % 部材関連のデータ準備
 idmg2m = member.girder.idme;

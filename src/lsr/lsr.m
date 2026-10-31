@@ -30,24 +30,12 @@ if ~isfinite(max_iter)
 end
 ppp = 3;
 
-% ID配列
-idmc2m = com.member.column.idme;
-idm2n = [com.member.property.idnode1 com.member.property.idnode2];
-
 % 共通配列
-cgsr = com.cgsr;
-Dgap = com.Dgap;
 matF = com.material.F;
 matGrade = com.material.steel_grade;
-mdir = com.member.property.idir;
-mtype = com.member.property.type;
 secmgr = com.secmgr;
-section = com.section;
-member = com.member;
 % member_girder = com.member.girder;
 % member_property = com.member.girder;
-node = com.node;
-floor = com.floor;
 isvar = com.design.variable.isvar;
 
 % 条件設定
@@ -92,8 +80,10 @@ end
 % restoration 後の xvar に対応する断面を1回だけ写像し、制約評価と
 % 目的関数評価で共有する（_xvar ラッパ内の二重写像を避ける）
 secdim = secmgr.findNearestSection(xvar, options);
+com = update_frame_data(secdim, com, options);
 cvec = analysis_constraint(xvar, secdim, com, options);
-fval = objective_lsr(secdim, secmgr, node, section, member, floor);
+fval = objective_lsr(secdim, secmgr, com.node, com.section, ...
+  com.member, com.floor);
 cache = initialize_cache();
 save_cache(xvar, fval, cvec);
 if ~isempty(resume_rng_state)
@@ -189,7 +179,16 @@ for iter = start_iter+1:max_iter+1
 
   % 採否と係数更新は、採択時に保存したfvalとcvecを基準にする。
   % 再解析では詳細結果だけを取得し、比較基準の丸め差を持ち込まない。
-  [~, result, restoration] = analysis_constraint_xvar(xvar, com, options);
+  secdim = secmgr.findNearestSection(xvar, options);
+  com = update_frame_data(secdim, com, options);
+  member = com.member;
+  idmc2m = member.column.idme;
+  idm2n = [member.property.idnode1 member.property.idnode2];
+  mtype = member.property.type;
+  cgsr = com.cgsr;
+  Dgap = com.Dgap;
+  [~, result, restoration] = analysis_constraint(xvar, secdim, com, ...
+    options);
   cxl = result.cxl;
   % st = restoration.st;
   % stc = restoration.stc;
@@ -317,8 +316,8 @@ for iter = start_iter+1:max_iter+1
         end
       end
       xlist_cgsr = restore_cgstrength_ratio(xlist_slr, cgsr_sdlist, ...
-        vix, viy, cgsr, idm2n, idmc2m, mdir, mtype, matF, cxl, ...
-        secmgr, options);
+        vix, viy, cgsr, idm2n, idmc2m, member.property.idsec, ...
+        mtype, matF, cxl, secmgr, options);
 
       % % --- 確認用 ---
       % fval_ = objfun(xlist_cgsr);
@@ -438,6 +437,20 @@ history.maxvio = maxvio;
 return
 %--------------------------------------------------------------------------
   function print_status(iter)
+  %print_status - 現在の反復の評価値と制約違反を表示する
+  %
+  %   print_status(iter) は、
+  %   現在の反復の評価値と制約違反を表示する。
+  %
+  %   入力引数:
+  %     iter - 現在の反復番号
+  %     （外側の ncon, clabel, tau, cvec, vio, ppp, display_mode,
+  %     is_pure_lsr, pfval, fval, nlist0, nlist, idpfval, muvec,
+  %     lsfr_history_info を参照）
+  %
+  %   出力引数:
+  %     なし
+
     [maxvio, idmaxvio, idmaxvioc, ccategory] = ...
       extract_convio(ncon, clabel, tau, cvec);
     % 表示用の違反量ノルム。calc_penalty が返した vio をそのまま使う
@@ -474,6 +487,8 @@ return
         end
       otherwise
     end
+
+    return
   end
 %--------------------------------------------------------------------------
 % function muvec = initialize_muvec(mu)
@@ -500,6 +515,8 @@ return
   %     muvec - 更新後のペナルティ係数 [nc×1]
 
     muvec(vio > 0) = r*muvec(vio > 0);
+
+    return
   end
 %--------------------------------------------------------------------------
   function refresh_pffun
@@ -515,11 +532,17 @@ return
   %     なし（外側の pffun を更新）
 
     pffun = @(f,c) calc_penalty(f,c,muvec,tau,penalty_method,ppp);
+
+    return
   end
 %--------------------------------------------------------------------------
   function [pflist_, vlist_, old_muvec_, new_muvec_] = ...
       update_lsfr_penalty_values(flist_, clist_, current_vio_)
   %update_lsfr_penalty_values - LSFR候補PFを更新後係数で再計算する
+  %
+  %   [pflist_, vlist_, old_muvec_, new_muvec_] = ...
+  %     update_lsfr_penalty_values(flist_, clist_, current_vio_) は、
+  %   外側のmuvecとpffunを更新し、保存済みの候補値を再評価する。
   %
   %   入力引数:
   %     flist_, clist_ - 保存済みの候補目的関数値と制約値
@@ -546,6 +569,24 @@ return
 %--------------------------------------------------------------------------
   function [x, pfval, fval, vio, id] = find_best_point(...
       xlist, flist, violist)
+  %find_best_point - 候補の目的関数値と違反量から採択点を選ぶ
+  %
+  %   [x, pfval, fval, vio, id] = find_best_point(...
+  %   xlist, flist, violist) は、
+  %   候補の目的関数値と違反量から採択点を選ぶ。
+  %
+  %   入力引数:
+  %     xlist - 候補の設計変数配列
+  %     flist - 候補別の目的関数値
+  %     violist - 候補別の制約違反量
+  %     （外側の is_output_best_point を参照）
+  %
+  %   出力引数:
+  %     x - 設計変数ベクトル
+  %     pfval - ペナルティ付き目的関数値
+  %     fval - 目的関数値
+  %     vio - 制約違反量
+  %     id - 採択した候補の行番号
 
     pflist_ = flist(:)+1e8*max(violist,[],2);
     if is_output_best_point
@@ -562,11 +603,38 @@ return
   end
 %--------------------------------------------------------------------------
   function cache = initialize_cache
+  %initialize_cache - 実評価結果を保存するキャッシュを初期化する
+  %
+  %   cache = initialize_cache は、
+  %   実評価結果を保存するキャッシュを初期化する。
+  %
+  %   入力引数:
+  %     なし
+  %
+  %   出力引数:
+  %     cache - 評価済み候補のキャッシュ
+
     % 実行結果キャッシュ初期化
     cache = struct('xlist',[],'clist',[],'flist',[]);
+
+    return
   end
 %--------------------------------------------------------------------------
   function save_cache(xlist_, flist_, clist_)
+  %save_cache - 新しく評価した候補をキャッシュへ保存する
+  %
+  %   save_cache(xlist_, flist_, clist_) は、
+  %   新しく評価した候補をキャッシュへ保存する。
+  %
+  %   入力引数:
+  %     xlist_ - 保存対象の設計変数配列
+  %     flist_ - 保存対象の目的関数値
+  %     clist_ - 保存対象の制約値
+  %     （外側の options, xlist, flist, clist, isexec を参照）
+  %
+  %   出力引数:
+  %     なし（外側の cache を更新）
+
     if nargin==0
       xlist_ = xlist;
       flist_ = flist;
@@ -595,9 +663,22 @@ return
         cache.clist = [cache.clist(nnn:end,:); clist_(isexec_,:)];
       end
     end
+
+    return
   end
 %--------------------------------------------------------------------------
   function history = inialize_history
+  %inialize_history - 探索反復の履歴配列を初期化する
+  %
+  %   history = inialize_history は、
+  %   探索反復の履歴配列を初期化する。
+  %
+  %   入力引数:
+  %     なし（外側の max_iter, mx, nc, nvio を参照）
+  %
+  %   出力引数:
+  %     history - 探索反復の履歴
+
     history = struct;
     history.initial = struct;
     history.xvar = zeros(max_iter,mx);
@@ -611,9 +692,22 @@ return
     history.nexec = zeros(max_iter,1);
     history.time = zeros(max_iter,1);
     history.iter = zeros(max_iter,1);
+
+    return
   end
 %--------------------------------------------------------------------------
   function validate_resume_history
+  %validate_resume_history - 再開に必要な履歴と反復番号を検証する
+  %
+  %   validate_resume_history は、
+  %   再開に必要な履歴と反復番号を検証する。
+  %
+  %   入力引数:
+  %     なし（外側の options, history を参照）
+  %
+  %   出力引数:
+  %     なし
+
     if options.iter_resume < 1
       error('lsr:InvalidResumeIter', ...
         'Resume iter must be greater than or equal to 1.');
@@ -629,6 +723,18 @@ return
   end
 %--------------------------------------------------------------------------
   function row = history_index_by_iter(target_iter)
+  %history_index_by_iter - 反復番号に対応する履歴行を求める
+  %
+  %   row = history_index_by_iter(target_iter) は、
+  %   反復番号に対応する履歴行を求める。
+  %
+  %   入力引数:
+  %     target_iter - 取得する反復番号
+  %     （外側の history を参照）
+  %
+  %   出力引数:
+  %     row - 対応する履歴行
+
     row = find(history.iter == target_iter);
     if numel(row) ~= 1
       msg = 'Resume iter %d does not exist.';
@@ -638,6 +744,18 @@ return
   end
 %--------------------------------------------------------------------------
   function history = trim_history(history, last_index)
+  %trim_history - 指定行より後の履歴を削除する
+  %
+  %   history = trim_history(history, last_index) は、
+  %   指定行より後の履歴を削除する。
+  %
+  %   入力引数:
+  %     history - 探索反復の履歴
+  %     last_index - 最後に残す履歴行
+  %
+  %   出力引数:
+  %     history - 探索反復の履歴
+
     history.xvar = history.xvar(1:last_index,:);
     history.fval = history.fval(1:last_index,:);
     history.cvec = history.cvec(1:last_index,:);
@@ -654,6 +772,18 @@ return
   end
 %--------------------------------------------------------------------------
   function save_initial_state
+  %save_initial_state - 初期評価点とペナルティ係数を履歴へ保存する
+  %
+  %   save_initial_state は、
+  %   初期評価点とペナルティ係数を履歴へ保存する。
+  %
+  %   入力引数:
+  %     なし（外側の xvar, fval, cvec, vio, pfval, muvec, nexec,
+  %     time を参照）
+  %
+  %   出力引数:
+  %     なし（外側の history.initial を更新）
+
     history.initial.xvar = xvar;
     history.initial.fval = fval;
     history.initial.cvec = cvec;
@@ -663,18 +793,46 @@ return
     history.initial.mu = muvec;
     history.initial.nexec = nexec;
     history.initial.time = time;
+
+    return
   end
 %--------------------------------------------------------------------------
   function restore_current_state(row)
+  %restore_current_state - 指定履歴行から現在の評価点と係数を復元する
+  %
+  %   restore_current_state(row) は、
+  %   指定履歴行から現在の評価点と係数を復元する。
+  %
+  %   入力引数:
+  %     row - 対応する履歴行
+  %     （外側の history を参照）
+  %
+  %   出力引数:
+  %     なし（外側の xvar, fval, cvec, muvec, nexec, time を更新）
+
     xvar = history.xvar(row,:);
     fval = history.fval(row,1);
     cvec = history.cvec(row,:);
     muvec = history.muvec(row,:)';
     nexec = history.nexec(row,1);
     time = history.time(row,1);
+
+    return
   end
 %--------------------------------------------------------------------------
   function restore_previous_state(current_iter)
+  %restore_previous_state - 指定反復の直前の評価点を復元する
+  %
+  %   restore_previous_state(current_iter) は、
+  %   指定反復の直前の評価点を復元する。
+  %
+  %   入力引数:
+  %     current_iter - 再開する反復番号
+  %     （外側の history を参照）
+  %
+  %   出力引数:
+  %     なし（外側の xold, fvalold, cvecold を更新）
+
     if current_iter == 1
       xold = history.initial.xvar;
       fvalold = history.initial.fval;
@@ -689,6 +847,22 @@ return
   end
 %--------------------------------------------------------------------------
   function tf = postprocess_iteration(processed_iter)
+  %postprocess_iteration - 反復結果を採択して係数と前回点を更新する
+  %
+  %   tf = postprocess_iteration(processed_iter) は、
+  %   反復結果を採択して係数と前回点を更新する。
+  %
+  %   入力引数:
+  %     processed_iter - 処理対象の反復番号
+  %     （外側の pffun, fvalold, cvecold, vio, pfval, omega, options,
+  %     max_iter, muvec, r, is_pure_lsr, xold, resume_index, start_iter,
+  %     history を参照）
+  %
+  %   出力引数:
+  %     tf - 判定結果
+  %     （外側の exitflag, do_restration, xvar, fval, cvec, vio,
+  %     pfval, muvec, pffun, history, xold, fvalold, cvecold を更新）
+
     tf = false;
 
     % 前回点を現在の係数で再評価し、候補と同じ係数で比較する
@@ -767,23 +941,71 @@ return
   end
 %--------------------------------------------------------------------------
   function tf = should_reuse_sa_aborted(processed_iter)
+  %should_reuse_sa_aborted - 焼きなましの中断状態の引継ぎを判定する
+  %
+  %   tf = should_reuse_sa_aborted(processed_iter) は、
+  %   再開時に焼きなましの中断状態を引き継ぐか判定する。
+  %
+  %   入力引数:
+  %     processed_iter - 処理対象の反復番号
+  %     （外側の resume_index, start_iter を参照）
+  %
+  %   出力引数:
+  %     tf - 判定結果
+
     tf = ~isempty(resume_index) && processed_iter == start_iter;
     return
   end
 %--------------------------------------------------------------------------
   function is_aborted = read_sa_aborted(processed_iter)
+  %read_sa_aborted - 指定反復の焼きなまし中断状態を取得する
+  %
+  %   is_aborted = read_sa_aborted(processed_iter) は、
+  %   指定反復の焼きなまし中断状態を取得する。
+  %
+  %   入力引数:
+  %     processed_iter - 処理対象の反復番号
+  %     （外側の history を参照）
+  %
+  %   出力引数:
+  %     is_aborted - 焼きなましが中断されたかどうか
+
     row = history_index_by_iter(processed_iter);
     is_aborted = history.sa_aborted(row,1);
     return
   end
 %--------------------------------------------------------------------------
   function save_sa_aborted(processed_iter, is_aborted)
+  %save_sa_aborted - 指定反復の焼きなまし中断状態を保存する
+  %
+  %   save_sa_aborted(processed_iter, is_aborted) は、
+  %   指定反復の焼きなまし中断状態を保存する。
+  %
+  %   入力引数:
+  %     processed_iter - 処理対象の反復番号
+  %     is_aborted - 焼きなましが中断されたかどうか
+  %     （外側の history を参照）
+  %
+  %   出力引数:
+  %     なし（外側の history.sa_aborted を更新）
+
     row = history_index_by_iter(processed_iter);
     history.sa_aborted(row,1) = is_aborted;
     return
   end
 %--------------------------------------------------------------------------
   function update_old_state
+  %update_old_state - 現在の評価点を次反復の前回点として保存する
+  %
+  %   update_old_state は、
+  %   現在の評価点を次反復の前回点として保存する。
+  %
+  %   入力引数:
+  %     なし（外側の xvar, cvec, fval を参照）
+  %
+  %   出力引数:
+  %     なし（外側の xold, cvecold, fvalold を更新）
+
     xold = xvar;
     cvecold = cvec;
     fvalold = fval;
@@ -791,6 +1013,19 @@ return
   end
 %--------------------------------------------------------------------------
   function save_history
+  %save_history - 現在の反復結果と診断値を履歴へ保存する
+  %
+  %   save_history は、
+  %   現在の反復結果と診断値を履歴へ保存する。
+  %
+  %   入力引数:
+  %     なし（外側の iter, xvar, fval, cvec, vio, pfval, muvec, nexec,
+  %     time, time_neighborhood, time_correction, time_evaluation,
+  %     lsfr_history_info を参照）
+  %
+  %   出力引数:
+  %     なし（外側の history, last_history_index を更新）
+
     history.xvar(iter,:) = xvar;
     history.fval(iter,1) = fval;
     history.cvec(iter,:) = cvec;
@@ -808,9 +1043,22 @@ return
     info_row.lsfr.selection = lsfr_history_info;
     history = save_history_info(history, info_row, iter);
     last_history_index = iter;
+
+    return
   end
 %--------------------------------------------------------------------------
   function finalize_history
+  %finalize_history - 有効な最終反復まで履歴を切り詰める
+  %
+  %   finalize_history は、
+  %   有効な最終反復まで履歴を切り詰める。
+  %
+  %   入力引数:
+  %     なし（外側の history, last_history_index を参照）
+  %
+  %   出力引数:
+  %     なし（外側の history を更新）
+
     history.xvar = history.xvar(1:last_history_index,:);
     history.fval = history.fval(1:last_history_index,:);
     history.cvec = history.cvec(1:last_history_index,:);
@@ -823,11 +1071,25 @@ return
     history.time = history.time(1:last_history_index,:);
     history.iter = history.iter(1:last_history_index,:);
     history = trim_history_info(history, last_history_index);
+
+    return
   end
 %--------------------------------------------------------------------------
 
 %--------------------------------------------------------------------------
   function history_ = trim_history_info(history_, last_index_)
+  %trim_history_info - 履歴内の診断値を指定行まで切り詰める
+  %
+  %   history_ = trim_history_info(history_, last_index_) は、
+  %   履歴内の診断値を指定行まで切り詰める。
+  %
+  %   入力引数:
+  %     history_ - 診断値を含む探索履歴
+  %     last_index_ - 診断値を残す最終行
+  %
+  %   出力引数:
+  %     history_ - 診断値を含む探索履歴
+
     if ~isfield(history_, 'info')
       return
     end
@@ -846,6 +1108,19 @@ return
   end
 %--------------------------------------------------------------------------
   function history_ = save_history_info(history_, info_row, iter_)
+  %save_history_info - 一反復分の診断値を履歴へ格納する
+  %
+  %   history_ = save_history_info(history_, info_row, iter_) は、
+  %   一反復分の診断値を履歴へ格納する。
+  %
+  %   入力引数:
+  %     history_ - 診断値を含む探索履歴
+  %     info_row - 一反復分の診断値
+  %     iter_ - 保存先の反復番号
+  %
+  %   出力引数:
+  %     history_ - 診断値を含む探索履歴
+
     schema = lsr_history_info_schema();
     for id_ = 1:numel(schema)
       m_ = schema(id_).method;

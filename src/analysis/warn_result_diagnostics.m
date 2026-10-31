@@ -9,7 +9,7 @@ function warn_result_diagnostics(com, result)
 %   入力引数:
 %     com    - 共通データ構造体
 %     result - 解析結果構造体
-%              (ignored_moment、rigid_zone_overflowを参照)
+%              (ignored_momentを参照)
 %
 %   出力引数:
 %     なし
@@ -17,7 +17,6 @@ function warn_result_diagnostics(com, result)
 warn_ignored_rotational_moments(result.ignored_moment, com.node, ...
   com.member.property.idnode1, com.member.property.idnode2, ...
   com.loadcase.name);
-warn_column_base_rigid_zone_overflow(result.rigid_zone_overflow);
 
 return
 end

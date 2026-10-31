@@ -1,7 +1,29 @@
-function [zcoord, nodez, lm, member_girder_level, story_delta_height, ...
-  floor_height] = update_geometry_z(secdim, baseline, ...
-  node, story, floor, section, member, options)
-%update_geometry_z - Z方向座標・梁レベル・階高の更新
+function [zcoord, nodez, member_girder_level, story, floor] = ...
+  update_geometry_z(secdim, baseline, node, story, floor, section, ...
+  member, options)
+%update_geometry_z - 断面に対応するZ座標・梁レベル・階高を求める
+%
+%   [zcoord, nodez, member_girder_level, story, floor] = ...
+%     update_geometry_z(secdim, baseline, node, story, floor, ...
+%     section, member, options) は、構造階高を
+%   一度計算し、入力節点のZ座標を更新する。
+%
+%   入力引数:
+%     secdim   - 評価する断面寸法 [nsec×7] (mm)
+%     baseline - 基準線データ
+%     node     - 節点データ
+%     story    - 層データ
+%     floor    - 階データ
+%     section  - 断面データ
+%     member   - 部材データ
+%     options  - 解析オプション
+%
+%   出力引数:
+%     zcoord               - 基準線のZ座標 (mm)
+%     nodez                - 節点のZ座標 (mm)
+%     member_girder_level  - 梁レベル調整値 (mm)
+%     story                - 意匠階高からの調整値を更新した層データ
+%     floor                - 構造階高を更新した階データ
 
 %---
 % 定数
@@ -9,14 +31,10 @@ nstory = size(story,1);
 
 % 計算の準備
 stype = section.property.type;
-mtype = member.property.type;
-member_girder = member.girder;
-member_brace = member.brace;
 mglevel = member.girder.level;
 
 % ID変換
 idsg2s = section.girder.idsec;
-idm2n = [member.property.idnode1 member.property.idnode2];
 idm2s = member.property.idsec;
 idmg2st = member.girder.idstory;
 idmg2sg = member.girder.idsecg;
@@ -40,32 +58,22 @@ for ist = 1:nstory
 end
 
 % 結果の保存
-member_girder.level = mglevel;
 member_girder_level = mglevel;
 
 % 構造階高の更新
 if options.do_autoupdate_floor_height
-  [flh, stdh] = calc_floor_height(secdim, story, floor, idmg2st, ...
-    idmg2sg, idsg2s, idm2s, idmg2m, stype, mglevel, ...
+  [floor.height, stdh] = calc_floor_height(secdim, story, floor, ...
+    idmg2st, idmg2sg, idsg2s, idm2s, idmg2m, stype, mglevel, ...
     idmg2type);
   story.delta_height = stdh;
 else
-  flh = floor.height;
   stdh = story.girder_level;
   story.delta_height = stdh;
 end
-[zcoord, zcoord_standard, idz_coord] = calc_story_zcoord(...
-  floor, story, baseline, options.gl_to_first_floor_height);
+[zcoord, ~, idz_coord] = calc_story_zcoord(floor, story, baseline, ...
+  options.gl_to_first_floor_height);
 node.z = update_zcoord(zcoord, idz_coord, node);
-node = update_brace_column_node_z(node, zcoord_standard, member_girder);
 nodez = node.z;
-lm = calc_member_length_from_node(node, idm2n);
-lm_brace = calc_brace_length(member_brace, member_girder, node);
-lm(mtype == PRM.BRACE) = lm_brace;
-
-% 結果の保存
-floor_height = flh;
-story_delta_height = stdh;
 
 return
 end

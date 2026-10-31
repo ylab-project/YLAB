@@ -1,5 +1,16 @@
 function [node, isdummy_node] = set_node_block(dbc, com)
-%set_node_block - 節点ブロックの読み込みと節点テーブルの作成
+%set_node_block - 節点配置とダミー節点の区分を読み込む
+%
+%   [node, isdummy_node] = set_node_block(dbc, com) は、
+%   節点配置とダミー節点の区分を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     node - 節点の位置と代表節点の対応
+%     isdummy_node - ダミー節点の論理配列
 
 % 計算の準備
 baseline = com.baseline;
@@ -220,11 +231,8 @@ zcoord_std = com.baseline.z.coord_standard;
 z_standard = zcoord_std(idz) + dz;
 
 % 結果の保存
-idfg_brace_top = zeros(nnode, 1);
-idz_brace_top = zeros(nnode, 1);
 node = table(xname, yname, zname, x, y, z, z_standard, dz, ...
-  idx, idy, idz, type, idstory, idrep, idfg_brace_top, ...
-  idz_brace_top);
+  idx, idy, idz, type, idstory, idrep);
 
 return
 end

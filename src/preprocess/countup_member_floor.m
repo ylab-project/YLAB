@@ -16,8 +16,11 @@ function idfloor = countup_member_floor(com)
 %     idfloor - 部材ごとの跨ぐ階の番号 [nme×k]（昇順に左詰め、余りは0）
 
 mp = com.member.property;
-idz1 = com.node.idz(mp.idnode1);
-idz2 = com.node.idz(mp.idnode2);
+idz = com.node.idz;
+ids = com.node.type == PRM.NODE_BRACE_FOR_COLUMN;
+idz(ids) = com.story.idz(com.node.idstory(ids));
+idz1 = idz(mp.idnode1);
+idz2 = idz(mp.idnode2);
 bottom = min(idz1, idz2);
 top = max(idz1, idz2);
 floor_idz = com.floor.idz(:)';

@@ -1,15 +1,14 @@
 function [rs, Mc, rvec] = calc_member_force(ilcset, ...
-  dvec, rs, ~, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, ...
-  Em, Gm, lm, lrxm, lrym, lrnm, flag, cxl, cyl, member_property, ...
-  node, ~, cbstiff, ~, idm2scb, joint, br_stif, hstiff_type)
+  dvec, rs, sks, M0, ar, A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm, ...
+  lrxm, lrym, lrnm, flag, cxl, cyl, member_property, node, kcb, ...
+  joint, br_stif, hstiff_type)
 %calc_member_force - 部材応力の計算
 %
 %   [rs, Mc, rvec] = calc_member_force( ...
-%     ilcset, dvec, rs, ~, sks, M0, ar, ...
+%     ilcset, dvec, rs, sks, M0, ar, ...
 %     A, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm, ...
 %     lrxm, lrym, lrnm, flag, cxl, cyl, member_property, ...
-%     node, ~, cbstiff, ~, idm2scb, ...
-%     joint, br_stif, hstiff_type) は、
+%     node, kcb, joint, br_stif, hstiff_type) は、
 %   各部材の変位から部材端応力を計算する。
 %   通常部材は梁要素剛性行列、ブレースはトラス変換で処理する。
 %
@@ -17,7 +16,6 @@ function [rs, Mc, rvec] = calc_member_force(ilcset, ...
 %     ilcset - 荷重ケース番号 [1×nlc]
 %     dvec   - 変位ベクトル [ndf×nlc]
 %     rs     - 応力配列 [nme×12×nlc]（空可、内部で初期化）
-%     ~      - （未使用、旧frvec）
 %     sks    - 全体剛性行列格納配列 [ns6×帯幅]
 %     M0     - 固定端モーメント [nme×nlc]
 %     ar     - 固定端力 [nme×12×nlc]
@@ -37,10 +35,8 @@ function [rs, Mc, rvec] = calc_member_force(ilcset, ...
 %     cxl,cyl - 部材座標系の方向余弦
 %     member_property - 部材プロパティ構造体
 %     node     - 節点構造体
-%     ~        - （未使用、旧material）
-%     cbstiff  - 複合梁剛性配列
-%     ~        - （未使用、旧idm2mat）
-%     idm2scb  - 部材→複合梁マッピング [nme×1]
+%     kcb      - 局所Y/Z軸回りの柱脚回転剛性 [nme×2]
+%                (N.mm/rad)、Infは固定
 %     joint    - 接合条件 [nme×4]
 %     br_stif  - ブレース剛性構造体配列（空可）
 %     hstiff_type - 梁水平面内変形の考慮（PRM.GIRDER_HSTIFF_*）
@@ -87,10 +83,6 @@ if isempty(rs)
 end
 
 % 剛床・剛域の前処理
-kcb = inf(nme, 1);
-valid_cbstiff = (idm2scb > 0) & isfinite(idm2scb);
-kcb(valid_cbstiff) = cbstiff(idm2scb(valid_cbstiff));
-
 ke_cache = cell(nme, 1);
 tg_cache = cell(nme, 1);
 t_cache = cell(nme, 1);
@@ -128,13 +120,8 @@ for im = targetset(:)'
   Ei = Em(im); Gi = Gm(im);
   jointi = joint(im, :);
 
-  kcbi = [];
-  if isfinite(kcb(im))
-    kcbi = kcb(im);
-  end
-
   ke = stif_beam_matrix(li, Ai, Asyi, Aszi, Iyi, Izi, Ji, Ei, Gi, ...
-    lrxi, lryi, lrni, jointi, kcbi, flag);
+    lrxi, lryi, lrni, jointi, kcb(im,:), flag);
 
   % 剛域を考慮した座標変換（柱は回転断面基底の面で適用）
   if any([lrxi lryi] > 0)

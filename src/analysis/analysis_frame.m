@@ -15,7 +15,7 @@ function [msprop, dvec, dnode, felement, ignored_moment, ...
 %
 %   入力引数:
 %     secdim  - 解析に使用する断面寸法 [nsec x ncol] mm
-%     com     - 共通オブジェクト（節点・部材・断面・材料情報を保持）
+%     com     - update_frame_dataで形状を確定した共通データ
 %     options - 計算オプション構造体
 %
 %   出力引数:
@@ -54,10 +54,10 @@ function [msprop, dvec, dnode, felement, ignored_moment, ...
 %     gphiAn   - 梁軸断面積増大率
 %     cphiI    - 柱の曲げ剛度増減率 [nmec x 2]
 %     cbs      - 柱脚断面情報（calc_column_base_section の出力）
-%     baseline - 基線情報（Z座標更新後）
-%     node     - 節点情報（Z座標更新後）
-%     story    - ストーリー情報（形状更新後）
-%     floor    - フロア情報（形状更新後）
+%     baseline - 解析に用いた基準線情報
+%     node     - 解析に用いた節点情報
+%     story    - 解析に用いた層データ
+%     floor    - 解析に用いた階データ
 %     Cng      - 名目梁の4検定位置の修正係数C [nng×4×nlc]
 %     Cnc      - 名目柱の修正係数C [nnc×2×nlc]（局所y・z軸まわり）
 %     nomgc    - 公称梁の検定位置情報（lb, xc, Mcn, Ncn 等）
@@ -129,7 +129,6 @@ jdof = com.node.dof;
 is_through_girder = com.member.girder.isthrough;
 lbng = com.nominal.girder.stiffening_lb;
 lcdir = com.loadcase.dir;
-material = com.material;
 section = com.section;
 member = com.member;
 member_column = com.member.column;
@@ -256,12 +255,10 @@ cbs = calc_column_base_section(Dcb, cbstiff, column_base, ...
   column_base_list);
 cbstiff = cbs.stiff;
 
-%% 形状の更新
-[mglevel, zcoord, nodez, cxl, cyl, lm, lf, lr, story, floor] = ...
-  update_geometry(secdim, baseline, node, story, floor, ...
+%% 部材の幾何量
+% 座標と階高はupdate_frame_dataで確定済み。
+[cxl, cyl, lm, lf, lr] = update_geometry(secdim, node, story, ...
   section, member, cbs, options, idsup2n);
-baseline.z.coord = zcoord;
-node.z = nodez;
 lrxm = zeros(nme,2);
 lrxm(mtype==PRM.COLUMN,:) = lr.columnx;
 lrxm(mtype==PRM.GIRDER,:) = lr.girder;
@@ -281,6 +278,24 @@ Iy0 = Iy; Iz0 = Iz;
 Iy(isrigid_xm) = Iy(isrigid_xm)*PRM.RIGID_SCALE;
 Iz(isrigid_ym) = Iz(isrigid_ym)*PRM.RIGID_SCALE;
 An(isrigid_nm) = An(isrigid_nm)*PRM.RIGID_SCALE;
+
+% 柱脚ばねは方向別の剛域端に置く（SS7入力9.1）。
+% 下側区間が全域剛域なら、その方向だけ上側部材へ引き継ぐ。
+% 柱脚断面の物理的な割当は重量・断面表示のため変更しない。
+kcb = inf(nme,2);
+kcb(idm2scb>0,:) = repmat(cbstiff(idm2scb(idm2scb>0)),1,2);
+for ic = find(member_column.type == PRM.COLUMN_FOR_BRACE_FOUNDATION ...
+    & idm2scb(idmc2m)>0)'
+  im = idmc2m(ic);
+  if isrigid_xm(im)
+    kcb(idmc2m(member_column.idsplit(ic)),1) = kcb(im,1);
+    kcb(im,1) = Inf;
+  end
+  if isrigid_ym(im)
+    kcb(idmc2m(member_column.idsplit(ic)),2) = kcb(im,2);
+    kcb(im,2) = Inf;
+  end
+end
 
 % 通し部材の部材長（構造階高ベース）
 lnm = lm;
@@ -358,9 +373,8 @@ coord_shift = calc_baseline_coord_shift(baseline, com.span);
   secdim, Df_foundation, coord_shift);
 
 %% ブレース座屈長（SS7 3.8.1）
-lm_brace_buckling = calc_brace_buckling_length(member.brace, ...
-  com.member.girder, node, stype_sec, com.section.girder.idsec, ...
-  secdim);
+lm_brace_buckling = calc_brace_buckling_length(member, node, ...
+  com.section, secdim, options);
 
 %% 剛性計算用部材長（全部材で節点間距離を使用）
 lm_stiff = lm;
@@ -392,8 +406,8 @@ if options.consider_self_weight && options.consider_finishing_material
   sw = comp_self_weight(A, Asy, Iy, Em, Gm, lm_weight, ...
     lm_lower_extension, lm, lrxm, member_property, msdim, slab, ...
     cxl, cyl, nnode, mejoint, weight_deduct, options, member_column, ...
-    brace_unit_weight, Df_foundation, mglevel, member_girder.isfg, ...
-    idsup2n, rho_rc_member);
+    brace_unit_weight, Df_foundation, member_girder.level, ...
+    member_girder.isfg, idsup2n, rho_rc_member);
   ar(:,:,1) = ar(:,:,1)+sw.ar;
   M0(:,1)= M0(:,1)+sw.M0;
 else
@@ -460,10 +474,10 @@ end
 
 %% 剛性行列の作成
 hstiff_type = options.girder_horizontal_stiffness_type;
-ksmat0 = stif_sys_matrix(An, Asy, Asz, Iy, Iz, JJ, cxl, ...
-  cyl, lm_stiff, Em, Gm, xr, yr, lrxm, lrym, lrnm, cbstiff, mtype, ...
-  idn2df, idf2n, idm2n1, idm2n2, idm2scb, mejoint, ndf, ...
-  nbw, flag, br_stif, hstiff_type, factor_J);
+ksmat0 = stif_sys_matrix(An, Asy, Asz, Iy, Iz, JJ, cxl, cyl, ...
+  lm_stiff, Em, Gm, xr, yr, lrxm, lrym, lrnm, kcb, mtype, ...
+  idn2df, idf2n, idm2n1, idm2n2, mejoint, ndf, nbw, flag, ...
+  br_stif, hstiff_type, factor_J);
 [ksmat0, fvec, ignored_node_moment] = ...
   regularize_inactive_rotational_dofs(ksmat0, fvec, ...
   idf2n, idn2df, idsup2n, isfixedsup);
@@ -589,10 +603,10 @@ else
 end
 
 % 応力計算
-[rs, Mc] = calc_member_force(1:nlc, dvec, [], frvec, ...
-  sks, M0, ar, An, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm_stiff, ...
-  lrxm, lrym, lrnm, flag, cxl, cyl, member_property, node, material, ...
-  cbstiff, idm2mat, idm2scb, mejoint, br_stif, hstiff_type);
+[rs, Mc] = calc_member_force(1:nlc, dvec, [], sks, M0, ar, ...
+  An, Asy, Asz, Iy, Iz, JJ, Em, Gm, lm_stiff, lrxm, lrym, lrnm, ...
+  flag, cxl, cyl, member_property, node, kcb, mejoint, br_stif, ...
+  hstiff_type);
 
 % 水平力分担・β用に解析基底のケース別応力を保持
 rs_analysis0 = rs;
@@ -791,6 +805,7 @@ for ilc = 1:nlc
 end
 vix = vi(:,[PRM.EXP PRM.EXN]);
 viy = vi(:,[PRM.EYP PRM.EYN]);
+
 return
 end
 

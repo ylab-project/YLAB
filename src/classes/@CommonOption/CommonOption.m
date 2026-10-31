@@ -151,6 +151,10 @@ classdef CommonOption
     position_brace_foundation_girder (1,1) double = ...
       PRM.BRACE_FOUNDATION_GIRDER_TOP
 
+    % 基礎部のブレース取り付き位置（SS7 7.5）
+    position_brace_foundation (1,1) double = ...
+      PRM.BRACE_FOUNDATION_COLUMN_TOP
+
     % 曲げの設計におけるウェブの考慮（梁中央部）
     consider_web_at_girder_center (1,1) logical = false
 

@@ -1,12 +1,11 @@
-function com = parse_frame_data(com, options)
+function com = parse_frame_data(com)
 %parse_frame_data - 読込済み架構データを解析用の共通データへ展開する
 %
-%   com = parse_frame_data(com, options) は、節点・部材・断面・変数の
-%   対応と断面管理オブジェクトを構築し、解析で使う配列を設定する。
+%   com = parse_frame_data(com) は、節点・部材・断面・変数の
+%   対応を構築し、現在の解析用部材に従って配列を設定する。
 %
 %   入力引数:
 %     com     - 読込済みの共通データ構造体
-%     options - 解析オプション
 %
 %   出力引数:
 %     com - 解析用の対応関係と配列を設定した共通データ構造体
@@ -37,6 +36,15 @@ function com = parse_frame_data(com, options)
 %   repginv -> member_girder.idsecg;
 %   repcinv -> member_column.idsecc;
 
+% 再構成時も入力時と同じ対応生成を使い、断面管理は共有したまま保つ。
+if isstruct(com.node)
+  com.node = struct2table(com.node);
+  com.member.column = struct2table(com.member.column);
+  com.member.girder = struct2table(com.member.girder);
+  com.section.column = struct2table(com.section.column);
+  com.section.girder = struct2table(com.section.girder);
+end
+
 %% 節点同一化: 部材の節点番号を代表節点に置換
 [idnode1, idnode2] = countup_node_with_representative(com);
 com.member.property.idnode1 = idnode1;
@@ -52,6 +60,15 @@ com.member.horizontal_brace.idnode1 = ...
 com.member.horizontal_brace.idnode2 = ...
   idnode2(com.member.horizontal_brace.idme);
 
+% 入力柱の端点と端部指定は分割後の部材から復元しない。
+if ~isfield(com.member, 'column_input')
+  mc = com.member.column;
+  com.member.column_input = struct('idnode1', mc.idnode1, ...
+    'idnode2', mc.idnode2, 'idz', mc.idz, 'isthrough', mc.isthrough, ...
+    'idconnected', mc.idconnected, 'joint', mc.joint);
+  com.member.column.idsplit = zeros(com.nmec, 1);
+end
+
 %% 共通配列
 design = com.design;
 % member = com.member;
@@ -59,7 +76,6 @@ section = com.section;
 section_column = com.section.column;
 section_girder = com.section.girder;
 section_property = com.section.property;
-secList = com.sectionList;
 story = com.story;
 % idn2s = com.node.idstory;
 % idm2s1 = com.member.property.idnode1;
@@ -217,18 +233,6 @@ nominal_brace.idnominal = idnominal_brace;
 com.nominal.brace = nominal_brace;
 com.member.property.idnominal = idnominal;
 
-% TODO:とりあえず
-Hp = design.variable.idvar(design.variable.type==PRM.WFS_H);
-Bp = design.variable.idvar(design.variable.type==PRM.WFS_B);
-twp = design.variable.idvar(design.variable.type==PRM.WFS_TW);
-tfp = design.variable.idvar(design.variable.type==PRM.WFS_TF);
-Dp = design.variable.idvar(design.variable.type==PRM.HSS_D);
-tp = design.variable.idvar(design.variable.type==PRM.HSS_T);
-HsrDp = design.variable.idvar(design.variable.type==PRM.HSR_D);
-Hsrtp = design.variable.idvar(design.variable.type==PRM.HSR_T);
-brb1p = design.variable.idvar(design.variable.type==PRM.BRB_V1);
-brb2p = design.variable.idvar(design.variable.type==PRM.BRB_V2);
-
 %% 柱面番号の数え上げ
 [idmeg2secl, idmeg2secr]  = countup_girder_to_column_face(com);
 com.member.girder.idsec_facel = idmeg2secl;
@@ -296,20 +300,6 @@ com.ncgsr = length(cgsr_idnode);
 com.column_bracing = countup_column_bracing_topology(com);
 com.girder_bracing = countup_girder_bracing_topology(com);
 
-%% 断面オブジェクト
-secmgr = create_section_manager(Hp, Bp, twp, tfp, Dp, ...
-  tp, HsrDp, Hsrtp, brb1p, brb2p, com, secList, options);
-% column_base_listはcreateConstraintValidator経由で設定済み
-com.secmgr = secmgr;
-
-%% 変数初期値の設定
-xini = extract_initial_design_value(com, options);
-if ~isempty(xini)
-  com.design.variable.value = xini(:);
-else
-  xini = com.design.variable.value;
-end
-
 %% 上下階関係
 column_gapjoint = countup_column_gapjoint(com);
 com.Dgap = column_gapjoint;
@@ -318,19 +308,6 @@ com.height_smooth = create_girder_height_smooth_data(com);
 %% 保有耐力接合（仕口）の除外指定
 is_joint_bearing_strength = exclude_joint_bearing_strength(com);
 com.exclusion.is_joint_bearing_strength = is_joint_bearing_strength;
-
-% 形状の更新
-secdim = secmgr.findNearestSection(xini, options);
-[zcoord, nodez, lm] = update_geometry_z(secdim, com.baseline, ...
-  com.node, com.story, com.floor, com.section, com.member, ...
-  options);
-com.baseline.z.coord = zcoord;
-com.node.z = nodez;
-
-% 補剛数（post-geometry lm で算定）
-com.member.girder = countup_girder_stiffening(com, lm);
-[com.member.girder, com.nominal.girder] = ...
-  countup_girder_stiffening_direct(com, lm);
 
 % 要素数
 com.num.member.girder = com.nmeg;

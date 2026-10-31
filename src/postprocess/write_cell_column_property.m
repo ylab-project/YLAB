@@ -104,12 +104,13 @@ for i=1:nfl
         idm = idmc2m(ic);
         idmm = idmc2m(idcc);
         lm_ = sum(lm(idmm));
-        lfcx_ = [lfcx(ic,1), lfcx(ic2,2)];
-        lfcy_ = [lfcy(ic,1), lfcy(ic2,2)];
-        lrcx_ = [lrcx(ic,1), lrcx(ic2,2)];
-        lrcy_ = [lrcy(ic,1), lrcy(ic2,2)];
-        lrcn_ = [lrcn(ic,1), lrcn(ic2,2)];
-        iscb_ = idm2scb(idmc2m(ic1));
+        % 各区間に配分済みの柱脚・柱頭長を帳票の1柱へ集計する
+        lfcx_ = sum(lfcx(idcc,:), 1);
+        lfcy_ = sum(lfcy(idcc,:), 1);
+        lrcx_ = sum(lrcx(idcc,:), 1);
+        lrcy_ = sum(lrcy(idcc,:), 1);
+        lrcn_ = sum(lrcn(idcc,:), 1);
+        iscb_ = idm2scb(idm);
         joint_ = column.joint(ic1,:);
         joint_([2 4]) = column.joint(ic2,[2 4]);
         % 剛性表

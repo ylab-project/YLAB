@@ -1,28 +1,27 @@
 function [pflist, flist, clist, vlist, isexec] = ...
   compute_pflist(pffun, xlist, sdlist, com, options, cache, ...
   evaluation_ids)
-%COMPUTE_PFLIST 候補断面を並列評価
-% 概要: 複数の候補断面を並列実行戦略を用いて効率的に評価。
-%       戦略はタスク数とワーカー数に基づいて自動選択される。
-% 構文: [pflist, flist, clist, vlist, isexec] = ...
-%        compute_pflist(pffun, xlist, sdlist, com, options, cache,
-%        evaluation_ids)
-% 入力:
-%   pffun          - ペナルティ関数ハンドル
-%   xlist          - 候補断面配列 [lsize×nvar]
-%   sdlist - xlistと対の写像済み断面寸法 [nsec×7×lsize]
-%   com - 共通構造体（worker配布用com.constantを含む）
-%   options - オプション構造体（並列戦略、表示設定等）
-%   cache   - キャッシュ構造体（既計算結果の再利用）
-%   evaluation_ids - 候補ごとの安定したSubstream番号（省略可）
-% 出力:
-%   pflist - ペナルティ付き目的関数値 [lsize×1]
-%   flist  - 純粋な目的関数値 [lsize×1]
-%   clist  - 制約関数値 [lsize×numc]（各行が1断面、各列が1制約）
-%   vlist  - 制約違反量 [lsize×numvio]
-%   isexec - 解析実行フラグ [lsize×1] (true=新規計算, false=キャッシュ)
-% 備考: 並列戦略は sequential, parfor, parfeval から自動選択
-% See also: compute_individual, analysis_constraint, objective_lsr
+%compute_pflist - 候補断面を並列評価
+%
+%   [pflist, flist, clist, vlist, isexec] = ...
+%     compute_pflist(pffun, xlist, sdlist, com, options, cache, ...
+%     evaluation_ids) は、候補を逐次・並列で評価する。
+%
+%   入力引数:
+%     pffun          - ペナルティ関数ハンドル
+%     xlist          - 候補断面配列 [lsize×nvar]
+%     sdlist - xlistと対の写像済み断面寸法 [nsec×7×lsize]
+%     com - 共通構造体（worker配布用com.constantを含む）
+%     options - オプション構造体（並列戦略、表示設定等）
+%     cache   - キャッシュ構造体（既計算結果の再利用）
+%     evaluation_ids - 候補ごとの安定したSubstream番号（省略可）
+%
+%   出力引数:
+%     pflist - ペナルティ付き目的関数値 [lsize×1]
+%     flist  - 純粋な目的関数値 [lsize×1]
+%     clist  - 制約関数値 [lsize×numc]（各行が1断面、各列が1制約）
+%     vlist  - 制約違反量 [lsize×numvio]
+%     isexec - 解析実行フラグ [lsize×1] (true=新規計算, false=キャッシュ)
 
 % パラメータの取得
 numc = options.numc;                          % 制約関数の数（スカラー）
@@ -88,9 +87,21 @@ end
 return
 
   function evaluate_sequential()
-  %EVALUATE_SEQUENTIAL 逐次実行版の評価関数
-  % 概要: 単一の乱数ストリームを使用して順番に各断面を評価。
-  %       タスクごとにSubstreamを設定して再現性を保証する。
+  %evaluate_sequential - 候補を逐次評価して外側の結果配列へ格納する
+  %
+  %   evaluate_sequential() は、
+  %   候補を逐次評価して外側の結果配列へ格納する。
+  %
+  %   入力引数:
+  %     なし（外側の lsize, xlist, sdlist, evaluation_ids, pffun, com,
+  %     options, cache を参照）
+  %
+  %   出力引数:
+  %     なし（外側の flist, clist, pflist, vlist, isexec を更新）
+  %
+  %   備考:
+  %     単一の乱数ストリームを使用して順番に各断面を評価。
+  %     タスクごとにSubstreamを設定して再現性を保証する。
 
   % Threefry乱数生成器を作成（高速かつ並列化に適した生成器）
   stream = RandStream('Threefry');
@@ -112,9 +123,21 @@ return
   end
 
   function evaluate_parfor()
-  %EVALUATE_PARFOR parfor並列実行版
-  % 概要: 各ワーカーに独立した乱数ストリームを供給し、細粒度並列化。
-  %       Substreamによりタスク間の乱数系列の独立性を保証する。
+  %evaluate_parfor - 候補をparforで評価して外側の結果配列へ格納する
+  %
+  %   evaluate_parfor() は、
+  %   候補をparforで評価して外側の結果配列へ格納する。
+  %
+  %   入力引数:
+  %     なし（外側の lsize, xlist, sdlist, evaluation_ids, pffun, com,
+  %     options, cache, use_worker_cache を参照）
+  %
+  %   出力引数:
+  %     なし（外側の flist, clist, pflist, vlist, isexec を更新）
+  %
+  %   備考:
+  %     各ワーカーに独立した乱数ストリームを供給し、細粒度並列化。
+  %     Substreamによりタスク間の乱数系列の独立性を保証する。
 
   % ワーカーごとに乱数ストリームを作成（遅延評価）
   stream_constant = parallel.pool.Constant(@() RandStream('Threefry'));
@@ -160,9 +183,21 @@ return
   end
 
   function evaluate_parfeval()
-  %EVALUATE_PARFEVAL ブロック化parfeval並列実行版
-  % 概要: タスクをワーカー数分のブロックに分割して並列実行。
-  %       通信オーバーヘッドを削減し、大規模タスクで高効率を実現。
+  %evaluate_parfeval - 候補をブロックへ分けてparfevalで評価する
+  %
+  %   evaluate_parfeval() は、
+  %   候補をブロックへ分けてparfevalで評価する。
+  %
+  %   入力引数:
+  %     なし（外側の lsize, xlist, sdlist, evaluation_ids, pffun,
+  %     com, options, cache, use_worker_cache, display_mode を参照）
+  %
+  %   出力引数:
+  %     なし（外側の flist, clist, pflist, vlist, isexec を更新）
+  %
+  %   備考:
+  %     タスクをワーカー数分のブロックに分割して並列実行。
+  %     通信オーバーヘッドを削減し、大規模タスクで高効率を実現。
 
   % 並列プールとワーカー数を取得
   pool = gcp();
@@ -248,15 +283,22 @@ return
   return
   end
 
-
   function strategy = resolve_strategy(options_, lsize_)
-  %RESOLVE_STRATEGY 並列実行戦略を決定
-  % タスク数、ワーカー数、オプション設定に基づいて最適な戦略を選択
+  %resolve_strategy - 候補数とワーカー数から実行方式を選ぶ
   %
-  % 戦略選択ロジック:
-  % - sequential: 並列化なし、または小規模タスク
-  % - parfor: 中規模タスク（ワーカー数×10未満）
-  % - parfeval: 大規模タスク（ワーカー数×10以上）
+  %   strategy = resolve_strategy(options_, lsize_) は、
+  %   候補数とワーカー数から実行方式を選ぶ。
+  %
+  %   入力引数:
+  %     options_ - 並列実行のオプション
+  %     lsize_ - 評価する候補の数
+  %
+  %   出力引数:
+  %     strategy - 逐次・parfor・parfevalの実行方式
+  %
+  %   備考:
+  %     autoでは候補数とワーカー数から方式を選ぶ。
+  %     parallel_block_factor以上の候補/ワーカーでparfevalとする。
 
   % ワーカー当たりの最小タスク数（これ未満はparforを使用）
   min_tasks_per_worker = 2;
@@ -330,29 +372,26 @@ end
 %--------------------------------------------------------------------------
 function [fval, cvec, pfval, vio, isexec] = compute_individual( ...
   xvar, secdim, pffun, com, options, cache)
-%COMPUTE_INDIVIDUAL 単一の候補断面を評価
-% 概要: 与えられた評価ペアに対して制約評価と目的関数計算を実行。
-%       キャッシュが有効な場合は既計算結果を再利用。
-% 入力:
-%   xvar    - 設計変数ベクトル [1×nvar]
-%   secdim  - xvarと対の写像済み断面寸法 [nsec×7]
-%   pffun   - ペナルティ関数ハンドル
-%   com     - 共通構造体
-%   options - オプション構造体
-%   cache   - キャッシュ構造体
-% 出力:
-%   fval   - 目的関数値（スカラー）
-%   cvec   - 制約関数値 [1×numc]
-%   pfval  - ペナルティ付き目的関数値（スカラー）
-%   vio    - 制約違反量 [1×numvio]
-%   isexec - 実行フラグ（true=新規計算, false=キャッシュ）
-
-% 共通構造体から必要なデータを取得
-secmgr = com.secmgr;
-section = com.section;
-member = com.member;
-node = com.node;
-floor = com.floor;
+%compute_individual - 単一の候補断面を評価
+%
+%   [fval, cvec, pfval, vio, isexec] = compute_individual( ...
+%     xvar, secdim, pffun, com, options, cache) は、保存済みの値を
+%   再利用し、未評価の候補だけを解析する。
+%
+%   入力引数:
+%     xvar    - 設計変数ベクトル [1×nvar]
+%     secdim  - xvarと対の写像済み断面寸法 [nsec×7]
+%     pffun   - ペナルティ関数ハンドル
+%     com     - 共通構造体
+%     options - オプション構造体
+%     cache   - キャッシュ構造体
+%
+%   出力引数:
+%     fval   - 目的関数値（スカラー）
+%     cvec   - 制約関数値 [1×numc]
+%     pfval  - ペナルティ付き目的関数値（スカラー）
+%     vio    - 制約違反量 [1×numvio]
+%     isexec - 実行フラグ（true=新規計算, false=キャッシュ）
 
 % キャッシュ検索
 id = [];
@@ -373,8 +412,10 @@ end
 
 % キャッシュミスの場合は新規計算
 if isempty(id)
+  com = update_frame_data(secdim, com, options);
   cvec = analysis_constraint(xvar, secdim, com, options);
-  fval = objective_lsr(secdim, secmgr, node, section, member, floor);
+  fval = objective_lsr(secdim, com.secmgr, com.node, ...
+    com.section, com.member, com.floor);
   isexec = true;
 end
 
@@ -385,14 +426,17 @@ end
 
 %--------------------------------------------------------------------------
 function blocks = partition_indices(total_size, num_workers)
-%PARTITION_INDICES タスクをワーカー数分のブロックに均等分割
-% 概要: 総タスク数をワーカー数で可能な限り均等に分割。
-%       余りがある場合は前方のワーカーに1つずつ追加割り当て。
-% 入力:
-%   total_size  - 総タスク数（スカラー整数）
-%   num_workers - ワーカー数（スカラー整数）
-% 出力:
-%   blocks - ブロックのインデックス配列 {num_workers×1} cell配列
+%partition_indices - タスクをワーカー数分のブロックに均等分割
+%
+%   blocks = partition_indices(total_size, num_workers) は、
+%   タスクを均等に分け、余りを先頭側のワーカーへ配る。
+%
+%   入力引数:
+%     total_size  - 総タスク数（スカラー整数）
+%     num_workers - ワーカー数（スカラー整数）
+%
+%   出力引数:
+%     blocks - ブロックのインデックス配列 {num_workers×1} cell配列
 
 % 入力検証
 validateattributes(total_size, {'numeric'}, ...
@@ -425,24 +469,29 @@ end
 function [flist_block, clist_block, pflist_block, vlist_block, ...
   isexec_block] = evaluate_block(xlist, sdlist, evaluation_ids, ...
   pffun, worker_com_cache, stream_constant, options, cache)
-%EVALUATE_BLOCK ワーカーでブロック内タスクを連続実行
-% parfeval戦略でワーカーに割り当てられたブロックを処理
+%evaluate_block - ワーカーでブロック内タスクを連続実行
 %
-% 入力:
-%   xlist - このブロックが処理する候補配列
-%   sdlist - ブロック内候補の写像済み断面寸法
-%   evaluation_ids - ブロック内候補のSubstream番号
-%   pffun - ペナルティ関数ハンドル
-%   worker_com_cache - worker配布用の共通構造体キャッシュ
-%   stream_constant - 共有された乱数ストリーム（Constant）
-%   options - オプション構造体
-%   cache - キャッシュ構造体
-% 出力:
-%   flist_block - ブロック内の目的関数値
-%   clist_block - ブロック内の制約関数値
-%   pflist_block - ブロック内のペナルティ付き目的関数値
-%   vlist_block - ブロック内の違反量
-%   isexec_block - ブロック内の実行フラグ
+%   [flist_block, clist_block, pflist_block, vlist_block, ...
+%     isexec_block] = evaluate_block(xlist, sdlist, evaluation_ids, ...
+%     pffun, worker_com_cache, stream_constant, options, cache) は、
+%   同じワーカー内で候補を順に評価する。
+%
+%   入力引数:
+%     xlist - このブロックが処理する候補配列
+%     sdlist - ブロック内候補の写像済み断面寸法
+%     evaluation_ids - ブロック内候補のSubstream番号
+%     pffun - ペナルティ関数ハンドル
+%     worker_com_cache - worker配布用の共通構造体キャッシュ
+%     stream_constant - 共有された乱数ストリーム（Constant）
+%     options - オプション構造体
+%     cache - キャッシュ構造体
+%
+%   出力引数:
+%     flist_block - ブロック内の目的関数値
+%     clist_block - ブロック内の制約関数値
+%     pflist_block - ブロック内のペナルティ付き目的関数値
+%     vlist_block - ブロック内の違反量
+%     isexec_block - ブロック内の実行フラグ
 
 % オプションから制約数を取得
 numc = options.numc;      % 制約関数の数

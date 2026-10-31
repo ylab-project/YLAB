@@ -27,8 +27,8 @@ function [fval, fdetail, cost] = objective_lsr(secdim, ...
 % 共通配列
 stype = secmgr.idsec2stype;
 mtype = member.property.type;
-idm2stype = secmgr.idme2stype;
-idm2s = secmgr.idme2sec;
+idm2stype = member.property.section_type;
+idm2s = member.property.idsec;
 idmg2m = member.girder.idme;
 idmc2m = member.column.idme;
 idsc2s = section.column.idsec;
@@ -93,8 +93,13 @@ lm_cost(mtype == PRM.BRACE) = lm_brc;
 
 % コスト係数・コスト定数
 ids2slist = SectionManager.getSectionListMapping(secdim);
-cfm = secmgr.getMemberCostFactor(ids2slist);
-ccm = secmgr.getMemberCostConstant(ids2slist);
+cf = secmgr.getSectionCostFactor(ids2slist);
+cc = secmgr.propertyCalculator.getSectionCostConstant(ids2slist);
+cfm = cf(idm2s);
+ccm = cc(idm2s);
+% 基礎梁内の追加区間は独立した製作部材ではない。
+ids = member.column.type == PRM.COLUMN_FOR_BRACE_FOUNDATION;
+ccm(member.column.idme(ids)) = 0;
 
 % 部材重量（ton）
 wm = Am .* lm_cost * 1e-3 * PRM.RHOS * 1e-6;
@@ -113,7 +118,12 @@ if nargout >= 2
   fdetail.cost_column = sum(cfm(idmc2m) .* wm(idmc2m) + ccm(idmc2m));
   fdetail.cost_sublist = zeros(nsublist, 1);
   % リスト別集計
-  idm2sslist = secmgr.getIdMemberToSubList(ids2slist);
+  ids2sslist = zeros(size(secdim, 1), 1);
+  for ilist = 1:secmgr.secList.nlist
+    ids = ids2slist(:, 1) == ilist;
+    ids2sslist(ids) = secmgr.secList.idsublist{ilist}(ids2slist(ids, 2));
+  end
+  idm2sslist = ids2sslist(idm2s);
   for id = 1:nsublist
     istarget = (idm2sslist == id);
     fdetail.weight_sublist(id) = sum(wm(istarget));

@@ -20,7 +20,8 @@ function ke = stif_beam_matrix(L0, A, Asy, Asz, Iy, Iz, J, E, G, ...
 %     lrz   - 局所Z軸回り曲げ用の両端剛域長 [1 x 2] (mm)
 %     lrn   - 材軸方向の両端剛域長 [1 x 2] (mm)
 %     joint - 両端の結合状態 [1 x 4]
-%     kcb   - 柱脚回転剛性（空配列可）(N.mm/rad)
+%     kcb   - 局所Y/Z軸回りの柱脚回転剛性 [1 x 2] (N.mm/rad)
+%             Infは固定。jointのピン指定を優先する。
 %     flag  - 解析条件構造体
 %
 %   出力引数:
@@ -32,70 +33,53 @@ Ln = L0-lrn(1)-lrn(2);
 Ly = L0-lry(1)-lry(2);
 Lz = L0-lrz(1)-lrz(2);
 
+% せん断変形の考慮によらず、結合状態と柱脚ばねを反映する。
 if flag.consider_shear_deformation
   ry = calc_shear_deformation_ratio(E, Iy, G, Asy, Ly);
   rz = calc_shear_deformation_ratio(E, Iz, G, Asz, Lz);
-  if ~isempty(kcb)
-    k1y = kcb*Ly/(4*E*Iy);
-    k2y = 1.d6*kcb*Ly/(4*E*Iy);
-    k1z = kcb*Lz/(4*E*Iz);
-    k2z = 1.d6*kcb*Lz/(4*E*Iz);
-  else
-    k1y = 1.d6;
-    k2y = 1.d6;
-    k1z = 1.d6;
-    k2z = 1.d6;
-    % k1y = 1.d6*Ly/(4*E*Iy);
-    % k2y = 1.d6*Ly/(4*E*Iy);
-    % k1z = 1.d6*Lz/(4*E*Iz);
-    % k2z = 1.d6*Lz/(4*E*Iz);
-  end
-  if joint(1) == PRM.PIN
-    k1y = 0;
-  end
-  if joint(2) == PRM.PIN
-    k2y = 0;
-  end
-  if joint(3) == PRM.PIN
-    k1z = 0;
-  end
-  if joint(4) == PRM.PIN
-    k2z = 0;
-  end
-  ky = 2*(k1y+1)*(k2y+1)-0.5+ry*(4*k1y*k2y+k1y+k2y);
-  kz = 2*(k1z+1)*(k2z+1)-0.5+rz*(4*k1z*k2z+k1z+k2z);
 else
   ry = 0;
   rz = 0;
 end
 
-if flag.consider_shear_deformation
-  csy = (4*k1y*k2y+k1y+k2y)/(2*ky);
-  cbsy1 = (2*k1y*k2y+k1y)/ky;
-  cbsy2 = (2*k1y*k2y+k2y)/ky;
-  cb1y1 = (4*k1y*k2y*(1+ry/2)+3*k1y)/(2*ky);
-  cb1y2 = (4*k1y*k2y*(1+ry/2)+3*k2y)/(2*ky);
-  cb2y = (2*k1y*k2y*(1-ry))/ky;
-  csz = (4*k1z*k2z+k1z+k2z)/(2*kz);
-  cbsz1 = (2*k1z*k2z+k1z)/kz;
-  cbsz2 = (2*k1z*k2z+k2z)/kz;
-  cb1z1 = (4*k1z*k2z*(1+rz/2)+3*k1z)/(2*kz);
-  cb1z2 = (4*k1z*k2z*(1+rz/2)+3*k2z)/(2*kz);
-  cb2z = (2*k1z*k2z*(1-rz))/kz;
-else
-  csy = 1;
-  cbsy1 = 1;
-  cbsy2 = 1;
-  cb1y1 = 1;
-  cb1y2 = 1;
-  cb2y = 1;
-  csz = 1;
-  cbsz1 = 1;
-  cbsz2 = 1;
-  cb1z1 = 1;
-  cb1z2 = 1;
-  cb2z = 1;
+% 固定端は部材曲げ剛性の1e6倍で近似する。
+% 柱頭側の固定剛性は柱脚ばねの大小に依存させない。
+k1y = 1.d6;
+k2y = 1.d6;
+k1z = 1.d6;
+k2z = 1.d6;
+if isfinite(kcb(1))
+  k1y = kcb(1)*Ly/(4*E*Iy);
 end
+if isfinite(kcb(2))
+  k1z = kcb(2)*Lz/(4*E*Iz);
+end
+if joint(1) == PRM.PIN
+  k1y = 0;
+end
+if joint(2) == PRM.PIN
+  k2y = 0;
+end
+if joint(3) == PRM.PIN
+  k1z = 0;
+end
+if joint(4) == PRM.PIN
+  k2z = 0;
+end
+ky = 2*(k1y+1)*(k2y+1)-0.5+ry*(4*k1y*k2y+k1y+k2y);
+kz = 2*(k1z+1)*(k2z+1)-0.5+rz*(4*k1z*k2z+k1z+k2z);
+csy = (4*k1y*k2y+k1y+k2y)/(2*ky);
+cbsy1 = (2*k1y*k2y+k1y)/ky;
+cbsy2 = (2*k1y*k2y+k2y)/ky;
+cb1y1 = (4*k1y*k2y*(1+ry/2)+3*k1y)/(2*ky);
+cb1y2 = (4*k1y*k2y*(1+ry/2)+3*k2y)/(2*ky);
+cb2y = (2*k1y*k2y*(1-ry))/ky;
+csz = (4*k1z*k2z+k1z+k2z)/(2*kz);
+cbsz1 = (2*k1z*k2z+k1z)/kz;
+cbsz2 = (2*k1z*k2z+k2z)/kz;
+cb1z1 = (4*k1z*k2z*(1+rz/2)+3*k1z)/(2*kz);
+cb1z2 = (4*k1z*k2z*(1+rz/2)+3*k2z)/(2*kz);
+cb2z = (2*k1z*k2z*(1-rz))/kz;
 
 % --- kn ---
 kn = E*A/Ln;

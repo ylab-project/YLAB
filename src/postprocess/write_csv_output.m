@@ -1,7 +1,7 @@
-function result = write_csv_output(xvar, com, options)
+function [result, com] = write_csv_output(xvar, com, options)
 %write_csv_output - 計算結果をCSVファイルに出力する
 %
-%   result = write_csv_output(xvar, com, options) は、
+%   [result, com] = write_csv_output(xvar, com, options) は、
 %   解析・断面算定の結果を Shift_JIS の CSV ファイルに
 %   書き出す。出力先は options.outputfile で指定する。
 %
@@ -12,6 +12,10 @@ function result = write_csv_output(xvar, com, options)
 %
 %   出力引数:
 %     result  - 解析結果構造体
+%     com     - 出力断面の座標と部材対応を持つ共通データ
+
+secdim = com.secmgr.findNearestSection(xvar, options);
+com = update_frame_data(secdim, com, options);
 
 %% 計算の準備
 nlc = com.nlc;
@@ -28,7 +32,7 @@ secb = com.section.brace;
 stype = com.section.property.type;
 
 %% 解析
-[cvec, result] = analysis_constraint_xvar(xvar, com, options);
+[cvec, result] = analysis_constraint(xvar, secdim, com, options);
 
 % resultへ保持した解析診断の警告を出力境界で一度だけ発行する
 warn_result_diagnostics(com, result);

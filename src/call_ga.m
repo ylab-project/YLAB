@@ -1,16 +1,27 @@
 function [x, fval, com] = call_ga(com, options)
+%call_ga - 整数化した設計変数で遺伝的アルゴリズムを実行する
+%
+%   [x, fval, com] = call_ga(com, options) は、
+%   整数化した設計変数で遺伝的アルゴリズムを実行する。
+%
+%   入力引数:
+%     com - 架構・断面・材料を含む共通データ
+%     options - 解析・探索・出力のオプション
+%
+%   出力引数:
+%     x - 設計変数ベクトル
+%     fval - 目的関数値
+%     com - 架構・断面・材料を含む共通データ
+%
+
 % --- common ---
 secmgr = com.secmgr;
-section = com.section;
-member = com.member;
-node = com.node;
-story = com.story;
-floor = com.floor;
 
 % 初期断面での部材長を算出
 secdim0 = secmgr.findNearestSection(secmgr.ub, options);
-[~, ~, lm] = update_geometry_z(secdim0, com.baseline, ...
-  node, story, floor, com.section, member, options);
+com = update_frame_data(secdim0, com, options);
+lm = calc_member_length_from_node(com.node, ...
+  [com.member.property.idnode1 com.member.property.idnode2]);
 
 % 初期解
 if ~isempty(options.x0)
@@ -78,8 +89,8 @@ for iter = options.iter_set
   tic;
   rng(iter);
   [intx, fval] = ga(prob);
-  x = int2x(intx)
-  time = toc
+  x = int2x(intx);
+  toc;
 
   % 結果の更新
   if fval<fbest
@@ -94,6 +105,18 @@ fval = fbest;
 return
 %--------------------------------------------------------------------------
   function fval = objfun(intxmat)
+  %objfun - 整数候補を断面寸法へ写像して目的関数を評価する
+  %
+  %   fval = objfun(intxmat) は、
+  %   整数候補を断面寸法へ写像して目的関数を評価する。
+  %
+  %   入力引数:
+  %     intxmat - 候補番号の行列
+  %     （外側の nvar, stvals, com, options を参照）
+  %
+  %   出力引数:
+  %     fval - 目的関数値
+
     npop = size(intxmat,1);
     xmat = zeros(npop,nvar);
     for i=1:npop
@@ -101,13 +124,25 @@ return
     end
     fval = zeros(npop,1);
     parfor i=1:npop
-      fval(i) = objective_lsr_xvar(xmat(i,:), secmgr, node, ...
-        section, member, floor, options);
+      fval(i) = objective_lsr_xvar(xmat(i,:), com, options);
     end
     return
   end
 %--------------------------------------------------------------------------
   function [c, ceq] = nonlcon(intxmat)
+  %nonlcon - 整数候補を断面寸法へ写像して制約を評価する
+  %
+  %   [c, ceq] = nonlcon(intxmat) は、
+  %   整数候補を断面寸法へ写像して制約を評価する。
+  %
+  %   入力引数:
+  %     intxmat - 候補番号の行列
+  %     （外側の nvar, nc, stvals, com, options を参照）
+  %
+  %   出力引数:
+  %     c - 不等式制約値
+  %     ceq - 等式制約値（空配列）
+
     npop = size(intxmat,1);
     xmat = zeros(npop,nvar);
     for i=1:npop
@@ -124,17 +159,45 @@ return
   end
 %--------------------------------------------------------------------------
   function intx = x2int(x)
+  %x2int - 設計変数を候補リストの番号へ変換する
+  %
+  %   intx = x2int(x) は、
+  %   設計変数を候補リストの番号へ変換する。
+  %
+  %   入力引数:
+  %     x - 設計変数ベクトル
+  %     （外側の nvar, stvals を参照）
+  %
+  %   出力引数:
+  %     intx - 設計変数に対応する候補番号
+
     intx = zeros(1,nvar);
     for i=1:nvar
       [~, id] = min(abs(stvals(i,:)-x(i)));
       intx(i) = id;
     end
+
+    return
   end
 %--------------------------------------------------------------------------
   function x = int2x(intx)
+  %int2x - 候補リストの番号を設計変数へ戻す
+  %
+  %   x = int2x(intx) は、
+  %   候補リストの番号を設計変数へ戻す。
+  %
+  %   入力引数:
+  %     intx - 設計変数に対応する候補番号
+  %     （外側の nvar, stvals を参照）
+  %
+  %   出力引数:
+  %     x - 設計変数ベクトル
+
     x = zeros(1,nvar);
     for i=1:nvar
       x(i) = stvals(i,intx(i));
     end
+
+    return
   end
 end

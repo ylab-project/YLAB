@@ -5,8 +5,7 @@ function [isthrough, idconnected] = ...
 %   [isthrough, idconnected] =
 %     set_member_column_through_block(dbc, com) は、入力の
 %   「通し柱」指定を端部フラグに記録し、同じ位置で柱頭と柱脚が
-%   接する柱を接続する。ブレースによる内部分割は、分割時に
-%   記録された相手要素から接続し、入力フラグには反映しない。
+%   接する柱を接続する。解析用の分割前の入力柱を対象とする。
 %
 %   入力引数:
 %     dbc - 入力データブロック
@@ -52,13 +51,6 @@ for i = 1:n
   if all(idc > 0)
     idconnected(idc(2)) = idc(1);
   end
-end
-
-% 内部分割は下側要素から上側要素への一方向で接続する。分割相手は
-% set_member_brace_block が分割時だけ idsplit に記録する
-if has_table_field(column, 'idsplit')
-  is_foundation = column.type == PRM.COLUMN_FOR_BRACE_FOUNDATION;
-  idconnected(is_foundation) = column.idsplit(is_foundation);
 end
 
 return

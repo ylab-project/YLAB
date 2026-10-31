@@ -96,8 +96,6 @@ classdef PRM
     TOL_DIR = 0.01;       % 方向判定用許容差
     TOL_FORCE_N = 1000;   % 力・軸力判定用許容差 [N]
     TOL_IGNORED_MOMENT_NMM = 1e-6  % 無視モーメント警告 [N.mm]
-    % 柱脚剛域が下側区間より長いかを判定する許容差 [mm]
-    TOL_RIGID_ZONE_OVERFLOW_MM = 1e-6
     TOL_STIFF_UNSTABLE = 1e-6  % 不安定自由度判定用剛性許容差
 
     %% 節点種別
@@ -268,6 +266,10 @@ classdef PRM
     BRACE_FOUNDATION_GIRDER_TOP = 1     % 梁上端
     BRACE_FOUNDATION_GIRDER_CENTER = 2  % 梁中心
 
+    %% 基礎部のブレース取り付き位置（建物形状）
+    BRACE_FOUNDATION_COLUMN_TOP = 1  % 基礎柱の天端位置
+    BRACE_FOUNDATION_BEAM_TOP = 2    % 基礎梁の天端位置
+
     %% S梁の軸力を考慮した検定（SS7マニュアル 2.5.4 準拠）
     S_GIRDER_AXIAL_NONE = 1   % しない
     S_GIRDER_AXIAL_ALL  = 2   % する（すべて）
@@ -378,7 +380,7 @@ classdef PRM
     BRACE_THROUGH_AUTO = 1       % 通し自動
 
     %% 剛部材倍率
-    RIGID_SCALE = 1.d6        % 剛性倍率
+    RIGID_SCALE = 1000        % 剛性倍率
 
     %% 最大フェーズ数
     MAX_NUM_PHASE = 100       % 最大フェーズ数

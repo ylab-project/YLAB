@@ -16,12 +16,6 @@ function [x, fval, exitflag, com] = call_lsr(com, options)
 
 % --- common ---
 secmgr = com.secmgr;
-section = com.section;
-member = com.member;
-baseline = com.baseline;
-node = com.node;
-story = com.story;
-floor = com.floor;
 max_idphase = min(options.maxphase, com.sectionList.getMaxIdPhase() + 1);
 
 % 診断ロガーを今回実行の設定へ初期化する（診断ファイル未指定なら無効）
@@ -33,8 +27,9 @@ ub = secmgr.ub;
 
 % 初期断面での部材長を算出
 secdim0 = secmgr.findNearestSection(ub, options);
-[~, ~, lm] = update_geometry_z(secdim0, baseline, node, ...
-  story, floor, section, member, options);
+com = update_frame_data(secdim0, com, options);
+lm = calc_member_length_from_node(com.node, ...
+  [com.member.property.idnode1 com.member.property.idnode2]);
 
 % 履歴準備
 trials = [];
@@ -54,8 +49,12 @@ options.idphase = max_idphase;
 % 制約チェックで共有する（_xvar ラッパ内の再写像を避ける）
 secdim_ub = secmgr.findNearestSection(ub, options);
 secdim_lb = secmgr.findNearestSection(lb, options);
-fub = objective_lsr(secdim_ub, secmgr, node, section, member, floor);
-flb = objective_lsr(secdim_lb, secmgr, node, section, member, floor);
+com = update_frame_data(secdim_lb, com, options);
+flb = objective_lsr(secdim_lb, secmgr, com.node, com.section, ...
+  com.member, com.floor);
+com = update_frame_data(secdim_ub, com, options);
+fub = objective_lsr(secdim_ub, secmgr, com.node, com.section, ...
+  com.member, com.floor);
 f0 = (fub+flb)/2;
 
 % 上限断面の警告に使う部材・材料・検定位置を完全結果から取得する。

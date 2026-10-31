@@ -9,7 +9,7 @@ function xlist = restore_girder_slratio(xlist0, member, matF, ...
 %   入力引数:
 %     xlist0 - 復元前の設計変数候補 [候補数×設計変数数]
 %     member - 部材情報構造体
-%     matF - 部材ごとの基準強度
+%     matF - 材料リストの基準強度 (N/mm2)
 %     restoration - 横補剛制約の復元用データ
 %     secmgr - SectionManagerインスタンス
 %     options - 解析オプション
@@ -21,13 +21,8 @@ function xlist = restore_girder_slratio(xlist0, member, matF, ...
 [nlist0, nx] = size(xlist0);
 xcell = cell(nlist0,1);
 mstype = member.property.section_type;
+idm2s = member.property.idsec;
 member_girder = member.girder;
-% slr = restoration.slr;
-% igthrough = member.girder_through.idmeg;
-% idmg2m = member.girder.idme;
-% gjoint = member.girder.joint;
-% mejoint = PRM.FIX*ones(size(member.property,1),4);
-% mejoint(idmg2m,:) = gjoint;
 
 % 細長比（保有耐力横補剛）の確保
 if (nlist0==1)
@@ -38,12 +33,12 @@ end
 if do_parallel
   parfor id=1:nlist0
     xcell{id} = restore_individual(xlist0(id,:), member_girder, ...
-      mstype, matF, restoration, secmgr, options);
+      mstype, idm2s, matF, restoration, secmgr, options);
   end
 else
   for id=1:nlist0
     xcell{id} = restore_individual(xlist0(id,:), member_girder, ...
-      mstype, matF, restoration, secmgr, options);
+      mstype, idm2s, matF, restoration, secmgr, options);
   end
 end
 
@@ -63,18 +58,19 @@ end
 
 %--------------------------------------------------------------------------
 function xlist = restore_individual(xvar, member_girder, mstype, ...
-  matF, restoration, secmgr, options)
+  idm2s, matF, restoration, secmgr, options)
 %restore_individual - 1候補の横補剛制約を満たす梁断面を復元
 %
-%   xlist = restore_individual(xvar, member_girder, mstype, matF, ...
-%     restoration, secmgr, options) は、横補剛制約に違反する
+%   xlist = restore_individual(xvar, member_girder, mstype, ...
+%     idm2s, matF, restoration, secmgr, options) は、横補剛制約に違反する
 %   代表断面を、同じ断面リスト内の最寄りの許容断面へ置き換える。
 %
 %   入力引数:
 %     xvar - 復元前の設計変数 [1×設計変数数]
 %     member_girder - 梁部材情報構造体
 %     mstype - 部材ごとの断面種別
-%     matF - 部材ごとの基準強度
+%     idm2s - 全体部材から断面への対応
+%     matF - 材料リストの基準強度 (N/mm2)
 %     restoration - 横補剛制約の復元用データ
 %     secmgr - SectionManagerインスタンス
 %     options - 解析オプション
@@ -83,8 +79,6 @@ function xlist = restore_individual(xvar, member_girder, mstype, ...
 %     xlist - 復元後の設計変数候補 [0または1×設計変数数]
 
 % 共通配列(ID変換)
-idm2s = secmgr.idme2sec;
-% idmg2m = member_girder.idme;
 idmwfs2m = member_girder.idme(member_girder.section_type==PRM.WFS);
 nme = length(idm2s);
 nmwfs = length(idmwfs2m);
@@ -110,10 +104,10 @@ A = sprop.A(idm2s);
 Iz = sprop.Iz(idm2s);
 Zy = sprop.Zy(idm2s);
 Zpy = sprop.Zpy(idm2s);
-% HAf = msdim(:,1)./(msdim(:,2).*msdim(:,4));
 
 % 材料定数
-F = secmgr.extractMemberMaterialF(secdim, matF);
+Fs = secmgr.extractSectionMaterialF(secdim, matF);
+F = Fs(idm2s);
 
 % 梁部材の諸元
 Ag = A(idmwfs2m);
@@ -121,10 +115,6 @@ Izg = Iz(idmwfs2m);
 Zyg = Zy(idmwfs2m);
 Zpyg = Zpy(idmwfs2m);
 Fg = F(idmwfs2m);
-
-% % 床による梁剛性の考慮
-% Iyg = calc_composite_girder_Iy(...
-%   member_girder, msdim, msprop, idmg2m, options);
 
 % 細長比制約の計算
 lbg = restoration.lbwfs;
@@ -145,8 +135,6 @@ istarget = unique(idm2s(idmwfs2m(imtarget)));
 nstarget = length(istarget);
 
 % 細長比に関する復元操作
-% slr_target = slr.istarget(idmwfs2m,:);
-% slr_lb = slr.lb(idmwfs2m,:);
 slr_target = slr.istarget;
 slr_lb = slr.lb;
 slr_lbmax = slr.lbmax;

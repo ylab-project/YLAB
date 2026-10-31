@@ -105,7 +105,7 @@ function xlist = restore_individual_std(xvar, member, ...
 
 % 共通配列(ID変換)
 girder = member.girder;
-idm2s = secmgr.idme2sec;
+idm2s = member.property.idsec;
 idmeg = nominal_girder.idmeg;
 
 % 共通配列
@@ -126,8 +126,11 @@ sprop = calc_secprop(secdim, stype, scallop, secmgr);
 Zpy = sprop.Zpy(idm2s);
 
 % 材料定数
-F = secmgr.extractMemberMaterialF(secdim, matF);
-grade_mem = secmgr.extractMemberMaterialGrade(secdim, matGrade);
+[Fs, idmat] = secmgr.extractSectionMaterialF(secdim, matF);
+F = Fs(idm2s);
+grade = zeros(size(idmat));
+grade(idmat > 0) = matGrade(idmat(idmat > 0));
+grade_mem = grade(idm2s);
 
 % 名目梁の代表部材から断面諸量を取得
 idm_ng = girder.idme(idmeg(:, 1));
@@ -225,7 +228,7 @@ function xlist = restore_individual_aij(xvar, member, ...
 
 col = member.column;
 girder = member.girder;
-idm2s = secmgr.idme2sec;
+idm2s = member.property.idsec;
 idmeg = nominal_girder.idmeg;
 nc = length(col.idme);
 scallop = options.girder_scallop_size;
@@ -238,8 +241,11 @@ secdim = secmgr.findNearestSection(xvar, options);
 msdim = secdim(idm2s, 1:4);
 sprop = calc_secprop(secdim, stype, scallop, secmgr);
 Zpy = sprop.Zpy(idm2s);
-F = secmgr.extractMemberMaterialF(secdim, matF);
-grade_mem = secmgr.extractMemberMaterialGrade(secdim, matGrade);
+[Fs, idmat] = secmgr.extractSectionMaterialF(secdim, matF);
+F = Fs(idm2s);
+grade = zeros(size(idmat));
+grade(idmat > 0) = matGrade(idmat(idmat > 0));
+grade_mem = grade(idm2s);
 
 % 名目梁の代表部材から断面諸量を取得
 idm_ng = girder.idme(idmeg(:, 1));

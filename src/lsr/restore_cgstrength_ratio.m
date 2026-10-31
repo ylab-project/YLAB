@@ -1,5 +1,28 @@
 function xlist = restore_cgstrength_ratio(xlist0, secdim0, vix, viy, ...
-  cgsr, idm2n, idmc2m, ~, mtype, matF, cxl, secmgr, options)
+  cgsr, idm2n, idmc2m, idm2s, mtype, matF, cxl, secmgr, options)
+%restore_cgstrength_ratio - 柱梁耐力比を満たす方向の断面候補を生成する
+%
+%   xlist = restore_cgstrength_ratio(xlist0, secdim0, vix, viy, ...
+%   cgsr, idm2n, idmc2m, idm2s, mtype, matF, cxl, secmgr, options) は、
+%   柱梁耐力比を満たす方向の断面候補を生成する。
+%
+%   入力引数:
+%     xlist0 - 復元元の設計変数配列
+%     secdim0 - 基点の断面寸法 (mm)
+%     vix - X方向の軸力による全塑性曲げ低下率
+%     viy - Y方向の軸力による全塑性曲げ低下率
+%     cgsr - 柱梁耐力比の対象節点と部材対応
+%     idm2n - 全体部材から両端節点への対応
+%     idmc2m - 柱から全体部材への対応
+%     idm2s - 全体部材から断面への対応
+%     mtype - 全体部材の種別
+%     matF - 材料の基準強度 (N/mm2)
+%     cxl - 部材の材軸方向余弦
+%     secmgr - 断面リストと設計変数の対応管理
+%     options - 解析・探索・出力のオプション
+%
+%   出力引数:
+%     xlist - 候補の設計変数配列
 
 % 計算の準備
 [nlist0, nx] = size(xlist0);
@@ -14,13 +37,13 @@ end
 if do_parallel
   parfor id=1:nlist0
     xcell{id} = restore_individual(xlist0(id,:), secdim0(:,:,id), ...
-      vix, viy, cgsr, idm2n, idmc2m, mtype, matF, cxl, ...
+      vix, viy, cgsr, idm2n, idmc2m, idm2s, mtype, matF, cxl, ...
       secmgr, options);
   end
 else
   for id=1:nlist0
     xcell{id} = restore_individual(xlist0(id,:), secdim0(:,:,id), ...
-      vix, viy, cgsr, idm2n, idmc2m, mtype, matF, cxl, ...
+      vix, viy, cgsr, idm2n, idmc2m, idm2s, mtype, matF, cxl, ...
       secmgr, options);
   end
 end
@@ -40,12 +63,34 @@ end
 
 %-------------------------------------------------------------------------
 function  xlist = restore_individual(xvar, secdim, vix, viy, ...
-  cgsr, idm2n, idmc2m, mtype, matF, cxl, secmgr, options)
+  cgsr, idm2n, idmc2m, idm2s, mtype, matF, cxl, secmgr, options)
+%restore_individual - 一評価点の柱梁耐力比から復元候補を生成する
+%
+%   xlist = restore_individual(xvar, secdim, vix, viy, ...
+%   cgsr, idm2n, idmc2m, idm2s, mtype, matF, cxl, secmgr, options) は、
+%   一評価点の柱梁耐力比から復元候補を生成する。
+%
+%   入力引数:
+%     xvar - 評価点の設計変数
+%     secdim - 評価点の断面寸法 (mm)
+%     vix - X方向の軸力による全塑性曲げ低下率
+%     viy - Y方向の軸力による全塑性曲げ低下率
+%     cgsr - 柱梁耐力比の対象節点と部材対応
+%     idm2n - 全体部材から両端節点への対応
+%     idmc2m - 柱から全体部材への対応
+%     idm2s - 全体部材から断面への対応
+%     mtype - 全体部材の種別
+%     matF - 材料の基準強度 (N/mm2)
+%     cxl - 部材の材軸方向余弦
+%     secmgr - 断面リストと設計変数の対応管理
+%     options - 解析・探索・出力のオプション
+%
+%   出力引数:
+%     xlist - 候補の設計変数配列
 
 % 計算の準備
 tol = options.tolRestoreCgr;
 stype = secmgr.idsec2stype;
-idm2s = secmgr.idme2sec;
 idn_cgsr = cgsr.idnode;
 vtype = secmgr.idvar2vtype;
 
@@ -55,7 +100,8 @@ Zpym = sprop.Zpy(idm2s);
 Zpzm = sprop.Zpz(idm2s);
 
 % 材料定数
-Fm = secmgr.extractMemberMaterialF(secdim, matF);
+Fs = secmgr.extractSectionMaterialF(secdim, matF);
+Fm = Fs(idm2s);
 
 % 柱梁耐力比の算定
 concgsr = calc_cgstrength_ratio(Zpym, Zpzm, vix, viy, idn_cgsr, ...
@@ -248,7 +294,6 @@ end
 
 return
 end
-
 
 % % 計算の準備
 % ncg = length(idn_cgsr);

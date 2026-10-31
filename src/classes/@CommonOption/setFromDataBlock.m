@@ -128,6 +128,12 @@ for i=1:size(data,1)
       end
     case 'ブレースの取り付き位置'
       options.position_brace_foundation_girder = data{i,2};      
+    case '基礎部のブレース取り付き位置'
+      p = data{i,2};
+      if ~ismissing(p)
+        validate_choice_number(p, data{i,1}, 2);
+        options.position_brace_foundation = p;
+      end
     case '曲げの設計におけるウェブの考慮（梁中央部）'
       options.consider_web_at_girder_center = (data{i,2}=='Y');
     case '曲げの設計におけるウェブの考慮（梁端部）'
@@ -281,9 +287,14 @@ function validate_choice_number(number, label, nchoice)
 %     number  - 入力CSVの選択肢番号
 %     label   - エラー表示用の入力キー名
 %     nchoice - 選択肢の個数
+%
+%   出力引数:
+%     なし
+
 if ~ismember(number, 1:nchoice)
   nums = char(strjoin(string(1:nchoice), '/'));
   error('%s は %s のいずれかを指定してください', label, nums);
 end
+
 return
 end

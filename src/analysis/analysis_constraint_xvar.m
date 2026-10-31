@@ -24,6 +24,7 @@ function [cvec, result, restoration] = analysis_constraint_xvar( ...
 %     - 関連関数: analysis_constraint
 
 secdim = com.secmgr.findNearestSection(xvar, options);
+com = update_frame_data(secdim, com, options);
 outc = cell(1, max(1, nargout));
 [outc{:}] = analysis_constraint(xvar, secdim, com, options);
 cvec = outc{1};

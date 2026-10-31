@@ -3,8 +3,7 @@ function rigid_zone = set_member_column_rigid_zone_block(dbc, com)
 %
 %   rigid_zone = set_member_column_rigid_zone_block(dbc, com) は、
 %   CSVデータブロック「柱の剛域」から方向別の柱脚・柱頭剛域を
-%   読み込み、柱部材ごとの直接入力値を返す。分割柱では物理外端に
-%   だけ入力値を設定し、人工分割端は自動計算の対象に残す。
+%   読み込み、解析用の分割前の入力柱ごとに直接入力値を返す。
 %
 %   入力引数:
 %     dbc - データブロッククラスオブジェクト
@@ -36,18 +35,6 @@ if n == 0
   return
 end
 
-% 分割情報がない柱テーブルでは全候補の両端を物理外端として扱う
-has_idsplit = isfield(member_column, 'idsplit') || ...
-  (istable(member_column) && ismember('idsplit', ...
-  member_column.Properties.VariableNames));
-member_type = [];
-artificial_end_types = [];
-if has_idsplit
-  member_type = member_column.type;
-  artificial_end_types = [PRM.COLUMN_FOR_BRACE_BODY, ...
-    PRM.COLUMN_FOR_BRACE_FOUNDATION];
-end
-
 % 層名・通り名を範囲指定用の2列へ変換
 floor_name = cell(n,2);
 xcoord_name = cell(n,2);
@@ -63,7 +50,7 @@ end
 [idx_search, idy_search, idz_search] = find_idxyz_column( ...
   floor_name, xcoord_name, ycoord_name, baseline, story);
 
-% 柱脚・柱頭の直接入力を物理外端へ設定
+% 柱脚・柱頭の直接入力を入力柱へ設定
 for i = 1:n
   direction = tochar(data{i,7});
   lr_top = data{i,8};
@@ -80,27 +67,15 @@ for i = 1:n
     idz_search(i,:), member_column);
   switch direction
     case '全方向'
-      rigid_zone.x = set_physical_member_end_values( ...
-        rigid_zone.x, ids, member_type, end_values, ...
-        artificial_end_types);
-      rigid_zone.y = set_physical_member_end_values( ...
-        rigid_zone.y, ids, member_type, end_values, ...
-        artificial_end_types);
-      rigid_zone.n = set_physical_member_end_values( ...
-        rigid_zone.n, ids, member_type, end_values, ...
-        artificial_end_types);
+      rigid_zone.x(ids, :) = repmat(end_values, numel(ids), 1);
+      rigid_zone.y(ids, :) = repmat(end_values, numel(ids), 1);
+      rigid_zone.n(ids, :) = repmat(end_values, numel(ids), 1);
     case 'X方向'
-      rigid_zone.x = set_physical_member_end_values( ...
-        rigid_zone.x, ids, member_type, end_values, ...
-        artificial_end_types);
+      rigid_zone.x(ids, :) = repmat(end_values, numel(ids), 1);
     case 'Y方向'
-      rigid_zone.y = set_physical_member_end_values( ...
-        rigid_zone.y, ids, member_type, end_values, ...
-        artificial_end_types);
+      rigid_zone.y(ids, :) = repmat(end_values, numel(ids), 1);
     case '材軸方向'
-      rigid_zone.n = set_physical_member_end_values( ...
-        rigid_zone.n, ids, member_type, end_values, ...
-        artificial_end_types);
+      rigid_zone.n(ids, :) = repmat(end_values, numel(ids), 1);
   end
 end
 

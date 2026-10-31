@@ -357,7 +357,7 @@ member_column = set_member_column_p2_block(dbc, com, isdummy_node);
 member.column = member_column;
 com.member = member;
 [member_brace, baseline, node, member_column, member_girder] = ...
-  set_member_brace_block(dbc, com, options);
+  set_member_brace_block(dbc, com);
 member.girder = member_girder;
 member.column = member_column;
 member.brace = member_brace;
@@ -534,6 +534,34 @@ loadcase = set_loadcase_block(dbc);
 com.loadcase = loadcase;
 com.nlc = size(loadcase,1);
 
+%% 初期断面の形状と解析部材を荷重の割当前に確定する
+com = parse_frame_data(com);
+% 断面管理は入力時に一度だけ構築する。候補ごとの部材番号を保持しない。
+design = com.design;
+Hp = design.variable.idvar(design.variable.type == PRM.WFS_H);
+Bp = design.variable.idvar(design.variable.type == PRM.WFS_B);
+twp = design.variable.idvar(design.variable.type == PRM.WFS_TW);
+tfp = design.variable.idvar(design.variable.type == PRM.WFS_TF);
+Dp = design.variable.idvar(design.variable.type == PRM.HSS_D);
+tp = design.variable.idvar(design.variable.type == PRM.HSS_T);
+HsrDp = design.variable.idvar(design.variable.type == PRM.HSR_D);
+Hsrtp = design.variable.idvar(design.variable.type == PRM.HSR_T);
+brb1p = design.variable.idvar(design.variable.type == PRM.BRB_V1);
+brb2p = design.variable.idvar(design.variable.type == PRM.BRB_V2);
+com.secmgr = create_section_manager(Hp, Bp, twp, tfp, Dp, tp, ...
+  HsrDp, Hsrtp, brb1p, brb2p, com, com.sectionList, options);
+xini = extract_initial_design_value(com, options);
+if ~isempty(xini)
+  com.design.variable.value = xini(:);
+end
+secdim = com.secmgr.findNearestSection(com.design.variable.value, options);
+com = update_frame_data(secdim, com, options);
+idm2n = [com.member.property.idnode1 com.member.property.idnode2];
+lm = calc_member_length_from_node(com.node, idm2n);
+com.member.girder = countup_girder_stiffening(com, lm);
+[com.member.girder, com.nominal.girder] = ...
+  countup_girder_stiffening_direct(com, lm);
+
 %% 節点荷重
 % 形式はブロック単位で判定し、従来形式だけをここで読む（内部設計4章）
 nodal_blocks = dbc.get_data_blocks('節点荷重');
@@ -579,6 +607,18 @@ end
 
 %--------------------------------------------------------------------------
 function options = set_basic_options_block(dbc, options)
+%set_basic_options_block - 基本事項を読み込んでオプションへ反映する
+%
+%   options = set_basic_options_block(dbc, options) は、
+%   基本事項を読み込んでオプションへ反映する。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     options - 解析・探索・出力のオプション
+%
+%   出力引数:
+%     options - 解析・探索・出力のオプション
+
 data = dbc.get_data_block('基本事項');
 options = options.setFromDataBlock(data);
 return
@@ -586,6 +626,18 @@ end
 
 %--------------------------------------------------------------------------
 function options = set_analysis_options_block(dbc, options)
+%set_analysis_options_block - 構造計算条件を読み込んでオプションへ反映する
+%
+%   options = set_analysis_options_block(dbc, options) は、
+%   構造計算条件を読み込んでオプションへ反映する。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     options - 解析・探索・出力のオプション
+%
+%   出力引数:
+%     options - 解析・探索・出力のオプション
+
 data = dbc.get_data_block('構造計算条件');
 options = options.setFromDataBlock(data);
 return
@@ -593,6 +645,18 @@ end
 
 %--------------------------------------------------------------------------
 function options = set_optimization_options_block(dbc, options)
+%set_optimization_options_block - 最適化条件を読み込む
+%
+%   options = set_optimization_options_block(dbc, options) は、
+%   最適化条件を読み込んでオプションへ反映する。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     options - 解析・探索・出力のオプション
+%
+%   出力引数:
+%     options - 解析・探索・出力のオプション
+
 data = dbc.get_data_block('最適化条件');
 options = options.setFromDataBlock(data);
 return
@@ -600,6 +664,18 @@ end
 
 %--------------------------------------------------------------------------
 function coptions = set_constraints_block(dbc, coptions)
+%set_constraints_block - 制約条件を読み込んで判定設定へ反映する
+%
+%   coptions = set_constraints_block(dbc, coptions) は、
+%   制約条件を読み込んで判定設定へ反映する。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     coptions - 制約条件のオプション
+%
+%   出力引数:
+%     coptions - 制約条件のオプション
+
 data = dbc.get_data_block('制約条件');
 coptions = coptions.setFromDataBlock(data);
 return
@@ -607,6 +683,18 @@ end
 
 %--------------------------------------------------------------------------
 function options = set_output_options_block(dbc, options)
+%set_output_options_block - 出力制御を読み込んでオプションへ反映する
+%
+%   options = set_output_options_block(dbc, options) は、
+%   出力制御を読み込んでオプションへ反映する。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     options - 解析・探索・出力のオプション
+%
+%   出力引数:
+%     options - 解析・探索・出力のオプション
+
 data = dbc.get_data_block('出力制御');
 
 label = 0;
@@ -665,6 +753,17 @@ end
 
 %--------------------------------------------------------------------------
 function  variable = set_variable_block(dbc)
+%set_variable_block - 設計変数の初期値と可変指定を読み込む
+%
+%   variable = set_variable_block(dbc) は、
+%   設計変数の初期値と可変指定を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%
+%   出力引数:
+%     variable - 設計変数の値・範囲・可変指定
+
 data = dbc.get_data_block('設計変数');
 n = size(data,1);
 nmax = max(PRM.MAX_NVAR, n);
@@ -709,6 +808,17 @@ end
 
 %--------------------------------------------------------------------------
 function material = set_material_block(dbc)
+%set_material_block - 材料の弾性係数と基準強度を読み込む
+%
+%   material = set_material_block(dbc) は、
+%   材料の弾性係数と基準強度を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%
+%   出力引数:
+%     material - 材料名と弾性係数・基準強度
+
 data = dbc.get_data_block('材料');
 n = size(data,1);
 id = zeros(n,1);
@@ -747,9 +857,22 @@ end
 
 %--------------------------------------------------------------------------
 function G = calc_shear_modulus(E, pr)
-%calc_shear_modulus - せん断弾性係数を算出する
-%   pr=0.3 のとき SS7 規定値 G=79400 N/mm2 を返す。
-%   それ以外は G = E/(2(1+pr)) で算出する。
+%calc_shear_modulus - ヤング係数とポアソン比からせん断弾性係数を求める
+%
+%   G = calc_shear_modulus(E, pr) は、
+%   ヤング係数とポアソン比からせん断弾性係数を求める。
+%
+%   入力引数:
+%     E - ヤング係数 (N/mm2)
+%     pr - ポアソン比
+%
+%   出力引数:
+%     G - せん断弾性係数 (N/mm2)
+%
+%   備考:
+%     pr=0.3 のとき SS7 規定値 G=79400 N/mm2 を返す。
+%     それ以外は G = E/(2(1+pr)) で算出する。
+
 if pr == 0.3
   G = 79400;
 else
@@ -760,6 +883,19 @@ end
 
 %--------------------------------------------------------------------------
 function section_list = set_section_list_block(dbc, input, com)
+%set_section_list_block - 断面リストのファイルと材料を対応付ける
+%
+%   section_list = set_section_list_block(dbc, input, com) は、
+%   断面リストのファイルと材料を対応付ける。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     input - 入力ファイルの所在情報
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     section_list - 断面リストの所在と材料の対応
+
 data = dbc.get_data_block('断面リスト');
 n = size(data,1);
 
@@ -860,6 +996,18 @@ end
 
 %--------------------------------------------------------------------------
 function column_base_list = set_column_base_list_block(dbc, input, ~)
+%set_column_base_list_block - 柱脚リストのファイルから断面と剛性を読み込む
+%
+%   column_base_list = set_column_base_list_block(dbc, input, ~) は、
+%   柱脚リストのファイルから断面と剛性を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     input - 入力ファイルの所在情報
+%
+%   出力引数:
+%     column_base_list - 柱脚リストの断面・剛性データ
+
 data = dbc.get_data_block('柱脚リスト');
 n = size(data,1);
 
@@ -906,6 +1054,18 @@ end
 
 %--------------------------------------------------------------------------
 function node = set_node_identification_block(dbc, com)
+%set_node_identification_block - 節点同一化の入力を代表節点へ対応付ける
+%
+%   node = set_node_identification_block(dbc, com) は、
+%   節点同一化の入力を代表節点へ対応付ける。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     node - 節点の位置と代表節点の対応
+
 % 計算の準備
 baseline = com.baseline;
 node = com.node;
@@ -967,6 +1127,18 @@ end
 
 %--------------------------------------------------------------------------
 function support = set_support_condition(dbc, com)
+%set_support_condition - 支点の位置と固定条件を読み込む
+%
+%   support = set_support_condition(dbc, com) は、
+%   支点の位置と固定条件を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     support - 支点節点と固定条件
+
 data = dbc.get_data_block('支点');
 n = size(data,1);
 
@@ -1012,6 +1184,18 @@ end
 
 %--------------------------------------------------------------------------
 function flex_diaphragm = set_flexible_diaphragm(dbc, com)
+%set_flexible_diaphragm - 剛床仮定を解除する節点を読み込む
+%
+%   flex_diaphragm = set_flexible_diaphragm(dbc, com) は、
+%   剛床仮定を解除する節点を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     flex_diaphragm - 剛床仮定を解除する節点の情報
+
 data = dbc.get_data_block('剛床仮定の解除');
 n = size(data,1);
 
@@ -1175,6 +1359,16 @@ end
 
 %--------------------------------------------------------------------------
 function section_brace = set_section_horizontal_brace_block(dbc, ~)
+%set_section_horizontal_brace_block - 水平ブレース断面を読み込む
+%
+%   section_brace = set_section_horizontal_brace_block(dbc, ~) は、
+%   水平ブレース断面を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%
+%   出力引数:
+%     section_brace - ブレース断面の情報
 
 % 計算の準備
 data = dbc.get_data_block('水平ブレース断面');
@@ -1233,6 +1427,22 @@ end
 %--------------------------------------------------------------------------
 function [member_property, idmec2mem, idmeg2mem, idmeb2mem, ...
   idmehb2mem] = set_member_property(com)
+%set_member_property - 種別ごとの部材を全体番号へ対応付ける
+%
+%   [member_property, idmec2mem, idmeg2mem, idmeb2mem, ...
+%   idmehb2mem] = set_member_property(com) は、
+%   種別ごとの部材を全体番号へ対応付ける。
+%
+%   入力引数:
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     member_property - 全体部材の種類・節点・断面の対応
+%     idmec2mem - 柱から全体部材番号への対応
+%     idmeg2mem - 梁から全体部材番号への対応
+%     idmeb2mem - 鉛直ブレースから全体部材番号への対応
+%     idmehb2mem - 水平ブレースから全体部材番号への対応
+
 % 共通定数
 nme = com.nme;
 nmec = com.nmec;
@@ -1357,6 +1567,22 @@ end
 %--------------------------------------------------------------------------
 function [section_property, idsecc2sec, idsecg2sec, idsecb2sec, ...
   idsechb2sec] = set_section_property(com)
+%set_section_property - 種別ごとの断面を全体番号へ対応付ける
+%
+%   [section_property, idsecc2sec, idsecg2sec, idsecb2sec, ...
+%   idsechb2sec] = set_section_property(com) は、
+%   種別ごとの断面を全体番号へ対応付ける。
+%
+%   入力引数:
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     section_property - 全体断面の種類と種別内番号
+%     idsecc2sec - 柱断面から全体断面番号への対応
+%     idsecg2sec - 梁断面から全体断面番号への対応
+%     idsecb2sec - 鉛直ブレース断面から全体断面番号への対応
+%     idsechb2sec - 水平ブレース断面から全体断面番号への対応
+
 % 共通定数
 nsec = com.nsec;
 nsecc = com.nsecc;
@@ -1450,6 +1676,20 @@ end
 %--------------------------------------------------------------------------
 function [section_brace, initial_section_brace] = ...
   set_initial_section_brace_steel_block(dbc, com)
+%set_initial_section_brace_steel_block - 鋼材ブレースの仮定断面を読み込む
+%
+%   [section_brace, initial_section_brace] = ...
+%   set_initial_section_brace_steel_block(dbc, com) は、
+%   鋼材ブレースの仮定断面を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     section_brace - ブレース断面の情報
+%     initial_section_brace - ブレースの仮定断面
+
 data = dbc.get_data_block('鉛直ブレース断面（鋼材）(仮定)');
 n = size(data,1);
 
@@ -1509,6 +1749,18 @@ end
 %--------------------------------------------------------------------------
 function initial_section_brace = ...
   set_initial_section_brace_manufacturer_block(dbc, ~)
+%set_initial_section_brace_manufacturer_block - 製品の仮定断面を読む
+%
+%   initial_section_brace = ...
+%   set_initial_section_brace_manufacturer_block(dbc, ~) は、
+%   メーカー製ブレースの仮定断面を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%
+%   出力引数:
+%     initial_section_brace - ブレースの仮定断面
+
 data = dbc.get_data_block('鉛直ブレース断面（メーカー製品）(仮定)');
 n = size(data,1);
 
@@ -1532,6 +1784,19 @@ end
 %--------------------------------------------------------------------------
 function member_horizontal_brace = ...
   set_member_horizontal_brace_block(dbc, com, ~)
+%set_member_horizontal_brace_block - 水平ブレースの配置と断面を対応付ける
+%
+%   member_horizontal_brace = ...
+%   set_member_horizontal_brace_block(dbc, com, ~) は、
+%   水平ブレースの配置と断面を対応付ける。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     member_horizontal_brace - 水平ブレースの配置と断面番号
+
 data = dbc.get_data_block('水平ブレース配置');
 n = size(data,1);
 
@@ -1763,9 +2028,8 @@ function joint = set_member_column_joint_block(dbc, com)
 %set_member_column_joint_block - 柱の結合状態を読み込む
 %
 %   joint = set_member_column_joint_block(dbc, com) は、CSV入力の
-%   柱脚・柱頭結合状態を柱部材へ設定する。ブレース接続用の
-%   分割柱では、下側オフセット区間を固定とし、名目柱本体へ
-%   入力を設定する。
+%   柱脚・柱頭結合状態を、解析用の分割前の入力柱へ設定する。
+%   分割後の端部結合状態はupdate_frame_dataで割り当てる。
 %
 %   入力引数:
 %     dbc - データブロッククラスオブジェクト
@@ -1798,12 +2062,10 @@ end
 [idx_search, idy_search, idz_search] = find_idxyz_column( ...
   floor_name, xcoord_name, ycoord_name, baseline, story);
 
-% 下側オフセット区間は柱脚・柱頭とも設定対象外とする
 joint = PRM.FIX*ones(nmec,4);
 for i = 1:n
   ids = find_idcolumn_from_idxyz(idx_search(i,:), idy_search(i,:), ...
     idz_search(i,:), member_column);
-  ids = ids(member_column.type(ids) ~= PRM.COLUMN_FOR_BRACE_FOUNDATION);
   if isempty(ids)
     continue
   end
@@ -1815,7 +2077,7 @@ for i = 1:n
     end_values(1) = normalize_member_joint_value(data{i,data_top + 1});
     end_values(2) = normalize_member_joint_value(data{i,data_top});
     joint(:,joint_columns) = set_physical_member_end_values( ...
-      joint(:,joint_columns), ids, member_column.type, end_values, []);
+      joint(:,joint_columns), ids, [], end_values, []);
   end
 end
 
@@ -1850,6 +2112,18 @@ return
 end
 %---------------------------------------------------------------------
 function girder_stiffening = set_member_girder_stiffening_block(dbc, com)
+%set_member_girder_stiffening_block - 梁の横補剛指定を配置部材へ対応付ける
+%
+%   girder_stiffening = set_member_girder_stiffening_block(dbc, com) は、
+%   梁の横補剛指定を配置部材へ対応付ける。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     girder_stiffening - 梁の横補剛位置と指定
+
 data = dbc.get_data_block('梁の横補剛');
 n = size(data,1);
 
@@ -1924,14 +2198,16 @@ end
 %-------------------------------------------------------
 function tf = is_girder_stiffening_new_format(data)
 %is_girder_stiffening_new_format - 入力列から新形式を判定する
-% 構文:
-%   tf = is_girder_stiffening_new_format(data)
 %
-% 入力引数:
-%   data - 梁横補剛ブロックの正規化済みセル配列
+%   tf = is_girder_stiffening_new_format(data) は、
+%   入力列から新形式を判定する。
 %
-% 出力引数:
-%   tf - 新形式の場合true
+%   入力引数:
+%     data - 梁横補剛ブロックの正規化済みセル配列
+%
+%   出力引数:
+%     tf - 新形式の場合true
+
 if size(data, 2) < 13
   tf = false;
   return
@@ -1945,6 +2221,18 @@ end
 
 %--------------------------------------------------------------------------
 function girder_level = set_member_girder_level_block(dbc, com)
+%set_member_girder_level_block - 梁のレベル調整を配置部材へ対応付ける
+%
+%   girder_level = set_member_girder_level_block(dbc, com) は、
+%   梁のレベル調整を配置部材へ対応付ける。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     girder_level - 梁ごとのレベル調整値 (mm)
+
 data = dbc.get_data_block('大梁のレベル調整');
 n = size(data,1);
 
@@ -1988,6 +2276,21 @@ end
 %--------------------------------------------------------------------------
 function [girder_phiI, girder_phiAs, girder_phiAn] = ...
   set_girder_phi_block(dbc, com)
+%set_girder_phi_block - 梁の方向別剛度増減率を読み込む
+%
+%   [girder_phiI, girder_phiAs, girder_phiAn] = ...
+%   set_girder_phi_block(dbc, com) は、
+%   梁の方向別剛度増減率を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     girder_phiI - 梁の曲げ剛度増減率
+%     girder_phiAs - 梁のせん断剛度増減率
+%     girder_phiAn - 梁の材軸方向剛度増減率
+
 data = dbc.get_data_block('梁の剛度増減率');
 n = size(data,1);
 
@@ -2053,6 +2356,18 @@ end
 
 function value = normalize_girder_phi_direct(value, irow, label)
 %normalize_girder_phi_direct - 剛度増減率の自動計算指定をNaNへ変換する
+%
+%   value = normalize_girder_phi_direct(value, irow, label) は、
+%   剛度増減率の自動計算指定をNaNへ変換する。
+%
+%   入力引数:
+%     value - 処理する数値指定
+%     irow - エラー表示に用いる入力行番号
+%     label - 入力欄の名称
+%
+%   出力引数:
+%     value - 処理する数値指定
+
 if isempty(value) || ismissing(value)
   value = nan;
   return
@@ -2071,6 +2386,23 @@ end
 
 function values = set_numeric_cell(values, ids, value, required, irow, ...
   throw_invalid)
+%set_numeric_cell - 数値指定を検証して指定した配列行へ格納する
+%
+%   values = set_numeric_cell(values, ids, value, required, irow, ...
+%   throw_invalid) は、
+%   数値指定を検証して指定した配列行へ格納する。
+%
+%   入力引数:
+%     values - 数値指定を反映する配列
+%     ids - 値を設定する行番号
+%     value - 処理する数値指定
+%     required - 数値指定が必須かどうか
+%     irow - エラー表示に用いる入力行番号
+%     throw_invalid - 不正な指定を通知する関数
+%
+%   出力引数:
+%     values - 数値指定を反映する配列
+
 if isinf(value) || (required && isnan(value))
   throw_invalid(irow);
 end
@@ -2084,6 +2416,18 @@ end
 
 %--------------------------------------------------------------------------
 function column_phi = set_member_column_phi_block(dbc, com)
+%set_member_column_phi_block - 柱の方向別剛度増減率を読み込む
+%
+%   column_phi = set_member_column_phi_block(dbc, com) は、
+%   柱の方向別剛度増減率を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     column_phi - 柱の方向別剛度増減率
+
 data = dbc.get_data_block('柱の剛度増減率');
 n = size(data,1);
 
@@ -2250,6 +2594,18 @@ end
 %--------------------------------------------------------------------------
 %--------------------------------------------------------------------------
 function istarget = set_exclusion_girder_stress_block(dbc, com)
+%set_exclusion_girder_stress_block - 断面算定を省略する梁断面を読み込む
+%
+%   istarget = set_exclusion_girder_stress_block(dbc, com) は、
+%   断面算定を省略する梁断面を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     istarget - 梁断面ごとの算定対象フラグ
+
 data = dbc.get_data_block('断面算定の省略（梁符号毎）');
 n = size(data,1);
 
@@ -2324,6 +2680,18 @@ end
 
 %--------------------------------------------------------------------------
 function idexclusion = set_exclusion_girder_smooth_block(dbc, com)
+%set_exclusion_girder_smooth_block - 梁せい分布の除外配置を読む
+%
+%   idexclusion = set_exclusion_girder_smooth_block(dbc, com) は、
+%   梁せい分布の制約から除外する配置を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     idexclusion - 制約から除外する配置の対応
+
 data = dbc.get_data_block('梁せい分布除外');
 n = size(data,1);
 
@@ -2373,6 +2741,18 @@ end
 
 %--------------------------------------------------------------------------
 function idexclusion = set_exclusion_column_diameter_gap_block(dbc, com)
+%set_exclusion_column_diameter_gap_block - 柱外径差の除外配置を読む
+%
+%   idexclusion = set_exclusion_column_diameter_gap_block(dbc, com) は、
+%   柱外径差制約から除外する配置を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     idexclusion - 制約から除外する配置の対応
+
 data = dbc.get_data_block('柱外径差制限の除外');
 n = size(data,1);
 
@@ -2413,6 +2793,17 @@ end
 
 %--------------------------------------------------------------------------
 function loadcase = set_loadcase_block(dbc)
+%set_loadcase_block - 荷重ケースと加力方向を読み込む
+%
+%   loadcase = set_loadcase_block(dbc) は、
+%   荷重ケースと加力方向を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%
+%   出力引数:
+%     loadcase - 荷重ケース名と加力方向
+
 data = dbc.get_data_block('荷重ケース');
 n = size(data,1);
 
@@ -2442,9 +2833,21 @@ loadcase = table(name, type_name, dir);
 return
 end
 
-
 %--------------------------------------------------------------------------
 function fnode = add_earthquake_force_position_mz(dbc, com, fnode)
+%add_earthquake_force_position_mz - 地震力の偏心による荷重を加える
+%
+%   fnode = add_earthquake_force_position_mz(dbc, com, fnode) は、
+%   地震力の作用位置によるねじり荷重を加える。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%     fnode - 節点の方向別・ケース別荷重
+%
+%   出力引数:
+%     fnode - 節点の方向別・ケース別荷重
+
 data = dbc.get_data_block('地震力作用位置の直接入力');
 if isempty(data)
   return
@@ -2515,10 +2918,24 @@ end
 
 %--------------------------------------------------------------------------
 function [fnode, fnode_excl] = set_additive_nodal_force_block(dbc, com)
-%set_additive_nodal_force_block - 追加節点荷重を読み込む
-%   同一節点・同一ケースで2回目に出現する行（SS7変換の2巡目。片持梁
-%   先端Qo相当）は等価節点荷重の帳票で非計上とするため fnode_excl に
-%   分離する。fnode は解析用に全量（1巡目+2巡目）を保持する。
+%set_additive_nodal_force_block - 追加節点荷重と帳票の非計上分を読み込む
+%
+%   [fnode, fnode_excl] = set_additive_nodal_force_block(dbc, com) は、
+%   追加節点荷重と帳票の非計上分を読み込む。
+%
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 架構・断面・材料を含む共通データ
+%
+%   出力引数:
+%     fnode - 節点の方向別・ケース別荷重
+%     fnode_excl - 追加節点荷重の帳票非計上分
+%
+%   備考:
+%     同一節点・同一ケースで2回目に出現する行（SS7変換の2巡目。片持梁
+%     先端Qo相当）は等価節点荷重の帳票で非計上とするため fnode_excl に
+%     分離する。fnode は解析用に全量（1巡目+2巡目）を保持する。
+
 data = dbc.get_data_block('追加節点荷重');
 n = size(data,1);
 

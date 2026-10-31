@@ -1,12 +1,22 @@
 function report_output(xvar, com, options)
+%report_output - 確定断面を解析して帳票を出力する
+%
+%   report_output(xvar, com, options) は、
+%   確定断面を解析して帳票を出力する。
+%
+%   入力引数:
+%     xvar - 評価点の設計変数
+%     com - 架構・断面・材料を含む共通データ
+%     options - 解析・探索・出力のオプション
+%
+%   出力引数:
+%     なし
+
 makeDOMCompilable();
 import mlreportgen.report.*
 import mlreportgen.dom.*
 
 % 共通定数
-nblx = com.nblx;
-nbly = com.nbly;
-nblz = com.nblz;
 
 % 共通設定
 rm = reportManager();
@@ -19,6 +29,9 @@ set(0, 'defaultAxesFontSize', 9);
 set(0, 'defaultTextFontSize', 9);
 warning('off','MATLAB:print:ContentTypeImageSuggested');
 
+secdim = com.secmgr.findNearestSection(xvar, options);
+com = update_frame_data(secdim, com, options);
+
 % 計算の準備
 secmgr = com.secmgr;
 section = com.section;
@@ -26,7 +39,7 @@ member = com.member;
 node = com.node;
 floor = com.floor;
 % 解析
-[~, result] = analysis_constraint_xvar(xvar, com, options);
+[~, result] = analysis_constraint(xvar, secdim, com, options);
 fval = objective_lsr(result.secdim, secmgr, node, section, member, floor);
 % TODO: とりあえず
 com.baseline = result.baseline;
