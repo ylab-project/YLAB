@@ -128,7 +128,7 @@ cyl = zeros(n,3);
 % 柱タイプ（標準柱）
 type = PRM.COLUMN_STANDARD*ones(n,1);
 
-% 初回は分割相手なし。断面確定後の柱分割で相手の番号を設定する。
+% 読込時は分割相手なし。update_frame_dataで断面確定後に設定する。
 idsplit = zeros(n,1);
 
 % 柱部材テーブルの生成

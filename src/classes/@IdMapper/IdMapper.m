@@ -25,9 +25,9 @@ classdef IdMapper < handle
   %     mapSectionToHss - 断面→HSS断面変換
   %     mapWfsToSection - WFS断面→断面変換
   %     mapHssToSection - HSS断面→断面変換
-  %     mapMemberToSection - memberから断面番号を取得
-  %     mapMemberToSectionType - memberから断面種別を取得
-  %     mapIdMemberToSubList - memberからリスト内断面番号を取得
+  %     mapMemberToSection - 部材→断面番号変換
+  %     mapMemberToSectionType - 部材→断面種別変換
+  %     mapIdMemberToSubList - 部材→リスト内断面番号変換
   %
   %   参考:
   %     SectionConstraintValidator, SectionManager

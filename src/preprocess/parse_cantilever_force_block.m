@@ -25,28 +25,26 @@ for ir = 1:n
   label = cantilever_force.block_name{ir};
   ib = cantilever_force.iblock(ir);
   csv_line = cantilever_force.csv_row(ir);
-  ip = find(strcmp(placement_keys, ...
-    strjoin(cantilever_force.selector(ir, :), '|')), 1);
+  selector = cantilever_force.selector(ir, :);
+  ip = find(strcmp(placement_keys, strjoin(selector, '|')), 1);
   if isempty(ip)
+    reason = '配置なし';
+  else
+    reason = placements(ip).reason;
+  end
+  if ~isempty(reason)
     issues = add_input_issue(issues, 'CantileverLoadUnresolved', ...
-      '配置なし', label, ib, csv_line, ...
-      strjoin(cantilever_force.selector(ir, :), '/'), 1, 0, 1, '');
+      reason, label, ib, csv_line, strjoin(selector, '/'), 1, 0, 1, '');
     continue
   end
   placement = placements(ip);
-  if ~isempty(placement.reason)
-    issues = add_input_issue(issues, 'CantileverLoadUnresolved', ...
-      placement.reason, label, ib, csv_line, ...
-      strjoin(cantilever_force.selector(ir, :), '/'), 1, 0, 1, '');
-    continue
-  end
   idnode(ir) = placement.idnode;
   f(ir, :) = calc_cantilever_nodal_force(placement.r, ...
     cantilever_force.c_base(ir), cantilever_force.c_tip(ir), ...
     cantilever_force.q_base(ir), cantilever_force.q_tip(ir));
   if cantilever_force.wtype(ir) == PRM.WTYPE_FOUNDATION
     issues = check_foundation_support(placement.idnode, com, label, ib, ...
-      csv_line, strjoin(cantilever_force.selector(ir, :), '/'), issues);
+      csv_line, strjoin(selector, '/'), issues);
   end
 end
 is_cantilever = true(n, 1);

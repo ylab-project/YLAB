@@ -1,14 +1,15 @@
 function issues = report_input_issues(issues, varargin)
 %report_input_issues - 入力警告を種別ごとに集約して通知する
 %
-%   issues = report_input_issues(issues, element_force, nodal_force)
-%   は、解決済み荷重表から重量分類の警告の適用件数を確定し、
+%   issues = report_input_issues(issues, varargin) は、
+%   解決済み荷重表からタイプの2警告の適用件数を確定し、
 %   入力位置、件数とフォールバック先を警告IDごとにまとめて通知する。
 %
 %   入力引数:
 %     issues   - add_input_issueで収集した警告レコード構造体配列
-%     varargin - 解決済み荷重表。block_name、iblock、csv_row列を使う
-%                表がなければ重量分類の警告は未反映として通知する
+%     varargin - 解決済みの線材・節点荷重表（0個以上）。
+%                block_name、iblock、csv_row列を使う。
+%                表がなければタイプの2警告は未反映として通知する。
 %
 %   出力引数:
 %     issues - 荷重の割当結果に基づく件数を持つ警告レコード
@@ -17,8 +18,9 @@ if isempty(issues)
 end
 
 ids = {issues.id};
-% 重量分類の警告は入力行ごとに数え、同じ入力位置の荷重が残る場合に
-% 適用とする。地震用の荷重はilc=0でも重量への反映対象となる。
+% read_weight_headのタイプの2警告だけを割当結果から確定する。
+% 未解釈の区分は行を保持しないため、記録済みの未反映件数を維持する。
+% 同じ入力位置の荷重が残れば適用とし、ilc=0の地震用の重量も含める。
 for k = find(ismember(ids, {'ElementLoadUnknownType', ...
     'ElementLoadLlUnusualType'}))
   issues(k).applied_count = 0;

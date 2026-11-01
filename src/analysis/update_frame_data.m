@@ -136,6 +136,8 @@ if nsplit > 0
 end
 com.nblz = height(com.baseline.z);
 nnode = height(node);
+% 入力柱の端点・結合条件・分割番号を未分割の読込時状態へ戻し、
+% 断面変更後の取り付き高さで分割を作り直す。
 mc = mc(1:nmc, :);
 mc.idnode1 = ci.idnode1;
 mc.idnode2 = ci.idnode2;

@@ -13,7 +13,7 @@ function idmec = find_idcolumn_from_idxyz(idx, idy, idz, member_column)
 %     member_column - idsplitを持つ柱部材テーブルまたは構造体
 %
 %   出力引数:
-%     idmec - 柱部材番号
+%     idmec - 柱部材番号の行ベクトル
 
 % 通り番号から柱部材番号を検索
 n = size(idx,1);
@@ -29,13 +29,13 @@ for i = 1:n
   zm = idz(i,1) <= idzlist(1,:) & idzlist(1,:) < idz(i,2);
   istarget = istarget | (xm & ym & zm);
 end
-idmec = find(istarget)';
+idmec = find(istarget);
 
 % 元の名目柱を指定する入力は上下両方の分割要素へ適用する
 idsibling = member_column.idsplit(idmec);
 idsibling = idsibling(idsibling > 0);
 if ~isempty(idsibling)
-  idmec = unique([idmec(:)' idsibling(:)'], 'stable');
+  idmec = unique([idmec idsibling(:)'], 'stable');
 end
 
 return

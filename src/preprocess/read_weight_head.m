@@ -20,7 +20,8 @@ function [head, ilc, issues] = read_weight_head(names, ilc_gp, ...
 %   出力引数:
 %     head   - 区分の解釈結果。is_validが偽の行は反映しない
 %     ilc    - 解析荷重ケース番号。地震用と未解釈は0
-%     issues - 未割当として記録した警告。適用件数は通知時に確定する
+%     issues - 未解釈の区分は未反映として確定した警告。
+%              タイプの2警告は荷重割当後に通知時の適用件数を確定する。
 ilc = 0;
 head = read_weight_category(names{1}, names{2}, names{3});
 if ~head.is_valid
@@ -29,6 +30,8 @@ if ~head.is_valid
     detail, block_name, iblock, csv_row, detail, 1, 0, 1, '');
   return
 end
+% タイプの警告は荷重行を保持するため、ここでは未割当として記録し、
+% report_input_issuesで荷重の割当結果から適用件数を確定する。
 if head.unknown_type
   issues = add_input_issue(issues, 'ElementLoadUnknownType', ...
     names{3}, block_name, iblock, csv_row, names{3}, 1, 0, 1, ...
