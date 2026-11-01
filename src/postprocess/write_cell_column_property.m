@@ -91,14 +91,11 @@ for i=1:nfl
         end
         % 分割柱は所属階内の要素だけを一つの帳票行へまとめる
         idcc = ic;
-        ic1 = ic;
         if column.type(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
           idnmc = idmc2nmc(ic);
           idcc = nominal_column.idmec(idnmc,:);
           idcc = idcc(idcc > 0);
           idcc = idcc(column.idfloor(idcc) == ifl);
-          % 柱脚接合条件は分割前の条件を持つ本体側から取得する
-          ic1 = column.idsplit(ic);
         end
         ic2 = idcc(end);
         idm = idmc2m(ic);
@@ -111,7 +108,7 @@ for i=1:nfl
         lrcy_ = sum(lrcy(idcc,:), 1);
         lrcn_ = sum(lrcn(idcc,:), 1);
         iscb_ = idm2scb(idm);
-        joint_ = column.joint(ic1,:);
+        joint_ = column.joint(ic,:);
         joint_([2 4]) = column.joint(ic2,[2 4]);
         % 剛性表
         write_cpbody
@@ -192,14 +189,14 @@ return
           case PRM.PIN
             cpbody{irow*2+jxy-2,icol_joint(kbt)} = 'ピン';
           case PRM.FIX
-            cpbody{irow*2+jxy-2,icol_joint(kbt)} = '剛接';
+            if kbt == 1 && iscb_ > 0
+              cpbody{irow*2+jxy-2,icol_joint(kbt)} = ...
+                sprintf('%.0f', cbstiff(iscb_)*1.d-6);
+            else
+              cpbody{irow*2+jxy-2,icol_joint(kbt)} = '剛接';
+            end
         end
       end
-    end
-    if iscb_>0
-      kcb = cbstiff(iscb_);
-      cpbody(irow*2-1:irow*2,icol_joint(1)) = {sprintf('%.0f', ...
-        kcb*1.d-6); sprintf('%.0f', kcb*1.d-6)};
     end
     return
   end

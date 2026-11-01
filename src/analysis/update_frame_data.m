@@ -164,7 +164,9 @@ addcol.idnode2 = nnode + (1:nsplit)';
 addcol.idsplit = ids;
 addcol.idconnected = ids;
 addcol.isthrough(:) = false;
-addcol.joint(:) = PRM.FIX;
+% 元の柱脚・柱頭条件を物理外端に保ち、分割位置だけを剛接とする。
+addcol.joint(:, [2 4]) = PRM.FIX;
+mc.joint(ids, [1 3]) = PRM.FIX;
 mc.idnode1(ids) = addcol.idnode2;
 mc.type(ids) = PRM.COLUMN_FOR_BRACE_BODY;
 mc.idsplit(ids) = nmc + (1:nsplit)';

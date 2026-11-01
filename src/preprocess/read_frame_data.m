@@ -1242,28 +1242,15 @@ for i=1:n
     idstory(i), idznominal(i));
 end
 
-% ID逆引き
+% 読込時は未分割の柱だけを対象とし、入力階と断面の両方を照合する。
+% 同じ断面を別階でも使用できるため、断面番号だけでは絞り込まない。
 idme2seccb = zeros(com.nme,1);
-idm2sc = com.member.property.idsecc;
 idmc2story = com.member.column.idstory;
-idm2story = zeros(com.nme,1);
-idm2story(com.member.column.idme) = idmc2story;
-% idmc2z = com.member.column.idz(:,1);
-% idm2z = zeros(com.nme,1);
-% idm2z(com.member.column.idme) = idmc2z;
-idmc2ctype = com.member.column.type;
-idm2ctype = zeros(com.nme,1);
-idm2ctype(com.member.column.idme) = idmc2ctype;
-
-% 柱脚との関係付け
+idmc2sc = com.member.column.idsecc;
+idmc2m = com.member.column.idme;
 for i=1:n
-  idsc = idsecc(i);
-  idme2seccb(idm2sc==idsc&idm2story==2&idm2ctype==PRM.COLUMN_STANDARD) = i;
-  idme2seccb(idm2sc==idsc & idm2story==2 & ...
-    idm2ctype==PRM.COLUMN_FOR_BRACE_BODY) = i;
-  % idme2seccb(idm2sc==idsc & idm2story==2 ...
-  %   & idm2ctype==PRM.COLUMN_FOR_BRACE) = i;
-  % idme2seccb(idm2sc==idsc&idm2z==1) = i;
+  ids = idmc2story == idstory(i) & idmc2sc == idsecc(i);
+  idme2seccb(idmc2m(ids)) = i;
 end
 
 % 結果の保存

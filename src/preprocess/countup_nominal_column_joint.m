@@ -3,8 +3,8 @@ function joint = countup_nominal_column_joint(member_column, idmec, idsub)
 %
 %   joint = countup_nominal_column_joint(member_column, idmec, ...
 %     idsub) は、名目柱を構成する解析用柱要素から、分割前の
-%   柱脚条件と柱頭条件を取得する。下側オフセット区間は
-%   柱脚条件の取得対象から除外する。
+%   柱脚条件と柱頭条件を取得する。構成要素は柱脚から柱頭の順で、
+%   最下部と最上部の物理外端を参照する。
 %
 %   入力引数:
 %     member_column - 柱部材テーブル
@@ -16,24 +16,15 @@ function joint = countup_nominal_column_joint(member_column, idmec, idsub)
 %             列順はX柱脚、X柱頭、Y柱脚、Y柱頭
 
 nnmc = size(idmec, 1);
-joint = zeros(nnmc, 4);
 base_columns = [1, 3];
 top_columns = [2, 4];
 
-for inc = 1:nnmc
-  nsub = idsub(inc, 2);
-  ids = idmec(inc, 1:nsub);
-
-  % 柱脚条件は名目柱本体の最下部要素から取得する
-  is_foundation = member_column.type(ids) ...
-    == PRM.COLUMN_FOR_BRACE_FOUNDATION;
-  ids_body = ids(~is_foundation);
-  ic_base = ids_body(1);
-  ic_top = ids(end);
-
-  joint(inc, base_columns) = member_column.joint(ic_base, base_columns);
-  joint(inc, top_columns) = member_column.joint(ic_top, top_columns);
-end
+% 名目柱の最下部要素の柱脚条件と最上部要素の柱頭条件を採る。
+ic_base = idmec(:, 1);
+ic_top = idmec(sub2ind(size(idmec), (1:nnmc)', idsub(:, 2)));
+joint = zeros(nnmc, 4);
+joint(:, base_columns) = member_column.joint(ic_base, base_columns);
+joint(:, top_columns) = member_column.joint(ic_top, top_columns);
 
 return
 end

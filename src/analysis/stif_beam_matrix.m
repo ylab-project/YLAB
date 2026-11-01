@@ -42,44 +42,31 @@ else
   rz = 0;
 end
 
-% 固定端は部材曲げ剛性の1e6倍で近似する。
-% 柱頭側の固定剛性は柱脚ばねの大小に依存させない。
-k1y = 1.d6;
-k2y = 1.d6;
-k1z = 1.d6;
-k2z = 1.d6;
-if isfinite(kcb(1))
-  k1y = kcb(1)*Ly/(4*E*Iy);
-end
-if isfinite(kcb(2))
-  k1z = kcb(2)*Lz/(4*E*Iz);
-end
-if joint(1) == PRM.PIN
-  k1y = 0;
-end
-if joint(2) == PRM.PIN
-  k2y = 0;
-end
-if joint(3) == PRM.PIN
-  k1z = 0;
-end
-if joint(4) == PRM.PIN
-  k2z = 0;
-end
-ky = 2*(k1y+1)*(k2y+1)-0.5+ry*(4*k1y*k2y+k1y+k2y);
-kz = 2*(k1z+1)*(k2z+1)-0.5+rz*(4*k1z*k2z+k1z+k2z);
-csy = (4*k1y*k2y+k1y+k2y)/(2*ky);
-cbsy1 = (2*k1y*k2y+k1y)/ky;
-cbsy2 = (2*k1y*k2y+k2y)/ky;
-cb1y1 = (4*k1y*k2y*(1+ry/2)+3*k1y)/(2*ky);
-cb1y2 = (4*k1y*k2y*(1+ry/2)+3*k2y)/(2*ky);
-cb2y = (2*k1y*k2y*(1-ry))/ky;
-csz = (4*k1z*k2z+k1z+k2z)/(2*kz);
-cbsz1 = (2*k1z*k2z+k1z)/kz;
-cbsz2 = (2*k1z*k2z+k2z)/kz;
-cb1z1 = (4*k1z*k2z*(1+rz/2)+3*k1z)/(2*kz);
-cb1z2 = (4*k1z*k2z*(1+rz/2)+3*k2z)/(2*kz);
-cb2z = (2*k1z*k2z*(1-rz))/kz;
+% 端部係数はK/(K+4EI/L)。固定は1、ピンは0として直接扱う。
+% kcbがInfなら(4EI/L)/Kは0で係数1になり、jointのピン指定を優先する。
+kb1y = 4*E*Iy/Ly;
+kb1z = 4*E*Iz/Lz;
+k = [1/(1 + kb1y/kcb(1)), 1, 1/(1 + kb1z/kcb(2)), 1];
+k(joint == PRM.PIN) = 0;
+k1y = k(1);
+k2y = k(2);
+k1z = k(3);
+k2z = k(4);
+% 両端ばねを静的縮約した係数。ry/rzはせん断変形の寄与。
+ky = 2-(1-k1y)*(1-k2y)/2+ry*(2*k1y*k2y+k1y+k2y);
+kz = 2-(1-k1z)*(1-k2z)/2+rz*(2*k1z*k2z+k1z+k2z);
+csy = (2*k1y*k2y+k1y+k2y)/(2*ky);
+cbsy1 = k1y*(1+k2y)/ky;
+cbsy2 = k2y*(1+k1y)/ky;
+cb1y1 = (k1y*k2y*(1+2*ry)+3*k1y)/(2*ky);
+cb1y2 = (k1y*k2y*(1+2*ry)+3*k2y)/(2*ky);
+cb2y = 2*k1y*k2y*(1-ry)/ky;
+csz = (2*k1z*k2z+k1z+k2z)/(2*kz);
+cbsz1 = k1z*(1+k2z)/kz;
+cbsz2 = k2z*(1+k1z)/kz;
+cb1z1 = (k1z*k2z*(1+2*rz)+3*k1z)/(2*kz);
+cb1z2 = (k1z*k2z*(1+2*rz)+3*k2z)/(2*kz);
+cb2z = 2*k1z*k2z*(1-rz)/kz;
 
 % --- kn ---
 kn = E*A/Ln;
@@ -118,7 +105,6 @@ ke(11,3) = -kbsy2;
 ke(11,9) = kbsy2;
 
 % --- kb1y ---
-kb1y = 4*E*Iy/Ly;
 kb1y1 = kb1y*cb1y1;
 ke(5,5) = kb1y1;
 kb1y2 = kb1y*cb1y2;
@@ -150,7 +136,6 @@ ke(12,2) = kbsz2;
 ke(12,8) = -kbsz2;
 
 % --- kb1z ---
-kb1z = 4*E*Iz/Lz;
 kb1z1 = kb1z*cb1z1;
 ke(6,6) = kb1z1;
 kb1z2 = kb1z*cb1z2;
