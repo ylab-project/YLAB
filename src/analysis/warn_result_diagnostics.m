@@ -15,7 +15,6 @@ function warn_result_diagnostics(com, result)
 %     なし
 
 warn_ignored_rotational_moments(result.ignored_moment, com.node, ...
-  com.member.property.idnode1, com.member.property.idnode2, ...
   com.loadcase.name);
 
 return

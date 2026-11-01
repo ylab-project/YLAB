@@ -25,7 +25,8 @@ function [msprop, dvec, dnode, felement, ignored_moment, ...
 %     dvec     - 自由度別変位ベクトル [ndf x nlc]
 %     dnode    - 節点変位（剛床補正後） [nnode x 6 x nlc]
 %     felement - 等価節点荷重（要素荷重起因） [nnode x 6 x nlc]
-%     ignored_moment - 0にした回転モーメント（member、node）
+%     ignored_moment - 回転剛性のない節点自由度で0にしたモーメント
+%                      [nnode x 6 x nlc]
 %     stn      - 公称部材の応力度（一般位置） 構造体
 %     stcn     - 公称部材の応力度（中央位置） 構造体
 %     Mc       - 部材中央曲げモーメント（重ね合わせ後）
@@ -345,8 +346,9 @@ mejoint = PRM.FIX*ones(nme,4);
 mejoint(idmg2m,:) = gjoint;
 mejoint(idmc2m,:) = cjoint;
 
-% ピン端固定端モーメントは全体外力組立前に除外する
-[ar, ignored_member_moment] = clear_pinjoint_end_moments(ar, mejoint);
+%% 取込済み部材端力の等価節点荷重
+% 部材端力は節点位置の固定端力であり、ピン端も含めて入力値のまま
+% 組み立てる（SS7 入力編 9.1 の注記）
 felement = update_felement(ar, cxl, cyl, idm2n, nnode, nlc);
 
 %% 荷重計算用の部材長を算出（自重計算の有無にかかわらず常に計算）
@@ -478,12 +480,10 @@ ksmat0 = stif_sys_matrix(An, Asy, Asz, Iy, Iz, JJ, cxl, cyl, ...
   lm_stiff, Em, Gm, xr, yr, lrxm, lrym, lrnm, kcb, mtype, ...
   idn2df, idf2n, idm2n1, idm2n2, mejoint, ndf, nbw, flag, ...
   br_stif, hstiff_type, factor_J);
-[ksmat0, fvec, ignored_node_moment] = ...
+[ksmat0, fvec, ignored_moment] = ...
   regularize_inactive_rotational_dofs(ksmat0, fvec, ...
   idf2n, idn2df, idsup2n, isfixedsup);
 % 無視モーメントの警告は出力境界のwarn_result_diagnosticsで発行する
-ignored_moment.member = ignored_member_moment;
-ignored_moment.node = ignored_node_moment;
 
 %% 初期化
 isuplifted = false(nsup, nlc);

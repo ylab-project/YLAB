@@ -472,7 +472,7 @@ sw_f_lc = zeros(com.nnode,6,com.nlc);
 sw_f_lc(:,:,1) = sw.f;
 faddnode_report = com.faddnode - com.faddnode_report_excl;
 result.nodal_equiv_load = com.fnode + faddnode_report ...
-  - felement - sw_f_lc - ignored_moment.node;
+  - felement - sw_f_lc - ignored_moment;
 result.lb = lb;
 result.lf = lf;
 result.lr = lr;
