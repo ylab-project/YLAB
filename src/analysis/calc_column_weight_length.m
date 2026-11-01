@@ -10,8 +10,9 @@ function [lm_weight, lm_lower_extension] = calc_column_weight_length( ...
 %
 %   SS7計算編4.1.2の梁天端間の長さを、標準階高、節点移動、
 %   梁レベルから求める。最下層や下層に柱がない箇所では、
-%   柱と同じ構造種別の梁せいを加える。一本部材の指定がある
-%   梁の中間箇所に柱頭が接続する場合は梁下面までとする。
+%   柱と同じ構造種別の梁せいを加え、その分を柱脚節点より下に
+%   延びる長さとして返す。一本部材の指定がある梁の中間箇所に
+%   柱頭が接続する場合は梁下面までとする。
 %   ブレース分割柱の柱脚節点・梁面は基礎梁内の下側要素から採る。
 %
 %   入力引数:
@@ -60,7 +61,6 @@ max_glv2(~any(idg2, 2)) = 0;
 
 % 標準階高の加算順を保ち、節点移動と梁天端の高低差を反映する。
 lm_weight = zeros(nmec, 1);
-lm_lower_extension = zeros(nmec, 1);
 standard_height = floor.standard_height;
 for ic = 1:nmec
   if ctype(ic) == PRM.COLUMN_FOR_BRACE_FOUNDATION
@@ -76,6 +76,9 @@ end
 lm_weight = lm_weight + max_glv2 - max_glv1;
 
 % 最下層・下層柱抜けでは、通し梁の中間端以外の梁せいを加える。
+% 加えた梁せい分は柱脚節点より下に延びる長さであり、最下層でも
+% 下層柱抜けでもその重量の全量を柱脚節点へ配分する（SS7の
+% 節点重量表で確認）。
 is_first_story = member_column.idstory == min(member_column.idstory);
 is_lower_column_missing = ~is_first_story & ~ismember(idmc2nbase, ...
   idmc2n2) & ctype ~= PRM.COLUMN_FOR_BRACE_FOUNDATION;
@@ -84,10 +87,8 @@ is_intermediate = is_intermediate_connection(idmc2nbase, idg1, ...
 ids = idg1 > 0 & reshape(is_steel_g(idg1 + 1), size(idg1)) == ...
   is_steel_c & ~is_intermediate & (is_first_story | ...
   is_lower_column_missing);
-height = max(reshape(Hg(idg1 + 1), size(idg1)) .* ids, [], 2);
-lm_weight = lm_weight + height;
-lm_lower_extension(is_lower_column_missing) = ...
-  height(is_lower_column_missing);
+lm_lower_extension = max(reshape(Hg(idg1 + 1), size(idg1)) .* ids, [], 2);
+lm_weight = lm_weight + lm_lower_extension;
 
 % 柱頭は同じ構造種別の通し梁の中間箇所では梁せいを控除する。
 is_intermediate = is_intermediate_connection(idmc2n2, idg2, ...
