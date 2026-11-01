@@ -6,6 +6,9 @@ function lm_brace_buckling = calc_brace_buckling_length(...
 %     member, node, section, secdim, options) は、SS7 3.8.1の
 %   ブレース長さLを算出する。解析用の取り付き位置とは独立して
 %   基礎柱・基礎梁の天端を採用する。RC下端は梁天端を使う。
+%   RC柱（PRM.RCRS）に取り付く端はブレース他端に近い柱面を端点と
+%   し、構面方向の柱幅の半分を水平距離から控除する。その他の柱は
+%   SS7 3.8.1のとおり鉄骨心を端点とし、控除しない。
 %   idnode1は下端、idnode2は上端である前提とする。
 %
 %   入力引数:
@@ -23,8 +26,15 @@ member_girder = member.girder;
 stype_sec = section.property.type;
 idsecg2sec = section.girder.idsec;
 
-% 水平距離
-Lx_all = calc_brace_Lx(member_brace, node);
+% RC柱に取り付く端は柱幅の半分を控除し、他端に近い柱面を端点にする。
+% 柱幅は構面方向の断面寸法（第1列）を柱単位で求め、RC柱以外は控除
+% しないため0にする。
+member_column = member.column;
+idmc2s = section.column.idsec(member_column.idsecc);
+Dc_col = calc_column_outer_size(secdim(idmc2s, :), stype_sec(idmc2s), 1);
+Dc_col(stype_sec(idmc2s) ~= PRM.RCRS, :) = 0;
+Lx_inner_all = calc_brace_Lx_inner(member_brace, member_column, ...
+  node, Dc_col);
 
 % 梁せい・梁種別の取得
 idmg2s = idsecg2sec(member_girder.idsecg);
@@ -98,7 +108,7 @@ for ib = 1:nmeb
   end
 
   Lz = z2 - z1;
-  lm_brace_buckling(ib) = sqrt(Lx_all(ib)^2 + Lz^2);
+  lm_brace_buckling(ib) = sqrt(Lx_inner_all(ib)^2 + Lz^2);
 end
 
 return

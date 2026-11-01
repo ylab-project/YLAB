@@ -182,9 +182,12 @@ ids = find(member_column.type ~= PRM.COLUMN_STANDARD);
 ci = member.column_input;
 for ic = ids'
   ipc = idmc2input(ic);
+  % 区間端の位置は分割節点と同じ高さ比で柱軸上の長さに換算し、
+  % 斜め柱でも剛域長と同じ軸方向の尺度で重なりを取る
   zbase = node.z(ci.idnode1(ipc));
-  s = node.z(member_column.idnode1(ic)) - zbase;
-  t = node.z(member_column.idnode2(ic)) - zbase;
+  dz = node.z(ci.idnode2(ipc)) - zbase;
+  s = (node.z(member_column.idnode1(ic)) - zbase) / dz * L(ipc);
+  t = (node.z(member_column.idnode2(ic)) - zbase) / dz * L(ipc);
   % X・Y・軸剛域とX・Yフェイスを同じ区間の重なりで配分する
   r = [lr.columnx(ic, :); lr.columny(ic, :); lr.columnn(ic, :); ...
     lf.columnx(ic, :); lf.columny(ic, :)];

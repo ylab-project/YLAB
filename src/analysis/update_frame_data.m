@@ -3,6 +3,7 @@ function com = update_frame_data(secdim, com, options)
 %
 %   com = update_frame_data(secdim, com, options) は、構造階高を更新し、
 %   選択した天端が柱内にある場合だけブレースの接続節点を設ける。
+%   RC柱（PRM.RCRS）は分割せず元の柱脚に接続する。
 %   分割要否が変わった場合に限り部材番号と依存する対応を再構成する。
 %
 %   入力引数:
@@ -59,14 +60,9 @@ for i = 1:numel(idb)
   in2 = ci.idnode2(ic);
   a = ztop - com.node.z(in1);
   L = com.node.z(in2) - com.node.z(in1);
-  if 0 < a && a < L
-    % 区間配分を検証した鉛直S柱に限定する。
-    if com.node.x(in1) ~= com.node.x(in2) || com.node.y(in1) ~= ...
-        com.node.y(in2) || mc.angle(ic) ~= 0 || ...
-        com.member.property.section_type(mc.idme(ic)) == PRM.RCRS
-      throw_err('Geometry', 'BraceColumnSplitUnsupported', ...
-        ic, mc.floor_name{ic}, mc.coord_name{ic, 1}, mc.coord_name{ic, 2});
-    end
+  % RC柱はSS7でも分割されず、元の柱脚にブレースが取り付く。
+  is_rc = com.member.property.section_type(mc.idme(ic)) == PRM.RCRS;
+  if 0 < a && a < L && ~is_rc
     z(ic) = ztop;
   end
 end
@@ -91,8 +87,10 @@ if ~isequal(ids, find(mc.type(1:nmc) == PRM.COLUMN_FOR_BRACE_BODY))
   end
   com = rebuild_column_split(com, ids, idb, idc, z);
 else
-  % 節点番号と自由度は維持し、取り付き高さだけを反映する。
-  com.node.z(mc.idnode1(ids)) = z(ids);
+  % 節点番号と自由度は維持し、取り付き位置だけを柱軸上で反映する。
+  idn = mc.idnode1(ids);
+  [com.node.x(idn), com.node.y(idn), com.node.z(idn)] = ...
+    calc_split_node_xyz(com.node, ci, ids, z);
 end
 
 return
@@ -151,7 +149,8 @@ mc.idsplit = zeros(nmc, 1);
 addnode = node(ci.idnode1(ids), :);
 addnode.type(:) = PRM.NODE_BRACE_FOR_COLUMN;
 addnode.idrep(:) = 0;
-addnode.z = z(ids);
+[addnode.x, addnode.y, addnode.z] = calc_split_node_xyz( ...
+  com.node, ci, ids, z);
 if nsplit > 0
   addnode.idz(:) = nz;
   addnode.zname(:) = blz.name;
@@ -258,6 +257,33 @@ if isfield(com, 'force')
   com.ar = ar + ar1;
   com.M0 = M0 + M01;
 end
+
+return
+end
+
+function [x, y, z] = calc_split_node_xyz(node, ci, ids, zall)
+%calc_split_node_xyz - 分割節点の座標を柱軸上に求める
+%
+%   [x, y, z] = calc_split_node_xyz(node, ci, ids, zall) は、入力柱の
+%   両端節点を取り付き高さで内挿する。鉛直柱では柱脚の平面座標と一致する。
+%
+%   入力引数:
+%     node - 節点座標を持つ構造体
+%     ci   - 入力柱（元の端節点を持つ）
+%     ids  - 分割する入力柱番号 [n×1]
+%     zall - 入力柱ごとの取り付き高さ [nmc×1] (mm)。分割しない柱はNaN
+%
+%   出力引数:
+%     x - 分割節点のX座標 [n×1] (mm)
+%     y - 分割節点のY座標 [n×1] (mm)
+%     z - 分割節点のZ座標 [n×1] (mm)
+
+in1 = ci.idnode1(ids);
+in2 = ci.idnode2(ids);
+z = zall(ids);
+ratio = (z - node.z(in1)) ./ (node.z(in2) - node.z(in1));
+x = node.x(in1) + ratio .* (node.x(in2) - node.x(in1));
+y = node.y(in1) + ratio .* (node.y(in2) - node.y(in1));
 
 return
 end
