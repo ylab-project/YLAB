@@ -72,6 +72,8 @@ for i=1:size(data,1)
       end
     case '柱・梁せん断変形の考慮'
       options.consider_shear_deformation = (data{i,2}=='Y');
+    case '剛域を考慮した荷重項の計算'
+      options.consider_rigid_zone_cmq = (data{i,2}=='Y');
     case '梁水平面内変形の考慮'
       p = data{i,2};
       if ~ismissing(p)

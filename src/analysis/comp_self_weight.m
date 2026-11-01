@@ -11,8 +11,11 @@ function sw = comp_self_weight(A, Asy, Iy, Em, Gm, lm_weight, ...
 %   brace_unit_weight, Df_foundation, girder_level, girder_isfg, ...
 %   idsup2n, rho_rc_member) は、
 %   柱・梁・ブレースの自重および仕上重量から等価節点荷重とCMQを
-%   計算する。梁の等価節点荷重は、柱面間に荷重が分布することを
-%   考慮し、荷重重心位置に基づく偏心配分を行う（SS7方式）。
+%   計算する。梁は柱面間の分布荷重に対し、両端固定の固定端モーメント
+%   と単純梁反力に固定端モーメント差の補正を加えた端部せん断力を
+%   求め、結合条件がピンの端は固定端モーメントを0として他端へ
+%   伝達する。options.consider_rigid_zone_cmq がtrueのときは可撓部分で
+%   求めた固定端応力を剛域を通して節点へ伝える（SS7 計算編 4.2.10 (3)）。
 %
 %   入力引数:
 %     A               - 断面積配列
@@ -174,6 +177,12 @@ w = w+wf;
 % 部材座標第3軸
 czl = cross(cxl, cyl, 2);
 
+% 剛域を考慮した荷重項（SS7 計算編 4.2.10 (3)）では、分布荷重を
+% 剛域端で可撓部分と剛域部分に分け、可撓部分の固定端モーメントと
+% せん断力を剛域先端の外力として節点（剛域の元端）へ伝える。
+% 考慮しない場合は剛域長を0とし、同じ式で節点間の梁として求める。
+lr_cmq = lrxm .* options.consider_rigid_zone_cmq;
+
 % 固定端荷重の計算
 %   ar: 要素座標系
 %   f, fc, fg, fw: 全体座標系
@@ -224,34 +233,41 @@ for im = 1:nme
     lump_j = max(-deduct_j, 0); % j端へ集中させる節点外長さ
     Lb = L - b;                 % 分布荷重の右端位置
 
-    % 分布荷重は区間 [a, L-b] の重心で偏心配分し、端部集中重量は
-    % モーメントを発生させず対応端へ直接加算する。
-    distribution_weight = wi * (Lb - a);
-    distribution_cg = (a + Lb) / 2;
-    fv_i3 = distribution_weight * (L - distribution_cg) / L + wi * lump_i;
-    fv_j3 = distribution_weight * distribution_cg / L + wi * lump_j;
-    fvi = [0; 0; fv_i3];
-    fvj = [0; 0; fv_j3];
+    % 荷重項の可撓長さ Lf と、せん断変形係数の可撓長さ Ly（梁剛性
+    % 行列の強軸と同じ定義）
+    lr1 = lr_cmq(im,1);
+    lr2 = lr_cmq(im,2);
+    Lf = L - lr1 - lr2;
+    Ly = L - sum(lrxm(im,:));
+    xa = max(a, lr1) - lr1;               % 可撓部分の荷重左端
+    xb = max(min(Lb, L - lr2) - lr1, xa); % 可撓部分の荷重右端
+    % 剛域内に掛かる分布荷重の長さと、節点からその重心までの距離
+    li = max(min(Lb, lr1) - a, 0);
+    ei = a + li/2;
+    lj = max(Lb - max(a, L - lr2), 0);
+    ej = L - Lb + lj/2;
 
-    % 接合条件に応じたCMQ計算
+    % 以下は分布荷重の強さを1として求め、最後に鉛直力は wi、
+    % モーメントは要素座標系の鉛直成分 w3 を掛ける。
+    % 可撓部分の両端固定の固定端モーメントは、単位集中荷重 P が
+    % 可撓座標 x に作用するときの
+    %   MA(x) = P·x·(Lf-x)^2/Lf^2, MB(x) = P·x^2·(Lf-x)/Lf^2
+    % を区間 [xa, xb] で積分して求める。
+    Lf2 = Lf^2;
+    FA_xb = Lf2*xb^2/2 - 2*Lf*xb^3/3 + xb^4/4;
+    FA_xa = Lf2*xa^2/2 - 2*Lf*xa^3/3 + xa^4/4;
+    ca = (FA_xb - FA_xa)/Lf2;
+    GB_xb = Lf*xb^3/3 - xb^4/4;
+    GB_xa = Lf*xa^3/3 - xa^4/4;
+    cb = (GB_xb - GB_xa)/Lf2;
+    % 可撓部分の単純梁反力
+    ra = (xb - xa)*(Lf - (xa + xb)/2)/Lf;
+    rb = (xb - xa)*(xa + xb)/2/Lf;
+
+    % 接合条件に応じた可撓端の固定端モーメント
     % mejoint: 1:i端(強軸), 2:j端(強軸), 3:i端(弱軸), 4:j端(弱軸)
     joint = mejoint(im,:);
     w3 = wv(3);              % 要素座標系での鉛直荷重成分
-    % 柱面間分布荷重に対し区間 [a, L-b] で積分して算出する。
-    %   単位集中荷重 P が位置 x に作用するときの固定端 M:
-    %     MA(x) = P·x·(L-x)^2/L^2, MB(x) = P·x^2·(L-x)/L^2
-    %   区間 [a,Lb] で積分:
-    %     CA = ∫[a,Lb] w·x(L-x)^2/L^2 dx
-    %     CB = ∫[a,Lb] w·x^2(L-x)/L^2 dx
-    L2 = L^2;
-    FA_Lb = L2*Lb^2/2 - 2*L*Lb^3/3 + Lb^4/4;
-    FA_a  = L2*a^2/2  - 2*L*a^3/3  + a^4/4;
-    CA = w3/L2 * (FA_Lb - FA_a);
-    GB_Lb = L*Lb^3/3 - Lb^4/4;
-    GB_a  = L*a^3/3  - a^4/4;
-    CB = w3/L2 * (GB_Lb - GB_a);
-    % 可撓長さとせん断変形係数は梁剛性行列の強軸と同じ定義とする。
-    Ly = L - sum(lrxm(im,:));
     if options.consider_shear_deformation
       ry = calc_shear_deformation_ratio(Em(im), Iy(im), Gm(im), ...
         Asy(im), Ly);
@@ -259,34 +275,36 @@ for im = 1:nme
       ry = 0;
     end
     if joint(1)==PRM.PIN && joint(2)==PRM.PIN
-      % 両端ピン: 固定端モーメントなし
-      cvi = [0; 0; 0];
-      cvj = [0; 0; 0];
+      % 両端ピン: 可撓部分の固定端モーメントなし
+      ca_fix = 0;
+      cb_fix = 0;
     elseif joint(1)==PRM.PIN
       % i端ピン: 剛性比によりi端解放分をj端へ伝達
-      cvi = [0; 0; 0];
-      cvj = [0; CB + CA*(1-ry)/(2+ry); 0];
+      ca_fix = 0;
+      cb_fix = cb + ca*(1-ry)/(2+ry);
     elseif joint(2)==PRM.PIN
       % j端ピン: 剛性比によりj端解放分をi端へ伝達
-      cvi = [0; CA + CB*(1-ry)/(2+ry); 0];
-      cvj = [0; 0; 0];
+      ca_fix = ca + cb*(1-ry)/(2+ry);
+      cb_fix = 0;
     else
       % 両端固定: SS7 計算編 4.2.10 (1) 一般分布荷重式
-      cvi = [0; CA; 0];
-      cvj = [0; CB; 0];
+      ca_fix = ca;
+      cb_fix = cb;
     end
-    % ピン端のモーメント解放に伴うせん断力の再配分
-    if joint(1)==PRM.PIN && joint(2)~=PRM.PIN
-      % i端ピン: CMQ_jに応じてPZを再配分
-      dv = cvj(2) / L;
-      fvi(3) = fvi(3) - dv;
-      fvj(3) = fvj(3) + dv;
-    elseif joint(2)==PRM.PIN && joint(1)~=PRM.PIN
-      % j端ピン: CMQ_iに応じてPZを再配分
-      dv = cvi(2) / L;
-      fvi(3) = fvi(3) + dv;
-      fvj(3) = fvj(3) - dv;
-    end
+    % 可撓端のせん断力は単純梁反力に固定端モーメント差の補正を加える
+    va = ra + (ca_fix - cb_fix)/Lf;
+    vb = rb - (ca_fix - cb_fix)/Lf;
+    % 剛域部分を片持梁とみなし、可撓端の固定端応力と剛域内荷重を
+    % 節点へ伝える。ピン端でも剛域があれば節点モーメントは残る
+    % （両端ピンを含む。SS7の梁CMoQo表で確認）
+    ma = ca_fix + va*lr1 + li*ei;
+    mb = cb_fix + vb*lr2 + lj*ej;
+    pa = va + li;
+    pb = vb + lj;
+    fvi = [0; 0; wi*(pa + lump_i)];
+    fvj = [0; 0; wi*(pb + lump_j)];
+    cvi = [0; w3*ma; 0];
+    cvj = [0; w3*mb; 0];
 
     % 固定端反力（要素座標系）
     % fvi, fvjは全体座標系で計算済みなので、要素座標系に変換してarに格納

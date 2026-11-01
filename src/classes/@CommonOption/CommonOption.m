@@ -102,6 +102,11 @@ classdef CommonOption
     % せん断変形
     consider_shear_deformation (1,1) logical = true
 
+    % 剛域を考慮した荷重項の計算（SS7 入力 2.2 荷重計算条件 準拠）
+    % true では梁自重の固定端モーメントを可撓部分で求め、剛域を
+    % 片持梁として節点へ伝える。false（既定）は節点間の梁として求める
+    consider_rigid_zone_cmq (1,1) logical = false
+
     % 梁水平面内変形の考慮（SS7 入力 2.3 応力計算条件 準拠）
     % PRM.GIRDER_HSTIFF_ZERO=剛性0（微小化、従来挙動）/ ACTUAL=原断面 /
     % RIGID=変形しない。鉛直/水平の別指定（YLABは剛性行列1本のため全

@@ -20,6 +20,8 @@ for i=1:size(mat,1)
       options.consider_self_weight = (mat{i,2}=='T');
     case 'consider_shear_deformation'
       options.consider_shear_deformation = (mat{i,2}=='T');
+    case 'consider_rigid_zone_cmq'
+      options.consider_rigid_zone_cmq = (mat{i,2}=='T');
     case 'consider_lateral_torsional_buckling'
       options.consider_lateral_torsional_buckling = (mat{i,2}=='T');
     case 'consider_column_buckling_length_factor'
