@@ -7,6 +7,7 @@ function [exitflag, result, com] = YLAB(varargin) %#ok<STOUT>
 %     [exitflag, result, com] = YLAB('param1', value1, ...)
 %
 %   入力引数:
+%     varargin - 名前と値の組、および以下のオプションフラグ
 %     inputfile    - 入力データのCSVファイルパス（必須）
 %     outputfile   - 結果を出力するCSVファイルパス（必須）
 %     exemode      - 実行モード（デフォルト: 'OPT'）
