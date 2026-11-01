@@ -6,7 +6,6 @@ classdef SectionPropertyCalculator < handle
   %
   %   SectionPropertyCalculator プロパティ:
   %     nlist - 断面リスト数
-  %     idme2sec - 部材-断面マッピング
   %
   %   SectionPropertyCalculator メソッド:
   %     getSectionCostFactor - 断面コスト係数を取得
@@ -19,7 +18,7 @@ classdef SectionPropertyCalculator < handle
   %     mapMemberToMaterial - 部材-材料IDマッピングを取得
   %
   %   例:
-  %     calc = SectionPropertyCalculator(secList, idMapper);
+  %     calc = SectionPropertyCalculator(secList, material, idsec2mat);
   %     cost = calc.getSectionCostFactor(idsec);
   %
   %   参考:
@@ -28,7 +27,6 @@ classdef SectionPropertyCalculator < handle
   properties(Access=private)
     % 必要なデータへの直接参照
     secList_   % SectionListHandlerへの参照
-    idMapper_  % IdMapperへの参照
     material_  % 材料データの実体を保持
     idsec2mat_ % デフォルト断面→材料IDマッピング
     sectionCostFactor_ % 断面コスト係数初期値
@@ -39,39 +37,34 @@ classdef SectionPropertyCalculator < handle
   properties(Dependent)
     material   % 材料データへの公開読み取り専用アクセス（Dependent）
     nlist      % 断面リスト数
-    idme2sec   % 部材-断面マッピング
   end
 
   methods
-    function obj = SectionPropertyCalculator(secList, material, ...
-        idsec2mat, idMapper)
-      %SectionPropertyCalculator コンストラクタ
-      %   calc = SectionPropertyCalculator(secList, material, ...
-      %     idsec2mat, idMapper) は、
-      %   断面性能計算オブジェクトを作成します。
+    function obj = SectionPropertyCalculator(secList, material, idsec2mat)
+      %SectionPropertyCalculator - 断面と材料の対応を保持する
+      %
+      %   obj = SectionPropertyCalculator(secList, material, ...
+      %   idsec2mat)
+      %   は、断面リストと材料データを保存し、材料番号の参照を初期化する。
       %
       %   入力引数:
-      %     secList - SectionListHandlerオブジェクト
-      %     material - 材料データオブジェクト
-      %     idsec2mat - デフォルト断面→材料IDマッピング（必須）
-      %     idMapper - IdMapperオブジェクト
+      %     secList - 材料・係数を含む断面リスト
+      %     material - 材料定数を持つ構造体
+      %     idsec2mat - 各断面の既定材料番号 [nsec×1]
       %
-      %   例:
-      %     calc = SectionPropertyCalculator(secList, material, ...
-      %       idsec2mat, idMapper);
+      %   出力引数:
+      %     obj - 断面性能計算オブジェクト
 
-      % 引数チェック
-      if nargin < 4
+      if nargin < 3
         error('SectionPropertyCalculator:InsufficientArguments', ...
-          'SectionPropertyCalculatorは4つの引数が必要です');
+          'SectionPropertyCalculatorは3つの引数が必要です');
       end
-      
+
       % 必要なデータへの参照を保持
       obj.secList_ = secList;                  % SectionListHandler参照
       obj.material_ = material;                % 材料データの実体を保持
       obj.idsec2mat_ = idsec2mat;              % デフォルト材料IDマッピング
-      obj.idMapper_ = idMapper;                % IdMapper参照
-      
+
       % sectionCostFactor/CostConstant/StressFactorの初期化
       nsec = length(idsec2mat);
       obj.sectionCostFactor_ = zeros(nsec, 1);
@@ -79,67 +72,70 @@ classdef SectionPropertyCalculator < handle
       obj.sectionStressFactor_ = ones(nsec, 1);
     end
 
-
     function nlist_ = get.nlist(obj)
-      % 断面リスト数を取得
+      %get.nlist - 断面リスト数を取得する
+      %
+      %   nlist_ = obj.nlist
+      %
+      %   入力引数:
+      %     obj - SectionPropertyCalculator オブジェクト
+      %
+      %   出力引数:
+      %     nlist_ - 断面リスト数
       if ~isempty(obj.secList_)
         nlist_ = obj.secList_.nlist;
       else
         nlist_ = 0;
       end
     end
-    
-    function idme2sec_ = get.idme2sec(obj)
-      % 部材-断面マッピングをIdMapperから取得
-      if ~isempty(obj.idMapper_)
-        idme2sec_ = obj.idMapper_.idme2sec;
-      else
-        idme2sec_ = [];
-      end
-    end
-    
+
     function mat = get.material(obj)
-      % 材料データへの公開読み取り専用アクセス
+      %get.material - 材料データ構造体を取得する
+      %
+      %   mat = obj.material
+      %
+      %   入力引数:
+      %     obj - SectionPropertyCalculator オブジェクト
+      %
+      %   出力引数:
+      %     mat - 材料データ構造体
       mat = obj.material_;
     end
-    
+
     %% mapSectionToMaterial
-    function idmat = mapSectionToMaterial(obj)
-      %mapSectionToMaterial 断面から材料IDへのマッピング
-      %   idmat = mapSectionToMaterial(obj) は、
-      %   各断面に対応する材料IDへのマッピングを生成します。
+    function idmat = mapSectionToMaterial(obj, idsec2slist)
+      %mapSectionToMaterial - 現在の断面リスト対応から材料番号を返す
+      %
+      %   idmat = mapSectionToMaterial(obj, idsec2slist)
+      %   は、idsec2slistで採用した各断面の材料番号を取得する。
+      %
+      %   入力引数:
+      %     obj - 断面性能計算オブジェクト
+      %     idsec2slist - 断面リストと候補断面の番号 [nsec×2]
       %
       %   出力引数:
-      %     idmat - 断面から材料へのIDマッピング [nsec × 1]
-      %
-      %   例:
-      %     idmat = calc.mapSectionToMaterial();
-      %
-      %   参考:
-      %     mapMemberToMaterial, extractSectionMaterialF
-      
-      % IdMapperのメソッドに委譲
-      idmat = obj.idMapper_.mapSectionToMaterial(obj.secList_);
+      %     idmat - 断面順の材料番号 [nsec×1]
+
+      idmat = obj.extractSectionMaterialId(idsec2slist);
       return
     end
-    
+
     %% mapMemberToMaterial
-    function idmat = mapMemberToMaterial(obj)
-      %mapMemberToMaterial 部材から材料IDへのマッピング
-      %   idmat = mapMemberToMaterial(obj) は、
-      %   各部材に対応する材料IDへのマッピングを生成します。
+    function idmat = mapMemberToMaterial(obj, idsec2slist, member)
+      %mapMemberToMaterial - 現在の部材順に材料番号を返す
+      %
+      %   idmat = mapMemberToMaterial(obj, idsec2slist, member)
+      %   は、採用断面の材料番号をmemberの断面番号で参照する。
+      %
+      %   入力引数:
+      %     obj - 断面性能計算オブジェクト
+      %     idsec2slist - 断面リストと候補断面の番号 [nsec×2]
+      %     member - 現在の解析部材。property.idsecを参照する。
       %
       %   出力引数:
-      %     idmat - 部材から材料へのIDマッピング [nmember × 1]
-      %
-      %   例:
-      %     idmat = calc.mapMemberToMaterial();
-      %
-      %   参考:
-      %     mapSectionToMaterial, extractMemberMaterialF
-      
-      % IdMapperのメソッドに委譲
-      idmat = obj.idMapper_.mapMemberToMaterial(obj.secList_);
+      %     idmat - 部材順の材料番号 [nme×1]
+
+      idmat = obj.extractMemberMaterialId(idsec2slist, member);
       return
     end
   end

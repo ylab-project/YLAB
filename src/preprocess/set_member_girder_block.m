@@ -119,10 +119,11 @@ type = zeros(n,1);  % GIRDER_STANDARD = 0
 
 % 結果の保存
 level = zeros(n, 1);
+idsplit = zeros(n, 1);
 member_girder = table(story_name, frame_name, coord_name, ...
   section_name, section_type, type, angle, comp_effect, Lb, ismirrored, ...
   idstory, idir, idx, idy, idz, idzn, idsecg, idnode1, idnode2, ...
-  cxl, cyl, idvar, level);
+  cxl, cyl, idvar, level, idsplit);
 
 % 基礎梁フラグ（両端が支点節点なら基礎梁）
 idsup2n = com.support.idnode;

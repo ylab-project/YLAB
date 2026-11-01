@@ -10,7 +10,7 @@ function idmec = find_idcolumn_from_idxyz(idx, idy, idz, member_column)
 %     idx           - X通り番号範囲 [n x 2]
 %     idy           - Y通り番号範囲 [n x 2]
 %     idz           - Z通り番号範囲 [n x 2]
-%     member_column - 柱部材テーブル
+%     member_column - idsplitを持つ柱部材テーブルまたは構造体
 %
 %   出力引数:
 %     idmec - 柱部材番号
@@ -32,13 +32,10 @@ end
 idmec = find(istarget)';
 
 % 元の名目柱を指定する入力は上下両方の分割要素へ適用する
-has_idsplit = isfield(member_column, 'idsplit') || ...
-  (istable(member_column) && ismember('idsplit', ...
-  member_column.Properties.VariableNames));
-if ~isempty(idmec) && has_idsplit
-  idsibling = member_column.idsplit(idmec);
-  idsibling = idsibling(idsibling > 0);
-  idmec = unique([idmec idsibling(:)'], 'stable');
+idsibling = member_column.idsplit(idmec);
+idsibling = idsibling(idsibling > 0);
+if ~isempty(idsibling)
+  idmec = unique([idmec(:)' idsibling(:)'], 'stable');
 end
 
 return

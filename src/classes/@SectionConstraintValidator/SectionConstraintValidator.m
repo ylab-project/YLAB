@@ -54,7 +54,6 @@ classdef SectionConstraintValidator < handle
     idsec2slist             % 断面→断面リストマッピング [nsec×1]
     idsec2stype             % 断面→断面タイプマッピング [nsec×1]
     idsec2srep              % 断面→代表断面マッピング [nsec×1]
-    idme2sec                % 部材→断面マッピング [nme×1]
   end
 
   methods
@@ -101,7 +100,15 @@ classdef SectionConstraintValidator < handle
 
     %% get.nlist
     function nlist_ = get.nlist(obj)
-      % 断面リスト数を取得
+      %get.nlist - 断面リスト数を取得する
+      %
+      %   nlist_ = obj.nlist
+      %
+      %   入力引数:
+      %     obj - SectionConstraintValidator オブジェクト
+      %
+      %   出力引数:
+      %     nlist_ - 断面リスト数
       if ~isempty(obj.secList_)
         nlist_ = obj.secList_.nlist;
       else
@@ -111,19 +118,44 @@ classdef SectionConstraintValidator < handle
 
     %% get.nxvar
     function nxvar_ = get.nxvar(obj)
-      % 変数総数を取得
+      %get.nxvar - 変数総数を取得する
+      %
+      %   nxvar_ = obj.nxvar
+      %
+      %   入力引数:
+      %     obj - SectionConstraintValidator オブジェクト
+      %
+      %   出力引数:
+      %     nxvar_ - 変数総数
       nxvar_ = length(obj.idMapper_.idvar2vtype);
     end
 
     %% get.validSectionFlagCell
     function val = get.validSectionFlagCell(obj)
-      % 有効断面フラグ全体を取得（cell配列）
+      %get.validSectionFlagCell - 断面リスト別の有効断面フラグを取得する
+      %
+      %   val = obj.validSectionFlagCell
+      %
+      %   入力引数:
+      %     obj - SectionConstraintValidator オブジェクト
+      %
+      %   出力引数:
+      %     val - 断面リスト別の有効断面フラグのcell配列
       val = obj.validSectionFlagCell_;
     end
 
     %% set.validSectionFlagCell
     function set.validSectionFlagCell(obj, val)
-      % 有効断面フラグ全体を設定（cell配列）
+      %set.validSectionFlagCell - 断面リスト別の有効断面フラグを設定する
+      %
+      %   obj.validSectionFlagCell = val
+      %
+      %   入力引数:
+      %     obj - SectionConstraintValidator オブジェクト
+      %     val - 断面リスト別の有効断面フラグのcell配列
+      %
+      %   出力引数:
+      %     なし
       if ~iscell(val)
         error('SectionConstraintValidator:InvalidInput', ...
           'validSectionFlagCellはcell配列である必要があります');
@@ -133,32 +165,71 @@ classdef SectionConstraintValidator < handle
 
     %% IdMapperへの委譲プロパティ
     function val = get.idvar2vtype(obj)
+      %get.idvar2vtype - 変数タイプマッピングを取得する
+      %
+      %   val = obj.idvar2vtype
+      %
+      %   入力引数:
+      %     obj - SectionConstraintValidator オブジェクト
+      %
+      %   出力引数:
+      %     val - 変数タイプマッピング [nxvar×1]
       val = obj.idMapper_.idvar2vtype;
     end
 
     function val = get.idsec2slist(obj)
-      % 1列版を返す（断面リストIDのみ）
+      %get.idsec2slist - 断面→断面リストIDを取得する
+      %
+      %   val = obj.idsec2slist
+      %
+      %   入力引数:
+      %     obj - SectionConstraintValidator オブジェクト
+      %
+      %   出力引数:
+      %     val - 断面→断面リストID [nsec×1]
       val = obj.idMapper_.idSectionList;
     end
 
     function val = get.idsec2stype(obj)
+      %get.idsec2stype - 断面→断面タイプマッピングを取得する
+      %
+      %   val = obj.idsec2stype
+      %
+      %   入力引数:
+      %     obj - SectionConstraintValidator オブジェクト
+      %
+      %   出力引数:
+      %     val - 断面→断面タイプマッピング [nsec×1]
       val = obj.idMapper_.idsec2stype;
     end
 
     function val = get.idsec2srep(obj)
+      %get.idsec2srep - 断面→代表断面マッピングを取得する
+      %
+      %   val = obj.idsec2srep
+      %
+      %   入力引数:
+      %     obj - SectionConstraintValidator オブジェクト
+      %
+      %   出力引数:
+      %     val - 断面→代表断面マッピング [nsec×1]
       val = obj.idMapper_.idsec2srep;
-    end
-
-    function val = get.idme2sec(obj)
-      val = obj.idMapper_.idme2sec;
     end
 
     %% isSecListEmpty
     function isEmpty = isSecListEmpty(obj)
-      % secListが空かどうかを確認
+      %isSecListEmpty - secListが空かどうかを確認
+      %
+      %   isEmpty = isSecListEmpty(obj)
       %
       % Returns:
       %   isEmpty - 空の場合true
+      %
+      %   入力引数:
+      %     obj - SectionConstraintValidator オブジェクト
+      %
+      %   出力引数:
+      %     isEmpty - 断面リストが空ならtrue
 
       isEmpty = isempty(obj.secList_) || obj.nlist == 0;
     end
@@ -166,11 +237,19 @@ classdef SectionConstraintValidator < handle
     % validateSectionListId - 外部ファイルに定義
     %% initValidSectionFlagCell
     function initValidSectionFlagCell(obj)
-      % 有効断面フラグセルを初期化
+      %initValidSectionFlagCell - 有効断面フラグセルを初期化
+      %
+      %   initValidSectionFlagCell(obj)
       %
       % 全断面リストに対して有効フラグを初期化する。
       % 初期状態では全ての断面を有効とする。
       % 行は全断面（断面番号順）、列は断面リストの候補断面
+      %
+      %   入力引数:
+      %     obj - SectionConstraintValidator オブジェクト
+      %
+      %   出力引数:
+      %     なし
 
       nlist_ = obj.nlist;
       obj.validSectionFlagCell_ = cell(nlist_, 1);

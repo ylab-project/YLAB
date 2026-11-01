@@ -1,26 +1,16 @@
-function idme2sublist = mapIdMemberToSubList(obj, idsec2slist)
-%mapIdMemberToSubList 部材→サブリストIDマッピングを動的計算
+function idme2sublist = mapIdMemberToSubList(obj, idsec2slist, member)
+%mapIdMemberToSubList - 現在の部材のサブリスト番号を求める
 %
-%   idsec2slistの第2列（断面ID）が動的に変化するため、
-%   実行時に毎回計算する必要がある
+%   idme2sublist = mapIdMemberToSubList(obj, idsec2slist, member)
+%   は、採用したリスト内断面をサブリスト番号へ変換し、部材順に返す。
 %
-% 構文
-%   idme2sublist = obj.mapIdMemberToSubList(idsec2slist)
+%   入力引数:
+%     obj - 固定した断面対応の管理オブジェクト
+%     idsec2slist - 断面リストと候補断面の番号 [nsec×2]
+%     member - 現在の解析部材。property.idsecを参照する。
 %
-% 入力引数
-%   idsec2slist - 断面リストID/断面IDペア [nsec×2]
-%                 第1列: 断面リストID (1〜nlist)
-%                 第2列: リスト内での断面ID
-%
-% 出力引数
-%   idme2sublist - 部材→サブリストIDマッピング [nme×1]
-%
-% 例
-%   idsec2slist = SectionManager.getSectionListMapping(secdim);
-%   idme2sublist = idMapper.mapIdMemberToSubList(idsec2slist);
-%
-% 参照
-%   IdMapper, SectionManager.getIdMemberToSubList
+%   出力引数:
+%     idme2sublist - 部材順のサブリスト番号 [nme×1]
 
 idSectionToSubList = zeros(obj.nsec, 1);
 nlist = length(obj.idsublistCell);  % ローカル変数として計算
@@ -33,5 +23,7 @@ for ilist = 1:nlist
   end
 end
 
-idme2sublist = idSectionToSubList(obj.idme2sec_);
+idme2sublist = idSectionToSubList(member.property.idsec);
+
+return
 end

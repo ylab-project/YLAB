@@ -1,6 +1,20 @@
 function [idnode, idvofH, idvofB, idvoftw, idvoftf, idvofD, ...
-  idvoft, istarget] = countup_cgsr_node(com)
+  idvoft, istarget, isxdir_member, isydir_member] = countup_cgsr_node(com)
 %countup_cgsr_node - 柱梁耐力比の対象節点と対象方向を数え上げる
+%
+%   [idnode, idvofH, idvofB, idvoftw, idvoftf, idvofD, idvoft, ...
+%     istarget, isxdir_member, isydir_member] = countup_cgsr_node(com) は、
+%   接続する柱・梁から検討方向と断面寸法の変数番号を求める。
+%
+%   入力引数:
+%     com - 節点、部材、設計変数と検討対象の指定を持つ共通データ
+%
+%   出力引数:
+%     idnode - 検討対象の節点番号 [1×ncgsr]
+%     idvofH, idvofB, idvoftw, idvoftf - 梁寸法の変数 {ncgsr×2}
+%     idvofD, idvoft - 柱寸法の変数 {ncgsr×1}
+%     istarget - 節点のX・Y方向の検討対象 [ncgsr×2]
+%     isxdir_member, isydir_member - 梁の方向を全部材へ展開 [nme×1]
 
 % 共通定数
 nme = com.nme;
@@ -108,6 +122,16 @@ end
 %--------------------------------------------------------------------------
 function is_both_pin_member = expand_both_pin_nominal_girder(com, nme)
 %expand_both_pin_nominal_girder - 両端PINの名目梁を部材配列へ展開する
+%
+%   is_both_pin_member = expand_both_pin_nominal_girder(com, nme) は、
+%   名目梁の両端の接合条件から構成部材の対象外判定を返す。
+%
+%   入力引数:
+%     com - 名目梁と構成部材の接合条件を持つ共通データ
+%     nme - 全部材数
+%
+%   出力引数:
+%     is_both_pin_member - 両端PINの名目梁を構成する部材 [nme×1]
 
 is_both_pin_member = false(nme,1);
 if ~isfield(com, 'nominal') || ~isfield(com.nominal, 'girder')

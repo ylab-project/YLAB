@@ -1,19 +1,23 @@
 function secmgr = create_section_manager(Hp, Bp, twp, tfp, Dp, tp, ...
   HsrDp, Hsrtp, brb1p, brb2p, com, secList, options)
-%create_section_manager SectionManagerインスタンスを作成・初期化
-%   リファクタリング後の新実装（Phase 1-4を含む）
+%create_section_manager - 固定した断面・変数対応から断面管理を作る
+%
+%   secmgr = create_section_manager(Hp, Bp, twp, tfp, Dp, tp, ...
+%   HsrDp, Hsrtp, brb1p, brb2p, com, secList, options)
+%   は、断面・変数対応を各構成オブジェクトへ設定し、断面管理から
+%   材料取得と制約評価を呼び出せる状態にする。
 %
 %   入力引数:
-%     Hp, Bp, twp, tfp - WFS断面の変数ID
-%     Dp, tp - HSS断面の変数ID
-%     HsrDp, Hsrtp - HSR断面の変数ID
-%     brb1p, brb2p - BRB断面の変数ID
-%     com - 共通データ構造体
+%     Hp, Bp, twp, tfp - H形鋼の各寸法の設計変数番号
+%     Dp, tp - 角形鋼管の外径と板厚の設計変数番号
+%     HsrDp, Hsrtp - 円形鋼管の外径と板厚の設計変数番号
+%     brb1p, brb2p - 座屈拘束ブレースの設計変数番号
+%     com - 入力断面と設計変数の対応を持つ共通データ
 %     secList - 断面リストオブジェクト
-%     options - オプション構造体
+%     options - 候補選択と制約条件
 %
 %   出力引数:
-%     secmgr - 初期化されたSectionManagerインスタンス
+%     secmgr - 初期化した断面管理オブジェクト
 
 secmgr = SectionManager;
 % dimensionはSectionNeighborSearcherで管理（createNeighborSearcher経由）
@@ -27,54 +31,27 @@ secmgr.setSectionList(secList);
 material = table2struct(com.material,'ToScalar',true);
 
 % IdMapper初期化（全マッピング情報を提供）
-idMapper = secmgr.createIdMapper(...
-  com.section.property.id_section_list, ...  % 断面→断面リストID（1列版）
-  com.section.property.type, ...             % 断面→断面タイプ
-  com.section.property.idsrep, ...          % 断面→代表断面
-  com.member.property.idsec, ...            % 部材→断面
-  com.design.variable.type, ...             % 変数→変数タイプ
-  com.section.representative.idsec, ...     % 代表断面→断面
-  com.section.property.idvar, ...           % 断面→変数
-  Hp, ...                                    % H変数ID配列（WFS）
-  Bp, ...                                    % B変数ID配列（WFS）
-  twp, ...                                   % tw変数ID配列（WFS）
-  tfp, ...                                   % tf変数ID配列（WFS）
-  Dp, ...                                    % D変数ID配列（HSS）
-  tp, ...                                    % t変数ID配列（HSS）
-  HsrDp, ...                                 % D変数ID配列（HSR）
-  Hsrtp, ...                                 % t変数ID配列（HSR）
-  brb1p, ...                                 % BRB V1変数ID配列
-  brb2p, ...                                 % BRB V2変数ID配列
-  com.member.property.type, ...             % 部材→部材タイプ
-  com.design.variable.idsrep, ...           % 変数→代表断面
-  secList.idsublist, ...                    % サブリストIDのcell配列
+idMapper = secmgr.createIdMapper(com.section.property.id_section_list, ...
+  com.section.property.type, com.section.property.idsrep, ...
+  com.design.variable.type, com.section.representative.idsec, ...
+  com.section.property.idvar, Hp, Bp, twp, tfp, Dp, tp, HsrDp, Hsrtp, ...
+  brb1p, brb2p, com.design.variable.idsrep, secList.idsublist, ...
   secList.section_type);                    % 断面リスト→鉄骨形状
 
 % SectionStandardAccessor初期化
-secmgr.createSectionStandardAccessor(...
-  secList, ...
-  idMapper, ...
-  idphase);
+secmgr.createSectionStandardAccessor(secList, idMapper, idphase);
 
-% SectionPropertyCalculator初期化  
-secmgr.createPropertyCalculator(...
-  secList, ...
-  material, ...
-  com.section.property.idmaterial, ...  % デフォルト材料IDマッピング
-  idMapper);
+% SectionPropertyCalculator初期化
+secmgr.createPropertyCalculator(secList, material, ...
+  com.section.property.idmaterial);
 
 % SectionConstraintValidator初期化
 secmgr.createConstraintValidator(secList, secmgr.standardAccessor, ...
   idMapper, com.column_base_list);
 
 % SectionNeighborSearcher初期化
-secmgr.createNeighborSearcher(...
-  com.Hgap.idvar, ...
-  com.Hgap.idsec, ...
-  options, ...
-  idMapper, ...
-  secmgr.standardAccessor, ...
-  secmgr.constraintValidator, ...
+secmgr.createNeighborSearcher(com.Hgap.idvar, com.Hgap.idsec, options, ...
+  idMapper, secmgr.standardAccessor, secmgr.constraintValidator, ...
   com.section.property.dimension);
 
 % 全構成要素の生成後に現在フェーズ用検索配列を初期化

@@ -1,11 +1,13 @@
-function idmat = extractMemberMaterialId(obj, idsec2slist)
-%extractMemberMaterialId 部材の材料IDを抽出（内部使用）
-%   idmat = extractMemberMaterialId(obj, idsec2slist) は、
+function idmat = extractMemberMaterialId(obj, idsec2slist, member)
+%extractMemberMaterialId - 部材の材料IDを抽出（内部使用）
+%   idmat = extractMemberMaterialId(obj, idsec2slist, member) は、
 %   部材の材料IDを抽出します。
 %
 %   入力引数:
+%     obj - 断面特性と材料を参照する計算オブジェクト
 %     idsec2slist - [nsec×2] 断面リスト情報
 %                   nsec: 全断面数（前提）
+%     member - 現在の解析部材。property.idsecは各部材の断面番号
 %
 %   出力引数:
 %     idmat - [nme×1] 材料ID配列
@@ -22,7 +24,7 @@ function idmat = extractMemberMaterialId(obj, idsec2slist)
 idsec2mat = obj.extractSectionMaterialId(idsec2slist);
 
 % 部材から断面へのマッピング
-idme2sec = obj.idMapper_.idme2sec;
+idme2sec = member.property.idsec;
 nme = length(idme2sec);
 
 % 部材の材料IDを設定

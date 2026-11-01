@@ -1,49 +1,16 @@
-function com = parse_frame_data(com)
-%parse_frame_data - 読込済み架構データを解析用の共通データへ展開する
+function com = parse_frame_data(com, options)
+%parse_frame_data - 読込済み入力から荷重割当の基準モデルを構築する
 %
-%   com = parse_frame_data(com) は、節点・部材・断面・変数の
-%   対応を構築し、現在の解析用部材に従って配列を設定する。
+%   com = parse_frame_data(com, options) は、節点を同一化して入力柱を
+%   保存し、固定した断面・変数対応と断面管理を一度だけ生成する。
+%   入力の設計変数値と仮定断面から初期値を設定し、解析部材を確定する。
 %
 %   入力引数:
-%     com     - 読込済みの共通データ構造体
+%     com     - 読込・正規化した架構、断面、材料、計算条件
+%     options - 断面選択と解析モデルの設定
 %
 %   出力引数:
-%     com - 解析用の対応関係と配列を設定した共通データ構造体
-
-%  --- 新旧対応 ---
-%  [定数]
-%   nb -> nbw
-%
-%  [配列]
-%   repc -> section.column.idrepc
-%   repg -> section.girder.idrepg
-%   lm -> member.property.lm : 部材長さ（芯間距離）
-%   nstiff -> member.girder.nstiff
-%   perH -> story.nvar_girder(:,1)
-%   perB -> story.nvar_girder(:,2)
-%   varH -> story.idvar_girder(:,1);
-%   varB -> story.idvar_girder(:,2);
-%   Hn -> design.variable.idpvar(design.idvar.wfs.H);
-%   Bn -> design.variable.idpvar(design.idvar.wfs.B);
-%   twn -> design.variable.idpvar(design.idvar.wfs.tw);
-%   tfn -> design.variable.idpvar(design.idvar.wfs.tf);
-%   Dn -> design.variable.idpvar(design.idvar.hss.D);
-%   tn -> design.variable.idpvar(design.idvar.hss.t);
-%   種別断面番号 -> 種別代表部材番号
-%   repc -> section.column.idrepc;
-%   repg -> section.girder.idrepg;
-%   種別部材番号 -> 種別断面番号
-%   repginv -> member_girder.idsecg;
-%   repcinv -> member_column.idsecc;
-
-% 再構成時も入力時と同じ対応生成を使い、断面管理は共有したまま保つ。
-if isstruct(com.node)
-  com.node = struct2table(com.node);
-  com.member.column = struct2table(com.member.column);
-  com.member.girder = struct2table(com.member.girder);
-  com.section.column = struct2table(com.section.column);
-  com.section.girder = struct2table(com.section.girder);
-end
+%     com - 荷重の作用先を割り当てられる初期解析モデル
 
 %% 節点同一化: 部材の節点番号を代表節点に置換
 [idnode1, idnode2] = countup_node_with_representative(com);
@@ -60,298 +27,85 @@ com.member.horizontal_brace.idnode1 = ...
 com.member.horizontal_brace.idnode2 = ...
   idnode2(com.member.horizontal_brace.idme);
 
+%% 入力柱の保持
 % 入力柱の端点と端部指定は分割後の部材から復元しない。
-if ~isfield(com.member, 'column_input')
-  mc = com.member.column;
-  com.member.column_input = struct('idnode1', mc.idnode1, ...
-    'idnode2', mc.idnode2, 'idz', mc.idz, 'isthrough', mc.isthrough, ...
-    'idconnected', mc.idconnected, 'joint', mc.joint);
-  com.member.column.idsplit = zeros(com.nmec, 1);
-end
+mc = com.member.column;
+com.member.column_input = struct('idnode1', mc.idnode1, ...
+  'idnode2', mc.idnode2, 'idz', mc.idz, 'isthrough', mc.isthrough, ...
+  'idconnected', mc.idconnected, 'joint', mc.joint);
 
-%% 共通配列
-design = com.design;
-% member = com.member;
-section = com.section;
-section_column = com.section.column;
-section_girder = com.section.girder;
-section_property = com.section.property;
-story = com.story;
-% idn2s = com.node.idstory;
-% idm2s1 = com.member.property.idnode1;
-% idm2s2 = com.member.property.idnode2;
-% idconnected_girder = com.member.girder.idconnected_girder;
-% idx_girder = com.member.girder.idx;
-% idy_girder = com.member.girder.idy;
-member_girder = com.member.girder;
-member_column = com.member.column;
-member_brace = com.member.brace;
-member_horizontal_brace = com.member.horizontal_brace;
-% lgm = com.member.property.lm(com.member.girder.idme);
+%% 設計変数と代表断面
+% 設計変数と代表断面は入力定義から一度だけ生成する。
+[com.design.idsec, com.design.variable.type, ...
+  com.design.variable.idpvar] = set_idvar_to_design(com);
+com.section.representative = countup_srep(com);
+[com.design.variable.idsrep, com.section.property.idsrep] = ...
+  find_idvar2srep(com);
+com.ns6 = 6 * com.nsup;
 
-node_std = com.node;
-node_std.z = node_std.z_standard;
-member_property = com.member.property;
-[cxl, cyl] = update_member_cosine(member_girder, member_column, ...
-  member_brace, member_horizontal_brace, node_std);
-member_property.cxl = cxl;
-member_property.cyl = cyl;
-com.member.property = member_property;
-
-girder_idnode1 = member_girder.idnode1;
-girder_idnode2 = member_girder.idnode2;
-girder_dx = node_std.x(girder_idnode2) - node_std.x(girder_idnode1);
-girder_dy = node_std.y(girder_idnode2) - node_std.y(girder_idnode1);
-[member_girder.isxdir, member_girder.isydir] = ...
-  classify_girder_xy_direction(girder_dx, girder_dy);
-com.member.girder = member_girder;
-com.node.is_roof = countup_node_is_roof(com);
-% 部材が跨ぐ階は断面寸法に依存しない幾何判定なので前処理で確定する
-com.member.property.idfloor = countup_member_floor(com);
-
-%% 変数配列
-[design_idvar, design_idsec, design_variable_type, ...
-  design_variable_idpvar] = set_idvar_to_design(com);
-design.idvar = design_idvar;
-design.idsec = design_idsec;
-design.variable.type = design_variable_type;
-design.variable.idpvar = design_variable_idpvar;
-com.design = design;
-
-%% バンド幅算定
-nbw = countup_band_width(com);
-com.nbw = nbw;
-
-%% 支持条件用パラメータ
-ns6 = 6*com.nsup;
-com.ns6 = ns6;
-
-%% ダミー層の処理
-% nominal_story = countup_nominal_story(com);
-
-%% 通し柱
-[idnominal_column, idsecc, nominal_column] = ...
-  countup_nominal_column(member_column, member_girder, member_brace, com);
-member_column.idnominal = idnominal_column;
-member_column.idsecc = idsecc;
-idsec = com.section.column.idsec(idsecc);
-% isthrough/idconnected は countup でのみ使用。下流へ持ち越さない
-member_column.isthrough = [];
-member_column.idconnected = [];
-com.member.column = member_column;
-com.member.property.idsec(member_column.idme) = idsec;
-com.member.property.idsecc(member_column.idme) = idsecc;
-com.nominal.column = nominal_column;
-com.num.nominal_column = nnz(idnominal_column(:,2)==1);
-
-%% 柱の方向別基礎梁接続フラグ
-col_in1 = member_column.idnode1;
-gir_in1 = member_girder.idnode1;
-gir_in2 = member_girder.idnode2;
-gir_isxdir = member_girder.isxdir;
-gir_isydir = member_girder.isydir;
-gir_isfg = member_girder.isfg;
-nmc_ = length(member_column.idme);
-onfg_x = false(nmc_, 1);
-onfg_y = false(nmc_, 1);
-for ic = 1:nmc_
-  in = col_in1(ic);
-  is_conn = (gir_in1 == in | gir_in2 == in);
-  is_fg = is_conn & gir_isfg;
-  if any(is_fg)
-    onfg_x(ic) = any(gir_isxdir(is_fg));
-    onfg_y(ic) = any(gir_isydir(is_fg));
-  end
-end
-com.member.column.onfg_x = onfg_x;
-com.member.column.onfg_y = onfg_y;
-
-%% 層内梁変数の数
-[idstory2var_girder, idstory2num_var_girder] = ...
+%% 初期の接続と断面の確定
+% 基礎梁とブレースの接続を先に確定し、初期断面の分割判定に使う。
+[com.nominal.girder, com.member.girder.idnominal] = ...
+  countup_nominal_girder(com);
+com.node = table2struct(com.node, 'ToScalar', true);
+com.member.column = table2struct(com.member.column, 'ToScalar', true);
+com.member.girder = table2struct(com.member.girder, 'ToScalar', true);
+% 断面の列配列も反復評価へ渡す構造体へ一度だけ変換する。
+com.section.column = table2struct(com.section.column, 'ToScalar', true);
+com.section.girder = table2struct(com.section.girder, 'ToScalar', true);
+com = update_frame_topology(com);
+[com.story.idvar_girder, com.story.nvar_girder] = ...
   countup_idvar_each_story(com);
-story.idvar_girder = idstory2var_girder;
-story.nvar_girder = idstory2num_var_girder;
-com.story = story;
-
-%% 柱断面の検索
-[idsecc2mec, idsecc2repc, idsecc2mem, idsecc2repm] = find_crep(com);
-section_column.idmec = idsecc2mec;
-section_column.idrepc = idsecc2repc;
-section_column.idmem = idsecc2mem;
-section_column.idrepm = idsecc2repm;
-section.column = section_column;
-com.section = section;
-
-%% 梁断面の検索
-[idsecg2meg, idsecg2repg, idsecg2mem, idsecg2repm] = find_repg(com);
-section_girder.idmeg = idsecg2meg;
-section_girder.idrepg = idsecg2repg;
-section_girder.idmem = idsecg2mem;
-section_girder.idrepm = idsecg2repm;
-section.girder = section_girder;
-com.section = section;
-
-%% 代表断面
-section_representative = countup_srep(com);
-section.representative = section_representative;
-com.section = section;
-
-%% 変数と代表断面の関係検索
-[idvar2srep, idsec2srep] = find_idvar2srep(com);
-section_property.idsrep = idsec2srep;
-section.property = section_property;
-com.section = section;
-design.variable.idsrep = idvar2srep;
-com.design = design;
-
-%% 通し梁
-if ~isfield(com, 'nominal') || ~isfield(com.nominal, 'girder') ...
-    || isempty(com.nominal.girder)
-  [nominal_girder_, idnominal_girder_] = countup_nominal_girder(com);
-  com.nominal.girder = nominal_girder_;
-  com.member.girder.idnominal = idnominal_girder_;
-end
-nominal_girder = com.nominal.girder;
-com.num.nominal_girder = size(nominal_girder, 1);
-
-%% 名目ブレース
-[nominal_brace, idnominal_brace] = countup_nominal_brace(com);
-com.nominal.brace = nominal_brace;
-com.num.nominal_brace = size(nominal_brace,1);
-com.member.brace.idnominal = idnominal_brace;
-
-%% 一本部材
-[nominal_property, idnominal_girder, idnominal_column, ...
-  idnominal_brace, idnominal] = countup_nominal_property(com);
-com.nominal.property = nominal_property;
-com.num.nominal_member = size(nominal_property,1);
-nominal_girder.idnominal = idnominal_girder;
-com.nominal.girder = nominal_girder;
-nominal_column.idnominal = idnominal_column;
-com.nominal.column = nominal_column;
-nominal_brace.idnominal = idnominal_brace;
-com.nominal.brace = nominal_brace;
-com.member.property.idnominal = idnominal;
-
-%% 柱面番号の数え上げ
-[idmeg2secl, idmeg2secr]  = countup_girder_to_column_face(com);
-com.member.girder.idsec_facel = idmeg2secl;
-com.member.girder.idsec_facer = idmeg2secr;
-
-%% 梁面番号の数え上げ
-[idmec2seg1x, idmec2seg1y, idmec2seg2x, idmec2seg2y, ...
-  idmec2meg1x, idmec2meg1y, idmec2meg2x, idmec2meg2y] = ...
-  countup_column_to_girder_face(com);
-com.member.column.idsec_face1x = idmec2seg1x;
-com.member.column.idsec_face1y = idmec2seg1y;
-com.member.column.idsec_face2x = idmec2seg2x;
-com.member.column.idsec_face2y = idmec2seg2y;
-com.member.column.idmeg_face1x = idmec2meg1x;
-com.member.column.idmeg_face1y = idmec2meg1y;
-com.member.column.idmeg_face2x = idmec2meg2x;
-com.member.column.idmeg_face2y = idmec2meg2y;
-
-%% ブレース端点の柱・梁部材番号の数え上げ
-[idmecb1, idmecb2, has_girderb1, has_girderb2, idmegb_selected1, ...
-  idmegb_selected2] = countup_brace_to_column_girder(com);
-com.member.brace.idmec1 = idmecb1;
-com.member.brace.idmec2 = idmecb2;
-com.member.brace.has_girder1 = has_girderb1;
-com.member.brace.has_girder2 = has_girderb2;
-com.member.brace.idmeg_selected1 = idmegb_selected1;
-com.member.brace.idmeg_selected2 = idmegb_selected2;
-
-%% 各位置の階高計算
-column_floor_height = countup_column_floor_height(com);
-com.member.column.floor_height = column_floor_height;
-
-%% 断面算定の省略（梁・柱）
 com.section.girder.rank = exclude_girder_stress(com);
 com.section.column.rank = exclude_column_stress(com);
-
-%% 複数梁がとりつく節点
-[gapjoint, idgapsec, idgapvar] = countup_girder_gapjoint(com);
-com.gapjoint = gapjoint;
-com.ngapjoint = size(gapjoint,1);
-com.Hgap.idvar = idgapvar;
-com.Hgap.idsec = idgapsec;
-
-%% 柱梁耐力比の対象接合部（節点）
-% 中間階の接合部数の数え上げ
-% TODO 対象階の指定方法を見直しが必要
-[cgsr_idnode, cgsr_idvofH, cgsr_idvofB, cgsr_idvoftw, cgsr_idvoftf, ...
-  cgsr_idvofD, cgsr_idvoft, cgsr_istarget] = countup_cgsr_node(com);
-cgsr.idnode = cgsr_idnode;
-cgsr.idvofH = cgsr_idvofH;
-cgsr.idvofB = cgsr_idvofB;
-cgsr.idvoftw = cgsr_idvoftw;
-cgsr.idvoftf = cgsr_idvoftf;
-cgsr.idvofD = cgsr_idvofD;
-cgsr.idvoft = cgsr_idvoft;
-cgsr.istarget = cgsr_istarget;
-[cgsr.isxdir_member, cgsr.isydir_member] = ...
-  expand_girder_direction_flags(com.nme, com.member.girder.idme, ...
-  com.member.girder.isxdir, com.member.girder.isydir);
-com.cgsr = cgsr;
-com.ncgsr = length(cgsr_idnode);
-
-%% 方向別補剛点トポロジー
-% 断面寸法に依存しない補剛点判定を前処理で確定する
-com.column_bracing = countup_column_bracing_topology(com);
-com.girder_bracing = countup_girder_bracing_topology(com);
-
-%% 上下階関係
-column_gapjoint = countup_column_gapjoint(com);
-com.Dgap = column_gapjoint;
+[com.gapjoint, com.Hgap.idsec, com.Hgap.idvar] = ...
+  countup_girder_gapjoint(com);
+com.ngapjoint = size(com.gapjoint, 1);
 com.height_smooth = create_girder_height_smooth_data(com);
+com.exclusion.is_joint_bearing_strength = ...
+  exclude_joint_bearing_strength(com);
 
-%% 保有耐力接合（仕口）の除外指定
-is_joint_bearing_strength = exclude_joint_bearing_strength(com);
-com.exclusion.is_joint_bearing_strength = is_joint_bearing_strength;
+%% 断面管理と初期断面
+% 断面管理は入力時に一度だけ構築する。候補ごとの部材番号を保持しない。
+design = com.design;
+Hp = design.variable.idvar(design.variable.type == PRM.WFS_H);
+Bp = design.variable.idvar(design.variable.type == PRM.WFS_B);
+twp = design.variable.idvar(design.variable.type == PRM.WFS_TW);
+tfp = design.variable.idvar(design.variable.type == PRM.WFS_TF);
+Dp = design.variable.idvar(design.variable.type == PRM.HSS_D);
+tp = design.variable.idvar(design.variable.type == PRM.HSS_T);
+HsrDp = design.variable.idvar(design.variable.type == PRM.HSR_D);
+Hsrtp = design.variable.idvar(design.variable.type == PRM.HSR_T);
+brb1p = design.variable.idvar(design.variable.type == PRM.BRB_V1);
+brb2p = design.variable.idvar(design.variable.type == PRM.BRB_V2);
+com.secmgr = create_section_manager(Hp, Bp, twp, tfp, Dp, tp, ...
+  HsrDp, Hsrtp, brb1p, brb2p, com, com.sectionList, options);
+xini = extract_initial_design_value(com, options);
+if ~isempty(xini)
+  com.design.variable.value = xini(:);
+end
+secdim = com.secmgr.findNearestSection(com.design.variable.value, options);
+com = update_frame_data(secdim, com, options);
+idm2n = [com.member.property.idnode1 com.member.property.idnode2];
+lm = calc_member_length_from_node(com.node, idm2n);
+com.member.girder = countup_girder_stiffening(com, lm);
+[com.member.girder, com.nominal.girder] = ...
+  countup_girder_stiffening_direct(com, lm);
 
-% 要素数
-com.num.member.girder = com.nmeg;
-
-% テーブル変換
-% TODO: 構造体に変換する
-% com.material = table2struct(com.material,"ToScalar",true);
-% com.story = table2struct(com.story,"ToScalar",true);
-% com.floor = table2struct(com.floor,"ToScalar",true);
-com.node = table2struct(com.node,"ToScalar",true);
-% com.support = table2struct(com.support,"ToScalar",true);
-com.section.column = table2struct(com.section.column,"ToScalar",true);
-com.section.girder = table2struct(com.section.girder,"ToScalar",true);
-% com.section.property = table2struct(...
-%   com.section.property,"ToScalar",true);
-% com.section.representative = table2struct(...
-%   com.section.representative,"ToScalar",true);
-com.member.column = table2struct(com.member.column,"ToScalar",true);
-com.member.girder = table2struct(com.member.girder,"ToScalar",true);
-% com.section.column_base = table2struct(...
-%   com.section.column_base,"ToScalar",true);
-% com.member.property = table2struct(com.member.property,"ToScalar",true);
-% com.loadcase = table2struct(com.loadcase,"ToScalar",true);
-% com.gapjoint = table2struct(com.gapjoint,"ToScalar",true);
-com.Dgap = table2struct(com.Dgap,"ToScalar",true);
-% com.nominal.column = table2struct(com.nominal.column,"ToScalar",true);
-% com.nominal.girder = table2struct(com.nominal.girder,"ToScalar",true);
-% com.nominal.property = table2struct(...
-%   com.nominal.property,"ToScalar",true);
 return
 end
 
-%--------------------------------------------------------------------------
-function  [idvar, idsec, vartype, idpvar] = set_idvar_to_design(com)
+
+function  [idsec, vartype, idpvar] = set_idvar_to_design(com)
 %set_idvar_to_design - 断面形状別の設計変数と断面番号を整理する
 %
-%   [idvar, idsec, vartype, idpvar] = set_idvar_to_design(com) は、
+%   [idsec, vartype, idpvar] = set_idvar_to_design(com) は、
 %   断面リストの鉄骨形状から寸法変数を分類する。
 %
 %   入力引数:
 %     com - 部材・断面・断面リストを含む共通データ構造体
 %
 %   出力引数:
-%     idvar   - 形状と寸法成分ごとの設計変数番号を持つ構造体
 %     idsec   - 形状ごとの断面番号を持つ構造体（各値は行ベクトル）
 %     vartype - 各設計変数の寸法種別 [nvar×1]
 %     idpvar  - 変数種別内の番号の初期値 [nvar×1]（全要素0）
@@ -361,7 +115,6 @@ nsec = com.nsec;
 nvar = com.nvar;
 
 % 共通配列
-member_property = com.member.property;
 section_property = com.section.property;
 
 % 設計変数の種別は断面が参照する断面リストの鉄骨形状で決める。梁のWFSと
@@ -371,14 +124,13 @@ section_shape = zeros(nsec,1);
 has_list = section_property.id_section_list > 0;
 section_shape(has_list) = ...
   list_type(section_property.id_section_list(has_list));
-member_shape = section_shape(member_property.idsec);
 
 % 角形鋼管の各次元の独立変数番号
 ndvar = PRM.nvar_of_section_type(PRM.HSS);
 idvar_ = cell(ndvar,1);
-istarget = (member_shape == PRM.HSS);
+istarget = (section_shape == PRM.HSS);
 for i=1:ndvar
-  idvar_{i} = member_property.idvar(istarget,i);
+  idvar_{i} = section_property.idvar(istarget,i);
 end
 idvar.hss.D = idvar_{1};
 idvar.hss.t = idvar_{2};
@@ -386,9 +138,9 @@ idvar.hss.t = idvar_{2};
 % H形鋼の各次元の独立変数番号
 ndvar = PRM.nvar_of_section_type(PRM.WFS);
 idvar_ = cell(ndvar,1);
-istarget = (member_shape == PRM.WFS);
+istarget = (section_shape == PRM.WFS);
 for i=1:ndvar
-  idvar_{i} = member_property.idvar(istarget,i);
+  idvar_{i} = section_property.idvar(istarget,i);
 end
 idvar.wfs.H = idvar_{1};
 idvar.wfs.B = idvar_{2};
@@ -398,9 +150,9 @@ idvar.wfs.tf = idvar_{4};
 % 座屈拘束ブレースの各次元の独立変数番号
 ndvar = PRM.nvar_of_section_type(PRM.BRB);
 idvar_ = cell(ndvar,1);
-istarget = (member_shape == PRM.BRB);
+istarget = (section_shape == PRM.BRB);
 for i=1:ndvar
-  idvar_{i} = member_property.idvar(istarget,i);
+  idvar_{i} = section_property.idvar(istarget,i);
 end
 idvar.brb.V1 = idvar_{1};
 idvar.brb.V2 = idvar_{2};
@@ -408,9 +160,9 @@ idvar.brb.V2 = idvar_{2};
 % 円形鋼管（HSR）の各次元の独立変数番号
 ndvar = PRM.nvar_of_section_type(PRM.HSR);
 idvar_ = cell(ndvar,1);
-istarget = (member_shape == PRM.HSR);
+istarget = (section_shape == PRM.HSR);
 for i=1:ndvar
-  idvar_{i} = member_property.idvar(istarget,i);
+  idvar_{i} = section_property.idvar(istarget,i);
 end
 idvar.hsr.D = idvar_{1};
 idvar.hsr.t = idvar_{2};
@@ -455,32 +207,7 @@ idsec.hsr = find(section_shape' == PRM.HSR);
 return
 end
 
-%--------------------------------------------------------------------------
-function  nbw = countup_band_width(com)
-%countup_band_width - 部材両端の自由度番号からバンド幅を求める
-%
-%   nbw = countup_band_width(com) は、部材が接続する自由度番号の
-%   最大差に1を加えた値を返す。
-%
-%   入力引数:
-%     com - 部材の端節点番号と節点自由度番号を持つ共通データ
-%
-%   出力引数:
-%     nbw - 剛性行列のバンド幅
 
-% 共通配列
-idm2n1 = com.member.property.idnode1;
-idm2n2 = com.member.property.idnode2;
-node = com.node;
-
-% 各部材の自由度番号の最大距離がバンド幅
-nd1 = min([node.dof(idm2n1,:) node.dof(idm2n2,:)],[],2);
-nd2 = max([node.dof(idm2n1,:) node.dof(idm2n2,:)],[],2);
-nbw = max(abs(nd2-nd1))+1;
-return
-end
-
-%--------------------------------------------------------------------------
 function [idstory2var_girder, idstory2num_var_girder] = ...
   countup_idvar_each_story(com)
 %countup_idvar_each_story - 層ごとの梁の設計変数番号と個数を求める
@@ -516,7 +243,7 @@ end
 return
 end
 
-%--------------------------------------------------------------------------
+
 function  section_representative = countup_srep(com)
 %countup_srep - 変数・指定寸法・リストが同一の断面を集約する
 %
@@ -562,222 +289,7 @@ section_representative = table(idsrep2sec, idsrep2stype, idsrep2var, ...
 return
 end
 
-%--------------------------------------------------------------------------
-function [idmec2seg1x, idmec2seg1y, idmec2seg2x, idmec2seg2y, ...
-  idmec2meg1x, idmec2meg1y, idmec2meg2x, idmec2meg2y] = ...
-  countup_column_to_girder_face(com)
-%countup_column_to_girder_face - 柱端節点に接続する梁を方向別に集める
-%
-%   [idmec2seg1x, idmec2seg1y, idmec2seg2x, idmec2seg2y,
-%   idmec2meg1x, idmec2meg1y, idmec2meg2x, idmec2meg2y] =
-%   countup_column_to_girder_face(com) は、各柱端のX・Y方向に接続する
-%   梁断面番号と梁部材番号を求める。接続のない欄は0とする。
-%
-%   入力引数:
-%     com - 柱・梁の端節点番号と方向を持つ共通データ
-%
-%   出力引数:
-%     idmec2seg1x - 柱脚X方向の統一断面番号
-%     idmec2seg1y - 柱脚Y方向の統一断面番号
-%     idmec2seg2x - 柱頭X方向の統一断面番号
-%     idmec2seg2y - 柱頭Y方向の統一断面番号
-%     idmec2meg1x - 柱脚X方向の梁部材番号
-%     idmec2meg1y - 柱脚Y方向の梁部材番号
-%     idmec2meg2x - 柱頭X方向の梁部材番号
-%     idmec2meg2y - 柱頭Y方向の梁部材番号
-%       各配列は [nmec×接続数]、接続数は全柱端共通で最低2列とする。
 
-% 共通定数
-nmec = com.nmec;
-nmeg = com.nmeg;
-
-% 共通配列
-idmeg2n = [com.member.girder.idnode1 com.member.girder.idnode2];
-idmec2n = [com.member.column.idnode1 com.member.column.idnode2];
-idmeg2sec = com.section.girder.idsec(com.member.girder.idsecg);
-idmeg2isxdir = com.member.girder.isxdir;
-idmeg2isydir = com.member.girder.isydir;
-iggg = 1:nmeg;
-dirs = [PRM.X PRM.Y];
-dir_flags = {idmeg2isxdir, idmeg2isydir};
-
-% 最大接続梁本数を調査
-max_n = 0;
-for ic = 1:nmec
-  for ilr = 1:2
-    for k = 1:2
-      is_target_dir = dir_flags{k};
-      idmeg = iggg(any(idmeg2n==idmec2n(ic,ilr) & is_target_dir,2));
-      max_n = max(max_n, length(idmeg));
-    end
-  end
-end
-
-% 最低2列は確保
-max_n = max(max_n, 2);
-
-% 計算の準備
-idmec2seg1x = zeros(nmec, max_n);
-idmec2seg1y = zeros(nmec, max_n);
-idmec2seg2x = zeros(nmec, max_n);
-idmec2seg2y = zeros(nmec, max_n);
-
-idmec2meg1x = zeros(nmec, max_n);
-idmec2meg1y = zeros(nmec, max_n);
-idmec2meg2x = zeros(nmec, max_n);
-idmec2meg2y = zeros(nmec, max_n);
-
-% 関係する変数の数え上げ
-for ic = 1:nmec
-  for ilr = 1:2
-    for k = 1:2
-      idir = dirs(k);
-      % 対象変数の特定
-      is_target_dir = dir_flags{k};
-      idmeg = iggg(any(idmeg2n==idmec2n(ic,ilr) & is_target_dir,2));
-
-      % 節点の格納
-      n = length(idmeg);
-      iddd = zeros(1, max_n);
-      if n > 0
-        iddd(1:n) = idmeg2sec(idmeg);
-      end
-      switch ilr
-        case 1
-          switch idir
-            case PRM.X
-              if n > 0
-                idmec2meg1x(ic,1:n) = idmeg(1:n);
-              end
-              idmec2seg1x(ic,:) = iddd;
-            case PRM.Y
-              if n > 0
-                idmec2meg1y(ic,1:n) = idmeg(1:n);
-              end
-              idmec2seg1y(ic,:) = iddd;
-          end
-        case 2
-          switch idir
-            case PRM.X
-              if n > 0
-                idmec2meg2x(ic,1:n) = idmeg(1:n);
-              end
-              idmec2seg2x(ic,:) = iddd;
-            case PRM.Y
-              if n > 0
-                idmec2meg2y(ic,1:n) = idmeg(1:n);
-              end
-              idmec2seg2y(ic,:) = iddd;
-          end
-      end
-    end
-  end
-end
-
-return
-end
-
-%--------------------------------------------------------------------------
-function [idsecc2mec, idsecc2crep, idsecc2mem, idsecc2repm] = ...
-  find_crep(com)
-%find_crep - 柱断面ごとの部材番号と代表部材番号を求める
-%
-%   [idsecc2mec, idsecc2crep, idsecc2mem, idsecc2repm] = find_crep(com)
-%   は、柱断面を使う部材を集め、その最初の部材番号を代表とする。
-%
-%   入力引数:
-%     com - 柱断面と部材の対応を持つ共通データ
-%
-%   出力引数:
-%     idsecc2mec  - 断面ごとの柱部材番号 {nsecc×1}
-%     idsecc2crep - 代表柱部材番号 [nsecc×1]（部材なしは0）
-%     idsecc2mem  - 断面ごとの統一部材番号 {nsecc×1}
-%     idsecc2repm - 代表統一部材番号 [nsecc×1]（部材なしは0）
-
-% 共通定数
-nmec = com.nmec;
-nsecc = com.nsecc;
-nme = com.nme;
-
-% 共通配列
-member_column = com.member.column;
-member_property = com.member.property;
-
-% 該当断面を持つ部材の数え上げ
-idsecc2mec = cell(nsecc,1);
-idsecc2crep = zeros(nsecc,1);
-idsecc2mem = cell(nsecc,1);
-idsecc2repm = zeros(nsecc,1);
-iccc = 1:nmec;
-immm = 1:nme;
-for isecc=1:nsecc
-  % 柱部材番号
-  ic = iccc(member_column.idsecc==isecc);
-  idsecc2mec{isecc} = ic;
-  if (~isempty(ic)>0)
-    idsecc2crep(isecc) = ic(1);
-  end
-  % 部材番号
-  im = immm(member_property.idsecc==isecc);
-  idsecc2mem{isecc} = im;
-  if (~isempty(im)>0)
-    idsecc2repm(isecc) = im(1);
-  end
-end
-
-return
-end
-
-%--------------------------------------------------------------------------
-function [idseg2meg, idseg2repg, idseg2mem, idseg2repm] = find_repg(com)
-%find_repg - 梁断面ごとの部材番号と代表部材番号を求める
-%
-%   [idseg2meg, idseg2repg, idseg2mem, idseg2repm] = find_repg(com)
-%   は、梁断面を使う部材を集め、その最初の部材番号を代表とする。
-%
-%   入力引数:
-%     com - 梁断面と部材の対応を持つ共通データ
-%
-%   出力引数:
-%     idseg2meg  - 断面ごとの梁部材番号 {nsecg×1}
-%     idseg2repg - 代表梁部材番号 [nsecg×1]（部材なしは0）
-%     idseg2mem  - 断面ごとの統一部材番号 {nsecg×1}
-%     idseg2repm - 代表統一部材番号 [nsecg×1]（部材なしは0）
-
-% 共通定数
-nmeg = com.nmeg;
-nsecg = com.nsecg;
-nme = com.nme;
-
-% 共通配列
-member_girder = com.member.girder;
-member_property = com.member.property;
-
-% 該当断面を持つ部材の数え上げ
-idseg2meg = cell(nsecg,1);
-idseg2repg = zeros(nsecg,1);
-idseg2mem = cell(nsecg,1);
-idseg2repm = zeros(nsecg,1);
-iggg = 1:nmeg;
-immm = 1:nme;
-for isecg=1:nsecg
-  % 梁部材番号
-  ig = iggg(member_girder.idsecg==isecg);
-  idseg2meg{isecg} = ig;
-  if (~isempty(ig)>0)
-    idseg2repg(isecg) = ig(1);
-  end
-  % 部材番号
-  im = immm(member_property.idsecg==isecg);
-  idseg2mem{isecg} = im;
-  if (~isempty(im)>0)
-    idseg2repm(isecg) = im(1);
-  end
-end
-return
-end
-
-%--------------------------------------------------------------------------
 function  [idvar2srep, idsec2srep, idsrep2sec] = find_idvar2srep(com)
 %find_idvar2srep - 設計変数・断面・代表断面の対応を求める
 %

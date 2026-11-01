@@ -465,9 +465,6 @@ return
 
     addnode.type(:) = PRM.NODE_BRACE_FOR_GIRDER;
 
-    % 分割梁兄弟ポインタの初期化（既存梁は全て0）
-    member_girder.idsplit = zeros(size(member_girder,1), 1);
-
     % 梁の分割（元の梁→KBRACE1左側、新規梁→KBRACE2右側）
     idg_unique = idg(idu2o);
     addgirder = member_girder(idg_unique,:);

@@ -1,15 +1,16 @@
-function [com, options] = read_frame_data(input, options)
-%read_frame_data - 入力CSVを読み込み解析共通データを構築する
+function [com, dbc, options] = read_frame_data(input, options)
+%read_frame_data - 架構・断面・材料の入力を検証して正規化する
 %
-%   [com, options] = read_frame_data(input, options) は、入力ブロックを
-%   階・節点・断面・部材・荷重へ対応付け、計算条件を更新する。
+%   [com, dbc, options] = read_frame_data(input, options) は、
+%   階・節点・断面・部材の入力を整理し、計算条件を更新する。
 %
 %   入力引数:
 %     input   - 入力CSVのパス
 %     options - 読込前の計算条件
 %
 %   出力引数:
-%     com     - 解析共通データ
+%     com     - 初回構築前の正規化した架構入力
+%     dbc     - 荷重読込へ渡す入力データブロックの読込オブジェクト
 %     options - 入力指定を反映した計算条件
 
 %  --- 新旧対応 ---
@@ -475,20 +476,6 @@ com.girder_stiffening = girder_stiffening;
 %% 柱の座屈長さ係数（直接入力）
 com.column_buckling_K = set_member_column_buckling_length_block(dbc, com);
 
-%% 節点自由度の数え上げ
-[idnode2df, idnode2ind, idstory2noderep, xr, yr, ndf, idf2node, ...
-  story_isrigid] = countup_node2df(com);
-node.dof = idnode2df;
-node.ind = idnode2ind;
-node.xr = xr;
-node.yr = yr;
-story.idnoderep = idstory2noderep;
-story.isrigid = story_isrigid;
-com.node = node;
-com.story = story;
-com.ndf = ndf;
-com.idf2node = idf2node;
-
 %% スラブ協力幅
 com.member.girder = set_member_girder_slab_block(dbc, com);
 
@@ -524,80 +511,10 @@ com.exclusion.girder_smooth.idme = idexclusion;
 idexclusion = set_exclusion_column_diameter_gap_block(dbc, com);
 com.exclusion.column_diameter_gap.idme = idexclusion;
 
-%% 名目梁（set_legacy_girder_force_blockで使用）
-[nominal_girder, idnominal_girder] = countup_nominal_girder(com);
-com.nominal.girder = nominal_girder;
-com.member.girder.idnominal = idnominal_girder;
-
 %% 荷重ケース
 loadcase = set_loadcase_block(dbc);
 com.loadcase = loadcase;
 com.nlc = size(loadcase,1);
-
-%% 初期断面の形状と解析部材を荷重の割当前に確定する
-com = parse_frame_data(com);
-% 断面管理は入力時に一度だけ構築する。候補ごとの部材番号を保持しない。
-design = com.design;
-Hp = design.variable.idvar(design.variable.type == PRM.WFS_H);
-Bp = design.variable.idvar(design.variable.type == PRM.WFS_B);
-twp = design.variable.idvar(design.variable.type == PRM.WFS_TW);
-tfp = design.variable.idvar(design.variable.type == PRM.WFS_TF);
-Dp = design.variable.idvar(design.variable.type == PRM.HSS_D);
-tp = design.variable.idvar(design.variable.type == PRM.HSS_T);
-HsrDp = design.variable.idvar(design.variable.type == PRM.HSR_D);
-Hsrtp = design.variable.idvar(design.variable.type == PRM.HSR_T);
-brb1p = design.variable.idvar(design.variable.type == PRM.BRB_V1);
-brb2p = design.variable.idvar(design.variable.type == PRM.BRB_V2);
-com.secmgr = create_section_manager(Hp, Bp, twp, tfp, Dp, tp, ...
-  HsrDp, Hsrtp, brb1p, brb2p, com, com.sectionList, options);
-xini = extract_initial_design_value(com, options);
-if ~isempty(xini)
-  com.design.variable.value = xini(:);
-end
-secdim = com.secmgr.findNearestSection(com.design.variable.value, options);
-com = update_frame_data(secdim, com, options);
-idm2n = [com.member.property.idnode1 com.member.property.idnode2];
-lm = calc_member_length_from_node(com.node, idm2n);
-com.member.girder = countup_girder_stiffening(com, lm);
-[com.member.girder, com.nominal.girder] = ...
-  countup_girder_stiffening_direct(com, lm);
-
-%% 節点荷重
-% 形式はブロック単位で判定し、従来形式だけをここで読む（内部設計4章）
-nodal_blocks = dbc.get_data_blocks('節点荷重');
-is_legacy_nodal = arrayfun(@is_legacy_nodal_force_block, nodal_blocks);
-fnode = set_legacy_nodal_force_block(nodal_blocks(is_legacy_nodal), com);
-fnode = add_earthquake_force_position_mz(dbc, com, fnode);
-
-%% 追加節点荷重
-[faddnode, faddnode_report_excl] = set_additive_nodal_force_block(...
-  dbc, com);
-
-%% 要素荷重
-% 旧梁要素荷重は互換アダプター内で現行挙動を維持する
-com.force.legacy_element = set_legacy_girder_force_block(dbc, com);
-[ar, M0] = calc_element_force_ar(com.force.legacy_element, com.nme, ...
-  com.nlc);
-
-%% 新形式の要素荷重・節点荷重・応力計算用特殊荷重
-com.force.element = set_element_force_block(dbc, com);
-com.force.nodal = [ ...
-  set_nodal_force_block(nodal_blocks(~is_legacy_nodal), dbc, com); ...
-  set_cantilever_force_block(dbc, com)];
-
-% 共通内部データの解析対象行を既存の荷重配列へ線形加算する
-[ar_element, M0_element] = calc_element_force_ar(com.force.element, ...
-  com.nme, com.nlc);
-fnode_nodal = calc_nodal_force_fnode(com.force.nodal, com.nnode, com.nlc);
-
-%% 荷重ベクトルの保存
-% 解析は合算値を使い、重量分類は形式別の入力データから直接求める
-com.force.legacy_fnode = fnode;
-com.fnode = fnode + fnode_nodal;
-com.faddnode = faddnode;
-com.faddnode_report_excl = faddnode_report_excl;
-com.ar = ar + ar_element;
-com.M0 = M0 + M0_element;
 
 % 未使用行の判定が終わった読込境界で、下流のフラグを論理型にする。
 com.design.variable.isvar = com.design.variable.isvar > 0;
@@ -1172,8 +1089,8 @@ end
 % 節点番号
 idnode = zeros(n,1);
 for i=1:n
-  idnode(i) = find(com.node.idx==idx(i) ...
-    & com.node.idy==idy(i) & com.node.idstory==idstory(i));
+  idnode(i) = find(com.node.idx==idx(i) & com.node.idy==idy(i) & ...
+    com.node.idstory==idstory(i));
 end
 
 % 結果の保存
@@ -1225,8 +1142,8 @@ end
 % 節点番号
 idnode = zeros(n,1);
 for i=1:n
-  idn_ = find(com.node.idx==idx(i) ...
-    & com.node.idy==idy(i) & com.node.idstory==idstory(i));
+  idn_ = find(com.node.idx==idx(i) & com.node.idy==idy(i) & ...
+    com.node.idstory==idstory(i));
   if ~isempty(idn_)
     idnode(i) = idn_;
   end
@@ -1342,8 +1259,8 @@ idm2ctype(com.member.column.idme) = idmc2ctype;
 for i=1:n
   idsc = idsecc(i);
   idme2seccb(idm2sc==idsc&idm2story==2&idm2ctype==PRM.COLUMN_STANDARD) = i;
-  idme2seccb(idm2sc==idsc & idm2story==2 ...
-    & idm2ctype==PRM.COLUMN_FOR_BRACE_BODY) = i;
+  idme2seccb(idm2sc==idsc & idm2story==2 & ...
+    idm2ctype==PRM.COLUMN_FOR_BRACE_BODY) = i;
   % idme2seccb(idm2sc==idsc & idm2story==2 ...
   %   & idm2ctype==PRM.COLUMN_FOR_BRACE) = i;
   % idme2seccb(idm2sc==idsc&idm2z==1) = i;
@@ -1559,8 +1476,7 @@ factor_J = zeros(nme, 1);
 % 結果の保存
 member_property = table(type, idir, idmeg, idmec, idmeb, ...
   idmehb, section_type, idsec, idsecc, idsecg, idsecb, ...
-  idsechb, idnode1, idnode2, idstory, idvar, is_tension_only_hb, ...
-  factor_J);
+  idsechb, idnode1, idnode2, idstory, idvar, is_tension_only_hb, factor_J);
 return
 end
 
@@ -2832,150 +2748,3 @@ check_loadcase_names(name);
 loadcase = table(name, type_name, dir);
 return
 end
-
-%--------------------------------------------------------------------------
-function fnode = add_earthquake_force_position_mz(dbc, com, fnode)
-%add_earthquake_force_position_mz - 地震力の偏心による荷重を加える
-%
-%   fnode = add_earthquake_force_position_mz(dbc, com, fnode) は、
-%   地震力の作用位置によるねじり荷重を加える。
-%
-%   入力引数:
-%     dbc - 入力データブロックの読込オブジェクト
-%     com - 架構・断面・材料を含む共通データ
-%     fnode - 節点の方向別・ケース別荷重
-%
-%   出力引数:
-%     fnode - 節点の方向別・ケース別荷重
-
-data = dbc.get_data_block('地震力作用位置の直接入力');
-if isempty(data)
-  return
-end
-
-node = com.node;
-story = com.story;
-loadcase = com.loadcase;
-used = false(com.nstory, 1);
-for i=1:size(data,1)
-  floor_name = tochar(data{i,1});
-  rigid_name = tochar(data{i,2});
-  method = tochar(data{i,3});
-  if matches(method, '指定なし')
-    continue
-  end
-  if ~matches(rigid_name, '主剛床')
-    error('YLAB:Input:UnsupportedEarthquakeForcePosition', ...
-      '地震力作用位置は主剛床のみ対応しています（行 %d）', i);
-  end
-  if ~matches(method, '絶対座標')
-    error('YLAB:Input:UnsupportedEarthquakeForcePosition', ...
-      '地震力作用位置は絶対座標のみ対応しています（行 %d）', i);
-  end
-  if ismissing(data{i,6}) || ismissing(data{i,7})
-    error('YLAB:Input:InvalidEarthquakeForcePosition', ...
-      '地震力作用位置のX座標またはY座標が空欄です（行 %d）', i);
-  end
-
-  ist = find(matches(story.floor_name, floor_name), 1);
-  if isempty(ist)
-    ist = find(matches(story.name, floor_name), 1);
-  end
-  if isempty(ist)
-    error('YLAB:Input:EarthquakeForcePositionStoryNotFound', ...
-      '地震力作用位置の階が見つかりません（行 %d: %s）', ...
-      i, floor_name);
-  end
-  if used(ist)
-    error('YLAB:Input:DuplicateEarthquakeForcePosition', ...
-      '地震力作用位置が同じ層に複数指定されています（行 %d）', i);
-  end
-  used(ist) = true;
-
-  idnode = story.idnoderep(ist);
-  if isnan(idnode)
-    error('YLAB:Input:EarthquakeForcePositionNodeNotFound', ...
-      '地震力作用位置を反映する代表節点が見つかりません（行 %d）', i);
-  end
-  posx = data{i,6};
-  posy = data{i,7};
-  for ilc=1:com.nlc
-    lcdir = loadcase.dir(ilc);
-    if lcdir ~= PRM.EXP && lcdir ~= PRM.EXN ...
-        && lcdir ~= PRM.EYP && lcdir ~= PRM.EYN
-      continue
-    end
-    isnode = node.idstory == ist;
-    fx = sum(fnode(isnode, 1, ilc));
-    fy = sum(fnode(isnode, 2, ilc));
-    mz = fx * (story.yg(ist) - posy) + fy * (posx - story.xg(ist));
-    fnode(idnode, 6, ilc) = fnode(idnode, 6, ilc) + mz;
-  end
-end
-
-return
-end
-
-%--------------------------------------------------------------------------
-function [fnode, fnode_excl] = set_additive_nodal_force_block(dbc, com)
-%set_additive_nodal_force_block - 追加節点荷重と帳票の非計上分を読み込む
-%
-%   [fnode, fnode_excl] = set_additive_nodal_force_block(dbc, com) は、
-%   追加節点荷重と帳票の非計上分を読み込む。
-%
-%   入力引数:
-%     dbc - 入力データブロックの読込オブジェクト
-%     com - 架構・断面・材料を含む共通データ
-%
-%   出力引数:
-%     fnode - 節点の方向別・ケース別荷重
-%     fnode_excl - 追加節点荷重の帳票非計上分
-%
-%   備考:
-%     同一節点・同一ケースで2回目に出現する行（SS7変換の2巡目。片持梁
-%     先端Qo相当）は等価節点荷重の帳票で非計上とするため fnode_excl に
-%     分離する。fnode は解析用に全量（1巡目+2巡目）を保持する。
-
-data = dbc.get_data_block('追加節点荷重');
-n = size(data,1);
-
-% 荷重ケース名
-name = cell(n,1);
-for i=1:n
-  name{i} = tochar(data{i,1});
-end
-
-node = com.node; nnode = com.nnode;
-loadcase = com.loadcase; nlc = com.nlc;
-f = zeros(n,6);
-fnode = zeros(nnode, 6, nlc);
-fnode_excl = zeros(nnode, 6, nlc);
-seen = false(nnode, nlc);
-lcase = zeros(n,1);
-idx = zeros(n,1);
-idy = zeros(n,1);
-idz = zeros(n,1);
-idnode = zeros(n,1);
-for i=1:n
-  lcase(i) = find(matches(loadcase.name, name{i}));
-  idx(i) = find(matches(com.baseline.x.name, tochar(data{i,3})));
-  idy(i) = find(matches(com.baseline.y.name, tochar(data{i,4})));
-  idz(i) = find(matches(com.baseline.z.name, tochar(data{i,2})));
-  idnode(i) = find((node.idx==idx(i))&(node.idy==idy(i)) ...
-    &(node.idz==idz(i)));
-  f(i,:) = cell2mat(data(i,5:10));
-  in = idnode(i); lc = lcase(i);
-  fadd = reshape(f(i,:), 1, 6);
-  fnode(in, :, lc) = fnode(in, :, lc) + fadd;
-  % 2回目の出現は帳票非計上分として分離（解析は全量を保持）
-  if seen(in, lc)
-    fnode_excl(in, :, lc) = fnode_excl(in, :, lc) + fadd;
-  else
-    seen(in, lc) = true;
-  end
-  % 剛床偏心 Mz は node_to_dof_vec で集約時に加算する
-end
-
-return
-end
-

@@ -1,17 +1,38 @@
-function report_input_issues(issues)
+function issues = report_input_issues(issues, varargin)
 %report_input_issues - 入力警告を種別ごとに集約して通知する
 %
-%   report_input_issues(issues) は、収集した入力警告を警告IDごとに
-%   集約し、入力位置、入力値、入力・適用・未反映件数および
-%   フォールバック先を一つのメッセージで通知する。
+%   issues = report_input_issues(issues, element_force, nodal_force)
+%   は、解決済み荷重表から重量分類の警告の適用件数を確定し、
+%   入力位置、件数とフォールバック先を警告IDごとにまとめて通知する。
 %
 %   入力引数:
-%     issues - add_input_issueで収集した警告レコード構造体配列
+%     issues   - add_input_issueで収集した警告レコード構造体配列
+%     varargin - 解決済み荷重表。block_name、iblock、csv_row列を使う
+%                表がなければ重量分類の警告は未反映として通知する
+%
+%   出力引数:
+%     issues - 荷重の割当結果に基づく件数を持つ警告レコード
 if isempty(issues)
   return
 end
 
 ids = {issues.id};
+% 重量分類の警告は入力行ごとに数え、同じ入力位置の荷重が残る場合に
+% 適用とする。地震用の荷重はilc=0でも重量への反映対象となる。
+for k = find(ismember(ids, {'ElementLoadUnknownType', ...
+    'ElementLoadLlUnusualType'}))
+  issues(k).applied_count = 0;
+  for j = 1:numel(varargin)
+    force = varargin{j};
+    if any(strcmp(force.block_name, issues(k).block_name) & ...
+        force.iblock == issues(k).iblock & force.csv_row == issues(k).row)
+      issues(k).applied_count = issues(k).input_count;
+      break
+    end
+  end
+  issues(k).unapplied_count = ...
+    issues(k).input_count - issues(k).applied_count;
+end
 unique_ids = unique(ids, 'stable');
 for iid = 1:length(unique_ids)
   selected = issues(strcmp(ids, unique_ids{iid}));
@@ -47,6 +68,15 @@ end
 
 function values = unique_nonempty(values)
 %unique_nonempty - 空文字を除いた一意な文字列を出現順で返す
+%
+%   values = unique_nonempty(values) は、警告の入力値・詳細から
+%   空文字と重複を除き、最初に現れた順の文字列を返す。
+%
+%   入力引数:
+%     values - 警告に記録した文字列のセル配列
+%
+%   出力引数:
+%     values - 空文字と重複を除いた文字列のセル配列
 values = values(~cellfun(@isempty, values));
 values = unique(values, 'stable');
 

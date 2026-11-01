@@ -1,17 +1,16 @@
 function member_column = set_member_column_p1_block(dbc, com)
 %set_member_column_p1_block - 柱配置データを読み込み柱部材テーブルを作成
-%   （P1ブロック処理）
 %
-% 「柱配置」データブロックから柱の配置情報を読み込み、
-% 名前からIDへの変換を行って柱部材テーブルを生成する。
-% 断面番号・節点番号・変数番号はP2ブロックで設定される。
+%   member_column = set_member_column_p1_block(dbc, com) は、柱配置の
+%   階・軸名を番号へ変換し、未分割の柱部材テーブルを生成する。
+%   断面番号・節点番号・変数番号はP2ブロックで設定する。
 %
-% 入力:
-%   dbc: データブロックコントローラ
-%   com: 共通データ構造体
+%   入力引数:
+%     dbc - 入力データブロックの読込オブジェクト
+%     com - 基準線と層の対応を持つ共通データ
 %
-% 出力:
-%   member_column: 柱部材テーブル
+%   出力引数:
+%     member_column - 柱部材テーブル。以下の列を持つ。
 %     .floor_name     - 柱頭側階名 {n×1} cell
 %     .top_floor_name - 柱頭階名 {n×1} cell
 %     .coord_name     - 通り名 {n×2} cell（X, Y）
@@ -26,6 +25,7 @@ function member_column = set_member_column_p1_block(dbc, com)
 %     .idnode1/2      - 節点番号 [n×1]（P2で設定）
 %     .cxl, .cyl      - 方向余弦 [n×3]（後続処理で設定）
 %     .idvar          - 変数番号 [n×MAX_NSVAR]（P2で設定）
+%     .idsplit        - 分割相手の柱番号 [n×1]（初回は0）
 %
 % データブロック形式（柱配置）:
 %   列1: 階名, 列2: X通り, 列3: Y通り, 列4: 断面符号,
@@ -128,10 +128,13 @@ cyl = zeros(n,3);
 % 柱タイプ（標準柱）
 type = PRM.COLUMN_STANDARD*ones(n,1);
 
+% 初回は分割相手なし。断面確定後の柱分割で相手の番号を設定する。
+idsplit = zeros(n,1);
+
 % 柱部材テーブルの生成
 member_column = table(floor_name, top_floor_name, coord_name, ...
   section_name, type, angle, idstory, idfloor, idx, idy, idz, ...
-  idsecc, idnode1, idnode2, cxl, cyl, idvar);
+  idsecc, idnode1, idnode2, cxl, cyl, idvar, idsplit);
 
 return
 end

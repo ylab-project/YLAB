@@ -100,17 +100,14 @@ end
 
 % 解析分割前の元梁部材番号
 idmeg0 = idmeg;
-if has_table_field(girder, 'idsplit')
-  for i = 1:nnmg
-    for j = 1:mcol
-      ig = idmeg(i,j);
-      if ig == 0
-        continue
-      end
-      if girder.type(ig) == PRM.GIRDER_FOR_KBRACE2 ...
-          && girder.idsplit(ig) > 0
-        idmeg0(i,j) = girder.idsplit(ig);
-      end
+for i = 1:nnmg
+  for j = 1:mcol
+    ig = idmeg(i,j);
+    if ig == 0
+      continue
+    end
+    if girder.type(ig) == PRM.GIRDER_FOR_KBRACE2 && girder.idsplit(ig) > 0
+      idmeg0(i,j) = girder.idsplit(ig);
     end
   end
 end
@@ -186,6 +183,3 @@ nominal_girder = table(idmeg, idmeg0, idsub, story_name, ...
   idsecg, isthrough, is_allowable_stress);
 return
 end
-
-
-

@@ -56,30 +56,26 @@ for i=1:n
 end
 
 % 分割梁兄弟の追加（idsplitをたどる）
-if isfield(member_girder, 'idsplit') || ...
-    (istable(member_girder) && ismember('idsplit', ...
-    member_girder.Properties.VariableNames))
-  idsplit = member_girder.idsplit;
-  for i = 1:n
-    jmax = nnz(idmeg(i,:));
-    for j = 1:jmax
-      sib = idsplit(idmeg(i,j));
-      if sib > 0 && ~any(idmeg(i,:) == sib)
-        % グループ始端・終端が検索範囲内か検証
-        grp = sort([idmeg(i,j), sib]);
-        if ~check_group_range(grp, idxlist, idx(i,:), ...
-            idylist, idy(i,:), baseline)
-          continue
-        end
-        jmax = jmax + 1;
-        idmeg(i, jmax) = sib;
-        ncol = max(ncol, jmax);
+idsplit = member_girder.idsplit;
+for i = 1:n
+  jmax = nnz(idmeg(i,:));
+  for j = 1:jmax
+    sib = idsplit(idmeg(i,j));
+    if sib > 0 && ~any(idmeg(i,:) == sib)
+      % グループ始端・終端が検索範囲内か検証
+      grp = sort([idmeg(i,j), sib]);
+      if ~check_group_range(grp, idxlist, idx(i,:), ...
+          idylist, idy(i,:), baseline)
+        continue
       end
+      jmax = jmax + 1;
+      idmeg(i, jmax) = sib;
+      ncol = max(ncol, jmax);
     end
-    % 通り順にソート（梁番号の昇順）
-    if jmax > 1
-      idmeg(i, 1:jmax) = sort(idmeg(i, 1:jmax));
-    end
+  end
+  % 通り順にソート（梁番号の昇順）
+  if jmax > 1
+    idmeg(i, 1:jmax) = sort(idmeg(i, 1:jmax));
   end
 end
 
@@ -197,4 +193,3 @@ end
 
 return
 end
-

@@ -27,7 +27,7 @@ lm = calc_member_length_from_node(com.node, ...
 if ~isempty(options.x0)
   x0 = options.x0;
 else
-  x0 = secmgr.generateRandomXvar(0, lm, options);
+  x0 = secmgr.generateRandomXvar(0, com.member, lm, options);
 end
 x0 = x0(:)';
 cvec0 = analysis_constraint_xvar(x0, com, options);
@@ -57,7 +57,7 @@ switch options.display
   otherwise
     display_mode = 'final';
 end
-    
+
 % GA計算条件
 gaoptions = optimoptions('ga');
 gaoptions = optimoptions(gaoptions, 'InitialPopulationMatrix', intx0);
@@ -72,7 +72,7 @@ gaoptions = optimoptions(gaoptions, 'Display', display_mode);
 prob.solver = 'ga';
 prob.fitnessfcn = @objfun;
 prob.nvars = nvar;
-prob.Aineq = [];	
+prob.Aineq = [];
 prob.Bineq	= [];
 prob.Aeq	= [];
 prob.Beq	= [];

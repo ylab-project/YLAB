@@ -1,5 +1,4 @@
-function [xopt, fopt, exitflag, history] = lsr( ...
-  xvar, com, history, options)
+function [xopt, fopt, exitflag, history] = lsr(xvar, com, history, options)
 %lsr - 近傍探索と復元候補の実評価で設計変数を更新する
 %
 %   [xopt, fopt, exitflag, history] = lsr(xvar, com, history, options)
@@ -46,8 +45,7 @@ display_mode = options.display;
 do_restration = options.do_restration;
 % do_parallel = options.do_parallel;
 copts = options.coptions;
-consider_girder_height_gap = ...
-  copts.consider_girder_height_gap_var | ...
+consider_girder_height_gap = copts.consider_girder_height_gap_var | ...
   copts.consider_girder_height_gap_section;
 consider_girder_height_smooth = copts.consider_girder_height_smooth_var;
 consider_column_diameter_gap = copts.consider_column_diameter_gap;
@@ -228,37 +226,32 @@ for iter = start_iter+1:max_iter+1
 
       % 梁せい差
       if consider_girder_height_gap
-        xlist_ggap = restore_girder_height_gap_ip(...
-          xlist, idvlist, secmgr, isvar, options);
+        xlist_ggap = restore_girder_height_gap_ip(xlist, idvlist, ...
+          secmgr, isvar, options);
       else
         xlist_ggap = [];
       end
 
       % 梁せい分布の平滑化
       if consider_girder_height_smooth
-        xlist_gsm = restore_girder_height_smooth(...
-          xlist, idvlist, secmgr, com.height_smooth, isvar, options);
+        xlist_gsm = restore_girder_height_smooth(xlist, idvlist, ...
+          secmgr, com.height_smooth, isvar, options);
       else
         xlist_gsm = [];
       end
 
       % 柱外径差
       if consider_column_diameter_gap
-        xlist_cgap = restore_column_diameter_gap(...
-          xlist, Dgap, secmgr, isvar, options);
+        xlist_cgap = restore_column_diameter_gap(xlist, Dgap, secmgr, ...
+          isvar, options);
       else
         xlist_cgap = [];
       end
 
-      % 曲げ許容応力
-      xlist_2 = [];
-      % xlist_2 = restore_section_height(xvar, st, stc, C, com, options);
-      % xlist_2 = restore_section_height(xlist, st, stc, C, com, options);
-
       % 細長比・幅厚比の修正
       if consider_slenderness_ratio && ~options.do_limit_slr_section
-        xlist_slr = restore_girder_slratio(...
-          xvar, member, matF, restoration, secmgr, options);
+        xlist_slr = restore_girder_slratio(xvar, member, matF, ...
+          restoration, secmgr, options);
       else
         xlist_slr = xvar;
       end
@@ -292,16 +285,15 @@ for iter = start_iter+1:max_iter+1
       % 柱梁耐力比 -> B,Dの修正
       % xlist_slr は slr スキップ時でも xvar を含むため常に非空。
       n_cgsr_in = size(xlist_slr, 1);
-      cgsr_sdlist = zeros(size(result.secdim, 1), ...
-        size(result.secdim, 2), n_cgsr_in);
-      use_worker_cache = options.do_parallel && ...
-        isa(com.constant, 'parallel.pool.Constant');
+      cgsr_sdlist = zeros(size(result.secdim, 1), size(result.secdim, ...
+        2), n_cgsr_in);
+      use_worker_cache = options.do_parallel && isa(com.constant, ...
+        'parallel.pool.Constant');
       if use_worker_cache
         worker_com_cache = com.constant;
         parfor il = 1:n_cgsr_in
           worker_com = worker_com_cache.Value; %#ok<PFBNS>
-          cgsr_sdlist(:, :, il) = ...
-            worker_com.secmgr.findNearestSection( ...
+          cgsr_sdlist(:, :, il) = worker_com.secmgr.findNearestSection( ...
             xlist_slr(il, :), options, initial_guess);
         end
       elseif options.do_parallel
@@ -353,18 +345,11 @@ for iter = start_iter+1:max_iter+1
       sd_neighborhood = cat(3, sd_neighborhood, sdlist_wt, sdlist_group);
 
       % 候補解集合の追加
-      xlist  = [xlist; ...
-        xlist_ggap; xlist_gsm; xlist_cgap; xlist_2;  ...
+      xlist  = [xlist; xlist_ggap; xlist_gsm; xlist_cgap; ...
         xlist_slr; xlist_jbs; xlist_cgsr; ...
         xlist_wt; xlist_group]; %#ok<AGROW>
       xlist = unique(xlist, 'rows', 'stable');
 
-      % if iter<=inf
-      %   xlist_ = restore_section_thickness(xlist, st, stc, C, ...
-      %     com, options);
-      %   xlist  = [xlist; xlist_];
-      %   xlist  = unique(xlist, 'rows', 'stable');
-      % end
       % xlist = secmgr.findNearestXList(xlist, options);
       % xlist  = unique(xlist, 'rows', 'stable');
     end
@@ -373,10 +358,10 @@ for iter = start_iter+1:max_iter+1
   % xlist0 = xlist;
   xlist(:,~isvar) = repmat(x0(~isvar), nlist, 1);
   [is_reused, reuse_index] = ismember(xlist, x_neighborhood, 'rows');
-  candidate_sdlist = zeros(size(result.secdim, 1), ...
-    size(result.secdim, 2), nlist);
-  candidate_sdlist(:, :, is_reused) = ...
-    sd_neighborhood(:, :, reuse_index(is_reused));
+  candidate_sdlist = zeros(size(result.secdim, 1), size(result.secdim, ...
+    2), nlist);
+  candidate_sdlist(:, :, is_reused) = sd_neighborhood(:, :, ...
+    reuse_index(is_reused));
   if any(~is_reused)
     missing_sdlist = secmgr.findNearestSectionList( ...
       xlist(~is_reused, :), options, initial_guess, com);
@@ -391,8 +376,8 @@ for iter = start_iter+1:max_iter+1
   if collect_lsr_timing
     stage_timer = tic;
   end
-  [pflist, flist, clist, vlist, isexec] = ...
-    compute_pflist(pffun, xlist, sdlist, com, options, cache);
+  [pflist, flist, clist, vlist, isexec] = compute_pflist(pffun, xlist, ...
+    sdlist, com, options, cache);
   if collect_lsr_timing
     time_evaluation = toc(stage_timer);
   end
@@ -451,8 +436,8 @@ return
   %   出力引数:
   %     なし
 
-    [maxvio, idmaxvio, idmaxvioc, ccategory] = ...
-      extract_convio(ncon, clabel, tau, cvec);
+    [maxvio, idmaxvio, idmaxvioc, ccategory] = extract_convio(ncon, ...
+      clabel, tau, cvec);
     % 表示用の違反量ノルム。calc_penalty が返した vio をそのまま使う
     vnorm = sum(vio.^ppp,2)^(1/ppp);
     switch(display_mode)
@@ -474,8 +459,8 @@ return
           end
           fprintf('mu:%6.1f ', max(muvec));
         end
-        fprintf('idvio:%4d（%s:%d） time:%f\n', ...
-          idmaxvio, ccategory, idmaxvioc, toc);
+        fprintf('idvio:%4d（%s:%d） time:%f\n', idmaxvio, ccategory, ...
+          idmaxvioc, toc);
       case 'Iter10'
         fprt_ = sprintf('%6.1f', fval);
         cprt_ = sprintf('%6.3f', maxvio);

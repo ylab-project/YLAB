@@ -20,7 +20,7 @@ function [head, ilc, issues] = read_weight_head(names, ilc_gp, ...
 %   出力引数:
 %     head   - 区分の解釈結果。is_validが偽の行は反映しない
 %     ilc    - 解析荷重ケース番号。地震用と未解釈は0
-%     issues - 警告を追加した警告レコード
+%     issues - 未割当として記録した警告。適用件数は通知時に確定する
 ilc = 0;
 head = read_weight_category(names{1}, names{2}, names{3});
 if ~head.is_valid
@@ -31,13 +31,13 @@ if ~head.is_valid
 end
 if head.unknown_type
   issues = add_input_issue(issues, 'ElementLoadUnknownType', ...
-    names{3}, block_name, iblock, csv_row, names{3}, 1, 1, 0, ...
+    names{3}, block_name, iblock, csv_row, names{3}, 1, 0, 1, ...
     PRM.WTYPE_NAMES{PRM.WTYPE_FLOOR});
 end
 if head.is_unusual
   input_value = sprintf('%s/%s', names{1}, names{3});
   issues = add_input_issue(issues, 'ElementLoadLlUnusualType', '', ...
-    block_name, iblock, csv_row, input_value, 1, 1, 0, '');
+    block_name, iblock, csv_row, input_value, 1, 0, 1, '');
 end
 if head.wusage ~= PRM.WUSAGE_SEISMIC
   ilc = ilc_gp;

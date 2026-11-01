@@ -1,28 +1,22 @@
-function createPropertyCalculator(secmgr, secList, material, ...
-    idsec2mat, idMapper)
-% SectionPropertyCalculatorインスタンスを作成・初期化
+function createPropertyCalculator(secmgr, secList, material, idsec2mat)
+%createPropertyCalculator - 断面の材料・係数の計算を初期化する
 %
-% この関数は、SectionPropertyCalculatorのインスタンスを作成し、
-% SectionManagerのpropertyCalculatorプロパティに設定する。
-%
-% Syntax
 %   createPropertyCalculator(secmgr, secList, material, ...
-%     idsec2mat, idMapper)
+%   idsec2mat)
+%   は、断面リストと材料対応から性能計算オブジェクトを作り、
+%   secmgrのpropertyCalculator_に設定する。
 %
-% Inputs
-%   secmgr - SectionManager オブジェクト
-%   secList - SectionListHandlerオブジェクト
-%   material - 材料データオブジェクト
-%   idsec2mat - デフォルト断面→材料IDマッピング
-%   idMapper - IdMapperオブジェクト
+%   入力引数:
+%     secmgr - 計算オブジェクトを設定する断面管理
+%     secList - 材料・係数を含む断面リスト
+%     material - 材料定数を持つ構造体
+%     idsec2mat - 各断面の既定材料番号 [nsec×1]
 %
-% Example
-%   >> secmgr.createPropertyCalculator(secList, material, ...
-%        idsec2mat, idMapper);
+%   出力引数:
+%     なし。secmgr.propertyCalculator_へ設定する。
 
-% SectionPropertyCalculatorインスタンスを作成
-secmgr.propertyCalculator_ = ...
-  SectionPropertyCalculator(secList, material, idsec2mat, idMapper);
+secmgr.propertyCalculator_ = SectionPropertyCalculator(secList, ...
+  material, idsec2mat);
 
 return
 end

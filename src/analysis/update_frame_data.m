@@ -61,12 +61,11 @@ for i = 1:numel(idb)
   L = com.node.z(in2) - com.node.z(in1);
   if 0 < a && a < L
     % 区間配分を検証した鉛直S柱に限定する。
-    if com.node.x(in1) ~= com.node.x(in2) ...
-        || com.node.y(in1) ~= com.node.y(in2) || mc.angle(ic) ~= 0 ...
-        || com.member.property.section_type(mc.idme(ic)) == PRM.RCRS
+    if com.node.x(in1) ~= com.node.x(in2) || com.node.y(in1) ~= ...
+        com.node.y(in2) || mc.angle(ic) ~= 0 || ...
+        com.member.property.section_type(mc.idme(ic)) == PRM.RCRS
       throw_err('Geometry', 'BraceColumnSplitUnsupported', ...
-        ic, mc.floor_name{ic}, mc.coord_name{ic, 1}, ...
-        mc.coord_name{ic, 2});
+        ic, mc.floor_name{ic}, mc.coord_name{ic, 1}, mc.coord_name{ic, 2});
     end
     z(ic) = ztop;
   end
@@ -233,10 +232,7 @@ com.nme = height(mp);
 com.column_buckling_K.Kx = com.column_buckling_K.Kx([(1:nmc)'; ids]);
 com.column_buckling_K.Ky = com.column_buckling_K.Ky([(1:nmc)'; ids]);
 
-[com.node.dof, com.node.ind, com.story.idnoderep, com.node.xr, ...
-  com.node.yr, com.ndf, com.idf2node, com.story.isrigid] = ...
-  countup_node2df(com);
-com = parse_frame_data(com);
+com = update_frame_topology(com);
 
 % 荷重の作用先は物理節点・部材の対応から更新する。
 if isfield(com, 'force')

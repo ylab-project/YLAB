@@ -18,7 +18,7 @@ idsecg_steel = find(is_steel);
 [symbol_names, ~, isymbol_steel] = unique(section.name(is_steel), ...
   'stable');
 nsymbol = numel(symbol_names);
-idsecg2symbol = zeros(height(section), 1);
+idsecg2symbol = zeros(numel(section.type), 1);
 idsecg2symbol(idsecg_steel) = isymbol_steel;
 
 % S梁断面表の符号×階セルへH変数を配置する。
